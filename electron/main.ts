@@ -336,10 +336,18 @@ app.whenReady().then(() => {
     if (!payload.projectRoot || !payload.relativePath) return { ok: false }
     const targetPath = path.join(payload.projectRoot, payload.relativePath)
     try {
-      if (payload.isDirectory) {
+      const stat = await fs.stat(targetPath).catch(() => null)
+      if (!stat) {
+        return { ok: false, error: `Path not found: ${targetPath}` }
+      }
+
+      if (payload.isDirectory || stat.isDirectory()) {
         const err = await shell.openPath(targetPath)
         return { ok: !err, error: err || undefined }
       }
+
+      const err = await shell.openPath(path.dirname(targetPath))
+      if (err) return { ok: false, error: err }
       shell.showItemInFolder(targetPath)
       return { ok: true }
     } catch (error) {
