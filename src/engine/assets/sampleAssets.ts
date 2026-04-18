@@ -25,8 +25,17 @@ export const sampleAssetRoots: AssetNode[] = [
         type: 'folder',
         path: 'assets/scripts',
         children: [
+          { id: 'assets/scripts/player-input.js', name: 'player-input.js', type: 'script', path: 'assets/scripts/player-input.js' },
+          { id: 'assets/scripts/bullet-projectile.js', name: 'bullet-projectile.js', type: 'script', path: 'assets/scripts/bullet-projectile.js' },
           { id: 'assets/scripts/patrol.js', name: 'patrol.js', type: 'script', path: 'assets/scripts/patrol.js' },
-          { id: 'assets/scripts/spin.js', name: 'spin.js', type: 'script', path: 'assets/scripts/spin.js' }
+          { id: 'assets/scripts/orbit-around-chest.js', name: 'orbit-around-chest.js', type: 'script', path: 'assets/scripts/orbit-around-chest.js' },
+          { id: 'assets/scripts/spin.js', name: 'spin.js', type: 'script', path: 'assets/scripts/spin.js' },
+          {
+            id: 'assets/scripts/enemy-chase-respawn.js',
+            name: 'enemy-chase-respawn.js',
+            type: 'script',
+            path: 'assets/scripts/enemy-chase-respawn.js'
+          }
         ]
       },
       {

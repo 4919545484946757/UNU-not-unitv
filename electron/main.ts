@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -38,17 +38,215 @@ async function ensureProjectStructure(projectRoot: string) {
 }
 
 
-async function writeProjectFile(projectRoot: string) {
+async function writeProjectFile(projectRoot: string, projectName?: string) {
   const projectFile = path.join(projectRoot, 'project.json')
-  const projectName = path.basename(projectRoot)
+  const name = projectName?.trim() || path.basename(projectRoot)
   const payload = {
     format: 'unu-project',
     version: 1,
-    name: projectName,
+    name,
     createdAt: new Date().toISOString()
   }
   await fs.writeFile(projectFile, JSON.stringify(payload, null, 2), 'utf-8')
   return payload
+}
+
+async function exists(targetPath: string) {
+  try {
+    await fs.access(targetPath)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function copyIfExists(from: string, to: string) {
+  if (!(await exists(from))) return
+  await fs.mkdir(path.dirname(to), { recursive: true })
+  await fs.cp(from, to, { recursive: true, force: true })
+}
+
+async function writeSampleScriptFiles(projectRoot: string) {
+  const scriptsDir = path.join(projectRoot, 'assets', 'scripts')
+  await fs.mkdir(scriptsDir, { recursive: true })
+  const samples: Record<string, string> = {
+    'player-input.js': `export default {
+  onUpdate(ctx) {
+    const transform = ctx.entity.getTransform()
+    if (!transform) return
+    const speed = 140
+    const move = ctx.api.input.getMoveVector(true)
+    transform.x += move.x * speed * ctx.api.delta
+    transform.y += move.y * speed * ctx.api.delta
+  }
+}
+`,
+    'bullet-projectile.js': `export default {
+  onInit(ctx) {
+    // 子弹从 player 位置发射，朝鼠标点击方向飞行
+  },
+  onUpdate(ctx) {
+    // 子弹命中 Enemy 后，Enemy 被销毁并随机重生
+  }
+}
+`,
+    'orbit-around-chest.js': `export default {
+  onInit(ctx) {
+    const state = ctx.api.getState(ctx.entity)
+    const chest = ctx.api.findEntityByName('Chest')
+    const transform = ctx.entity.getTransform()
+    const chestTransform = chest?.getTransform()
+    if (!transform || !chestTransform) return
+    const dx = transform.x - chestTransform.x
+    const dy = transform.y - chestTransform.y
+    state.radius = Math.max(80, Math.hypot(dx, dy))
+    state.angle = Math.atan2(dy, dx)
+    state.angularSpeed = 1.1
+  },
+  onUpdate(ctx) {
+    const chest = ctx.api.findEntityByName('Chest')
+    const transform = ctx.entity.getTransform()
+    const chestTransform = chest?.getTransform()
+    if (!transform || !chestTransform) return
+    const state = ctx.api.getState(ctx.entity)
+    const radius = Number(state.radius ?? 180)
+    const angularSpeed = Number(state.angularSpeed ?? 1.1)
+    const angle = Number(state.angle ?? 0) + angularSpeed * ctx.api.delta
+    state.angle = angle
+    transform.x = chestTransform.x + Math.cos(angle) * radius
+    transform.y = chestTransform.y + Math.sin(angle) * radius
+  }
+}
+`,
+    'enemy-chase-respawn.js': `export default {
+  onUpdate(ctx) {
+    const player = ctx.api.findEntityByName('Player')
+    if (!player) return
+    // Enemy 持续追踪 Player
+    // 与 Player 接触后删除自身，并在随机位置生成新的 Enemy
+  }
+}
+`,
+    'patrol.js': `export default {
+  onInit(ctx) {
+    const state = ctx.api.getState(ctx.entity)
+    state.dir = 1
+    state.startX = ctx.entity.getTransform()?.x ?? 0
+  },
+  onUpdate(ctx) {
+    const transform = ctx.entity.getTransform()
+    if (!transform) return
+    const state = ctx.api.getState(ctx.entity)
+    const startX = Number(state.startX ?? transform.x)
+    let dir = Number(state.dir ?? 1)
+    transform.x += dir * 80 * ctx.api.delta
+    if (transform.x > startX + 100) dir = -1
+    if (transform.x < startX - 100) dir = 1
+    state.dir = dir
+  }
+}
+`,
+    'spin.js': `export default {
+  onUpdate(ctx) {
+    const transform = ctx.entity.getTransform()
+    if (!transform) return
+    transform.rotation += 1.5 * ctx.api.delta
+  }
+}
+`
+  }
+  await Promise.all(
+    Object.entries(samples).map(([name, content]) => fs.writeFile(path.join(scriptsDir, name), content, 'utf-8'))
+  )
+}
+
+async function writeSampleImageFiles(projectRoot: string) {
+  const imagesDir = path.join(projectRoot, 'assets', 'images')
+  await fs.mkdir(imagesDir, { recursive: true })
+  const playerPng = createSampleIconPng('player')
+  const enemyPng = createSampleIconPng('enemy')
+  const chestPng = createSampleIconPng('chest')
+  await Promise.all([
+    fs.writeFile(path.join(imagesDir, 'player.png'), playerPng),
+    fs.writeFile(path.join(imagesDir, 'enemy.png'), enemyPng),
+    fs.writeFile(path.join(imagesDir, 'chest.png'), chestPng)
+  ])
+}
+
+async function writeSampleAnimationFiles(projectRoot: string) {
+  const animationsDir = path.join(projectRoot, 'assets', 'animations')
+  await fs.mkdir(animationsDir, { recursive: true })
+  const torchAnim = {
+    format: 'unu-animation',
+    version: 1,
+    animation: {
+      name: 'TorchFX',
+      fps: 6,
+      loop: true,
+      frames: [
+        { texturePath: 'assets/images/player.png', duration: 1 },
+        { texturePath: 'assets/images/enemy.png', duration: 1 },
+        { texturePath: 'assets/images/chest.png', duration: 2 }
+      ]
+    }
+  }
+  const torchAtlas = {
+    format: 'unu-atlas',
+    version: 1,
+    atlas: {
+      imagePath: 'assets/images/player.png',
+      columns: 1,
+      rows: 1,
+      cellWidth: 1,
+      cellHeight: 1,
+      frameCount: 1
+    }
+  }
+  await Promise.all([
+    fs.writeFile(path.join(animationsDir, 'TorchFX.anim.json'), JSON.stringify(torchAnim, null, 2), 'utf-8'),
+    fs.writeFile(path.join(animationsDir, 'TorchSheet.atlas.json'), JSON.stringify(torchAtlas, null, 2), 'utf-8')
+  ])
+}
+
+async function writeSampleAudioPlaceholder(projectRoot: string) {
+  const audioDir = path.join(projectRoot, 'assets', 'audio')
+  await fs.mkdir(audioDir, { recursive: true })
+  // Placeholder file to keep starter tree complete.
+  await fs.writeFile(path.join(audioDir, 'bgm.mp3'), Buffer.alloc(0))
+}
+
+async function writeSampleProjectSeed(projectRoot: string) {
+  await Promise.all([
+    writeSampleScriptFiles(projectRoot),
+    writeSampleImageFiles(projectRoot),
+    writeSampleAnimationFiles(projectRoot),
+    writeSampleAudioPlaceholder(projectRoot)
+  ])
+}
+
+function createSampleIconPng(kind: 'player' | 'enemy' | 'chest') {
+  const size = 128
+  const palette =
+    kind === 'player'
+      ? { bg: '#0E2A47', accent: '#56CCF2', stroke: '#BDEBFF', symbol: 'P' }
+      : kind === 'enemy'
+        ? { bg: '#3A1518', accent: '#EB5757', stroke: '#FFC4C4', symbol: 'E' }
+        : { bg: '#3A2A11', accent: '#F2C94C', stroke: '#FFE8A3', symbol: 'C' }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${palette.bg}" />
+      <stop offset="100%" stop-color="${palette.accent}" />
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="${size - 12}" height="${size - 12}" rx="22" fill="url(#g)" stroke="${palette.stroke}" stroke-width="4"/>
+  <circle cx="${size / 2}" cy="${size / 2}" r="26" fill="rgba(0,0,0,0.25)" />
+  <text x="${size / 2}" y="${size / 2 + 15}" text-anchor="middle" fill="#ffffff" font-size="54" font-family="Segoe UI, Arial, sans-serif" font-weight="700">${palette.symbol}</text>
+</svg>`
+
+  const image = nativeImage.createFromDataURL(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`)
+  return image.toPNG()
 }
 
 async function buildAssetNodes(currentPath: string, projectRoot: string) {
@@ -170,7 +368,9 @@ function createWindow() {
 
   if (!app.isPackaged) {
     win.loadURL('http://localhost:5173')
-    win.webContents.openDevTools({ mode: 'detach' })
+    if (process.env.UNU_OPEN_DEVTOOLS === '1') {
+      win.webContents.openDevTools({ mode: 'detach' })
+    }
   } else {
     win.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'))
   }
@@ -212,6 +412,55 @@ app.whenReady().then(() => {
     return {
       rootPath: projectRoot,
       name: path.basename(projectRoot)
+    }
+  })
+
+  ipcMain.handle('unu:save-project-as', async (_event, payload: {
+    sourceProjectRoot?: string
+    projectName?: string
+    currentSceneContent?: string
+    currentSceneName?: string
+  }) => {
+    const result = await dialog.showOpenDialog({
+      title: '项目另存为',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const targetRoot = result.filePaths[0]
+    const targetResolved = path.resolve(targetRoot)
+    const sourceResolved = payload.sourceProjectRoot ? path.resolve(payload.sourceProjectRoot) : ''
+
+    if (sourceResolved && sourceResolved !== 'sample-project' && sourceResolved === targetResolved) {
+      throw new Error('目标目录与当前工程目录相同，请选择其他目录。')
+    }
+
+    await ensureProjectStructure(targetRoot)
+    const fromSample = !payload.sourceProjectRoot || payload.sourceProjectRoot === 'sample-project'
+
+    if (!fromSample && sourceResolved && await exists(sourceResolved)) {
+      await copyIfExists(path.join(sourceResolved, 'assets'), path.join(targetRoot, 'assets'))
+      await copyIfExists(path.join(sourceResolved, 'scenes'), path.join(targetRoot, 'scenes'))
+      await copyIfExists(path.join(sourceResolved, 'prefabs'), path.join(targetRoot, 'prefabs'))
+      await copyIfExists(path.join(sourceResolved, 'project.json'), path.join(targetRoot, 'project.json'))
+    } else {
+      await writeSampleProjectSeed(targetRoot)
+    }
+
+    await writeProjectFile(targetRoot, payload.projectName)
+
+    let sceneFilePath: string | undefined
+    if (payload.currentSceneContent) {
+      const sceneFileName = payload.currentSceneName?.trim() || 'MainScene.scene.json'
+      sceneFilePath = path.join(targetRoot, 'scenes', sceneFileName)
+      await fs.mkdir(path.dirname(sceneFilePath), { recursive: true })
+      await fs.writeFile(sceneFilePath, payload.currentSceneContent, 'utf-8')
+    }
+
+    return {
+      rootPath: targetRoot,
+      name: path.basename(targetRoot),
+      sceneFilePath,
+      fromSample
     }
   })
 
@@ -336,6 +585,12 @@ app.whenReady().then(() => {
     if (!payload.projectRoot || !payload.relativePath) return { ok: false }
     const targetPath = path.join(payload.projectRoot, payload.relativePath)
     try {
+      console.log('[UNU][main] reveal-in-folder request:', {
+        projectRoot: payload.projectRoot,
+        relativePath: payload.relativePath,
+        isDirectory: payload.isDirectory,
+        targetPath
+      })
       const stat = await fs.stat(targetPath).catch(() => null)
       if (!stat) {
         return { ok: false, error: `Path not found: ${targetPath}` }
@@ -346,8 +601,6 @@ app.whenReady().then(() => {
         return { ok: !err, error: err || undefined }
       }
 
-      const err = await shell.openPath(path.dirname(targetPath))
-      if (err) return { ok: false, error: err }
       shell.showItemInFolder(targetPath)
       return { ok: true }
     } catch (error) {

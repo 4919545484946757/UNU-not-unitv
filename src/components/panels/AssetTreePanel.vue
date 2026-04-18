@@ -70,6 +70,7 @@ function openPanelMenu(event: MouseEvent) {
 function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
   const { event, node } = payload
   const items: ContextMenuItem[] = []
+  const isTextAsset = node.type === 'script' || node.type === 'animation' || node.type === 'atlas' || node.type === 'scene' || node.type === 'prefab'
 
   items.push({
     label: node.type === 'folder' ? '在文件管理器中打开目录' : '在文件管理器中定位文件',
@@ -109,9 +110,9 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
     items.push({ label: '实例化 Prefab', action: () => scene.instantiatePrefabFromDisk() })
   }
 
-  if (node.type === 'script') {
+  if (isTextAsset) {
     items.push({
-      label: '打开脚本面板',
+      label: '打开文本面板',
       action: async () => {
         await assets.selectAsset(node.path)
         editor.setRightTab('Script')

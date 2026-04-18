@@ -1,6 +1,7 @@
 ﻿import { defineStore } from 'pinia'
 import { AssetDatabase } from '../engine/assets/AssetDatabase'
 import { createFallbackProject } from '../engine/project/projectFallback'
+import { serializeScene } from '../engine/serialization/sceneSerializer'
 import type { AssetNode } from '../engine/assets/types'
 import { useProjectStore } from './project'
 
@@ -148,6 +149,33 @@ export const useAssetStore = defineStore('assets', {
       this.hydrateTree(result.tree)
       project.setStatus(`已打开工程：${result.name}`)
     },
+    async saveProjectAs() {
+      const project = useProjectStore()
+      const { useSceneStore } = await import('./scene')
+      const scene = useSceneStore()
+      if (!window.unu?.saveProjectAs || !window.unu?.scanProject) {
+        project.setStatus('当前环境未接入项目另存接口，请使用桌面版运行。')
+        return
+      }
+      const currentScene = scene.currentScene
+      const saved = await window.unu.saveProjectAs({
+        sourceProjectRoot: project.rootPath,
+        projectName: project.name,
+        currentSceneContent: currentScene ? serializeScene(currentScene) : undefined,
+        currentSceneName: currentScene ? `${currentScene.name}.scene.json` : undefined
+      })
+      if (!saved) {
+        project.setStatus('已取消项目另存。')
+        return
+      }
+
+      const scanned = await window.unu.scanProject(saved.rootPath)
+      project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
+      if (saved.sceneFilePath) project.setSceneFile(saved.sceneFilePath)
+      this.hydrateTree(scanned.tree)
+      this.selectedPath = 'assets'
+      project.setStatus(saved.fromSample ? `示例项目已另存为：${scanned.rootPath}` : `项目已另存为：${scanned.rootPath}`)
+    },
     async refreshProject() {
       const project = useProjectStore()
       if (!project.rootPath || !window.unu?.scanProject) return
@@ -208,16 +236,24 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前是示例工程，无法定位本地文件。')
         return
       }
-      const result = await window.unu.revealInFolder({
-        projectRoot: project.rootPath,
-        relativePath: path,
-        isDirectory
-      })
-      if (!result?.ok) {
-        project.setStatus(`打开目录失败：${result?.error || '未知错误'}`)
-        return
+      try {
+        project.setStatus('正在打开文件管理器...')
+        const result = await window.unu.revealInFolder({
+          projectRoot: project.rootPath,
+          relativePath: path,
+          isDirectory
+        })
+        if (!result?.ok) {
+          project.setStatus(`打开目录失败：${result?.error || '未知错误'}`)
+          return
+        }
+        project.setStatus('已在文件管理器中打开对应位置。')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`打开目录失败：${message}`)
       }
-      project.setStatus('已在文件管理器中打开对应位置。')
     }
   }
 })
+
+

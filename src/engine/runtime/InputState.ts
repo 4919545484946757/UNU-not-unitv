@@ -12,8 +12,14 @@ const defaultActionMap: InputActionMap = {
 export class InputState {
   private readonly keys = new Set<string>()
   private readonly mouseButtons = new Set<number>()
+  private readonly mousePressedThisFrame = new Set<number>()
   private mouseX = 0
   private mouseY = 0
+  private viewportLeft = 0
+  private viewportTop = 0
+  private worldOffsetX = 0
+  private worldOffsetY = 0
+  private worldScale = 1
   private readonly actionMap: InputActionMap
   private attached = false
 
@@ -43,6 +49,7 @@ export class InputState {
     window.removeEventListener('mousemove', this.handleMouseMove)
     this.keys.clear()
     this.mouseButtons.clear()
+    this.mousePressedThisFrame.clear()
   }
 
   isKeyDown(code: string) {
@@ -51,6 +58,10 @@ export class InputState {
 
   isMouseDown(button = 0) {
     return this.mouseButtons.has(button)
+  }
+
+  wasMousePressed(button = 0) {
+    return this.mousePressedThisFrame.has(button)
   }
 
   isActionDown(action: string) {
@@ -76,8 +87,41 @@ export class InputState {
     return down - up
   }
 
+  getMoveVector(normalized = true) {
+    const x = this.getAxis('horizontal')
+    const y = this.getAxis('vertical')
+    if (!normalized) return { x, y }
+    const length = Math.hypot(x, y)
+    if (length <= 0) return { x: 0, y: 0 }
+    return { x: x / length, y: y / length }
+  }
+
   getMousePosition() {
-    return { x: this.mouseX, y: this.mouseY }
+    const localX = this.mouseX - this.viewportLeft
+    const localY = this.mouseY - this.viewportTop
+    const scale = Math.max(0.0001, this.worldScale)
+    return {
+      x: (localX - this.worldOffsetX) / scale,
+      y: (localY - this.worldOffsetY) / scale
+    }
+  }
+
+  setViewportTransform(payload: {
+    viewportLeft: number
+    viewportTop: number
+    worldOffsetX: number
+    worldOffsetY: number
+    worldScale: number
+  }) {
+    this.viewportLeft = Number.isFinite(payload.viewportLeft) ? payload.viewportLeft : 0
+    this.viewportTop = Number.isFinite(payload.viewportTop) ? payload.viewportTop : 0
+    this.worldOffsetX = Number.isFinite(payload.worldOffsetX) ? payload.worldOffsetX : 0
+    this.worldOffsetY = Number.isFinite(payload.worldOffsetY) ? payload.worldOffsetY : 0
+    this.worldScale = Number.isFinite(payload.worldScale) && payload.worldScale > 0 ? payload.worldScale : 1
+  }
+
+  endFrame() {
+    this.mousePressedThisFrame.clear()
   }
 
   private readonly handleKeyDown = (event: KeyboardEvent) => {
@@ -91,9 +135,11 @@ export class InputState {
   private readonly handleBlur = () => {
     this.keys.clear()
     this.mouseButtons.clear()
+    this.mousePressedThisFrame.clear()
   }
 
   private readonly handleMouseDown = (event: MouseEvent) => {
+    this.mousePressedThisFrame.add(event.button)
     this.mouseButtons.add(event.button)
   }
 
@@ -106,4 +152,3 @@ export class InputState {
     this.mouseY = event.clientY
   }
 }
-

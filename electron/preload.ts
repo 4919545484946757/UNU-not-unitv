@@ -3,6 +3,8 @@ import { contextBridge, ipcRenderer } from 'electron'
 contextBridge.exposeInMainWorld('unu', {
   version: '0.9.0',
   createProject: () => ipcRenderer.invoke('unu:create-project'),
+  saveProjectAs: (payload: { sourceProjectRoot?: string; projectName?: string; currentSceneContent?: string; currentSceneName?: string }) =>
+    ipcRenderer.invoke('unu:save-project-as', payload),
   pickProjectFolder: () => ipcRenderer.invoke('unu:pick-project-folder'),
   scanProject: (projectRoot: string) => ipcRenderer.invoke('unu:scan-project', projectRoot),
   saveScene: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) =>

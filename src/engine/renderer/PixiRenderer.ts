@@ -82,6 +82,14 @@ export class PixiRenderer {
       if (!this.currentScene) return
       const delta = ticker.deltaMS / 1000
       runtimeStore.setDeltaTime(delta)
+      const rect = this.options.container.getBoundingClientRect()
+      this.inputState.setViewportTransform({
+        viewportLeft: rect.left,
+        viewportTop: rect.top,
+        worldOffsetX: this.world.position.x,
+        worldOffsetY: this.world.position.y,
+        worldScale: this.world.scale.x || 1
+      })
       if (this.isPlaying && !this.isPaused) {
         this.scriptRuntime.updateScene(this.currentScene, delta, this.inputState)
         applySceneAnimation(this.currentScene, delta, (event) => {
@@ -90,6 +98,7 @@ export class PixiRenderer {
         this.updateCameraFromScene(this.currentScene)
         void this.renderScene(this.currentScene)
       }
+      this.inputState.endFrame()
     })
   }
 

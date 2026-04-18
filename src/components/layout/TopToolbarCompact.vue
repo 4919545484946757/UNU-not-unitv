@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <header class="toolbar">
     <div class="brand-block">
       <div class="brand">UNU Engine</div>
@@ -12,6 +12,7 @@
           <option value="">项目操作</option>
           <option value="new">新建项目</option>
           <option value="open">打开工程</option>
+          <option value="saveAs">项目另存</option>
           <option value="refresh">刷新资源</option>
           <option value="import">导入图片</option>
         </select>
@@ -54,10 +55,10 @@
       </div>
     </div>
 
-    <div class="status">
-      <span>{{ scene.isDirty ? '未保存' : '已同步' }}</span>
-      <span>{{ runtime.fps }} FPS</span>
-      <span class="message">{{ project.statusMessage }}</span>
+    <div class="status-slot">
+      <button class="status-toggle" @click="project.toggleStatusPopup()">
+        {{ project.statusPopupVisible ? '隐藏消息' : '显示消息' }}
+      </button>
     </div>
   </header>
 </template>
@@ -66,13 +67,11 @@
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
-import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 
 const assets = useAssetStore()
 const editor = useEditorStore()
 const project = useProjectStore()
-const runtime = useRuntimeStore()
 const scene = useSceneStore()
 
 async function runAction(label: string, action: () => void | Promise<void>) {
@@ -94,6 +93,7 @@ async function handleProjectAction(event: Event) {
   const action = (event.target as HTMLSelectElement).value
   if (action === 'new') await runAction('新建项目', () => assets.createProject())
   else if (action === 'open') await runAction('打开工程', () => assets.openProjectFolder())
+  else if (action === 'saveAs') await runAction('项目另存', () => assets.saveProjectAs())
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())
   resetSelect(event)
@@ -124,15 +124,23 @@ async function handleEntityAction(event: Event) {
 <style scoped>
 .toolbar {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 280px;
+  grid-template-columns: 220px minmax(0, 1fr) 136px;
   gap: 12px;
   align-items: center;
   padding: 8px 12px;
   background: #121722;
   border-bottom: 1px solid #252c38;
 }
-.brand-block { min-width: 0; }
-.brand { font-weight: 700; letter-spacing: 0.08em; }
+
+.brand-block {
+  min-width: 0;
+}
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .project-meta {
   margin-top: 2px;
   font-size: 12px;
@@ -141,18 +149,21 @@ async function handleEntityAction(event: Event) {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .toolbar-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
+
 .action-select-wrap {
   display: grid;
   gap: 2px;
   font-size: 11px;
   color: #94a3b8;
 }
+
 .action-select {
   min-width: 112px;
   border: 1px solid #303848;
@@ -161,10 +172,12 @@ async function handleEntityAction(event: Event) {
   border-radius: 8px;
   padding: 4px 8px;
 }
+
 .tool-group {
   display: inline-flex;
   gap: 6px;
 }
+
 button {
   border: 1px solid #303848;
   background: #202632;
@@ -173,17 +186,15 @@ button {
   border-radius: 8px;
   cursor: pointer;
 }
-.status {
-  font-size: 13px;
-  color: #94a3b8;
+
+.status-slot {
   display: flex;
-  gap: 12px;
   justify-content: flex-end;
-  white-space: nowrap;
-  overflow: hidden;
 }
-.message {
-  overflow: hidden;
-  text-overflow: ellipsis;
+
+.status-toggle {
+  width: 100%;
+  min-width: 100px;
+  white-space: nowrap;
 }
 </style>

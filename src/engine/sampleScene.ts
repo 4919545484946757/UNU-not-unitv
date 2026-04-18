@@ -21,7 +21,9 @@ export function createDemoScene() {
   onInit(ctx) {},
   onStart(ctx) {},
   onUpdate(ctx) {
-    // 鍐呯疆 patrol 杩愯涓?  },
+    const move = ctx.api.input.getMoveVector(true)
+    // WASD / 方向键控制移动，斜向移动会自动归一化（例如 W + D 保持同速）
+  },
   onDestroy(ctx) {}
 }`
     )
@@ -29,14 +31,20 @@ export function createDemoScene() {
 
   const enemy = new Entity('enemy_001', 'Enemy')
   enemy.addComponent(new TransformComponent(420, 320, 1, 1))
-  enemy.addComponent(new SpriteComponent('', 80, 80, true, 1, 0xeb5757))
+  enemy.addComponent(new SpriteComponent('assets/images/enemy.png', 80, 80, true, 1, 0xffffff))
   enemy.addComponent(new ColliderComponent('rect', 80, 80))
   enemy.addComponent(
     new ScriptComponent(
-      'builtin://spin',
+      'builtin://enemy-chase-respawn',
       `export default {
   onUpdate(ctx) {
-    // 鍐呯疆 spin 杩愯涓?  }
+    const enemy = ctx.entity
+    const player = ctx.api.findEntityByName('Player')
+    if (!player) return
+    // 1. 敌人持续追踪玩家
+    // 2. 接触玩家后删除自身
+    // 3. 在随机位置生成新的 Enemy
+  }
 }`
     )
   )

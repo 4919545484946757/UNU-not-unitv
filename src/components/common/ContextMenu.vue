@@ -1,6 +1,6 @@
 <template>
   <teleport to="body">
-    <div v-if="visible" class="menu" :style="styleObject" @contextmenu.prevent>
+    <div v-if="visible" ref="menuRef" class="menu" :style="styleObject" @contextmenu.prevent>
       <button
         v-for="item in items"
         :key="item.label"
@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { ContextMenuItem } from './contextMenuTypes'
 
 const props = defineProps<{
@@ -26,6 +26,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ (e: 'close'): void }>()
+const menuRef = ref<HTMLDivElement | null>(null)
 
 const styleObject = computed(() => ({
   left: `${props.x}px`,
@@ -42,7 +43,9 @@ async function handleItemClick(item: ContextMenuItem) {
   close()
 }
 
-function onWindowPointerDown() {
+function onWindowPointerDown(event: PointerEvent) {
+  const target = event.target as Node | null
+  if (target && menuRef.value?.contains(target)) return
   if (props.visible) close()
 }
 

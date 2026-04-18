@@ -2,6 +2,7 @@ import { contextBridge as o, ipcRenderer as n } from "electron";
 o.exposeInMainWorld("unu", {
   version: "0.9.0",
   createProject: () => n.invoke("unu:create-project"),
+  saveProjectAs: (e) => n.invoke("unu:save-project-as", e),
   pickProjectFolder: () => n.invoke("unu:pick-project-folder"),
   scanProject: (e) => n.invoke("unu:scan-project", e),
   saveScene: (e) => n.invoke("unu:save-scene", e),

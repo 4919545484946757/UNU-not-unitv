@@ -68,8 +68,10 @@ const tabs = ['Inspector', 'Script', 'Timeline'] as const
   min-width: 0;
 }
 .scroll-inner {
-  min-width: max-content;
-  width: max-content;
+  width: 100%;
+  min-width: 0;
   min-height: 100%;
+  height: 100%;
+  display: grid;
 }
 </style>

@@ -5,6 +5,7 @@ declare global {
     unu?: {
       version: string
       createProject?: () => Promise<{ rootPath: string; name: string; created: boolean } | null>
+      saveProjectAs?: (payload: { sourceProjectRoot?: string; projectName?: string; currentSceneContent?: string; currentSceneName?: string }) => Promise<{ rootPath: string; name: string; sceneFilePath?: string; fromSample: boolean } | null>
       pickProjectFolder?: () => Promise<{ rootPath: string; name: string } | null>
       scanProject?: (projectRoot: string) => Promise<{ rootPath: string; name: string; tree: import('./engine/assets/types').AssetNode[] }>
       saveScene?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => Promise<{ filePath: string; name: string } | null>

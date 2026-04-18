@@ -147,8 +147,8 @@ onBeforeUnmount(() => cleanup?.())
   color: #6f86a6;
 }
 .scroll-inner {
-  min-width: max-content;
-  width: max-content;
+  min-width: 0;
+  width: 100%;
   min-height: 100%;
 }
 </style>
