@@ -226,6 +226,49 @@ export const useAssetStore = defineStore('assets', {
         console.error('[UNU] importImages failed', error)
       }
     },
+    async importAudios() {
+      const project = useProjectStore()
+      try {
+        if (!window.unu?.importAudios) {
+          project.setStatus('当前环境未接入 Electron 导入接口，请使用桌面版运行。')
+          return
+        }
+
+        if (!project.rootPath || project.rootPath === 'sample-project') {
+          project.setStatus('请先选择一个本地工程目录，再导入音频。')
+          if (window.unu?.pickProjectFolder && window.unu?.scanProject) {
+            const picked = await window.unu.pickProjectFolder()
+            if (!picked) {
+              project.setStatus('已取消选择工程目录，未导入音频。')
+              return
+            }
+            const scanned = await window.unu.scanProject(picked.rootPath)
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
+            this.hydrateTree(scanned.tree)
+          } else {
+            return
+          }
+        }
+
+        const result = await window.unu.importAudios({ projectRoot: project.rootPath })
+        if (!result?.imported?.length) {
+          project.setStatus('已取消导入音频。')
+          return
+        }
+
+        await this.refreshProject()
+        project.setStatus(`已导入音频 ${result.imported.length} 条`)
+        const first = result.imported[0]?.relativePath
+        if (first) {
+          this.selectedPath = 'assets/audio'
+          await this.selectAsset(first)
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`导入音频失败：${message}`)
+        console.error('[UNU] importAudios failed', error)
+      }
+    },
     async revealInFolder(path: string, isDirectory = false) {
       const project = useProjectStore()
       if (!window.unu?.revealInFolder) {

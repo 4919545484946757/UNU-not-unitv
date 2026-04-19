@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('unu', {
   openScene: (payload: { projectRoot?: string }) => ipcRenderer.invoke('unu:open-scene', payload),
   readAssetDataUrl: (payload: { projectRoot: string; relativePath: string }) => ipcRenderer.invoke('unu:read-asset-data-url', payload),
   importImages: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-images', payload),
+  importAudios: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-audios', payload),
   savePrefab: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) =>
     ipcRenderer.invoke('unu:save-prefab', payload),
   openPrefab: (payload: { projectRoot?: string }) => ipcRenderer.invoke('unu:open-prefab', payload),

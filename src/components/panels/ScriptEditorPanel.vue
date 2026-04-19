@@ -28,7 +28,7 @@
 
     <div class="tips">
       运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
-      脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`。
+      脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`。
       <span v-if="mode === 'asset' && !canSaveAsset">当前为示例工程（内存资源）或非桌面环境，脚本文件不可直接保存。</span>
     </div>
   </div>
@@ -82,6 +82,9 @@ const builtinScriptTemplates: Record<string, string> = {
     const move = ctx.api.input.getMoveVector(true)
     transform.x += move.x * speed * ctx.api.delta
     transform.y += move.y * speed * ctx.api.delta
+    if (ctx.api.input.wasMousePressed(0)) {
+      // 左键点击触发射击（由内置运行时生成子弹）
+    }
   }
 }`,
   'assets/scripts/bullet-projectile.js': `export default {

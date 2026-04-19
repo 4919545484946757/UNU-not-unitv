@@ -1,6 +1,8 @@
 import { ScriptComponent } from '../components/ScriptComponent'
+import type { AudioGroup } from '../components/AudioComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
+import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
 import { Entity } from '../core/Entity'
 import type { Scene } from '../core/Scene'
@@ -15,6 +17,16 @@ interface RuntimeInput {
   getMousePosition: () => { x: number; y: number }
 }
 
+interface RuntimeAudio {
+  playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => Promise<void>
+  playEntity: (target?: Entity) => Promise<void>
+  stopEntity: (target?: Entity) => void
+  setMasterVolume: (volume: number) => void
+  setGroupVolume: (group: AudioGroup, volume: number) => void
+  getMasterVolume: () => number
+  getGroupVolume: (group: AudioGroup) => number
+}
+
 export interface ScriptContext {
   entity: Entity
   scene: Scene
@@ -26,6 +38,8 @@ export interface ScriptContext {
     findEntityByName: (name: string) => Entity | null
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
+    isBlockedAt: (x: number, y: number) => boolean
+    audio: RuntimeAudio
   }
 }
 
@@ -69,8 +83,10 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       const speed = api.input.isActionDown('fire') ? 220 : 140
       const move = api.input.getMoveVector(true)
       if (move.x !== 0 || move.y !== 0) {
-        transform.x += move.x * speed * api.delta
-        transform.y += move.y * speed * api.delta
+        const nextX = transform.x + move.x * speed * api.delta
+        const nextY = transform.y + move.y * speed * api.delta
+        if (!api.isBlockedAt(nextX, transform.y)) transform.x = nextX
+        if (!api.isBlockedAt(transform.x, nextY)) transform.y = nextY
       }
 
       if (!api.input.wasMousePressed(0)) return
@@ -248,6 +264,27 @@ export class ScriptRuntime {
     getMoveVector: () => ({ x: 0, y: 0 }),
     getMousePosition: () => ({ x: 0, y: 0 })
   }
+  private audioAdapter = {
+    playOneShot: async (_clipPath: string, _options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => undefined,
+    playEntity: async (_target: Entity) => undefined,
+    stopEntity: (_target: Entity) => undefined,
+    setMasterVolume: (_volume: number) => undefined,
+    setGroupVolume: (_group: AudioGroup, _volume: number) => undefined,
+    getMasterVolume: () => 1,
+    getGroupVolume: (_group: AudioGroup) => 1
+  }
+
+  setAudioAdapter(adapter: {
+    playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => Promise<void>
+    playEntity: (target: Entity) => Promise<void>
+    stopEntity: (target: Entity) => void
+    setMasterVolume: (volume: number) => void
+    setGroupVolume: (group: AudioGroup, volume: number) => void
+    getMasterVolume: () => number
+    getGroupVolume: (group: AudioGroup) => number
+  }) {
+    this.audioAdapter = adapter
+  }
 
   initScene(scene: Scene) {
     this.activeScene = scene
@@ -326,6 +363,26 @@ export class ScriptRuntime {
         },
         spawnEntity: (newEntity: Entity) => {
           this.pendingSpawns.push(newEntity)
+        },
+        isBlockedAt: (x: number, y: number) => isWorldBlocked(this.activeScene, x, y),
+        audio: {
+          playOneShot: async (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => {
+            await this.audioAdapter.playOneShot(clipPath, options)
+          },
+          playEntity: async (target?: Entity) => {
+            await this.audioAdapter.playEntity(target ?? entity)
+          },
+          stopEntity: (target?: Entity) => {
+            this.audioAdapter.stopEntity(target ?? entity)
+          },
+          setMasterVolume: (volume: number) => {
+            this.audioAdapter.setMasterVolume(volume)
+          },
+          setGroupVolume: (group: AudioGroup, volume: number) => {
+            this.audioAdapter.setGroupVolume(group, volume)
+          },
+          getMasterVolume: () => this.audioAdapter.getMasterVolume(),
+          getGroupVolume: (group: AudioGroup) => this.audioAdapter.getGroupVolume(group)
         }
       }
     }
@@ -379,6 +436,23 @@ function isRectColliderOverlap(
     Math.abs((aTransform.x + aCollider.offsetX) - (bTransform.x + bCollider.offsetX)) <= (aCollider.width + bCollider.width) / 2 &&
     Math.abs((aTransform.y + aCollider.offsetY) - (bTransform.y + bCollider.offsetY)) <= (aCollider.height + bCollider.height) / 2
   )
+}
+
+function isWorldBlocked(scene: Scene | null, x: number, y: number) {
+  if (!scene) return false
+  for (const entity of scene.entities) {
+    const transform = entity.getComponent<TransformComponent>('Transform')
+    const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
+    if (!transform || !tilemap || !tilemap.enabled) continue
+    const localX = x - transform.x
+    const localY = y - transform.y
+    const col = Math.floor(localX / tilemap.tileWidth)
+    const row = Math.floor(localY / tilemap.tileHeight)
+    if (col < 0 || row < 0 || col >= tilemap.columns || row >= tilemap.rows) continue
+    const idx = row * tilemap.columns + col
+    if (Number(tilemap.collision[idx] ?? 0) > 0) return true
+  }
+  return false
 }
 
 function createBulletEntity(x: number, y: number, angle: number) {

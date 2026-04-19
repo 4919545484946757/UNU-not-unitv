@@ -63,6 +63,7 @@ function openPanelMenu(event: MouseEvent) {
   showMenu(event, [
     { label: '刷新资源', action: () => assets.refreshProject() },
     { label: '导入图片', action: () => assets.importImages() },
+    { label: '导入音频', action: () => assets.importAudios() },
     { label: allExpanded.value ? '全部折叠' : '全部展开', action: () => toggleAll() }
   ])
 }
@@ -84,6 +85,7 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
       action: () => assets.toggleFolder(node.path)
     })
     items.push({ label: '导入图片到工程', action: () => assets.importImages() })
+    items.push({ label: '导入音频到工程', action: () => assets.importAudios() })
     items.push({ label: '刷新资源', action: () => assets.refreshProject() })
   }
 
@@ -95,6 +97,17 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
         await assets.selectAsset(node.path)
         await scene.createSpriteEntityFromAsset(node.path)
         editor.leftTab = 'Scene'
+        editor.setRightTab('Inspector')
+      }
+    })
+  }
+
+  if (node.type === 'audio') {
+    items.push({ label: '选中音频', action: () => assets.selectAsset(node.path) })
+    items.push({
+      label: '打开 Inspector 配置',
+      action: async () => {
+        await assets.selectAsset(node.path)
         editor.setRightTab('Inspector')
       }
     })

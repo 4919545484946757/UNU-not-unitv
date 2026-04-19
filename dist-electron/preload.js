@@ -9,6 +9,7 @@ o.exposeInMainWorld("unu", {
   openScene: (e) => n.invoke("unu:open-scene", e),
   readAssetDataUrl: (e) => n.invoke("unu:read-asset-data-url", e),
   importImages: (e) => n.invoke("unu:import-images", e),
+  importAudios: (e) => n.invoke("unu:import-audios", e),
   savePrefab: (e) => n.invoke("unu:save-prefab", e),
   openPrefab: (e) => n.invoke("unu:open-prefab", e),
   saveTextAsset: (e) => n.invoke("unu:save-text-asset", e),

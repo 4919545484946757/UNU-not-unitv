@@ -16,15 +16,15 @@
 
 - [x] Camera 组件（跟随、缩放、边界限制）
 - [x] Input 系统（键鼠 + 映射表）
-- Audio 系统（BGM/SFX、音量分组）
-- UI 组件（文本、按钮、锚点布局）
+- [x] Audio 系统（BGM/SFX、音量分组）
+- [x] UI 组件（文本、按钮、锚点布局）
 
 ## 阶段 3：内容生产能力
 
 目标：让关卡与内容可持续产出。
 
-- Tilemap（图块层、碰撞层）
-- Prefab 变体与嵌套
+- [x] Tilemap（图块层、碰撞层）
+- [x] Prefab 变体与嵌套
 - 动画状态机（Idle/Run/Attack）
 - Timeline 关键帧属性轨
 

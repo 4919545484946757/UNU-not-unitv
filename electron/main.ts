@@ -16,7 +16,7 @@ function inferAssetType(fileName: string) {
   if (fileName.endsWith('.anim.json')) return 'animation'
   if (fileName.endsWith('.atlas.json')) return 'atlas'
   if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) return 'image'
-  if (['.mp3', '.wav', '.ogg'].includes(ext)) return 'audio'
+  if (['.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) return 'audio'
   if (['.js', '.ts', '.mjs'].includes(ext)) return 'script'
   if (fileName.endsWith('.scene.json')) return 'scene'
   if (fileName.endsWith('.prefab.json')) return 'prefab'
@@ -78,6 +78,9 @@ async function writeSampleScriptFiles(projectRoot: string) {
     const move = ctx.api.input.getMoveVector(true)
     transform.x += move.x * speed * ctx.api.delta
     transform.y += move.y * speed * ctx.api.delta
+    if (ctx.api.input.wasMousePressed(0)) {
+      // 左键点击触发射击（由内置运行时生成子弹）
+    }
   }
 }
 `,
@@ -286,6 +289,14 @@ async function readFileAsDataUrl(filePath: string) {
         ? 'image/webp'
         : ext === '.gif'
           ? 'image/gif'
+          : ext === '.mp3'
+            ? 'audio/mpeg'
+            : ext === '.wav'
+              ? 'audio/wav'
+              : ext === '.ogg'
+                ? 'audio/ogg'
+                : ext === '.m4a'
+                  ? 'audio/mp4'
           : 'application/octet-stream'
 
   const buffer = await fs.readFile(filePath)
@@ -533,6 +544,18 @@ app.whenReady().then(() => {
     return { imported }
   })
 
+  ipcMain.handle('unu:import-audios', async (_event, payload: { projectRoot: string }) => {
+    if (!payload.projectRoot) return null
+    const result = await dialog.showOpenDialog({
+      title: '导入音频资源',
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'm4a'] }]
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const imported = await importFiles(payload.projectRoot, result.filePaths, 'assets/audio')
+    return { imported }
+  })
+
   ipcMain.handle('unu:save-prefab', async (_event, payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => {
     let targetPath = payload.filePath
     if (!targetPath) {
@@ -550,7 +573,8 @@ app.whenReady().then(() => {
     await fs.writeFile(targetPath, payload.content, 'utf-8')
     return {
       filePath: targetPath,
-      name: path.basename(targetPath)
+      name: path.basename(targetPath),
+      relativePath: payload.projectRoot ? normalizePath(path.relative(payload.projectRoot, targetPath)) : undefined
     }
   })
 
@@ -567,6 +591,7 @@ app.whenReady().then(() => {
     return {
       filePath,
       name: path.basename(filePath),
+      relativePath: payload.projectRoot ? normalizePath(path.relative(payload.projectRoot, filePath)) : undefined,
       content
     }
   })

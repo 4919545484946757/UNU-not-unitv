@@ -4,6 +4,8 @@ import { Component } from './Component'
 export class Entity {
   id: string
   name: string
+  prefabSourcePath = ''
+  prefabVariantBasePath = ''
   parent: Entity | null = null
   children: Entity[] = []
   private components = new Map<string, Component>()

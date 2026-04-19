@@ -3,7 +3,9 @@ import { CameraComponent } from './components/CameraComponent'
 import { ColliderComponent } from './components/ColliderComponent'
 import { ScriptComponent } from './components/ScriptComponent'
 import { SpriteComponent } from './components/SpriteComponent'
+import { TilemapComponent } from './components/TilemapComponent'
 import { TransformComponent } from './components/TransformComponent'
+import { UIComponent } from './components/UIComponent'
 import { Entity } from './core/Entity'
 import { Scene } from './core/Scene'
 
@@ -68,11 +70,59 @@ export function createDemoScene() {
   camera.addComponent(new TransformComponent(220, 220, 1, 1))
   camera.addComponent(new CameraComponent(true, 1, player.id, 0.16, 0, 0, false))
 
+  const tilemap = new Entity('tilemap_001', 'LevelTilemap')
+  tilemap.addComponent(new TransformComponent(-260, -120, 1, 1))
+  tilemap.addComponent(
+    new TilemapComponent(
+      true,
+      12,
+      8,
+      48,
+      48,
+      [
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,
+        2,2,2,2,2,2,2,2,2,2,2,2
+      ],
+      [
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1
+      ],
+      true
+    )
+  )
+
+  const hudTitle = new Entity('ui_title_001', 'UI_Title')
+  hudTitle.addComponent(new TransformComponent(0, 24, 1, 1))
+  hudTitle.addComponent(
+    new UIComponent(true, 'text', 'UNU Demo Stage', 24, 0xe7f3ff, 260, 40, 0x2b3242, 0.5, 0, false)
+  )
+
+  const hudButton = new Entity('ui_btn_001', 'UI_Button')
+  hudButton.addComponent(new TransformComponent(-110, -36, 1, 1))
+  hudButton.addComponent(
+    new UIComponent(true, 'button', 'Click Me', 18, 0xffffff, 160, 44, 0x34528a, 1, 1, true)
+  )
+
+  scene.addEntity(tilemap)
   scene.addEntity(player)
   scene.addEntity(enemy)
   scene.addEntity(item)
   scene.addEntity(fx)
   scene.addEntity(camera)
+  scene.addEntity(hudTitle)
+  scene.addEntity(hudButton)
   return scene
 }
 

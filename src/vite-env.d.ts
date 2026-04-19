@@ -12,8 +12,9 @@ declare global {
       openScene?: (payload: { projectRoot?: string }) => Promise<{ filePath: string; name: string; content: string } | null>
       readAssetDataUrl?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ dataUrl: string } | null>
       importImages?: (payload: { projectRoot: string }) => Promise<{ imported: Array<{ fileName: string; relativePath: string }> } | null>
-      savePrefab?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => Promise<{ filePath: string; name: string } | null>
-      openPrefab?: (payload: { projectRoot?: string }) => Promise<{ filePath: string; name: string; content: string } | null>
+      importAudios?: (payload: { projectRoot: string }) => Promise<{ imported: Array<{ fileName: string; relativePath: string }> } | null>
+      savePrefab?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
+      openPrefab?: (payload: { projectRoot?: string }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       saveTextAsset?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string; subdir?: string; title?: string; filterName?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       openTextAsset?: (payload: { projectRoot?: string; defaultSubdir?: string; title?: string; extensions?: string[] }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       readTextAsset?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>

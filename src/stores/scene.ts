@@ -3,10 +3,11 @@ import type { Entity } from '../engine/core/Entity'
 import type { Scene } from '../engine/core/Scene'
 import { ColliderComponent } from '../engine/components/ColliderComponent'
 import { SpriteComponent } from '../engine/components/SpriteComponent'
+import { TilemapComponent } from '../engine/components/TilemapComponent'
 import { TransformComponent } from '../engine/components/TransformComponent'
 import { Entity as EntityClass } from '../engine/core/Entity'
 import { Scene as SceneClass } from '../engine/core/Scene'
-import { instantiatePrefab, serializePrefab } from '../engine/prefabs/prefabSerializer'
+import { instantiatePrefab, serializePrefab, serializePrefabVariant } from '../engine/prefabs/prefabSerializer'
 import { deserializeEntity, deserializeScene, serializeEntity, serializeScene } from '../engine/serialization/sceneSerializer'
 import { useAssetStore } from './assets'
 import { useProjectStore } from './project'
@@ -219,6 +220,32 @@ export const useSceneStore = defineStore('scene', {
       selection.selectEntity(entity.id)
       project.setStatus(`已新建实体：${entity.name}`)
     },
+    createTilemapEntity() {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene) {
+        this.createNewScene()
+      }
+      if (!this.currentScene) return
+      const columns = 12
+      const rows = 8
+      const size = columns * rows
+      const tiles = new Array(size).fill(0).map((_v, idx) => {
+        const row = Math.floor(idx / columns)
+        return row >= rows - 2 ? 1 : 0
+      })
+      const collision = new Array(size).fill(0).map((_v, idx) => {
+        const row = Math.floor(idx / columns)
+        return row >= rows - 2 ? 1 : 0
+      })
+      const entity = new EntityClass(createEntityId('tilemap'), `Tilemap_${this.currentScene.entities.length + 1}`)
+      entity.addComponent(new TransformComponent(-260, -120, 1, 1, 0, 0, 0, this.currentScene.entities.length))
+      entity.addComponent(new TilemapComponent(true, columns, rows, 48, 48, tiles, collision, true))
+      this.currentScene.addEntity(entity)
+      this.markDirty()
+      selection.selectEntity(entity.id)
+      project.setStatus(`已新建 Tilemap：${entity.name}`)
+    },
     async createSpriteEntityFromAsset(assetPath: string, position?: { x: number; y: number }) {
       const project = useProjectStore()
       const selection = useSelectionStore()
@@ -413,8 +440,40 @@ export const useSceneStore = defineStore('scene', {
         projectRoot: project.rootPath
       })
       if (!saved) return
+      entity.prefabSourcePath = String(saved.relativePath || '')
+      entity.prefabVariantBasePath = ''
       project.setStatus(`Prefab 已保存：${saved.name}`)
       await assets.refreshProject()
+      this.markDirty()
+    },
+    async saveSelectedAsPrefabVariant() {
+      const project = useProjectStore()
+      const assets = useAssetStore()
+      const selection = useSelectionStore()
+      const entity = this.currentScene?.getEntityById(selection.selectedEntityId)
+      if (!entity) {
+        project.setStatus('请先选择一个实体再保存为 Prefab 变体。')
+        return
+      }
+      if (!entity.prefabSourcePath) {
+        project.setStatus('请先将实体保存为普通 Prefab，再创建变体。')
+        return
+      }
+      if (!window.unu?.savePrefab) {
+        project.setStatus('当前为浏览器模式，未接入本地 Prefab 保存。')
+        return
+      }
+      const saved = await window.unu.savePrefab({
+        content: serializePrefabVariant(entity, entity.prefabSourcePath),
+        suggestedName: `${entity.name}.variant.prefab.json`,
+        projectRoot: project.rootPath
+      })
+      if (!saved) return
+      entity.prefabSourcePath = String(saved.relativePath || '')
+      entity.prefabVariantBasePath = String(entity.prefabVariantBasePath || entity.prefabSourcePath)
+      project.setStatus(`Prefab 变体已保存：${saved.name}`)
+      await assets.refreshProject()
+      this.markDirty()
     },
     async instantiatePrefabFromDisk() {
       const project = useProjectStore()
@@ -431,18 +490,106 @@ export const useSceneStore = defineStore('scene', {
         this.createNewScene()
       }
       if (!this.currentScene) return
-      const entity = instantiatePrefab(result.content, createEntityId('prefab'))
+      const prefabPath = String(result.relativePath || '')
+      const entity = await instantiatePrefab(result.content, createEntityId('prefab'), prefabPath)
       entity.name = `${entity.name}_Instance`
       const transform = entity.getTransform()
       if (transform) {
         transform.x += 80
         transform.y += 80
-        transform.zIndex = this.currentScene.entities.length
       }
-      this.currentScene.addEntity(entity)
+      appendEntityTreeToScene(this.currentScene, entity)
       this.markDirty()
       useSelectionStore().selectEntity(entity.id)
       project.setStatus(`已实例化 Prefab：${result.name}`)
+    },
+    async applySelectedPrefabSource() {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const selectedId = selection.selectedEntityId
+      if (!this.currentScene || !selectedId) {
+        project.setStatus('请先选择一个 Prefab 实例实体。')
+        return
+      }
+      const current = this.currentScene.getEntityById(selectedId)
+      if (!current) return
+      if (!current.prefabSourcePath) {
+        project.setStatus('当前实体没有 Prefab 来源路径。')
+        return
+      }
+      if (!window.unu?.readTextAsset || !project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('当前环境无法从磁盘读取 Prefab 源文件。')
+        return
+      }
+      try {
+        const raw = await window.unu.readTextAsset({
+          projectRoot: project.rootPath,
+          relativePath: current.prefabSourcePath
+        })
+        if (!raw?.content) {
+          project.setStatus('读取 Prefab 源文件失败。')
+          return
+        }
+
+        const replacement = await instantiatePrefab(raw.content, current.id, current.prefabSourcePath)
+        const currentTransform = current.getTransform()
+        const replacementTransform = replacement.getTransform()
+        if (currentTransform && replacementTransform) {
+          replacementTransform.x = currentTransform.x
+          replacementTransform.y = currentTransform.y
+        }
+        replacement.name = current.name
+
+        const oldIndex = this.currentScene.entities.findIndex((entity) => entity.id === current.id)
+        removeEntityTreeFromScene(this.currentScene, current)
+        appendEntityTreeToScene(this.currentScene, replacement, oldIndex >= 0 ? oldIndex : undefined)
+        this.markDirty()
+        selection.selectEntity(replacement.id)
+        project.setStatus(`已应用 Prefab 源更新：${fileNameOfPath(current.prefabSourcePath)}`)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`应用 Prefab 源失败：${message}`)
+      }
     }
   }
 })
+
+function fileNameOfPath(inputPath: string) {
+  const normalized = inputPath.replace(/\\/g, '/')
+  const index = normalized.lastIndexOf('/')
+  return index >= 0 ? normalized.slice(index + 1) : normalized
+}
+
+function flattenEntityTree(root: Entity) {
+  const output: Entity[] = []
+  const visit = (entity: Entity) => {
+    output.push(entity)
+    for (const child of entity.children) visit(child)
+  }
+  visit(root)
+  return output
+}
+
+function appendEntityTreeToScene(scene: Scene, root: Entity, insertIndex?: number) {
+  const nodes = flattenEntityTree(root)
+  if (typeof insertIndex === 'number' && insertIndex >= 0 && insertIndex <= scene.entities.length) {
+    scene.entities.splice(insertIndex, 0, ...nodes)
+    scene.entities.forEach((entity, idx) => {
+      const transform = entity.getTransform()
+      if (transform) transform.zIndex = idx
+    })
+    return
+  }
+  for (const node of nodes) {
+    scene.addEntity(node)
+  }
+}
+
+function removeEntityTreeFromScene(scene: Scene, root: Entity) {
+  const ids = new Set(flattenEntityTree(root).map((entity) => entity.id))
+  scene.entities = scene.entities.filter((entity) => !ids.has(entity.id))
+  scene.entities.forEach((entity, idx) => {
+    const transform = entity.getTransform()
+    if (transform) transform.zIndex = idx
+  })
+}

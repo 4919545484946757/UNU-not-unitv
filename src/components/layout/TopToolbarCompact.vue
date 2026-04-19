@@ -15,6 +15,7 @@
           <option value="saveAs">项目另存</option>
           <option value="refresh">刷新资源</option>
           <option value="import">导入图片</option>
+          <option value="importAudio">导入音频</option>
         </select>
       </label>
 
@@ -34,6 +35,7 @@
         <select class="action-select" @change="handleEntityAction">
           <option value="">实体操作</option>
           <option value="create">新建实体</option>
+          <option value="createTilemap">新建 Tilemap</option>
           <option value="duplicate">复制实体</option>
           <option value="remove">删除实体</option>
           <option value="up">图层上移</option>
@@ -96,6 +98,7 @@ async function handleProjectAction(event: Event) {
   else if (action === 'saveAs') await runAction('项目另存', () => assets.saveProjectAs())
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())
+  else if (action === 'importAudio') await runAction('导入音频', () => assets.importAudios())
   resetSelect(event)
 }
 
@@ -111,6 +114,7 @@ async function handleSceneAction(event: Event) {
 async function handleEntityAction(event: Event) {
   const action = (event.target as HTMLSelectElement).value
   if (action === 'create') await runAction('新建实体', () => scene.createEmptyEntity())
+  else if (action === 'createTilemap') await runAction('新建 Tilemap', () => scene.createTilemapEntity())
   else if (action === 'duplicate') await runAction('复制实体', () => scene.duplicateSelectedEntity())
   else if (action === 'remove') await runAction('删除实体', () => scene.removeSelectedEntity())
   else if (action === 'up') await runAction('图层上移', () => scene.moveSelectedEntityLayer(1))

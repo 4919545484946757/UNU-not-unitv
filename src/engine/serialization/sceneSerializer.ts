@@ -1,9 +1,12 @@
 import { AnimationComponent } from '../components/AnimationComponent'
+import { AudioComponent } from '../components/AudioComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
+import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
+import { UIComponent } from '../components/UIComponent'
 import { Entity } from '../core/Entity'
 import { Scene } from '../core/Scene'
 
@@ -15,6 +18,8 @@ interface SerializedComponent {
 interface SerializedEntity {
   id: string
   name: string
+  prefabSourcePath?: string
+  prefabVariantBasePath?: string
   components: SerializedComponent[]
 }
 
@@ -32,6 +37,8 @@ export function serializeEntity(entity: Entity): SerializedEntity {
   return {
     id: entity.id,
     name: entity.name,
+    prefabSourcePath: entity.prefabSourcePath || undefined,
+    prefabVariantBasePath: entity.prefabVariantBasePath || undefined,
     components: entity.getAllComponents().map((component) => ({
       type: component.type,
       data: JSON.parse(JSON.stringify(component))
@@ -41,6 +48,8 @@ export function serializeEntity(entity: Entity): SerializedEntity {
 
 export function deserializeEntity(entityData: SerializedEntity) {
   const entity = new Entity(entityData.id, entityData.name)
+  entity.prefabSourcePath = String(entityData.prefabSourcePath || '')
+  entity.prefabVariantBasePath = String(entityData.prefabVariantBasePath || '')
   for (const componentData of entityData.components) {
     const data = componentData.data
     switch (componentData.type) {
@@ -163,6 +172,50 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.maxX ?? 2000),
             Number(data.minY ?? -2000),
             Number(data.maxY ?? 2000)
+          )
+        )
+        break
+      case 'Audio':
+        entity.addComponent(
+          new AudioComponent(
+            Boolean(data.enabled ?? true),
+            String(data.clipPath ?? ''),
+            data.group === 'bgm' || data.group === 'ui' ? data.group : 'sfx',
+            Number(data.volume ?? 1),
+            Boolean(data.loop ?? false),
+            Boolean(data.playOnStart ?? false),
+            Boolean(data.playing ?? false)
+          )
+        )
+        break
+      case 'UI':
+        entity.addComponent(
+          new UIComponent(
+            Boolean(data.enabled ?? true),
+            data.mode === 'button' ? 'button' : 'text',
+            String(data.text ?? 'UI Text'),
+            Number(data.fontSize ?? 20),
+            Number(data.textColor ?? 0xffffff),
+            Number(data.width ?? 180),
+            Number(data.height ?? 48),
+            Number(data.backgroundColor ?? 0x2b3242),
+            Number(data.anchorX ?? 0.5),
+            Number(data.anchorY ?? 0.5),
+            Boolean(data.interactable ?? true)
+          )
+        )
+        break
+      case 'Tilemap':
+        entity.addComponent(
+          new TilemapComponent(
+            Boolean(data.enabled ?? true),
+            Math.max(1, Number(data.columns ?? 12)),
+            Math.max(1, Number(data.rows ?? 8)),
+            Math.max(1, Number(data.tileWidth ?? 48)),
+            Math.max(1, Number(data.tileHeight ?? 48)),
+            Array.isArray(data.tiles) ? data.tiles.map((value) => Number(value ?? 0)) : [],
+            Array.isArray(data.collision) ? data.collision.map((value) => Number(value ?? 0)) : [],
+            Boolean(data.showCollision ?? true)
           )
         )
         break
