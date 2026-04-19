@@ -120,7 +120,7 @@ export class PixiRenderer {
         this.scriptRuntime.updateScene(this.currentScene, delta, this.inputState)
         applySceneAnimation(this.currentScene, delta, (event) => {
           projectStore.setStatus(`动画事件：${event.name} @ frame ${event.frame}`)
-        })
+        }, this.inputState)
         void this.audioRuntime.syncScene(this.currentScene)
         this.updateCameraFromScene(this.currentScene)
         void this.renderScene(this.currentScene)
@@ -559,6 +559,12 @@ export class PixiRenderer {
     if (!texturePath) return null
     if (this.textureCache.has(texturePath)) return this.textureCache.get(texturePath) ?? null
 
+    if (texturePath.startsWith('data:image/')) {
+      const texture = await this.loadTextureFromDataUrl(texturePath)
+      this.textureCache.set(texturePath, texture)
+      return texture
+    }
+
     if (texturePath.startsWith('atlas://')) {
       const texture = await this.resolveAtlasFrameTexture(texturePath)
       if (texture) this.textureCache.set(texturePath, texture)
@@ -608,7 +614,13 @@ export class PixiRenderer {
       animation.elapsed = 0
       animation.currentFrame = 0
       animation.playing = true
-      const firstFrame = animation.framePaths[0]
+      if (animation.stateMachine?.enabled) {
+        animation.stateMachine.currentState = animation.stateMachine.initialState || animation.stateMachine.clips[0]?.name || ''
+      }
+      const activeClip = animation.stateMachine?.enabled
+        ? animation.stateMachine.clips.find((clip) => clip.name === animation.stateMachine.currentState) || animation.stateMachine.clips[0]
+        : null
+      const firstFrame = activeClip?.framePaths[0] || animation.framePaths[0]
       if (sprite && firstFrame) sprite.texturePath = firstFrame
     }
   }

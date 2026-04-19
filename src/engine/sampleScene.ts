@@ -9,13 +9,61 @@ import { UIComponent } from './components/UIComponent'
 import { Entity } from './core/Entity'
 import { Scene } from './core/Scene'
 
+function createStateTexture(color: string, label: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <rect x="4" y="4" width="88" height="88" rx="14" ry="14" fill="${color}" stroke="#f5f8ff" stroke-width="4"/>
+  <text x="48" y="56" text-anchor="middle" font-size="26" font-family="Arial, sans-serif" fill="#0b1020">${label}</text>
+</svg>`
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
+}
+
+const playerIdleTexture = createStateTexture('#5ab6ff', 'I')
+const playerRunTextureA = createStateTexture('#57d88c', 'R')
+const playerRunTextureB = createStateTexture('#38c1d9', 'R')
+const playerAttackTexture = createStateTexture('#ff6b6b', 'A')
+
 export function createDemoScene() {
   const scene = new Scene('scene_main', 'MainScene')
 
   const player = new Entity('player_001', 'Player')
-  player.addComponent(new TransformComponent(220, 220, 1, 1))
-  player.addComponent(new SpriteComponent('', 90, 90, true, 1, 0x56ccf2))
-  player.addComponent(new ColliderComponent('rect', 90, 90))
+  // 放在 LevelTilemap 的非碰撞区域（上半区域）避免开局卡在碰撞格里。
+  player.addComponent(new TransformComponent(180, 40, 1, 1))
+  player.addComponent(new SpriteComponent(playerIdleTexture, 90, 90, true, 1, 0xffffff))
+  player.addComponent(new ColliderComponent('rect', 100, 100, 0, 0, false))
+  player.addComponent(
+    new AnimationComponent(
+      true,
+      true,
+      8,
+      true,
+      0,
+      0,
+      [playerIdleTexture],
+      [1],
+      '',
+      '',
+      null,
+      [],
+      { positionX: [], positionY: [], rotation: [] },
+      {
+        enabled: true,
+        initialState: 'Idle',
+        currentState: 'Idle',
+        clips: [
+          { name: 'Idle', framePaths: [playerIdleTexture], frameDurations: [1], loop: true },
+          { name: 'Run', framePaths: [playerRunTextureA, playerRunTextureB], frameDurations: [1, 1], loop: true },
+          { name: 'Attack', framePaths: [playerAttackTexture], frameDurations: [1], loop: false }
+        ],
+        transitions: [
+          { from: 'Idle', to: 'Run', condition: 'ifMoving' },
+          { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
+          { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+          { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+        ]
+      }
+    )
+  )
   player.addComponent(
     new ScriptComponent(
       'builtin://player-input',
@@ -67,7 +115,7 @@ export function createDemoScene() {
   ], [1, 1, 2], 'assets/animations/TorchFX.anim.json'))
 
   const camera = new Entity('camera_main', 'MainCamera')
-  camera.addComponent(new TransformComponent(220, 220, 1, 1))
+  camera.addComponent(new TransformComponent(180, 40, 1, 1))
   camera.addComponent(new CameraComponent(true, 1, player.id, 0.16, 0, 0, false))
 
   const tilemap = new Entity('tilemap_001', 'LevelTilemap')

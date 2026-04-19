@@ -26,6 +26,27 @@ export interface AnimationAssetData {
       positionY: Array<{ frame: number; value: number }>
       rotation: Array<{ frame: number; value: number }>
     }
+    stateMachine?: {
+      enabled: boolean
+      initialState: string
+      currentState?: string
+      clips: Array<{
+        name: string
+        framePaths: string[]
+        frameDurations: number[]
+        loop: boolean
+      }>
+      transitions: Array<{
+        from: string
+        to: string
+        condition: 'always' | 'ifMoving' | 'ifNotMoving' | 'ifActionDown' | 'ifActionUp'
+        action?: string
+        priority?: number
+        canInterrupt?: boolean
+        once?: boolean
+        minNormalizedTime?: number
+      }>
+    }
     grid?: {
       columns: number
       rows: number
@@ -60,6 +81,27 @@ export function buildAnimationAssetFromComponent(name: string, animation: Animat
         positionX: animation.transformTracks.positionX.map((point) => ({ frame: Math.max(0, Number(point.frame)), value: Number(point.value) })),
         positionY: animation.transformTracks.positionY.map((point) => ({ frame: Math.max(0, Number(point.frame)), value: Number(point.value) })),
         rotation: animation.transformTracks.rotation.map((point) => ({ frame: Math.max(0, Number(point.frame)), value: Number(point.value) }))
+      },
+      stateMachine: {
+        enabled: Boolean(animation.stateMachine.enabled),
+        initialState: String(animation.stateMachine.initialState || 'Idle'),
+        currentState: String(animation.stateMachine.currentState || ''),
+        clips: animation.stateMachine.clips.map((clip) => ({
+          name: String(clip.name || ''),
+          framePaths: clip.framePaths.map(String),
+          frameDurations: clip.frameDurations.map((value) => Math.max(1, Number(value || 1))),
+          loop: Boolean(clip.loop)
+        })),
+        transitions: animation.stateMachine.transitions.map((t) => ({
+          from: String(t.from || ''),
+          to: String(t.to || ''),
+          condition: t.condition,
+          action: t.action ? String(t.action) : undefined,
+          priority: Number.isFinite(Number(t.priority)) ? Number(t.priority) : 0,
+          canInterrupt: t.canInterrupt ?? true,
+          once: Boolean(t.once),
+          minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0)))
+        }))
       },
       grid: animation.atlasGrid || undefined
     }
@@ -98,6 +140,29 @@ export function applyAnimationAssetToComponent(animation: AnimationComponent, as
     positionY: (asset.animation.transformTracks?.positionY || []).map((point) => ({ frame: Math.max(0, Number(point.frame || 0)), value: Number(point.value || 0) })),
     rotation: (asset.animation.transformTracks?.rotation || []).map((point) => ({ frame: Math.max(0, Number(point.frame || 0)), value: Number(point.value || 0) }))
   }
+  animation.stateMachine = asset.animation.stateMachine
+    ? {
+        enabled: Boolean(asset.animation.stateMachine.enabled),
+        initialState: String(asset.animation.stateMachine.initialState || 'Idle'),
+        currentState: String(asset.animation.stateMachine.currentState || ''),
+        clips: (asset.animation.stateMachine.clips || []).map((clip) => ({
+          name: String(clip.name || ''),
+          framePaths: (clip.framePaths || []).map(String),
+          frameDurations: (clip.frameDurations || []).map((value) => Math.max(1, Number(value || 1))),
+          loop: Boolean(clip.loop)
+        })),
+        transitions: (asset.animation.stateMachine.transitions || []).map((t) => ({
+          from: String(t.from || ''),
+          to: String(t.to || ''),
+          condition: t.condition,
+          action: t.action ? String(t.action) : undefined,
+          priority: Number.isFinite(Number(t.priority)) ? Number(t.priority) : 0,
+          canInterrupt: t.canInterrupt ?? true,
+          once: Boolean(t.once),
+          minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0)))
+        }))
+      }
+    : { enabled: false, initialState: 'Idle', currentState: '', clips: [], transitions: [] }
   animation.atlasGrid = asset.animation.grid
     ? {
         columns: Math.max(1, Number(asset.animation.grid.columns || 1)),

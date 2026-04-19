@@ -4,9 +4,9 @@
       <h3>{{ entity.name }}</h3>
 
       <div class="group">
-        <div class="group-title">基础</div>
+        <div class="group-title">Basic</div>
         <label>
-          实体名称
+          Entity Name
           <input :value="entity.name" @input="setEntityName(($event.target as HTMLInputElement).value)" />
         </label>
         <div class="readonly">ID: {{ entity.id }}</div>
@@ -14,25 +14,22 @@
 
       <div class="group">
         <div class="group-title">Transform</div>
-        <label> X <input type="number" :value="transform.x" @input="setNumber('transform', 'x', $event)" /> </label>
-        <label> Y <input type="number" :value="transform.y" @input="setNumber('transform', 'y', $event)" /> </label>
-        <label> Scale X <input type="number" step="0.1" :value="transform.scaleX" @input="setNumber('transform', 'scaleX', $event)" /> </label>
-        <label> Scale Y <input type="number" step="0.1" :value="transform.scaleY" @input="setNumber('transform', 'scaleY', $event)" /> </label>
-        <label> Rotation <input type="number" step="0.01" :value="transform.rotation" @input="setNumber('transform', 'rotation', $event)" /> </label>
+        <label>X <input type="number" :value="transform.x" @input="setNumber('transform', 'x', $event)" /></label>
+        <label>Y <input type="number" :value="transform.y" @input="setNumber('transform', 'y', $event)" /></label>
+        <label>Scale X <input type="number" step="0.1" :value="transform.scaleX" @input="setNumber('transform', 'scaleX', $event)" /></label>
+        <label>Scale Y <input type="number" step="0.1" :value="transform.scaleY" @input="setNumber('transform', 'scaleY', $event)" /></label>
+        <label>Rotation <input type="number" step="0.01" :value="transform.rotation" @input="setNumber('transform', 'rotation', $event)" /></label>
       </div>
 
       <div class="group" v-if="sprite">
         <div class="group-title">Sprite</div>
-        <label> Width <input type="number" :value="sprite.width" @input="setNumber('sprite', 'width', $event)" /> </label>
-        <label> Height <input type="number" :value="sprite.height" @input="setNumber('sprite', 'height', $event)" /> </label>
-        <label> Alpha <input type="number" step="0.1" min="0" max="1" :value="sprite.alpha" @input="setNumber('sprite', 'alpha', $event)" /> </label>
-        <label>
-          Texture Path
-          <input :value="sprite.texturePath" @input="setText('sprite', 'texturePath', $event)" />
-        </label>
+        <label>Width <input type="number" :value="sprite.width" @input="setNumber('sprite', 'width', $event)" /></label>
+        <label>Height <input type="number" :value="sprite.height" @input="setNumber('sprite', 'height', $event)" /></label>
+        <label>Alpha <input type="number" step="0.1" min="0" max="1" :value="sprite.alpha" @input="setNumber('sprite', 'alpha', $event)" /></label>
+        <label>Texture Path <input :value="sprite.texturePath" @input="setText('sprite', 'texturePath', $event)" /></label>
         <div class="asset-picker">
-          <button @click="void applySelectedImage()">使用当前选中图片</button>
-          <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : '请先在素材箱选择图片资源' }}</span>
+          <button @click="void applySelectedImage()">Use Selected Image</button>
+          <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : 'Select an image in Asset Tree first' }}</span>
         </div>
         <label class="checkbox-row">
           <input type="checkbox" :checked="sprite.visible" @change="setChecked('sprite', 'visible', $event)" />
@@ -43,11 +40,8 @@
       <div class="group" v-if="animation || sprite">
         <div class="group-title">Animation</div>
         <template v-if="animation">
-          <label> FPS <input type="number" min="1" :value="animation.fps" @input="setNumber('animation', 'fps', $event)" /> </label>
-          <label>
-            Animation Asset
-            <input :value="animation.animationAssetPath" readonly />
-          </label>
+          <label>FPS <input type="number" min="1" :value="animation.fps" @input="setNumber('animation', 'fps', $event)" /></label>
+          <label>Animation Asset <input :value="animation.animationAssetPath" readonly /></label>
           <label class="checkbox-row">
             <input type="checkbox" :checked="animation.enabled" @change="setChecked('animation', 'enabled', $event)" />
             Enabled
@@ -60,25 +54,133 @@
             <input type="checkbox" :checked="animation.loop" @change="setChecked('animation', 'loop', $event)" />
             Loop
           </label>
+
+          <div class="subgroup">
+            <div class="group-title">State Machine</div>
+            <label class="checkbox-row">
+              <input type="checkbox" :checked="animation.stateMachine.enabled" @change="setAnimationStateMachineEnabled($event)" />
+              Enable
+            </label>
+            <label>Initial State <input :value="animation.stateMachine.initialState" @input="setAnimationStateInitial($event)" /></label>
+            <label>Default Action Name <input :value="getAnimationStateAction()" @input="setAnimationStateAction($event)" /></label>
+
+            <div class="row-inline">
+              <input
+                class="grow"
+                :value="newAnimationStateName"
+                placeholder="New State Name"
+                @input="newAnimationStateName = ($event.target as HTMLInputElement).value"
+                @keydown.enter.prevent="addAnimationState"
+              />
+              <button class="small" @click="addAnimationState">Add State</button>
+            </div>
+
+            <div class="state-list" v-if="animation.stateMachine.clips.length">
+              <button
+                v-for="clip in animation.stateMachine.clips"
+                :key="clip.name"
+                type="button"
+                class="state-chip"
+                :class="{ active: selectedAnimationStateName === clip.name }"
+                @click="selectAnimationState(clip.name)"
+              >
+                {{ clip.name }}
+              </button>
+            </div>
+
+            <template v-if="selectedAnimationStateName">
+              <label>Selected State Name <input :value="selectedAnimationStateName" @input="setSelectedAnimationStateName($event)" /></label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="selectedAnimationStateClip()?.loop ?? true" @change="setSelectedAnimationStateLoop($event)" />
+                Selected State Loop
+              </label>
+              <label>
+                Selected State Frames (one path per line)
+                <textarea :value="getSelectedAnimationStateFrameText()" @input="setSelectedAnimationStateFrameText($event)"></textarea>
+              </label>
+              <label>
+                Selected State Durations (one number per line)
+                <textarea :value="getSelectedAnimationStateDurationText()" @input="setSelectedAnimationStateDurationText($event)"></textarea>
+              </label>
+              <button class="small danger" @click="removeAnimationState(selectedAnimationStateName)">Remove Selected State</button>
+            </template>
+
+            <div class="state-transitions">
+              <div class="row-inline">
+                <div class="group-title">Transitions</div>
+                <button class="small" @click="addAnimationTransition">Add Transition</button>
+              </div>
+              <div v-if="animation.stateMachine.transitions.length" class="transition-list">
+                <div v-for="(transition, index) in animation.stateMachine.transitions" :key="index" class="transition-card">
+                  <label>
+                    From
+                    <select :value="transition.from" @change="setAnimationTransitionFrom(index, $event)">
+                      <option value="*">*</option>
+                      <option v-for="clip in animation.stateMachine.clips" :key="`from_${clip.name}`" :value="clip.name">{{ clip.name }}</option>
+                    </select>
+                  </label>
+                  <label>
+                    To
+                    <select :value="transition.to" @change="setAnimationTransitionTo(index, $event)">
+                      <option v-for="clip in animation.stateMachine.clips" :key="`to_${clip.name}`" :value="clip.name">{{ clip.name }}</option>
+                    </select>
+                  </label>
+                  <label>
+                    Condition
+                    <select :value="transition.condition" @change="setAnimationTransitionCondition(index, $event)">
+                      <option value="always">always</option>
+                      <option value="ifMoving">ifMoving</option>
+                      <option value="ifNotMoving">ifNotMoving</option>
+                      <option value="ifActionDown">ifActionDown</option>
+                      <option value="ifActionUp">ifActionUp</option>
+                    </select>
+                  </label>
+                  <label v-if="transition.condition === 'ifActionDown' || transition.condition === 'ifActionUp'">
+                    Action
+                    <input :value="transition.action || ''" @input="setAnimationTransitionAction(index, $event)" />
+                  </label>
+                  <label>
+                    Priority
+                    <input type="number" :value="transition.priority ?? 0" @input="setAnimationTransitionPriority(index, $event)" />
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" :checked="transition.canInterrupt ?? true" @change="setAnimationTransitionCanInterrupt(index, $event)" />
+                    Can Interrupt
+                  </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" :checked="transition.once ?? false" @change="setAnimationTransitionOnce(index, $event)" />
+                    Once
+                  </label>
+                  <label>
+                    Min Progress (0-1)
+                    <input type="number" step="0.01" min="0" max="1" :value="transition.minNormalizedTime ?? 0" @input="setAnimationTransitionMinNormalizedTime(index, $event)" />
+                  </label>
+                  <button class="small danger" @click="removeAnimationTransition(index)">Remove</button>
+                </div>
+              </div>
+              <div v-else class="tips">No transition yet.</div>
+            </div>
+          </div>
+
           <label>
-            帧路径（每行一张图片）
+            Frame Paths (one path per line)
             <textarea :value="animation.framePaths.join('\n')" @input="setAnimationFrames($event)"></textarea>
           </label>
           <div class="asset-picker">
-            <button @click="appendSelectedImageToAnimation">追加当前选中图片</button>
-            <span>{{ animation.framePaths.length }} 帧</span>
+            <button @click="appendSelectedImageToAnimation">Append Selected Image</button>
+            <span>{{ animation.framePaths.length }} frames</span>
           </div>
         </template>
         <template v-else>
-          <div class="tips">当前实体还没有 Animation 组件。</div>
-          <button class="small" @click="addAnimationComponent">添加 Animation 组件</button>
+          <div class="tips">Current entity does not have Animation component.</div>
+          <button class="small" @click="addAnimationComponent">Add Animation Component</button>
         </template>
       </div>
 
       <div class="group" v-if="collider">
         <div class="group-title">Collider</div>
-        <label> Width <input type="number" :value="collider.width" @input="setNumber('collider', 'width', $event)" /> </label>
-        <label> Height <input type="number" :value="collider.height" @input="setNumber('collider', 'height', $event)" /> </label>
+        <label>Width <input type="number" :value="collider.width" @input="setNumber('collider', 'width', $event)" /></label>
+        <label>Height <input type="number" :value="collider.height" @input="setNumber('collider', 'height', $event)" /></label>
         <label class="checkbox-row">
           <input type="checkbox" :checked="collider.isTrigger" @change="setChecked('collider', 'isTrigger', $event)" />
           Trigger
@@ -92,26 +194,20 @@
             <input type="checkbox" :checked="tilemap.enabled" @change="setChecked('tilemap', 'enabled', $event)" />
             Enabled
           </label>
-          <label> Columns <input type="number" min="1" :value="tilemap.columns" @input="setNumber('tilemap', 'columns', $event)" @change="resizeTilemapData" /> </label>
-          <label> Rows <input type="number" min="1" :value="tilemap.rows" @input="setNumber('tilemap', 'rows', $event)" @change="resizeTilemapData" /> </label>
-          <label> Tile Width <input type="number" min="8" :value="tilemap.tileWidth" @input="setNumber('tilemap', 'tileWidth', $event)" @change="resizeTilemapData" /> </label>
-          <label> Tile Height <input type="number" min="8" :value="tilemap.tileHeight" @input="setNumber('tilemap', 'tileHeight', $event)" @change="resizeTilemapData" /> </label>
+          <label>Columns <input type="number" min="1" :value="tilemap.columns" @input="setNumber('tilemap', 'columns', $event)" @change="resizeTilemapData" /></label>
+          <label>Rows <input type="number" min="1" :value="tilemap.rows" @input="setNumber('tilemap', 'rows', $event)" @change="resizeTilemapData" /></label>
+          <label>Tile Width <input type="number" min="8" :value="tilemap.tileWidth" @input="setNumber('tilemap', 'tileWidth', $event)" @change="resizeTilemapData" /></label>
+          <label>Tile Height <input type="number" min="8" :value="tilemap.tileHeight" @input="setNumber('tilemap', 'tileHeight', $event)" @change="resizeTilemapData" /></label>
           <label class="checkbox-row">
             <input type="checkbox" :checked="tilemap.showCollision" @change="setChecked('tilemap', 'showCollision', $event)" />
             Show Collision Overlay
           </label>
-          <label>
-            Tiles (CSV rows)
-            <textarea :value="tilemapToText(tilemap.tiles)" @input="setTilemapArray('tiles', $event)"></textarea>
-          </label>
-          <label>
-            Collision (CSV rows, 0/1)
-            <textarea :value="tilemapToText(tilemap.collision)" @input="setTilemapArray('collision', $event)"></textarea>
-          </label>
+          <label>Tiles (CSV rows)<textarea :value="tilemapToText(tilemap.tiles)" @input="setTilemapArray('tiles', $event)"></textarea></label>
+          <label>Collision (CSV rows, 0/1)<textarea :value="tilemapToText(tilemap.collision)" @input="setTilemapArray('collision', $event)"></textarea></label>
         </template>
         <template v-else>
-          <div class="tips">当前实体还没有 Tilemap 组件。</div>
-          <button class="small" @click="addTilemapComponent">添加 Tilemap 组件</button>
+          <div class="tips">Current entity does not have Tilemap component.</div>
+          <button class="small" @click="addTilemapComponent">Add Tilemap Component</button>
         </template>
       </div>
 
@@ -122,29 +218,28 @@
             <input type="checkbox" :checked="ui.enabled" @change="setChecked('ui', 'enabled', $event)" />
             Enabled
           </label>
-          <label>
-            Mode
+          <label>Mode
             <select :value="ui.mode" @change="setUIMode">
               <option value="text">Text</option>
               <option value="button">Button</option>
             </select>
           </label>
-          <label> Text <input :value="ui.text" @input="setText('ui', 'text', $event)" /> </label>
-          <label> Font Size <input type="number" min="8" max="96" :value="ui.fontSize" @input="setNumber('ui', 'fontSize', $event)" /> </label>
-          <label> Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /> </label>
-          <label> Width <input type="number" min="10" :value="ui.width" @input="setNumber('ui', 'width', $event)" /> </label>
-          <label> Height <input type="number" min="10" :value="ui.height" @input="setNumber('ui', 'height', $event)" /> </label>
-          <label> Background (Hex) <input :value="`0x${Number(ui.backgroundColor).toString(16)}`" @input="setHexNumber('ui', 'backgroundColor', $event)" /> </label>
-          <label> Anchor X <input type="number" min="0" max="1" step="0.01" :value="ui.anchorX" @input="setNumber('ui', 'anchorX', $event)" /> </label>
-          <label> Anchor Y <input type="number" min="0" max="1" step="0.01" :value="ui.anchorY" @input="setNumber('ui', 'anchorY', $event)" /> </label>
+          <label>Text <input :value="ui.text" @input="setText('ui', 'text', $event)" /></label>
+          <label>Font Size <input type="number" min="8" max="96" :value="ui.fontSize" @input="setNumber('ui', 'fontSize', $event)" /></label>
+          <label>Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /></label>
+          <label>Width <input type="number" min="10" :value="ui.width" @input="setNumber('ui', 'width', $event)" /></label>
+          <label>Height <input type="number" min="10" :value="ui.height" @input="setNumber('ui', 'height', $event)" /></label>
+          <label>Background (Hex) <input :value="`0x${Number(ui.backgroundColor).toString(16)}`" @input="setHexNumber('ui', 'backgroundColor', $event)" /></label>
+          <label>Anchor X <input type="number" min="0" max="1" step="0.01" :value="ui.anchorX" @input="setNumber('ui', 'anchorX', $event)" /></label>
+          <label>Anchor Y <input type="number" min="0" max="1" step="0.01" :value="ui.anchorY" @input="setNumber('ui', 'anchorY', $event)" /></label>
           <label class="checkbox-row">
             <input type="checkbox" :checked="ui.interactable" @change="setChecked('ui', 'interactable', $event)" />
             Interactable
           </label>
         </template>
         <template v-else>
-          <div class="tips">当前实体还没有 UI 组件。</div>
-          <button class="small" @click="addUIComponent">添加 UI 组件</button>
+          <div class="tips">Current entity does not have UI component.</div>
+          <button class="small" @click="addUIComponent">Add UI Component</button>
         </template>
       </div>
 
@@ -155,80 +250,58 @@
             <input type="checkbox" :checked="audio.enabled" @change="setChecked('audio', 'enabled', $event)" />
             Enabled
           </label>
-          <label>
-            Clip Path
-            <input :value="audio.clipPath" @input="setText('audio', 'clipPath', $event)" />
-          </label>
+          <label>Clip Path <input :value="audio.clipPath" @input="setText('audio', 'clipPath', $event)" /></label>
           <div class="asset-picker">
-            <button @click="void applySelectedAudio()">使用当前选中音频</button>
-            <span>{{ assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : '请先在资源树中选择音频资源' }}</span>
+            <button @click="void applySelectedAudio()">Use Selected Audio</button>
+            <span>{{ assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : 'Select an audio in Asset Tree first' }}</span>
           </div>
-          <label>
-            Group
+          <label>Group
             <select :value="audio.group" @change="setAudioGroup">
               <option value="bgm">BGM</option>
               <option value="sfx">SFX</option>
               <option value="ui">UI</option>
             </select>
           </label>
-          <label>
-            Volume
-            <input type="number" min="0" max="1" step="0.05" :value="audio.volume" @input="setNumber('audio', 'volume', $event)" />
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="audio.loop" @change="setChecked('audio', 'loop', $event)" />
-            Loop
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="audio.playOnStart" @change="setChecked('audio', 'playOnStart', $event)" />
-            Play On Start
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="audio.playing" @change="setChecked('audio', 'playing', $event)" />
-            Playing
-          </label>
+          <label>Volume <input type="number" min="0" max="1" step="0.05" :value="audio.volume" @input="setNumber('audio', 'volume', $event)" /></label>
+          <label class="checkbox-row"><input type="checkbox" :checked="audio.loop" @change="setChecked('audio', 'loop', $event)" />Loop</label>
+          <label class="checkbox-row"><input type="checkbox" :checked="audio.playOnStart" @change="setChecked('audio', 'playOnStart', $event)" />Play On Start</label>
+          <label class="checkbox-row"><input type="checkbox" :checked="audio.playing" @change="setChecked('audio', 'playing', $event)" />Playing</label>
         </template>
         <template v-else>
-          <div class="tips">当前实体还没有 Audio 组件。</div>
-          <button class="small" @click="addAudioComponent">添加 Audio 组件</button>
+          <div class="tips">Current entity does not have Audio component.</div>
+          <button class="small" @click="addAudioComponent">Add Audio Component</button>
         </template>
       </div>
 
       <div class="group">
         <div class="group-title">Camera</div>
         <template v-if="camera">
-          <label> Zoom <input type="number" step="0.1" min="0.1" :value="camera.zoom" @input="setNumber('camera', 'zoom', $event)" /> </label>
-          <label>
-            Follow Entity ID
-            <input :value="camera.followEntityId" @input="setText('camera', 'followEntityId', $event)" />
-          </label>
-          <label> Follow Smoothing <input type="number" step="0.01" min="0" max="1" :value="camera.followSmoothing" @input="setNumber('camera', 'followSmoothing', $event)" /> </label>
-          <label> Offset X <input type="number" :value="camera.offsetX" @input="setNumber('camera', 'offsetX', $event)" /> </label>
-          <label> Offset Y <input type="number" :value="camera.offsetY" @input="setNumber('camera', 'offsetY', $event)" /> </label>
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="camera.boundsEnabled" @change="setChecked('camera', 'boundsEnabled', $event)" />
-            Enable Bounds
-          </label>
+          <label>Zoom <input type="number" step="0.1" min="0.1" :value="camera.zoom" @input="setNumber('camera', 'zoom', $event)" /></label>
+          <label>Follow Entity ID <input :value="camera.followEntityId" @input="setText('camera', 'followEntityId', $event)" /></label>
+          <label>Follow Smoothing <input type="number" step="0.01" min="0" max="1" :value="camera.followSmoothing" @input="setNumber('camera', 'followSmoothing', $event)" /></label>
+          <label>Offset X <input type="number" :value="camera.offsetX" @input="setNumber('camera', 'offsetX', $event)" /></label>
+          <label>Offset Y <input type="number" :value="camera.offsetY" @input="setNumber('camera', 'offsetY', $event)" /></label>
+          <label class="checkbox-row"><input type="checkbox" :checked="camera.boundsEnabled" @change="setChecked('camera', 'boundsEnabled', $event)" />Enable Bounds</label>
           <template v-if="camera.boundsEnabled">
-            <label> Min X <input type="number" :value="camera.minX" @input="setNumber('camera', 'minX', $event)" /> </label>
-            <label> Max X <input type="number" :value="camera.maxX" @input="setNumber('camera', 'maxX', $event)" /> </label>
-            <label> Min Y <input type="number" :value="camera.minY" @input="setNumber('camera', 'minY', $event)" /> </label>
-            <label> Max Y <input type="number" :value="camera.maxY" @input="setNumber('camera', 'maxY', $event)" /> </label>
+            <label>Min X <input type="number" :value="camera.minX" @input="setNumber('camera', 'minX', $event)" /></label>
+            <label>Max X <input type="number" :value="camera.maxX" @input="setNumber('camera', 'maxX', $event)" /></label>
+            <label>Min Y <input type="number" :value="camera.minY" @input="setNumber('camera', 'minY', $event)" /></label>
+            <label>Max Y <input type="number" :value="camera.maxY" @input="setNumber('camera', 'maxY', $event)" /></label>
           </template>
         </template>
         <template v-else>
-          <div class="tips">当前实体还没有 Camera 组件。</div>
-          <button class="small" @click="addCameraComponent">添加 Camera 组件</button>
+          <div class="tips">Current entity does not have Camera component.</div>
+          <button class="small" @click="addCameraComponent">Add Camera Component</button>
         </template>
       </div>
     </template>
 
-    <div v-else class="empty">请在场景树或视口中选择一个实体。</div>
+    <div v-else class="empty">Select an entity in Scene Tree or Viewport first.</div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { AnimationComponent } from '../../engine/components/AnimationComponent'
 import { AudioComponent } from '../../engine/components/AudioComponent'
 import { CameraComponent } from '../../engine/components/CameraComponent'
@@ -254,6 +327,23 @@ const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camer
 const audio = computed(() => entity.value?.getComponent<AudioComponent>('Audio') ?? null)
 const ui = computed(() => entity.value?.getComponent<UIComponent>('UI') ?? null)
 const tilemap = computed(() => entity.value?.getComponent<TilemapComponent>('Tilemap') ?? null)
+const newAnimationStateName = ref('')
+const selectedAnimationStateName = ref('Idle')
+const animationStateClips = computed(() => animation.value?.stateMachine.clips ?? [])
+
+watch(
+  animationStateClips,
+  (clips) => {
+    if (!clips.length) {
+      selectedAnimationStateName.value = ''
+      return
+    }
+    if (!clips.some((clip) => clip.name === selectedAnimationStateName.value)) {
+      selectedAnimationStateName.value = clips[0].name
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 function setEntityName(value: string) {
   if (!entity.value) return
@@ -304,6 +394,337 @@ function setChecked(group: 'sprite' | 'collider' | 'animation' | 'camera' | 'aud
   sceneStore.markDirty()
 }
 
+function setAnimationFrames(event: Event) {
+  if (!animation.value) return
+  animation.value.framePaths = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
+  sceneStore.markDirty()
+}
+
+function ensureAnimationStateMachineDefaults() {
+  if (!animation.value) return
+  if (!animation.value.stateMachine.clips.length) {
+    animation.value.stateMachine.clips = [
+      {
+        name: 'Idle',
+        framePaths: [...animation.value.framePaths],
+        frameDurations: animation.value.framePaths.map((_, index) => Math.max(1, Number(animation.value?.frameDurations[index] ?? 1))),
+        loop: true
+      },
+      { name: 'Run', framePaths: [], frameDurations: [], loop: true },
+      { name: 'Attack', framePaths: [], frameDurations: [], loop: false }
+    ]
+  }
+  if (!animation.value.stateMachine.transitions.length) {
+    animation.value.stateMachine.transitions = [
+      { from: 'Idle', to: 'Run', condition: 'ifMoving' },
+      { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
+      { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+      { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+      { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+    ]
+  }
+}
+
+function setAnimationStateMachineEnabled(event: Event) {
+  if (!animation.value) return
+  animation.value.stateMachine.enabled = (event.target as HTMLInputElement).checked
+  if (animation.value.stateMachine.enabled) {
+    ensureAnimationStateMachineDefaults()
+    if (!animation.value.stateMachine.initialState) animation.value.stateMachine.initialState = 'Idle'
+    if (!animation.value.stateMachine.currentState) animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
+  }
+  sceneStore.markDirty()
+}
+
+function setAnimationStateInitial(event: Event) {
+  if (!animation.value) return
+  animation.value.stateMachine.initialState = (event.target as HTMLInputElement).value.trim() || 'Idle'
+  if (!animation.value.stateMachine.currentState) animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
+  sceneStore.markDirty()
+}
+
+function getAnimationStateAction() {
+  if (!animation.value) return 'fire'
+  const hit = animation.value.stateMachine.transitions.find((item) => item.condition === 'ifActionDown' || item.condition === 'ifActionUp')
+  return hit?.action || 'fire'
+}
+
+function setAnimationStateAction(event: Event) {
+  if (!animation.value) return
+  const action = (event.target as HTMLInputElement).value.trim() || 'fire'
+  ensureAnimationStateMachineDefaults()
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item) =>
+    item.condition === 'ifActionDown' || item.condition === 'ifActionUp' ? { ...item, action } : item
+  )
+  sceneStore.markDirty()
+}
+
+function ensureAnimationStateClip(name: string) {
+  if (!animation.value) return null
+  let clip = animation.value.stateMachine.clips.find((item) => item.name === name) || null
+  if (!clip) {
+    clip = { name, framePaths: [], frameDurations: [], loop: name !== 'Attack' }
+    animation.value.stateMachine.clips = [...animation.value.stateMachine.clips, clip]
+  }
+  return clip
+}
+
+function getAnimationStateClipText(name: string) {
+  const clip = animation.value?.stateMachine.clips.find((item) => item.name === name)
+  return clip?.framePaths.join('\n') || ''
+}
+
+function setAnimationStateClipText(name: string, event: Event) {
+  if (!animation.value) return
+  ensureAnimationStateMachineDefaults()
+  const clip = ensureAnimationStateClip(name)
+  if (!clip) return
+  clip.framePaths = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
+  clip.frameDurations = clip.framePaths.map((_, index) => Math.max(1, Number(clip.frameDurations[index] ?? 1)))
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((item) => item.name === name ? clip : item)
+  sceneStore.markDirty()
+}
+
+function addAnimationState() {
+  if (!animation.value) return
+  ensureAnimationStateMachineDefaults()
+  const name = newAnimationStateName.value.trim()
+  if (!name) return
+  if (animation.value.stateMachine.clips.some((clip) => clip.name === name)) return
+  animation.value.stateMachine.clips = [
+    ...animation.value.stateMachine.clips,
+    { name, framePaths: [], frameDurations: [], loop: true }
+  ]
+  if (!animation.value.stateMachine.initialState) animation.value.stateMachine.initialState = name
+  selectedAnimationStateName.value = name
+  newAnimationStateName.value = ''
+  sceneStore.markDirty()
+}
+
+function selectAnimationState(name: string) {
+  selectedAnimationStateName.value = name
+}
+
+function removeAnimationState(name: string) {
+  if (!animation.value) return
+  if (animation.value.stateMachine.clips.length <= 1) return
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.filter((clip) => clip.name !== name)
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.filter((item) => item.from !== name && item.to !== name)
+  if (animation.value.stateMachine.initialState === name) {
+    animation.value.stateMachine.initialState = animation.value.stateMachine.clips[0]?.name || 'Idle'
+  }
+  if (animation.value.stateMachine.currentState === name) {
+    animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
+  }
+  if (selectedAnimationStateName.value === name) {
+    selectedAnimationStateName.value = animation.value.stateMachine.clips[0]?.name || ''
+  }
+  sceneStore.markDirty()
+}
+
+function setSelectedAnimationStateName(event: Event) {
+  if (!animation.value) return
+  const raw = (event.target as HTMLInputElement).value.trim()
+  if (!raw) return
+  const clip = animation.value.stateMachine.clips.find((item) => item.name === selectedAnimationStateName.value)
+  if (!clip) return
+  if (raw !== clip.name && animation.value.stateMachine.clips.some((item) => item.name === raw)) return
+  const previous = clip.name
+  clip.name = raw
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((item) => item === clip ? { ...clip } : item)
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item) => ({
+    ...item,
+    from: item.from === previous ? raw : item.from,
+    to: item.to === previous ? raw : item.to
+  }))
+  if (animation.value.stateMachine.initialState === previous) animation.value.stateMachine.initialState = raw
+  if (animation.value.stateMachine.currentState === previous) animation.value.stateMachine.currentState = raw
+  selectedAnimationStateName.value = raw
+  sceneStore.markDirty()
+}
+
+function selectedAnimationStateClip() {
+  if (!animation.value) return null
+  return animation.value.stateMachine.clips.find((item) => item.name === selectedAnimationStateName.value) || null
+}
+
+function getSelectedAnimationStateFrameText() {
+  return selectedAnimationStateClip()?.framePaths.join('\n') || ''
+}
+
+function setSelectedAnimationStateFrameText(event: Event) {
+  const clip = selectedAnimationStateClip()
+  if (!animation.value || !clip) return
+  clip.framePaths = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
+  clip.frameDurations = clip.framePaths.map((_, index) => Math.max(1, Number(clip.frameDurations[index] ?? 1)))
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((item) => item.name === clip.name ? clip : item)
+  sceneStore.markDirty()
+}
+
+function getSelectedAnimationStateDurationText() {
+  const clip = selectedAnimationStateClip()
+  if (!clip) return ''
+  return clip.framePaths.map((_, index) => Math.max(1, Number(clip.frameDurations[index] ?? 1))).join('\n')
+}
+
+function setSelectedAnimationStateDurationText(event: Event) {
+  const clip = selectedAnimationStateClip()
+  if (!animation.value || !clip) return
+  const values = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => Math.max(1, Number(line.trim() || 1)))
+  clip.frameDurations = clip.framePaths.map((_, index) => Math.max(1, Number(values[index] ?? 1)))
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((item) => item.name === clip.name ? clip : item)
+  sceneStore.markDirty()
+}
+
+function setSelectedAnimationStateLoop(event: Event) {
+  const clip = selectedAnimationStateClip()
+  if (!animation.value || !clip) return
+  clip.loop = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((item) => item.name === clip.name ? clip : item)
+  sceneStore.markDirty()
+}
+
+function addAnimationTransition() {
+  if (!animation.value) return
+  ensureAnimationStateMachineDefaults()
+  const fallback = animation.value.stateMachine.clips[0]?.name || 'Idle'
+  animation.value.stateMachine.transitions = [
+    ...animation.value.stateMachine.transitions,
+    { from: fallback, to: fallback, condition: 'always' }
+  ]
+  sceneStore.markDirty()
+}
+
+function removeAnimationTransition(index: number) {
+  if (!animation.value) return
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.filter((_, i) => i !== index)
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionFrom(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLSelectElement).value
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, from: value } : item)
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionTo(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLSelectElement).value
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, to: value } : item)
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionCondition(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLSelectElement).value as 'always' | 'ifMoving' | 'ifNotMoving' | 'ifActionDown' | 'ifActionUp'
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, condition: value } : item)
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionAction(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLInputElement).value.trim()
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
+    i === index ? { ...item, action: value || undefined } : item
+  )
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionPriority(index: number, event: Event) {
+  if (!animation.value) return
+  const value = Number((event.target as HTMLInputElement).value || 0)
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
+    i === index ? { ...item, priority: Number.isFinite(value) ? value : 0 } : item
+  )
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionCanInterrupt(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
+    i === index ? { ...item, canInterrupt: value } : item
+  )
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionOnce(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
+    i === index ? { ...item, once: value } : item
+  )
+  sceneStore.markDirty()
+}
+
+function setAnimationTransitionMinNormalizedTime(index: number, event: Event) {
+  if (!animation.value) return
+  const raw = Number((event.target as HTMLInputElement).value || 0)
+  const value = Math.max(0, Math.min(1, Number.isFinite(raw) ? raw : 0))
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
+    i === index ? { ...item, minNormalizedTime: value } : item
+  )
+  sceneStore.markDirty()
+}
+
+async function applySelectedImage() {
+  if (!sprite.value || assets.selectedAsset?.type !== 'image') return
+  sprite.value.texturePath = assets.selectedAsset.path
+  const imageSize = await assets.ensureImageSize(assets.selectedAsset.path)
+  if (imageSize) {
+    const fitScale = Math.min(1, 192 / Math.max(imageSize.width, imageSize.height))
+    sprite.value.width = Math.max(24, Math.round(imageSize.width * fitScale))
+    sprite.value.height = Math.max(24, Math.round(imageSize.height * fitScale))
+  }
+  sceneStore.markDirty()
+}
+
+function appendSelectedImageToAnimation() {
+  if (!animation.value || assets.selectedAsset?.type !== 'image') return
+  animation.value.framePaths = [...animation.value.framePaths, assets.selectedAsset.path]
+  sceneStore.markDirty()
+}
+
+function addAnimationComponent() {
+  if (!entity.value) return
+  entity.value.addComponent(
+    new AnimationComponent(
+      true,
+      true,
+      8,
+      true,
+      0,
+      0,
+      [],
+      [],
+      '',
+      '',
+      null,
+      [],
+      { positionX: [], positionY: [], rotation: [] },
+      {
+        enabled: false,
+        initialState: 'Idle',
+        currentState: '',
+        clips: [
+          { name: 'Idle', framePaths: [], frameDurations: [], loop: true },
+          { name: 'Run', framePaths: [], frameDurations: [], loop: true },
+          { name: 'Attack', framePaths: [], frameDurations: [], loop: false }
+        ],
+        transitions: [
+          { from: 'Idle', to: 'Run', condition: 'ifMoving' },
+          { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
+          { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+          { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+        ]
+      }
+    )
+  )
+  sceneStore.markDirty()
+}
+
 function setTilemapArray(kind: 'tiles' | 'collision', event: Event) {
   if (!tilemap.value) return
   const rows = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
@@ -340,9 +761,7 @@ function tilemapToText(values: number[] | undefined) {
   const rows = tilemap.value.rows
   const safe = normalizeTileArray(values || [], cols * rows)
   const lines: string[] = []
-  for (let r = 0; r < rows; r += 1) {
-    lines.push(safe.slice(r * cols, (r + 1) * cols).join(','))
-  }
+  for (let r = 0; r < rows; r += 1) lines.push(safe.slice(r * cols, (r + 1) * cols).join(','))
   return lines.join('\n')
 }
 
@@ -352,42 +771,21 @@ function normalizeTileArray(values: number[], size: number) {
   return next
 }
 
-function setAnimationFrames(event: Event) {
-  if (!animation.value) return
-  animation.value.framePaths = (event.target as HTMLTextAreaElement).value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+function addTilemapComponent() {
+  if (!entity.value || tilemap.value) return
+  entity.value.addComponent(new TilemapComponent(true, 12, 8, 48, 48))
   sceneStore.markDirty()
 }
 
-async function applySelectedImage() {
-  if (!sprite.value || assets.selectedAsset?.type !== 'image') return
-  sprite.value.texturePath = assets.selectedAsset.path
-  const imageSize = await assets.ensureImageSize(assets.selectedAsset.path)
-  if (imageSize) {
-    const fitScale = Math.min(1, 192 / Math.max(imageSize.width, imageSize.height))
-    sprite.value.width = Math.max(24, Math.round(imageSize.width * fitScale))
-    sprite.value.height = Math.max(24, Math.round(imageSize.height * fitScale))
-  }
+function setUIMode(event: Event) {
+  if (!ui.value) return
+  ui.value.mode = (event.target as HTMLSelectElement).value === 'button' ? 'button' : 'text'
   sceneStore.markDirty()
 }
 
-function appendSelectedImageToAnimation() {
-  if (!animation.value || assets.selectedAsset?.type !== 'image') return
-  animation.value.framePaths = [...animation.value.framePaths, assets.selectedAsset.path]
-  sceneStore.markDirty()
-}
-
-function addAnimationComponent() {
-  if (!entity.value) return
-  entity.value.addComponent(new AnimationComponent(true, true, 8, true, 0, 0, [], [], ''))
-  sceneStore.markDirty()
-}
-
-function addCameraComponent() {
-  if (!entity.value || camera.value) return
-  entity.value.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
+function addUIComponent() {
+  if (!entity.value || ui.value) return
+  entity.value.addComponent(new UIComponent(true, 'text', 'UI Text', 20, 0xffffff, 180, 48, 0x2b3242, 0.5, 0.5, true))
   sceneStore.markDirty()
 }
 
@@ -410,22 +808,9 @@ function addAudioComponent() {
   sceneStore.markDirty()
 }
 
-function setUIMode(event: Event) {
-  if (!ui.value) return
-  const next = (event.target as HTMLSelectElement).value
-  ui.value.mode = next === 'button' ? 'button' : 'text'
-  sceneStore.markDirty()
-}
-
-function addUIComponent() {
-  if (!entity.value || ui.value) return
-  entity.value.addComponent(new UIComponent(true, 'text', 'UI Text', 20, 0xffffff, 180, 48, 0x2b3242, 0.5, 0.5, true))
-  sceneStore.markDirty()
-}
-
-function addTilemapComponent() {
-  if (!entity.value || tilemap.value) return
-  entity.value.addComponent(new TilemapComponent(true, 12, 8, 48, 48))
+function addCameraComponent() {
+  if (!entity.value || camera.value) return
+  entity.value.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
   sceneStore.markDirty()
 }
 </script>
@@ -434,6 +819,7 @@ function addTilemapComponent() {
 .inspector { display: grid; gap: 12px; }
 h3 { margin: 0; }
 .group { padding: 12px; border-radius: 10px; background: #1a2030; display: grid; gap: 8px; }
+.subgroup { border: 1px solid #2b3344; border-radius: 8px; padding: 8px; display: grid; gap: 8px; background: #161d2a; }
 .group-title { color: #9bb0c9; font-size: 13px; }
 label { display: grid; gap: 6px; font-size: 13px; }
 input, textarea, select {
@@ -443,10 +829,7 @@ input, textarea, select {
   border-radius: 8px;
   padding: 8px;
 }
-textarea {
-  min-height: 96px;
-  resize: vertical;
-}
+textarea { min-height: 96px; resize: vertical; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
 .readonly, .empty, .tips { color: #a8b5c7; }
 .asset-picker {
@@ -463,5 +846,49 @@ textarea {
   padding: 6px 10px;
   border-radius: 8px;
   cursor: pointer;
+}
+.small.danger {
+  border-color: #5b2631;
+  background: #3b1e27;
+}
+.row-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.grow { flex: 1; min-width: 0; }
+.state-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.state-chip {
+  border: 1px solid #2f3a4c;
+  background: #1f2735;
+  color: #d7e1ee;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.state-chip.active {
+  border-color: #56b6c2;
+  background: #1c3741;
+}
+.state-transitions {
+  display: grid;
+  gap: 8px;
+}
+.transition-list {
+  display: grid;
+  gap: 8px;
+}
+.transition-card {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #2a3446;
+  border-radius: 8px;
+  padding: 8px;
+  background: #131b28;
 }
 </style>

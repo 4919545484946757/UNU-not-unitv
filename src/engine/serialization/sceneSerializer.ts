@@ -143,6 +143,40 @@ export function deserializeEntity(entityData: SerializedEntity) {
                     : []
                 }
               : { positionX: [], positionY: [], rotation: [] }
+            ,
+            data.stateMachine && typeof data.stateMachine === 'object'
+              ? {
+                  enabled: Boolean((data.stateMachine as Record<string, unknown>).enabled ?? false),
+                  initialState: String((data.stateMachine as Record<string, unknown>).initialState ?? 'Idle'),
+                  currentState: String((data.stateMachine as Record<string, unknown>).currentState ?? ''),
+                  clips: Array.isArray((data.stateMachine as Record<string, unknown>).clips)
+                    ? ((data.stateMachine as Record<string, unknown>).clips as Array<Record<string, unknown>>).map((clip) => ({
+                        name: String(clip.name ?? ''),
+                        framePaths: Array.isArray(clip.framePaths) ? clip.framePaths.map(String) : [],
+                        frameDurations: Array.isArray(clip.frameDurations) ? clip.frameDurations.map((value) => Math.max(1, Number(value ?? 1))) : [],
+                        loop: Boolean(clip.loop ?? true)
+                      }))
+                    : [],
+                  transitions: Array.isArray((data.stateMachine as Record<string, unknown>).transitions)
+                    ? ((data.stateMachine as Record<string, unknown>).transitions as Array<Record<string, unknown>>).map((t) => ({
+                        from: String(t.from ?? ''),
+                        to: String(t.to ?? ''),
+                        condition: (
+                          t.condition === 'always' ||
+                          t.condition === 'ifMoving' ||
+                          t.condition === 'ifNotMoving' ||
+                          t.condition === 'ifActionDown' ||
+                          t.condition === 'ifActionUp'
+                        ) ? t.condition : 'always',
+                        action: t.action ? String(t.action) : undefined,
+                        priority: Number.isFinite(Number(t.priority)) ? Number(t.priority) : 0,
+                        canInterrupt: t.canInterrupt === undefined ? true : Boolean(t.canInterrupt),
+                        once: Boolean(t.once),
+                        minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0)))
+                      }))
+                    : []
+                }
+              : { enabled: false, initialState: 'Idle', currentState: '', clips: [], transitions: [] }
           )
         )
         break

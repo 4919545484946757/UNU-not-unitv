@@ -39,6 +39,7 @@ export interface ScriptContext {
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
     isBlockedAt: (x: number, y: number) => boolean
+    isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) => boolean
     audio: RuntimeAudio
   }
 }
@@ -80,13 +81,18 @@ const scriptRegistry: Record<string, ScriptHooks> = {
     onUpdate: ({ entity, api }) => {
       const transform = entity.getTransform()
       if (!transform) return
+      const collider = entity.getComponent<ColliderComponent>('Collider')
       const speed = api.input.isActionDown('fire') ? 220 : 140
       const move = api.input.getMoveVector(true)
       if (move.x !== 0 || move.y !== 0) {
         const nextX = transform.x + move.x * speed * api.delta
         const nextY = transform.y + move.y * speed * api.delta
-        if (!api.isBlockedAt(nextX, transform.y)) transform.x = nextX
-        if (!api.isBlockedAt(transform.x, nextY)) transform.y = nextY
+        const halfWidth = Math.max(2, Number(collider?.width ?? 36) / 2)
+        const halfHeight = Math.max(2, Number(collider?.height ?? 36) / 2)
+        const offsetX = Number(collider?.offsetX ?? 0)
+        const offsetY = Number(collider?.offsetY ?? 0)
+        if (!api.isBlockedRect(nextX + offsetX, transform.y + offsetY, halfWidth, halfHeight)) transform.x = nextX
+        if (!api.isBlockedRect(transform.x + offsetX, nextY + offsetY, halfWidth, halfHeight)) transform.y = nextY
       }
 
       if (!api.input.wasMousePressed(0)) return
@@ -187,8 +193,20 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       const distance = Math.hypot(dx, dy)
       const speed = 120
       if (distance > 1) {
-        selfTransform.x += (dx / distance) * speed * api.delta
-        selfTransform.y += (dy / distance) * speed * api.delta
+        const stepX = (dx / distance) * speed * api.delta
+        const stepY = (dy / distance) * speed * api.delta
+        const halfWidth = Math.max(2, Number(selfCollider.width) / 2)
+        const halfHeight = Math.max(2, Number(selfCollider.height) / 2)
+        const offsetX = Number(selfCollider.offsetX || 0)
+        const offsetY = Number(selfCollider.offsetY || 0)
+        const nextX = selfTransform.x + stepX
+        const nextY = selfTransform.y + stepY
+        if (!api.isBlockedRect(nextX + offsetX, selfTransform.y + offsetY, halfWidth, halfHeight)) {
+          selfTransform.x = nextX
+        }
+        if (!api.isBlockedRect(selfTransform.x + offsetX, nextY + offsetY, halfWidth, halfHeight)) {
+          selfTransform.y = nextY
+        }
       }
 
       const touching =
@@ -365,6 +383,8 @@ export class ScriptRuntime {
           this.pendingSpawns.push(newEntity)
         },
         isBlockedAt: (x: number, y: number) => isWorldBlocked(this.activeScene, x, y),
+        isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) =>
+          isWorldRectBlocked(this.activeScene, centerX, centerY, halfWidth, halfHeight),
         audio: {
           playOneShot: async (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => {
             await this.audioAdapter.playOneShot(clipPath, options)
@@ -452,6 +472,49 @@ function isWorldBlocked(scene: Scene | null, x: number, y: number) {
     const idx = row * tilemap.columns + col
     if (Number(tilemap.collision[idx] ?? 0) > 0) return true
   }
+  return false
+}
+
+function isWorldRectBlocked(
+  scene: Scene | null,
+  centerX: number,
+  centerY: number,
+  halfWidth: number,
+  halfHeight: number
+) {
+  if (!scene) return false
+  const safeHalfW = Math.max(0, Number(halfWidth) || 0)
+  const safeHalfH = Math.max(0, Number(halfHeight) || 0)
+  const worldLeft = centerX - safeHalfW
+  const worldRight = centerX + safeHalfW
+  const worldTop = centerY - safeHalfH
+  const worldBottom = centerY + safeHalfH
+
+  for (const entity of scene.entities) {
+    const transform = entity.getComponent<TransformComponent>('Transform')
+    const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
+    if (!transform || !tilemap || !tilemap.enabled) continue
+
+    const minCol = Math.floor((worldLeft - transform.x) / tilemap.tileWidth)
+    const maxCol = Math.floor((worldRight - transform.x) / tilemap.tileWidth)
+    const minRow = Math.floor((worldTop - transform.y) / tilemap.tileHeight)
+    const maxRow = Math.floor((worldBottom - transform.y) / tilemap.tileHeight)
+
+    if (maxCol < 0 || maxRow < 0 || minCol >= tilemap.columns || minRow >= tilemap.rows) continue
+
+    const fromCol = Math.max(0, minCol)
+    const toCol = Math.min(tilemap.columns - 1, maxCol)
+    const fromRow = Math.max(0, minRow)
+    const toRow = Math.min(tilemap.rows - 1, maxRow)
+
+    for (let row = fromRow; row <= toRow; row += 1) {
+      for (let col = fromCol; col <= toCol; col += 1) {
+        const idx = row * tilemap.columns + col
+        if (Number(tilemap.collision[idx] ?? 0) > 0) return true
+      }
+    }
+  }
+
   return false
 }
 

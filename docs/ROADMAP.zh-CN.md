@@ -25,7 +25,7 @@
 
 - [x] Tilemap（图块层、碰撞层）
 - [x] Prefab 变体与嵌套
-- 动画状态机（Idle/Run/Attack）
+- [x] 动画状态机（Idle/Run/Attack）
 - Timeline 关键帧属性轨
 
 ## 阶段 4：物理与脚本升级

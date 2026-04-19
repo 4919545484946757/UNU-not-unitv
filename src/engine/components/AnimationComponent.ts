@@ -30,6 +30,32 @@ export interface TransformTracks {
   rotation: TransformTrackPoint[]
 }
 
+export interface AnimationStateClip {
+  name: string
+  framePaths: string[]
+  frameDurations: number[]
+  loop: boolean
+}
+
+export interface AnimationStateTransition {
+  from: string
+  to: string
+  condition: 'always' | 'ifMoving' | 'ifNotMoving' | 'ifActionDown' | 'ifActionUp'
+  action?: string
+  priority?: number
+  canInterrupt?: boolean
+  once?: boolean
+  minNormalizedTime?: number
+}
+
+export interface AnimationStateMachine {
+  enabled: boolean
+  initialState: string
+  currentState: string
+  clips: AnimationStateClip[]
+  transitions: AnimationStateTransition[]
+}
+
 export class AnimationComponent extends Component {
   readonly type = 'Animation'
 
@@ -46,7 +72,14 @@ export class AnimationComponent extends Component {
     public sourceAtlasPath = '',
     public atlasGrid: AnimationAtlasGrid | null = null,
     public frameEvents: AnimationEventData[] = [],
-    public transformTracks: TransformTracks = { positionX: [], positionY: [], rotation: [] }
+    public transformTracks: TransformTracks = { positionX: [], positionY: [], rotation: [] },
+    public stateMachine: AnimationStateMachine = {
+      enabled: false,
+      initialState: 'Idle',
+      currentState: '',
+      clips: [],
+      transitions: []
+    }
   ) {
     super()
   }
