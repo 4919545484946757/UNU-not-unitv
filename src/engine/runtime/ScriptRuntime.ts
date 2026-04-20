@@ -1,6 +1,7 @@
 import { ScriptComponent } from '../components/ScriptComponent'
 import type { AudioGroup } from '../components/AudioComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
+import { InteractableComponent } from '../components/InteractableComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
@@ -12,6 +13,8 @@ interface RuntimeInput {
   isMouseDown: (button?: number) => boolean
   wasMousePressed: (button?: number) => boolean
   isActionDown: (action: string) => boolean
+  wasActionPressed: (action: string) => boolean
+  wasActionReleased: (action: string) => boolean
   getAxis: (axis: 'horizontal' | 'vertical') => number
   getMoveVector: (normalized?: boolean) => { x: number; y: number }
   getMousePosition: () => { x: number; y: number }
@@ -27,6 +30,25 @@ interface RuntimeAudio {
   getGroupVolume: (group: AudioGroup) => number
 }
 
+interface EnemyCollisionEntry {
+  entity: Entity
+  transform: TransformComponent
+  collider: ColliderComponent
+  sprite: SpriteComponent | null
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+interface CollisionFrameCache {
+  cellSize: number
+  enemyEntries: EnemyCollisionEntry[]
+  enemyBuckets: Map<string, number[]>
+}
+
+const collisionFrameCacheByScene = new WeakMap<Scene, CollisionFrameCache>()
+
 export interface ScriptContext {
   entity: Entity
   scene: Scene
@@ -35,9 +57,11 @@ export interface ScriptContext {
     time: number
     getState: <T extends Record<string, unknown>>(entity: Entity) => T
     input: RuntimeInput
+    getSelectedEntity: () => Entity | null
     findEntityByName: (name: string) => Entity | null
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
+    switchScene: (sceneName: string) => void
     isBlockedAt: (x: number, y: number) => boolean
     isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) => boolean
     audio: RuntimeAudio
@@ -48,6 +72,7 @@ export interface ScriptHooks {
   onInit?: (ctx: ScriptContext) => void
   onStart?: (ctx: ScriptContext) => void
   onUpdate?: (ctx: ScriptContext) => void
+  onInteract?: (ctx: ScriptContext) => void
   onDestroy?: (ctx: ScriptContext) => void
 }
 
@@ -128,20 +153,14 @@ const scriptRegistry: Record<string, ScriptHooks> = {
         return
       }
 
-      for (const target of scene.entities) {
-        if (target.id === entity.id || target.name !== 'Enemy') continue
-        const targetTransform = target.getTransform()
-        const targetCollider = target.getComponent<ColliderComponent>('Collider')
-        const targetSprite = target.getComponent<SpriteComponent>('Sprite')
-        if (!targetTransform || !targetCollider) continue
-        if (!isRectColliderOverlap(transform, collider, targetTransform, targetCollider)) continue
+      const hit = findFirstEnemyOverlap(scene, entity.id, transform, collider)
+      if (hit) {
         api.removeEntity(entity)
-        api.removeEntity(target)
+        api.removeEntity(hit.entity)
         const player = api.findEntityByName('Player')
         const playerTransform = player?.getTransform()
         const spawnPoint = randomSpawnAwayFrom(playerTransform?.x ?? 0, playerTransform?.y ?? 0, 160)
-        api.spawnEntity(createEnemyEntityAt(spawnPoint.x, spawnPoint.y, targetCollider, targetSprite))
-        break
+        api.spawnEntity(createEnemyEntityAt(spawnPoint.x, spawnPoint.y, hit.collider, hit.sprite ?? undefined))
       }
     }
   },
@@ -265,6 +284,8 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       api.spawnEntity(enemy)
     }
   }
+  ,
+  'builtin://scene-door': {}
 }
 
 export class ScriptRuntime {
@@ -273,11 +294,15 @@ export class ScriptRuntime {
   private readonly pendingSpawns: Entity[] = []
   private elapsed = 0
   private activeScene: Scene | null = null
+  private pendingSceneSwitch: string | null = null
+  private selectedEntityId = ''
   private input: RuntimeInput = {
     isKeyDown: () => false,
     isMouseDown: () => false,
     wasMousePressed: () => false,
     isActionDown: () => false,
+    wasActionPressed: () => false,
+    wasActionReleased: () => false,
     getAxis: () => 0,
     getMoveVector: () => ({ x: 0, y: 0 }),
     getMousePosition: () => ({ x: 0, y: 0 })
@@ -302,6 +327,10 @@ export class ScriptRuntime {
     getGroupVolume: (group: AudioGroup) => number
   }) {
     this.audioAdapter = adapter
+  }
+
+  setSelectedEntityId(entityId: string) {
+    this.selectedEntityId = String(entityId || '')
   }
 
   initScene(scene: Scene) {
@@ -332,6 +361,8 @@ export class ScriptRuntime {
     this.activeScene = scene
     this.elapsed += delta
     if (input) this.input = input
+    this.processInteractableSelection(scene)
+    collisionFrameCacheByScene.set(scene, buildCollisionFrameCache(scene))
     for (const entity of scene.entities) {
       if (this.pendingRemovals.has(entity.id)) continue
       const script = entity.getComponent<ScriptComponent>('Script')
@@ -340,6 +371,12 @@ export class ScriptRuntime {
       hooks.onUpdate?.(this.createContext(entity, delta))
     }
     this.flushPendingMutations(scene)
+  }
+
+  consumeSceneSwitchRequest() {
+    const next = this.pendingSceneSwitch
+    this.pendingSceneSwitch = null
+    return next
   }
 
   destroyScene(scene: Scene) {
@@ -375,12 +412,18 @@ export class ScriptRuntime {
           return this.entityState.get(target.id) as T
         },
         input: this.input,
+        getSelectedEntity: () => this.activeScene?.getEntityById(this.selectedEntityId) ?? null,
         findEntityByName: (name: string) => this.activeScene?.entities.find((candidate) => candidate.name === name) ?? null,
         removeEntity: (target: Entity) => {
           this.pendingRemovals.add(target.id)
         },
         spawnEntity: (newEntity: Entity) => {
           this.pendingSpawns.push(newEntity)
+        },
+        switchScene: (sceneName: string) => {
+          const name = String(sceneName || '').trim()
+          if (!name) return
+          this.pendingSceneSwitch = name
         },
         isBlockedAt: (x: number, y: number) => isWorldBlocked(this.activeScene, x, y),
         isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) =>
@@ -409,6 +452,8 @@ export class ScriptRuntime {
   }
 
   private flushPendingMutations(scene: Scene) {
+    const MAX_SPAWNS_PER_FRAME = 48
+
     if (this.pendingRemovals.size > 0) {
       const removals = Array.from(this.pendingRemovals)
       for (const id of removals) {
@@ -419,7 +464,9 @@ export class ScriptRuntime {
     }
 
     if (this.pendingSpawns.length > 0) {
-      for (const spawned of this.pendingSpawns) {
+      const spawnCount = Math.min(MAX_SPAWNS_PER_FRAME, this.pendingSpawns.length)
+      const batch = this.pendingSpawns.splice(0, spawnCount)
+      for (const spawned of batch) {
         const transform = spawned.getTransform()
         if (transform) transform.zIndex = scene.entities.length
         scene.addEntity(spawned)
@@ -437,8 +484,154 @@ export class ScriptRuntime {
           }
         }
       }
-      this.pendingSpawns.length = 0
     }
+  }
+
+  private processInteractableSelection(scene: Scene) {
+    if (!this.input.wasActionPressed('interact')) return
+    const playerTransform = this.findPlayerTransform(scene)
+    if (!playerTransform) return
+    const pointer = this.input.getMousePosition()
+    const target = this.pickInteractableAtPointer(scene, pointer.x, pointer.y, playerTransform)
+    if (!target) return
+
+    this.applyInteractableAction(scene, target.entity, target.interactable)
+
+    const script = target.entity.getComponent<ScriptComponent>('Script')
+    const hooks = script?.instance as ScriptHooks | null
+    if (script?.enabled && hooks?.onInteract) {
+      hooks.onInteract(this.createContext(target.entity, 0))
+    }
+  }
+
+  private applyInteractableAction(scene: Scene, entity: Entity, interactable: InteractableComponent) {
+    if (interactable.actionType === 'switchScene') {
+      const target = String(interactable.targetScene || '').trim()
+      if (target) this.pendingSceneSwitch = target
+      return
+    }
+
+    if (interactable.actionType === 'cycleTexture') {
+      const sprite = entity.getComponent<SpriteComponent>('Sprite')
+      const cycle = Array.isArray(interactable.textureCycle) ? interactable.textureCycle.map((item) => String(item || '').trim()).filter(Boolean) : []
+      if (!sprite || !cycle.length) return
+      const state = this.ensureEntityState(entity)
+      const key = '__interact_texture_cycle_index'
+      const current = Number(state[key] ?? -1)
+      const nextIndex = (current + 1 + cycle.length) % cycle.length
+      state[key] = nextIndex
+      sprite.texturePath = cycle[nextIndex]
+      return
+    }
+
+    if (interactable.actionType === 'cycleTint') {
+      const sprite = entity.getComponent<SpriteComponent>('Sprite')
+      const cycle = Array.isArray(interactable.tintCycle) ? interactable.tintCycle.map((item) => Number(item)).filter((value) => Number.isFinite(value)) : []
+      if (!sprite || !cycle.length) return
+      const state = this.ensureEntityState(entity)
+      const key = '__interact_tint_cycle_index'
+      const current = Number(state[key] ?? -1)
+      const nextIndex = (current + 1 + cycle.length) % cycle.length
+      state[key] = nextIndex
+      sprite.tint = Math.max(0, Math.round(cycle[nextIndex]))
+    }
+  }
+
+  private isPointerInsideEntity(entity: Entity, pointerX: number, pointerY: number) {
+    const transform = entity.getComponent<TransformComponent>('Transform')
+    if (!transform) return false
+
+    const collider = entity.getComponent<ColliderComponent>('Collider')
+    if (collider && collider.width > 0 && collider.height > 0) {
+      const halfWidth = Math.abs(transform.scaleX) * collider.width / 2
+      const halfHeight = Math.abs(transform.scaleY) * collider.height / 2
+      const centerX = transform.x + collider.offsetX
+      const centerY = transform.y + collider.offsetY
+      return (
+        pointerX >= centerX - halfWidth &&
+        pointerX <= centerX + halfWidth &&
+        pointerY >= centerY - halfHeight &&
+        pointerY <= centerY + halfHeight
+      )
+    }
+
+    const sprite = entity.getComponent<SpriteComponent>('Sprite')
+    if (sprite && sprite.visible && sprite.width > 0 && sprite.height > 0) {
+      const halfWidth = Math.abs(transform.scaleX) * sprite.width / 2
+      const halfHeight = Math.abs(transform.scaleY) * sprite.height / 2
+      return (
+        pointerX >= transform.x - halfWidth &&
+        pointerX <= transform.x + halfWidth &&
+        pointerY >= transform.y - halfHeight &&
+        pointerY <= transform.y + halfHeight
+      )
+    }
+
+    const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
+    if (tilemap?.enabled) {
+      const scaledWidth = tilemap.columns * tilemap.tileWidth * transform.scaleX
+      const scaledHeight = tilemap.rows * tilemap.tileHeight * transform.scaleY
+      const minX = Math.min(transform.x, transform.x + scaledWidth)
+      const maxX = Math.max(transform.x, transform.x + scaledWidth)
+      const minY = Math.min(transform.y, transform.y + scaledHeight)
+      const maxY = Math.max(transform.y, transform.y + scaledHeight)
+      return pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY
+    }
+
+    return false
+  }
+
+  private ensureEntityState(entity: Entity) {
+    if (!this.entityState.has(entity.id)) this.entityState.set(entity.id, {})
+    return this.entityState.get(entity.id) as Record<string, unknown>
+  }
+
+  getInteractableHintEntityIds(scene: Scene) {
+    const playerTransform = this.findPlayerTransform(scene)
+    if (!playerTransform) return [] as string[]
+    const ids: string[] = []
+    for (const entity of scene.entities) {
+      const interactable = entity.getComponent<InteractableComponent>('Interactable')
+      if (!interactable?.enabled) continue
+      const transform = entity.getTransform()
+      if (!transform) continue
+      if (!this.isEntityWithinInteractDistance(transform, interactable, playerTransform)) continue
+      ids.push(entity.id)
+    }
+    return ids
+  }
+
+  private findPlayerTransform(scene: Scene) {
+    const player = scene.entities.find((entity) => entity.name === 'Player') || null
+    return player?.getTransform() ?? null
+  }
+
+  private isEntityWithinInteractDistance(
+    transform: TransformComponent,
+    interactable: InteractableComponent,
+    playerTransform: TransformComponent
+  ) {
+    const distance = Math.hypot(transform.x - playerTransform.x, transform.y - playerTransform.y)
+    const maxDistance = Math.max(0, Number(interactable.interactDistance || 0))
+    return distance <= maxDistance
+  }
+
+  private pickInteractableAtPointer(
+    scene: Scene,
+    pointerX: number,
+    pointerY: number,
+    playerTransform: TransformComponent
+  ) {
+    for (let i = scene.entities.length - 1; i >= 0; i -= 1) {
+      const entity = scene.entities[i]
+      const interactable = entity.getComponent<InteractableComponent>('Interactable')
+      const transform = entity.getTransform()
+      if (!interactable?.enabled || !transform) continue
+      if (!this.isEntityWithinInteractDistance(transform, interactable, playerTransform)) continue
+      if (!this.isPointerInsideEntity(entity, pointerX, pointerY)) continue
+      return { entity, interactable }
+    }
+    return null
   }
 }
 
@@ -456,6 +649,86 @@ function isRectColliderOverlap(
     Math.abs((aTransform.x + aCollider.offsetX) - (bTransform.x + bCollider.offsetX)) <= (aCollider.width + bCollider.width) / 2 &&
     Math.abs((aTransform.y + aCollider.offsetY) - (bTransform.y + bCollider.offsetY)) <= (aCollider.height + bCollider.height) / 2
   )
+}
+
+function buildCollisionFrameCache(scene: Scene): CollisionFrameCache {
+  const cellSize = 128
+  const enemyEntries: EnemyCollisionEntry[] = []
+  const enemyBuckets = new Map<string, number[]>()
+
+  for (const entity of scene.entities) {
+    if (entity.name !== 'Enemy') continue
+    const transform = entity.getComponent<TransformComponent>('Transform')
+    const collider = entity.getComponent<ColliderComponent>('Collider')
+    if (!transform || !collider) continue
+    const sprite = entity.getComponent<SpriteComponent>('Sprite')
+    const cx = transform.x + collider.offsetX
+    const cy = transform.y + collider.offsetY
+    const halfW = Math.max(0, collider.width / 2)
+    const halfH = Math.max(0, collider.height / 2)
+    const minX = cx - halfW
+    const maxX = cx + halfW
+    const minY = cy - halfH
+    const maxY = cy + halfH
+    const index = enemyEntries.length
+    enemyEntries.push({ entity, transform, collider, sprite, minX, maxX, minY, maxY })
+
+    const minCol = Math.floor(minX / cellSize)
+    const maxCol = Math.floor(maxX / cellSize)
+    const minRow = Math.floor(minY / cellSize)
+    const maxRow = Math.floor(maxY / cellSize)
+    for (let row = minRow; row <= maxRow; row += 1) {
+      for (let col = minCol; col <= maxCol; col += 1) {
+        const key = `${col},${row}`
+        const bucket = enemyBuckets.get(key)
+        if (bucket) bucket.push(index)
+        else enemyBuckets.set(key, [index])
+      }
+    }
+  }
+
+  return { cellSize, enemyEntries, enemyBuckets }
+}
+
+function findFirstEnemyOverlap(
+  scene: Scene,
+  selfId: string,
+  transform: TransformComponent,
+  collider: ColliderComponent
+) {
+  const cache = collisionFrameCacheByScene.get(scene) ?? buildCollisionFrameCache(scene)
+  if (!collisionFrameCacheByScene.has(scene)) collisionFrameCacheByScene.set(scene, cache)
+
+  const cx = transform.x + collider.offsetX
+  const cy = transform.y + collider.offsetY
+  const halfW = Math.max(0, collider.width / 2)
+  const halfH = Math.max(0, collider.height / 2)
+  const minX = cx - halfW
+  const maxX = cx + halfW
+  const minY = cy - halfH
+  const maxY = cy + halfH
+  const minCol = Math.floor(minX / cache.cellSize)
+  const maxCol = Math.floor(maxX / cache.cellSize)
+  const minRow = Math.floor(minY / cache.cellSize)
+  const maxRow = Math.floor(maxY / cache.cellSize)
+  const visited = new Set<number>()
+
+  for (let row = minRow; row <= maxRow; row += 1) {
+    for (let col = minCol; col <= maxCol; col += 1) {
+      const bucket = cache.enemyBuckets.get(`${col},${row}`)
+      if (!bucket) continue
+      for (const idx of bucket) {
+        if (visited.has(idx)) continue
+        visited.add(idx)
+        const item = cache.enemyEntries[idx]
+        if (!item || item.entity.id === selfId) continue
+        if (item.maxX < minX || item.minX > maxX || item.maxY < minY || item.minY > maxY) continue
+        if (!isRectColliderOverlap(transform, collider, item.transform, item.collider)) continue
+        return item
+      }
+    }
+  }
+  return null
 }
 
 function isWorldBlocked(scene: Scene | null, x: number, y: number) {

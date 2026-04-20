@@ -1,6 +1,7 @@
 ﻿import { AnimationComponent } from './components/AnimationComponent'
 import { CameraComponent } from './components/CameraComponent'
 import { ColliderComponent } from './components/ColliderComponent'
+import { InteractableComponent } from './components/InteractableComponent'
 import { ScriptComponent } from './components/ScriptComponent'
 import { SpriteComponent } from './components/SpriteComponent'
 import { TilemapComponent } from './components/TilemapComponent'
@@ -59,7 +60,7 @@ export function createDemoScene() {
           { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
           { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
           { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
-          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
         ]
       }
     )
@@ -101,8 +102,18 @@ export function createDemoScene() {
 
   const item = new Entity('item_001', 'Chest')
   item.addComponent(new TransformComponent(620, 180, 1, 1))
-  item.addComponent(new SpriteComponent('', 72, 72, true, 1, 0xf2c94c))
+  item.addComponent(new SpriteComponent('assets/images/chest.png', 72, 72, true, 1, 0xffffff))
   item.addComponent(new ColliderComponent('rect', 72, 72))
+  item.addComponent(
+    new InteractableComponent(
+      true,
+      220,
+      'cycleTint',
+      '',
+      [],
+      [0xffffff, 0xffc857, 0x8dd694, 0x79b8ff, 0xff8fab]
+    )
+  )
 
   const fx = new Entity('fx_001', 'TorchFX')
   fx.addComponent(new TransformComponent(760, 320, 1, 1))
@@ -128,23 +139,23 @@ export function createDemoScene() {
       48,
       48,
       [
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
+        4,4,4,4,4,4,4,4,4,4,4,4,
+        4,1,1,1,1,1,1,1,1,1,1,4,
         1,1,1,1,1,1,1,1,1,1,1,1,
         1,1,1,1,1,1,1,1,1,1,1,1,
-        2,2,2,2,2,2,2,2,2,2,2,2
+        1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,
+        4,1,1,1,1,1,1,1,1,1,1,4,
+        4,4,4,4,4,4,4,4,4,4,4,4
       ],
       [
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
-        0,0,0,0,0,0,0,0,0,0,0,0,
         1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,
+        1,0,0,0,0,0,0,0,0,0,0,1,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,
+        1,0,0,0,0,0,0,0,0,0,0,1,
         1,1,1,1,1,1,1,1,1,1,1,1
       ],
       true
@@ -163,6 +174,12 @@ export function createDemoScene() {
     new UIComponent(true, 'button', 'Click Me', 18, 0xffffff, 160, 44, 0x34528a, 1, 1, true)
   )
 
+  const doorToSecond = new Entity('door_to_second_001', 'DoorToSecond')
+  doorToSecond.addComponent(new TransformComponent(295, 68, 1, 1))
+  doorToSecond.addComponent(new SpriteComponent('', 110, 180, true, 0.95, 0x8a6742))
+  doorToSecond.addComponent(new ColliderComponent('rect', 110, 180))
+  doorToSecond.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
+
   scene.addEntity(tilemap)
   scene.addEntity(player)
   scene.addEntity(enemy)
@@ -171,6 +188,72 @@ export function createDemoScene() {
   scene.addEntity(camera)
   scene.addEntity(hudTitle)
   scene.addEntity(hudButton)
+  scene.addEntity(doorToSecond)
   return scene
 }
 
+export function createSecondScene() {
+  const scene = new Scene('scene_second', 'SecondScene')
+
+  const player = new Entity('player_002', 'Player')
+  player.addComponent(new TransformComponent(-120, 20, 1, 1))
+  player.addComponent(new SpriteComponent(playerIdleTexture, 90, 90, true, 1, 0xffffff))
+  player.addComponent(new ColliderComponent('rect', 100, 100, 0, 0, false))
+  player.addComponent(new ScriptComponent('builtin://player-input', ''))
+
+  const tilemap = new Entity('tilemap_002', 'LevelTilemap')
+  tilemap.addComponent(new TransformComponent(-300, -120, 1, 1))
+  tilemap.addComponent(
+    new TilemapComponent(
+      true,
+      14,
+      8,
+      48,
+      48,
+      [
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        2,2,2,2,2,2,2,2,2,2,2,2,2,2
+      ],
+      [
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1
+      ],
+      true,
+      { 1: 'assets/images/player.png', 2: 'assets/images/chest.png' }
+    )
+  )
+
+  const doorBack = new Entity('door_to_main_001', 'DoorToMain')
+  doorBack.addComponent(new TransformComponent(-220, 20, 1, 1))
+  doorBack.addComponent(new SpriteComponent('', 110, 180, true, 0.95, 0x5f7f9f))
+  doorBack.addComponent(new ColliderComponent('rect', 110, 180))
+  doorBack.addComponent(new InteractableComponent(true, 180, 'switchScene', 'MainScene'))
+
+  const camera = new Entity('camera_second', 'MainCamera')
+  camera.addComponent(new TransformComponent(-120, 20, 1, 1))
+  camera.addComponent(new CameraComponent(true, 1, player.id, 0.16, 0, 0, false))
+
+  scene.addEntity(tilemap)
+  scene.addEntity(player)
+  scene.addEntity(doorBack)
+  scene.addEntity(camera)
+  return scene
+}
+
+export function createSampleSceneByName(name: string) {
+  if (name === 'MainScene') return createDemoScene()
+  if (name === 'SecondScene') return createSecondScene()
+  return null
+}

@@ -11,7 +11,8 @@ export class TilemapComponent extends Component {
     public tileHeight = 48,
     public tiles: number[] = [],
     public collision: number[] = [],
-    public showCollision = true
+    public showCollision = true,
+    public tileTextureMap: Record<number, string> = {}
   ) {
     super()
     const size = Math.max(1, this.columns * this.rows)

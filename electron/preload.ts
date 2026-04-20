@@ -23,5 +23,18 @@ contextBridge.exposeInMainWorld('unu', {
   readTextAsset: (payload: { projectRoot: string; relativePath: string }) =>
     ipcRenderer.invoke('unu:read-text-asset', payload),
   revealInFolder: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) =>
-    ipcRenderer.invoke('unu:reveal-in-folder', payload)
+    ipcRenderer.invoke('unu:reveal-in-folder', payload),
+  openTilemapEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-tilemap-editor', payload),
+  submitTilemapEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:tilemap-editor-update', payload),
+  closeTilemapEditor: () => ipcRenderer.invoke('unu:close-tilemap-editor'),
+  onTilemapEditorInit: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:tilemap-editor-init', listener)
+    return () => ipcRenderer.removeListener('unu:tilemap-editor-init', listener)
+  },
+  onTilemapEditorApply: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:tilemap-editor-apply', listener)
+    return () => ipcRenderer.removeListener('unu:tilemap-editor-apply', listener)
+  }
 })

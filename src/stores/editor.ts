@@ -9,23 +9,33 @@ const MAX_BROWSER_PANEL_HEIGHT = 420
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
-    tool: 'select' as 'select' | 'move' | 'scale',
+    tool: 'select' as 'select' | 'move' | 'scale' | 'pan',
     leftTab: 'Scene',
     rightTab: 'Inspector' as 'Inspector' | 'Script' | 'Timeline',
+    entityJsonEditorEntityId: '',
     showGrid: true,
     timelineFrameIndex: 0,
     timelinePreviewPlaying: false,
     timelinePreviewClock: 0,
+    entityCreateDialogVisible: false,
+    sceneListDialogVisible: false,
     leftPanelWidth: 300,
     rightPanelWidth: 340,
     assetBrowserHeight: 220
   }),
   actions: {
-    setTool(tool: 'select' | 'move' | 'scale') {
+    setTool(tool: 'select' | 'move' | 'scale' | 'pan') {
       this.tool = tool
     },
     setRightTab(tab: 'Inspector' | 'Script' | 'Timeline') {
       this.rightTab = tab
+    },
+    openEntityJsonEditor(entityId: string) {
+      this.entityJsonEditorEntityId = entityId
+      this.rightTab = 'Script'
+    },
+    clearEntityJsonEditor() {
+      this.entityJsonEditorEntityId = ''
     },
     setTimelineFrameIndex(index: number) {
       this.timelineFrameIndex = index
@@ -36,6 +46,18 @@ export const useEditorStore = defineStore('editor', {
     },
     setTimelinePreviewClock(value: number) {
       this.timelinePreviewClock = value
+    },
+    openEntityCreateDialog() {
+      this.entityCreateDialogVisible = true
+    },
+    closeEntityCreateDialog() {
+      this.entityCreateDialogVisible = false
+    },
+    openSceneListDialog() {
+      this.sceneListDialogVisible = true
+    },
+    closeSceneListDialog() {
+      this.sceneListDialogVisible = false
     },
     toggleGrid() {
       this.showGrid = !this.showGrid

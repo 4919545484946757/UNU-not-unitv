@@ -157,6 +157,7 @@ function resolveAnimationStateMachine(animation: AnimationComponent, input?: Ani
     if (!transition.to || !transition.from) continue
     if (transition.from !== machine.currentState && transition.from !== '*') continue
     if ((transition.canInterrupt ?? true) === false && !currentClipFinished) continue
+    if (transition.exitTime && !currentClipFinished) continue
     const minNormalizedTime = Math.max(0, Math.min(1, Number(transition.minNormalizedTime ?? 0)))
     if (currentClipProgress + 1e-6 < minNormalizedTime) continue
     const transitionKey = `${index}|${transition.from}|${transition.to}|${transition.condition}|${transition.action || ''}|${minNormalizedTime}`

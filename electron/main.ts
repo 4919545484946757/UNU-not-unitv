@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+let mainWindow: BrowserWindow | null = null
+let tilemapEditorWindow: BrowserWindow | null = null
+let tilemapEditorSession: any = null
 
 function normalizePath(inputPath: string) {
   return inputPath.split(path.sep).join('/')
@@ -385,6 +388,60 @@ function createWindow() {
   } else {
     win.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'))
   }
+  mainWindow = win
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
+}
+
+function loadTilemapEditorWindow(win: BrowserWindow) {
+  if (!app.isPackaged) {
+    win.loadURL('http://localhost:5173/?tilemapEditor=1')
+  } else {
+    win.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
+      query: { tilemapEditor: '1' }
+    })
+  }
+}
+
+function openTilemapEditorWindow(payload: unknown) {
+  tilemapEditorSession = payload || null
+  if (!mainWindow) return { ok: false, error: 'Main window not ready' }
+
+  if (!tilemapEditorWindow || tilemapEditorWindow.isDestroyed()) {
+    tilemapEditorWindow = new BrowserWindow({
+      width: 1200,
+      height: 840,
+      minWidth: 900,
+      minHeight: 620,
+      title: 'Tilemap Graphical Editor',
+      backgroundColor: '#0f1420',
+      parent: mainWindow,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false
+      }
+    })
+    loadTilemapEditorWindow(tilemapEditorWindow)
+    tilemapEditorWindow.on('closed', () => {
+      tilemapEditorWindow = null
+    })
+  } else {
+    if (tilemapEditorWindow.isMinimized()) tilemapEditorWindow.restore()
+    tilemapEditorWindow.focus()
+  }
+
+  tilemapEditorWindow.webContents.once('did-finish-load', () => {
+    if (!tilemapEditorWindow || tilemapEditorWindow.isDestroyed()) return
+    tilemapEditorWindow.webContents.send('unu:tilemap-editor-init', tilemapEditorSession)
+  })
+  if (tilemapEditorWindow.webContents.isLoadingMainFrame()) {
+    return { ok: true }
+  }
+  tilemapEditorWindow.webContents.send('unu:tilemap-editor-init', tilemapEditorSession)
+  return { ok: true }
 }
 
 process.on('unhandledRejection', (reason) => {
@@ -632,6 +689,23 @@ app.whenReady().then(() => {
       const message = error instanceof Error ? error.message : String(error)
       return { ok: false, error: message }
     }
+  })
+
+  ipcMain.handle('unu:open-tilemap-editor', async (_event, payload) => {
+    return openTilemapEditorWindow(payload)
+  })
+
+  ipcMain.handle('unu:tilemap-editor-update', async (_event, payload) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'Main window not available' }
+    mainWindow.webContents.send('unu:tilemap-editor-apply', payload)
+    tilemapEditorSession = { ...(tilemapEditorSession || {}), ...(payload || {}) }
+    return { ok: true }
+  })
+
+  ipcMain.handle('unu:close-tilemap-editor', async () => {
+    if (tilemapEditorWindow && !tilemapEditorWindow.isDestroyed()) tilemapEditorWindow.close()
+    tilemapEditorWindow = null
+    return { ok: true }
   })
 
   createWindow()

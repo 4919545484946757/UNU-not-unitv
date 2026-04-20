@@ -45,6 +45,7 @@ export interface AnimationAssetData {
         canInterrupt?: boolean
         once?: boolean
         minNormalizedTime?: number
+        exitTime?: boolean
       }>
     }
     grid?: {
@@ -100,7 +101,8 @@ export function buildAnimationAssetFromComponent(name: string, animation: Animat
           priority: Number.isFinite(Number(t.priority)) ? Number(t.priority) : 0,
           canInterrupt: t.canInterrupt ?? true,
           once: Boolean(t.once),
-          minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0)))
+          minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0))),
+          exitTime: Boolean(t.exitTime)
         }))
       },
       grid: animation.atlasGrid || undefined
@@ -159,7 +161,8 @@ export function applyAnimationAssetToComponent(animation: AnimationComponent, as
           priority: Number.isFinite(Number(t.priority)) ? Number(t.priority) : 0,
           canInterrupt: t.canInterrupt ?? true,
           once: Boolean(t.once),
-          minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0)))
+          minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0))),
+          exitTime: Boolean(t.exitTime)
         }))
       }
     : { enabled: false, initialState: 'Idle', currentState: '', clips: [], transitions: [] }

@@ -1,13 +1,20 @@
-<template>
-  <div class="scene-tree" @contextmenu.prevent="openPanelMenu">
+﻿<template>
+  <div class="scene-tree" @contextmenu.self.prevent="openPanelMenu">
     <div class="header-row">
-      <div class="section-title">场景树</div>
+      <div class="section-title">Scene 树</div>
       <div class="mini-actions">
-        <button @click="scene.createEmptyEntity">新建</button>
-        <button @click="scene.createTilemapEntity">Tilemap</button>
+        <button @click="editor.openEntityCreateDialog()">新建实体</button>
         <button @click="scene.duplicateSelectedEntity">复制</button>
         <button @click="scene.removeSelectedEntity">删除</button>
       </div>
+    </div>
+    <div class="scene-switch-row">
+      <label>编辑场景</label>
+      <select :value="scene.currentScene?.id || ''" :disabled="runtime.isPlaying" @change="switchScene">
+        <option v-for="item in scene.sceneList" :key="item.id" :value="item.id">
+          {{ item.name }} ({{ item.entityCount }})
+        </option>
+      </select>
     </div>
     <div class="layer-actions">
       <button @click="scene.moveSelectedEntityLayer(1)">图层上移</button>
@@ -19,7 +26,7 @@
         :key="entity.id"
         :class="{ active: selection.selectedEntityId === entity.id }"
         @click="selection.selectEntity(entity.id)"
-        @contextmenu.prevent="openEntityMenu($event, entity.id)"
+        @contextmenu.stop.prevent="openEntityMenu($event, entity.id)"
       >
         <div class="meta">
           <span>
@@ -41,11 +48,15 @@
 
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
+import { useEditorStore } from '../../stores/editor'
+import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
 import ContextMenu from '../common/ContextMenu.vue'
 import type { ContextMenuItem } from '../common/contextMenuTypes'
 
+const editor = useEditorStore()
+const runtime = useRuntimeStore()
 const scene = useSceneStore()
 const selection = useSelectionStore()
 const menu = reactive({ visible: false, x: 0, y: 0, items: [] as ContextMenuItem[] })
@@ -67,8 +78,7 @@ function showMenu(event: MouseEvent, items: ContextMenuItem[]) {
 
 function openPanelMenu(event: MouseEvent) {
   showMenu(event, [
-    { label: '新建实体', action: () => scene.createEmptyEntity() },
-    { label: '新建 Tilemap', action: () => scene.createTilemapEntity() },
+    { label: '新建实体', action: () => editor.openEntityCreateDialog() },
     { label: '复制当前实体', disabled: !selection.selectedEntityId, action: () => scene.duplicateSelectedEntity() },
     { label: '删除当前实体', disabled: !selection.selectedEntityId, action: () => scene.removeSelectedEntity() }
   ])
@@ -78,13 +88,19 @@ function openEntityMenu(event: MouseEvent, entityId: string) {
   selection.selectEntity(entityId)
   showMenu(event, [
     { label: '选中实体', action: () => selection.selectEntity(entityId) },
-    { label: '新建实体', action: () => scene.createEmptyEntity() },
-    { label: '新建 Tilemap', action: () => scene.createTilemapEntity() },
+    { label: '新建实体', action: () => editor.openEntityCreateDialog() },
     { label: '复制实体', action: () => scene.duplicateSelectedEntity() },
     { label: '删除实体', action: () => scene.removeSelectedEntity() },
     { label: '图层上移', action: () => scene.moveSelectedEntityLayer(1) },
     { label: '图层下移', action: () => scene.moveSelectedEntityLayer(-1) }
   ])
+}
+
+function switchScene(event: Event) {
+  if (runtime.isPlaying) return
+  const id = (event.target as HTMLSelectElement).value
+  if (!id) return
+  scene.switchEditingScene(id)
 }
 </script>
 
@@ -92,6 +108,22 @@ function openEntityMenu(event: MouseEvent, entityId: string) {
 .scene-tree { position: relative; }
 .header-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
 .section-title { color: #94a3b8; font-size: 13px; }
+.scene-switch-row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.scene-switch-row label {
+  color: #9aa9bd;
+  font-size: 12px;
+}
+.scene-switch-row select {
+  border: 1px solid #303848;
+  background: #202632;
+  color: #ecf0f7;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
 .mini-actions, .layer-actions { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 button {
   border: 1px solid #303848;
@@ -153,3 +185,4 @@ li.active { outline: 1px solid #56b6c2; }
 small { color: #8ea0b8; }
 .layer { color: #79c0ff; font-size: 12px; }
 </style>
+

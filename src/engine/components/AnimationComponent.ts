@@ -46,6 +46,7 @@ export interface AnimationStateTransition {
   canInterrupt?: boolean
   once?: boolean
   minNormalizedTime?: number
+  exitTime?: boolean
 }
 
 export interface AnimationStateMachine {

@@ -6,7 +6,8 @@ const defaultActionMap: InputActionMap = {
   move_up: ['KeyW', 'ArrowUp'],
   move_down: ['KeyS', 'ArrowDown'],
   jump: ['Space'],
-  fire: ['KeyJ', 'Mouse0']
+  fire: ['KeyJ', 'Mouse0'],
+  interact: ['Mouse2']
 }
 
 export class InputState {
@@ -39,6 +40,7 @@ export class InputState {
     window.addEventListener('mousedown', this.handleMouseDown, { passive: true })
     window.addEventListener('mouseup', this.handleMouseUp, { passive: true })
     window.addEventListener('mousemove', this.handleMouseMove, { passive: true })
+    window.addEventListener('contextmenu', this.handleContextMenu)
   }
 
   detach() {
@@ -50,6 +52,7 @@ export class InputState {
     window.removeEventListener('mousedown', this.handleMouseDown)
     window.removeEventListener('mouseup', this.handleMouseUp)
     window.removeEventListener('mousemove', this.handleMouseMove)
+    window.removeEventListener('contextmenu', this.handleContextMenu)
     this.keys.clear()
     this.mouseButtons.clear()
     this.mousePressedThisFrame.clear()
@@ -192,5 +195,9 @@ export class InputState {
   private readonly handleMouseMove = (event: MouseEvent) => {
     this.mouseX = event.clientX
     this.mouseY = event.clientY
+  }
+
+  private readonly handleContextMenu = (event: MouseEvent) => {
+    event.preventDefault()
   }
 }

@@ -23,6 +23,7 @@
         <span>场景</span>
         <select class="action-select" @change="handleSceneAction">
           <option value="">场景操作</option>
+          <option value="list">场景列表</option>
           <option value="new">新建场景</option>
           <option value="open">打开场景</option>
           <option value="save">保存场景</option>
@@ -35,7 +36,6 @@
         <select class="action-select" @change="handleEntityAction">
           <option value="">实体操作</option>
           <option value="create">新建实体</option>
-          <option value="createTilemap">新建 Tilemap</option>
           <option value="duplicate">复制实体</option>
           <option value="remove">删除实体</option>
           <option value="up">图层上移</option>
@@ -46,12 +46,14 @@
       </label>
 
       <div class="tool-group">
-        <button @click="editor.setTool('select')">选择</button>
-        <button @click="editor.setTool('move')">移动</button>
-        <button @click="editor.setTool('scale')">缩放</button>
+        <button :disabled="runtime.isPlaying" @click="editor.setTool('select')">选择</button>
+        <button :disabled="runtime.isPlaying" @click="editor.setTool('move')">移动</button>
+        <button :disabled="runtime.isPlaying" @click="editor.setTool('scale')">缩放</button>
+        <button :disabled="runtime.isPlaying" @click="editor.setTool('pan')">平移</button>
       </div>
 
       <div class="tool-group">
+        <button :disabled="runtime.isPlaying" @click="editor.openSceneListDialog()">场景列表</button>
         <button @click="editor.setRightTab('Timeline')">时间轴</button>
         <button @click="editor.toggleGrid()">{{ editor.showGrid ? '隐藏网格' : '显示网格' }}</button>
       </div>
@@ -69,12 +71,14 @@
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
+import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 
 const assets = useAssetStore()
 const editor = useEditorStore()
 const project = useProjectStore()
 const scene = useSceneStore()
+const runtime = useRuntimeStore()
 
 async function runAction(label: string, action: () => void | Promise<void>) {
   try {
@@ -104,7 +108,8 @@ async function handleProjectAction(event: Event) {
 
 async function handleSceneAction(event: Event) {
   const action = (event.target as HTMLSelectElement).value
-  if (action === 'new') await runAction('新建场景', () => scene.createNewScene())
+  if (action === 'list') editor.openSceneListDialog()
+  else if (action === 'new') await runAction('新建场景', () => scene.createNewScene())
   else if (action === 'open') await runAction('打开场景', () => scene.openSceneFromDisk())
   else if (action === 'save') await runAction('保存场景', () => scene.saveScene())
   else if (action === 'saveAs') await runAction('另存场景', () => scene.saveSceneAs())
@@ -113,8 +118,7 @@ async function handleSceneAction(event: Event) {
 
 async function handleEntityAction(event: Event) {
   const action = (event.target as HTMLSelectElement).value
-  if (action === 'create') await runAction('新建实体', () => scene.createEmptyEntity())
-  else if (action === 'createTilemap') await runAction('新建 Tilemap', () => scene.createTilemapEntity())
+  if (action === 'create') editor.openEntityCreateDialog()
   else if (action === 'duplicate') await runAction('复制实体', () => scene.duplicateSelectedEntity())
   else if (action === 'remove') await runAction('删除实体', () => scene.removeSelectedEntity())
   else if (action === 'up') await runAction('图层上移', () => scene.moveSelectedEntityLayer(1))

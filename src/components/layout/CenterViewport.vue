@@ -12,13 +12,13 @@
         </template>
       </div>
       <span class="hint">
-        选择 / 移动 / 缩放 Gizmo · Timeline 支持 .anim.json · 当前工具：{{ editor.tool }} · 当前场景：{{ project.currentScenePath || '内存场景' }}
+        选择 / 移动 / 缩放 / 平移 · Timeline 支持 .anim.json · 当前工具：{{ editor.tool }} · 当前场景：{{ project.currentScenePath || '内存场景' }}
       </span>
     </div>
     <div
       ref="containerRef"
       class="viewport-canvas"
-      :class="{ dragover: isDragOver }"
+      :class="{ dragover: isDragOver, panning: editor.tool === 'pan' && !runtime.isPlaying }"
       @dragover.prevent="handleDragOver"
       @dragenter.prevent="isDragOver = true"
       @dragleave.prevent="isDragOver = false"
@@ -186,6 +186,9 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+.viewport-canvas.panning {
+  cursor: grab;
 }
 .viewport-canvas.dragover::after {
   content: '松开后在当前位置创建 Sprite 实体';

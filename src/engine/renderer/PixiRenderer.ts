@@ -4,11 +4,13 @@ import { AnimationComponent } from '../components/AnimationComponent'
 import { AudioComponent } from '../components/AudioComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
+import { InteractableComponent } from '../components/InteractableComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
 import { UIComponent } from '../components/UIComponent'
 import { Scene } from '../core/Scene'
+import { createSampleSceneByName } from '../sampleScene'
 import { deserializeScene, serializeScene } from '../serialization/sceneSerializer'
 import { ScriptRuntime } from '../runtime/ScriptRuntime'
 import { InputState } from '../runtime/InputState'
@@ -25,7 +27,7 @@ interface PixiRendererOptions {
   onSceneMutated?: () => void
 }
 
-type GizmoMode = 'none' | 'move' | 'scale'
+type GizmoMode = 'none' | 'move' | 'scale' | 'pan'
 
 export class PixiRenderer {
   private app!: Application
@@ -45,10 +47,11 @@ export class PixiRenderer {
   private isPaused = false
   private textureCache = new Map<string, Texture>()
   private selectedEntityId = ''
-  private activeTool: 'select' | 'move' | 'scale' = 'select'
+  private activeTool: 'select' | 'move' | 'scale' | 'pan' = 'select'
   private gizmoMode: GizmoMode = 'none'
   private dragOffset = { x: 0, y: 0 }
   private scaleState = { startPointerX: 0, startPointerY: 0, startScaleX: 1, startScaleY: 1 }
+  private panState = { lastX: 0, lastY: 0 }
   private renderVersion = 0
   private renderInFlight: Promise<void> | null = null
   private queuedScene: Scene | null = null
@@ -117,7 +120,12 @@ export class PixiRenderer {
         worldScale: this.world.scale.x || 1
       })
       if (this.isPlaying && !this.isPaused) {
+        this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
         this.scriptRuntime.updateScene(this.currentScene, delta, this.inputState)
+        if (this.consumeSceneSwitchRequest()) {
+          this.inputState.endFrame()
+          return
+        }
         applySceneAnimation(this.currentScene, delta, (event) => {
           projectStore.setStatus(`动画事件：${event.name} @ frame ${event.frame}`)
         }, this.inputState)
@@ -127,6 +135,47 @@ export class PixiRenderer {
       }
       this.inputState.endFrame()
     })
+  }
+
+  private consumeSceneSwitchRequest() {
+    const targetSceneName = this.scriptRuntime.consumeSceneSwitchRequest()
+    if (!targetSceneName) return false
+    if (!this.isPlaying) return false
+    const normalized = String(targetSceneName).trim()
+    if (!normalized) return false
+
+    const nextSceneTemplate = this.resolveSceneTemplateByName(normalized)
+    if (!nextSceneTemplate) {
+      useProjectStore().setStatus(`场景切换失败：未找到场景 ${normalized}`)
+      return false
+    }
+
+    if (this.playScene) {
+      this.scriptRuntime.destroyScene(this.playScene)
+    }
+    this.audioRuntime.stopAll()
+
+    this.playScene = deserializeScene(serializeScene(nextSceneTemplate))
+    this.currentScene = this.playScene
+    this.selectedEntityId = ''
+    this.options.onEntitySelected?.('')
+    this.scriptRuntime.setSelectedEntityId('')
+
+    this.resetAnimations(this.playScene)
+    this.scriptRuntime.initScene(this.playScene)
+    this.scriptRuntime.startScene(this.playScene)
+    void this.audioRuntime.syncScene(this.playScene)
+    this.updateCameraFromScene(this.playScene)
+    this.drawSelectionGizmo()
+    void this.renderScene(this.playScene)
+    useProjectStore().setStatus(`已切换场景：${this.playScene.name}`)
+    return true
+  }
+
+  private resolveSceneTemplateByName(sceneName: string) {
+    const currentSourceName = this.sourceScene?.name || ''
+    if (currentSourceName === sceneName && this.sourceScene) return this.sourceScene
+    return createSampleSceneByName(sceneName)
   }
 
   setGridVisible(visible: boolean) {
@@ -146,6 +195,8 @@ export class PixiRenderer {
       this.currentScene = null
       this.audioRuntime.stopAll()
       this.resetCameraTransform()
+      this.app.stage.cursor = this.activeTool === 'pan' ? 'grab' : 'default'
+      this.drawSelectionGizmo()
       return
     }
 
@@ -160,6 +211,8 @@ export class PixiRenderer {
       this.currentScene = scene
       this.resetAnimations(scene)
       this.resetCameraTransform()
+      this.app.stage.cursor = this.activeTool === 'pan' ? 'grab' : 'default'
+      this.drawSelectionGizmo()
       void this.renderScene(scene)
       return
     }
@@ -180,20 +233,24 @@ export class PixiRenderer {
 
     this.isPlaying = true
     this.isPaused = isPaused
+    this.app.stage.cursor = 'default'
     this.audioRuntime.setPaused(isPaused)
     if (this.currentScene) {
       void this.audioRuntime.syncScene(this.currentScene)
       this.updateCameraFromScene(this.currentScene)
     }
+    this.drawSelectionGizmo()
   }
 
   setSelection(entityId: string) {
     this.selectedEntityId = entityId
+    this.scriptRuntime.setSelectedEntityId(entityId)
     this.drawSelectionGizmo()
   }
 
-  setTool(tool: 'select' | 'move' | 'scale') {
+  setTool(tool: 'select' | 'move' | 'scale' | 'pan') {
     this.activeTool = tool
+    this.app.stage.cursor = tool === 'pan' && !this.isPlaying ? 'grab' : 'default'
     this.drawSelectionGizmo()
   }
 
@@ -238,7 +295,7 @@ export class PixiRenderer {
         continue
       }
       if (tilemap?.enabled) {
-        const tilemapNode = this.createTilemapNode(entity.id, entity.name, transform, tilemap)
+        const tilemapNode = await this.createTilemapNode(entity.id, entity.name, transform, tilemap)
         worldNodes.push(tilemapNode)
         continue
       }
@@ -254,6 +311,15 @@ export class PixiRenderer {
       node.cursor = 'pointer'
       node.zIndex = transform.zIndex ?? 0
       node.on('pointerdown', (event: FederatedPointerEvent) => {
+        if (this.isPlaying) return
+        if (!this.isPlaying && this.activeTool === 'pan') {
+          this.gizmoMode = 'pan'
+          this.panState.lastX = event.global.x
+          this.panState.lastY = event.global.y
+          this.app.stage.cursor = 'grabbing'
+          event.stopPropagation()
+          return
+        }
         this.options.onEntitySelected?.(entity.id)
         this.selectedEntityId = entity.id
         this.drawSelectionGizmo()
@@ -320,6 +386,15 @@ export class PixiRenderer {
     node.cursor = ui.mode === 'button' && ui.interactable ? 'pointer' : 'default'
 
     node.on('pointerdown', (event: FederatedPointerEvent) => {
+      if (this.isPlaying) return
+      if (!this.isPlaying && this.activeTool === 'pan') {
+        this.gizmoMode = 'pan'
+        this.panState.lastX = event.global.x
+        this.panState.lastY = event.global.y
+        this.app.stage.cursor = 'grabbing'
+        event.stopPropagation()
+        return
+      }
       this.options.onEntitySelected?.(entity.id)
       this.selectedEntityId = entity.id
       this.drawSelectionGizmo()
@@ -370,7 +445,7 @@ export class PixiRenderer {
     return node
   }
 
-  private createTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent) {
+  private async createTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent) {
     const node = new Container()
     node.label = entityId
     node.x = transform.x
@@ -381,6 +456,15 @@ export class PixiRenderer {
     node.cursor = 'pointer'
     node.zIndex = transform.zIndex ?? 0
     node.on('pointerdown', (event: FederatedPointerEvent) => {
+      if (this.isPlaying) return
+      if (!this.isPlaying && this.activeTool === 'pan') {
+        this.gizmoMode = 'pan'
+        this.panState.lastX = event.global.x
+        this.panState.lastY = event.global.y
+        this.app.stage.cursor = 'grabbing'
+        event.stopPropagation()
+        return
+      }
       this.options.onEntitySelected?.(entityId)
       this.selectedEntityId = entityId
       this.drawSelectionGizmo()
@@ -396,6 +480,17 @@ export class PixiRenderer {
     const graphics = new Graphics()
     const total = Math.max(1, tilemap.columns * tilemap.rows)
     const palette = [0x203246, 0x2a4058, 0x355274, 0x44658d]
+    const textureByValue = new Map<number, Texture | null>()
+
+    const textureEntries = Object.entries(tilemap.tileTextureMap || {})
+      .map(([key, value]) => ({ key: Number(key), path: String(value || '').trim() }))
+      .filter((item) => Number.isFinite(item.key) && item.key > 0 && !!item.path)
+
+    await Promise.all(textureEntries.map(async (item) => {
+      const texture = await this.resolveTexture(item.path)
+      textureByValue.set(Math.round(item.key), texture)
+    }))
+
     for (let i = 0; i < total; i += 1) {
       const col = i % tilemap.columns
       const row = Math.floor(i / tilemap.columns)
@@ -403,9 +498,20 @@ export class PixiRenderer {
       const y = row * tilemap.tileHeight
       const tile = Number(tilemap.tiles[i] ?? 0)
       if (tile > 0) {
-        graphics.rect(x, y, tilemap.tileWidth, tilemap.tileHeight)
-        const color = palette[(tile - 1) % palette.length]
-        graphics.fill({ color, alpha: 0.9 })
+        const tileTexture = textureByValue.get(Math.round(tile)) || null
+        if (tileTexture) {
+          const sprite = new Sprite(tileTexture)
+          sprite.x = x + tilemap.tileWidth / 2
+          sprite.y = y + tilemap.tileHeight / 2
+          sprite.anchor.set(0.5)
+          sprite.width = tilemap.tileWidth
+          sprite.height = tilemap.tileHeight
+          node.addChild(sprite)
+        } else {
+          graphics.rect(x, y, tilemap.tileWidth, tilemap.tileHeight)
+          const color = palette[(tile - 1) % palette.length]
+          graphics.fill({ color, alpha: 0.9 })
+        }
       }
       graphics.rect(x, y, tilemap.tileWidth, tilemap.tileHeight)
       graphics.stroke({ color: 0x1e2b3d, alpha: 0.65, width: 1 })
@@ -430,25 +536,16 @@ export class PixiRenderer {
     this.app.stage.eventMode = 'static'
     this.app.stage.hitArea = this.app.screen
     this.app.stage.on('pointerdown', (event: FederatedPointerEvent) => {
-      if (this.isPlaying) {
-        const local = event.getLocalPosition(this.world)
-        const picked = this.pickEntityAt(local.x, local.y)
-        if (picked) {
-          this.selectedEntityId = picked.id
-          this.options.onEntitySelected?.(picked.id)
-          this.drawSelectionGizmo()
-          this.dragOffset.x = local.x - picked.transform.x
-          this.dragOffset.y = local.y - picked.transform.y
-          if (this.activeTool === 'move') {
-            this.gizmoMode = 'move'
-          }
-        } else if (this.activeTool === 'select') {
-          this.selectedEntityId = ''
-          this.options.onEntitySelected?.('')
-          this.drawSelectionGizmo()
-        }
+      if (this.isPlaying) return
+
+      if (this.activeTool === 'pan') {
+        this.gizmoMode = 'pan'
+        this.panState.lastX = event.global.x
+        this.panState.lastY = event.global.y
+        this.app.stage.cursor = 'grabbing'
         return
       }
+
       const target = event.target as Container | null
       if (target && target !== this.app.stage && target.label !== 'grid') return
       this.gizmoMode = 'none'
@@ -459,6 +556,19 @@ export class PixiRenderer {
       }
     })
     this.app.stage.on('globalpointermove', (event: FederatedPointerEvent) => {
+      if (this.isPlaying) return
+      if (this.gizmoMode === 'pan' && !this.isPlaying) {
+        const dx = event.global.x - this.panState.lastX
+        const dy = event.global.y - this.panState.lastY
+        this.world.position.x += dx
+        this.world.position.y += dy
+        this.overlay.position.x += dx
+        this.overlay.position.y += dy
+        this.panState.lastX = event.global.x
+        this.panState.lastY = event.global.y
+        return
+      }
+
       if (!this.currentScene) return
       const entity = this.currentScene.getEntityById(this.selectedEntityId)
       const transform = entity?.getComponent<TransformComponent>('Transform')
@@ -496,9 +606,11 @@ export class PixiRenderer {
     })
     this.app.stage.on('pointerup', () => {
       this.gizmoMode = 'none'
+      this.app.stage.cursor = this.activeTool === 'pan' && !this.isPlaying ? 'grab' : 'default'
     })
     this.app.stage.on('pointerupoutside', () => {
       this.gizmoMode = 'none'
+      this.app.stage.cursor = this.activeTool === 'pan' && !this.isPlaying ? 'grab' : 'default'
     })
   }
 
@@ -577,7 +689,7 @@ export class PixiRenderer {
     if (!dataUrl) return null
     const texture = await this.loadTextureFromDataUrl(dataUrl)
     this.textureCache.set(texturePath, texture)
-    project.setStatus(`宸插姞杞借创鍥撅細${texturePath}`)
+          project.setStatus(`已加载贴图：${texturePath}`)
     return texture
   }
 
@@ -590,7 +702,7 @@ export class PixiRenderer {
       if (image.complete) return
       return new Promise<void>((resolve, reject) => {
         image.onload = () => resolve()
-        image.onerror = () => reject(new Error('鍥剧墖瑙ｇ爜澶辫触'))
+        image.onerror = () => reject(new Error('图片解码失败'))
       })
     })
     return Texture.from(image)
@@ -687,7 +799,12 @@ export class PixiRenderer {
 
   private drawSelectionGizmo() {
     this.overlay.removeChildren().forEach((child) => child.destroy())
-    if (!this.currentScene || !this.selectedEntityId) return
+    if (!this.currentScene) return
+    if (this.isPlaying) {
+      this.drawPlayModeInteractableHints(this.currentScene)
+      return
+    }
+    if (!this.selectedEntityId) return
     const entity = this.currentScene.getEntityById(this.selectedEntityId)
     const transform = entity?.getComponent<TransformComponent>('Transform')
     const sprite = entity?.getComponent<SpriteComponent>('Sprite')
@@ -748,6 +865,65 @@ export class PixiRenderer {
         }
       })
       this.overlay.addChild(handle)
+    }
+  }
+
+  private drawPlayModeInteractableHints(scene: Scene) {
+    const hintIds = this.scriptRuntime.getInteractableHintEntityIds(scene)
+    if (!hintIds.length) return
+    for (const id of hintIds) {
+      const entity = scene.getEntityById(id)
+      if (!entity) continue
+      const transform = entity.getComponent<TransformComponent>('Transform')
+      const interactable = entity.getComponent<InteractableComponent>('Interactable')
+      if (!transform || !interactable?.enabled) continue
+      const sprite = entity.getComponent<SpriteComponent>('Sprite')
+      const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
+      const collider = entity.getComponent<ColliderComponent>('Collider')
+
+      let boxX = 0
+      let boxY = 0
+      let boxWidth = 0
+      let boxHeight = 0
+
+      if (collider && collider.width > 0 && collider.height > 0) {
+        const width = Math.max(1, collider.width * Math.abs(transform.scaleX))
+        const height = Math.max(1, collider.height * Math.abs(transform.scaleY))
+        const centerX = transform.x + collider.offsetX
+        const centerY = transform.y + collider.offsetY
+        boxX = centerX - width / 2
+        boxY = centerY - height / 2
+        boxWidth = width
+        boxHeight = height
+      } else if (sprite && sprite.visible) {
+        boxWidth = Math.max(1, sprite.width * Math.abs(transform.scaleX))
+        boxHeight = Math.max(1, sprite.height * Math.abs(transform.scaleY))
+        boxX = transform.x - boxWidth / 2
+        boxY = transform.y - boxHeight / 2
+      } else if (tilemap?.enabled) {
+        const scaledWidth = tilemap.columns * tilemap.tileWidth * transform.scaleX
+        const scaledHeight = tilemap.rows * tilemap.tileHeight * transform.scaleY
+        boxX = Math.min(transform.x, transform.x + scaledWidth)
+        boxY = Math.min(transform.y, transform.y + scaledHeight)
+        boxWidth = Math.max(1, Math.abs(scaledWidth))
+        boxHeight = Math.max(1, Math.abs(scaledHeight))
+      } else {
+        continue
+      }
+
+      const box = new Graphics()
+      box.rect(boxX, boxY, boxWidth, boxHeight)
+      box.fill({ color: 0xffc857, alpha: 0.08 })
+      box.stroke({ color: 0xffe082, alpha: 0.95, width: 2 })
+      this.overlay.addChild(box)
+
+      const hint = new Text({
+        text: '右键交互',
+        style: { fill: '#ffe9b3', fontSize: 12, fontWeight: '700' }
+      })
+      hint.x = boxX
+      hint.y = boxY - 18
+      this.overlay.addChild(hint)
     }
   }
 

@@ -3,7 +3,7 @@
     <div class="title-row">
       <div>
         <div class="title">Timeline</div>
-        <div class="subtitle">动画帧、图集切片、播放头、事件轨道、状态机</div>
+        <div class="subtitle">动画帧、事件轨道、状态机编辑</div>
       </div>
       <div class="badge" v-if="animation">{{ animation.animationAssetPath || '未绑定动画资源' }}</div>
     </div>
@@ -74,6 +74,7 @@
           <input type="checkbox" :checked="animation.stateMachine.enabled" @change="setStateMachineEnabled" />
           启用状态机
         </label>
+
         <div class="state-meta">
           <label>
             初始状态
@@ -96,6 +97,46 @@
             @keydown.enter.prevent="addState"
           />
           <button @click="addState">新增状态</button>
+        </div>
+
+        <div class="state-graph-preview" v-if="stateGraphNodes.length">
+          <div class="group-title">状态机图预览</div>
+          <svg
+            class="state-graph-svg"
+            :class="{ dragging: graphDragging }"
+            viewBox="0 0 860 300"
+            preserveAspectRatio="xMidYMid meet"
+            @mousedown="onGraphMouseDown"
+            @mousemove="onGraphMouseMove"
+            @mouseup="onGraphMouseUp"
+            @mouseleave="onGraphMouseUp"
+          >
+            <defs>
+              <marker id="stateGraphArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="#80b4ff" />
+              </marker>
+            </defs>
+
+            <g :transform="stateGraphTransform">
+              <g v-for="(edge, index) in stateGraphEdges" :key="`edge_${index}_${edge.from}_${edge.to}`">
+                <path :d="edge.path" class="state-graph-edge" marker-end="url(#stateGraphArrow)" />
+                <text :x="edge.labelX" :y="edge.labelY" class="state-graph-edge-label">{{ edge.label }}</text>
+              </g>
+
+              <g v-for="node in stateGraphNodes" :key="`node_${node.name}`">
+                <rect
+                  :x="node.x - 56"
+                  :y="node.y - 20"
+                  width="112"
+                  height="40"
+                  rx="10"
+                  class="state-graph-node"
+                  :class="{ active: node.isCurrent, initial: node.isInitial, selected: node.isSelected }"
+                />
+                <text :x="node.x" :y="node.y + 4" class="state-graph-node-label">{{ node.name }}</text>
+              </g>
+            </g>
+          </svg>
         </div>
 
         <div class="state-chip-list" v-if="animation.stateMachine.clips.length">
@@ -136,21 +177,11 @@
         </template>
 
         <div class="transition-block">
-          <div class="graph-board" v-if="animation.stateMachine.transitions.length">
-            <div class="graph-title">转场预览</div>
-            <div class="graph-list">
-              <div v-for="(transition, index) in animation.stateMachine.transitions" :key="`graph_${index}`" class="graph-edge">
-                <span class="graph-node">{{ transition.from || '*' }}</span>
-                <span class="graph-arrow">→</span>
-                <span class="graph-node">{{ transition.to }}</span>
-                <span class="graph-cond">{{ transition.condition }}{{ transition.action ? `(${transition.action})` : '' }}</span>
-                <span class="graph-meta">p={{ transition.priority ?? 0 }} · min={{ transition.minNormalizedTime ?? 0 }} · {{ transition.canInterrupt ?? true ? 'interrupt' : 'wait-end' }} · {{ transition.once ? 'once' : 'repeat' }}</span>
-              </div>
-            </div>
-          </div>
           <div class="row-inline">
             <div class="group-title">状态转场</div>
             <button @click="addTransition">新增转场</button>
+            <button @click="setExitTimeForTransitions(true)">设为 ExitTime</button>
+            <button @click="setExitTimeForTransitions(false)">取消 ExitTime</button>
           </div>
           <div v-if="animation.stateMachine.transitions.length" class="transition-list">
             <div v-for="(transition, index) in animation.stateMachine.transitions" :key="index" class="transition-item">
@@ -197,6 +228,10 @@
                 Min Progress (0-1)
                 <input type="number" step="0.01" min="0" max="1" :value="transition.minNormalizedTime ?? 0" @input="setTransitionMinNormalizedTime(index, $event)" />
               </label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="transition.exitTime ?? false" @change="setTransitionExitTime(index, $event)" />
+                Exit Time (At Last Frame)
+              </label>
               <button class="danger" @click="removeTransition(index)">删除</button>
             </div>
           </div>
@@ -224,8 +259,6 @@
         </div>
         <div v-else class="tips">当前帧还没有事件。</div>
       </div>
-
-      <div class="tips">已支持图集子帧预览与状态机驱动。建议先绑定 `.atlas.json`，再按状态划分帧并配置转场条件。</div>
     </template>
 
     <template v-else-if="entity">
@@ -272,26 +305,121 @@ const eventIndexes = computed(() => {
 
 const newStateName = ref('')
 const selectedState = ref('')
-
 const selectedClip = computed(() => {
   if (!animation.value || !selectedState.value) return null
   return animation.value.stateMachine.clips.find((clip) => clip.name === selectedState.value) || null
 })
+type GraphNode = { name: string; x: number; y: number; isCurrent: boolean; isInitial: boolean; isSelected: boolean }
+type GraphEdge = { from: string; to: string; path: string; labelX: number; labelY: number; label: string }
 
-watch(
-  () => animation.value?.stateMachine.clips,
-  (clips) => {
-    const safe = clips || []
-    if (!safe.length) {
-      selectedState.value = ''
-      return
+const stateGraphNodes = computed<GraphNode[]>(() => {
+  if (!animation.value) return []
+  const base = animation.value.stateMachine.clips.map((clip) => clip.name)
+  const hasAny = animation.value.stateMachine.transitions.some((t) => t.from === '*')
+  const names = hasAny ? ['*', ...base] : base
+  if (!names.length) return []
+
+  const cols = Math.max(1, Math.ceil(Math.sqrt(names.length)))
+  const rows = Math.max(1, Math.ceil(names.length / cols))
+  const gapX = cols <= 1 ? 0 : 680 / (cols - 1)
+  const gapY = rows <= 1 ? 0 : 180 / (rows - 1)
+  const startX = 90
+  const startY = 70
+
+  return names.map((name, index) => {
+    const col = index % cols
+    const row = Math.floor(index / cols)
+    return {
+      name,
+      x: Math.round(startX + col * gapX),
+      y: Math.round(startY + row * gapY),
+      isCurrent: name !== '*' && animation.value?.stateMachine.currentState === name,
+      isInitial: name !== '*' && animation.value?.stateMachine.initialState === name,
+      isSelected: selectedState.value === name
     }
-    if (!selectedState.value || !safe.some((clip) => clip.name === selectedState.value)) {
-      selectedState.value = safe[0].name
-    }
-  },
-  { immediate: true, deep: true }
-)
+  })
+})
+
+function buildEdgeLabel(transition: AnimationStateTransition) {
+  let label = transition.condition
+  if (transition.action) label += `(${transition.action})`
+  if (transition.exitTime) label += ' [exit]'
+  return label
+}
+
+const stateGraphEdges = computed<GraphEdge[]>(() => {
+  if (!animation.value) return []
+  const pos = new Map(stateGraphNodes.value.map((n) => [n.name, n] as const))
+  return animation.value.stateMachine.transitions
+    .map((transition) => {
+      const from = transition.from || '*'
+      const fromNode = pos.get(from)
+      const toNode = pos.get(transition.to)
+      if (!fromNode || !toNode) return null
+
+      if (fromNode.name === toNode.name) {
+        const x = fromNode.x
+        const y = fromNode.y
+        return {
+          from,
+          to: transition.to,
+          path: `M ${x - 40} ${y - 16} C ${x - 72} ${y - 62}, ${x + 72} ${y - 62}, ${x + 40} ${y - 16}`,
+          labelX: x,
+          labelY: y - 60,
+          label: buildEdgeLabel(transition)
+        }
+      }
+
+      const dx = toNode.x - fromNode.x
+      const dy = toNode.y - fromNode.y
+      const dist = Math.max(1, Math.hypot(dx, dy))
+      const ux = dx / dist
+      const uy = dy / dist
+      const sx = fromNode.x + ux * 58
+      const sy = fromNode.y + uy * 22
+      const tx = toNode.x - ux * 58
+      const ty = toNode.y - uy * 22
+      const cx = (sx + tx) / 2 + (-uy) * 18
+      const cy = (sy + ty) / 2 + ux * 18
+
+      return {
+        from,
+        to: transition.to,
+        path: `M ${sx} ${sy} Q ${cx} ${cy} ${tx} ${ty}`,
+        labelX: Math.round((sx + tx + cx) / 3),
+        labelY: Math.round((sy + ty + cy) / 3) - 6,
+        label: buildEdgeLabel(transition)
+      }
+    })
+    .filter((item): item is GraphEdge => Boolean(item))
+})
+const graphOffsetX = ref(0)
+const graphOffsetY = ref(0)
+const graphDragging = ref(false)
+const graphDragLastX = ref(0)
+const graphDragLastY = ref(0)
+const stateGraphTransform = computed(() => `translate(${graphOffsetX.value} ${graphOffsetY.value})`)
+
+function onGraphMouseDown(event: MouseEvent) {
+  if (event.button !== 0) return
+  graphDragging.value = true
+  graphDragLastX.value = event.clientX
+  graphDragLastY.value = event.clientY
+}
+
+function onGraphMouseMove(event: MouseEvent) {
+  if (!graphDragging.value) return
+  const dx = event.clientX - graphDragLastX.value
+  const dy = event.clientY - graphDragLastY.value
+  graphOffsetX.value += dx
+  graphOffsetY.value += dy
+  graphDragLastX.value = event.clientX
+  graphDragLastY.value = event.clientY
+}
+
+function onGraphMouseUp() {
+  graphDragging.value = false
+}
 
 let previewTimer: number | null = null
 
@@ -307,12 +435,7 @@ function ensureAnimationStateMachineDefaults() {
   if (!animation.value) return
   if (!animation.value.stateMachine.clips.length) {
     animation.value.stateMachine.clips = [
-      {
-        name: 'Idle',
-        framePaths: [...animation.value.framePaths],
-        frameDurations: animation.value.framePaths.map((_, index) => Math.max(1, Number(animation.value?.frameDurations[index] ?? 1))),
-        loop: true
-      },
+      { name: 'Idle', framePaths: [...animation.value.framePaths], frameDurations: animation.value.framePaths.map((_, i) => Math.max(1, Number(animation.value?.frameDurations[i] ?? 1))), loop: true },
       { name: 'Run', framePaths: [], frameDurations: [], loop: true },
       { name: 'Attack', framePaths: [], frameDurations: [], loop: false }
     ]
@@ -323,13 +446,12 @@ function ensureAnimationStateMachineDefaults() {
       { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
       { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
       { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
-      { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+      { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
     ]
   }
-  if (!animation.value.stateMachine.initialState) {
-    animation.value.stateMachine.initialState = animation.value.stateMachine.clips[0]?.name || 'Idle'
-  }
+  if (!animation.value.stateMachine.initialState) animation.value.stateMachine.initialState = animation.value.stateMachine.clips[0]?.name || 'Idle'
 }
+
 
 function syncFrameDurations() {
   if (!animation.value) return
@@ -339,7 +461,7 @@ function syncFrameDurations() {
 }
 
 function normalizeClip(clip: AnimationStateClip) {
-  const paths = clip.framePaths.map((path) => path.trim()).filter(Boolean)
+  const paths = clip.framePaths.map((line) => line.trim()).filter(Boolean)
   const durations = paths.map((_, index) => Math.max(1, Number(clip.frameDurations[index] ?? 1)))
   return { ...clip, framePaths: paths, frameDurations: durations }
 }
@@ -354,9 +476,7 @@ function setStateMachineEnabled(event: Event) {
 function setInitialState(event: Event) {
   if (!animation.value) return
   animation.value.stateMachine.initialState = (event.target as HTMLSelectElement).value
-  if (!animation.value.stateMachine.currentState) {
-    animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
-  }
+  if (!animation.value.stateMachine.currentState) animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
   sceneStore.markDirty()
 }
 
@@ -366,10 +486,7 @@ function addState() {
   const name = newStateName.value.trim()
   if (!name) return
   if (animation.value.stateMachine.clips.some((clip) => clip.name === name)) return
-  animation.value.stateMachine.clips = [
-    ...animation.value.stateMachine.clips,
-    { name, framePaths: [], frameDurations: [], loop: true }
-  ]
+  animation.value.stateMachine.clips = [...animation.value.stateMachine.clips, { name, framePaths: [], frameDurations: [], loop: true }]
   selectedState.value = name
   newStateName.value = ''
   sceneStore.markDirty()
@@ -384,24 +501,20 @@ function renameSelectedState(event: Event) {
   const nextName = (event.target as HTMLInputElement).value.trim()
   if (!nextName) return
   if (nextName !== selectedClip.value.name && animation.value.stateMachine.clips.some((clip) => clip.name === nextName)) return
-  const oldName = selectedClip.value.name
-  selectedClip.value.name = nextName
-  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((clip) => clip.name === oldName ? { ...selectedClip.value as AnimationStateClip } : clip)
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((t) => ({
-    ...t,
-    from: t.from === oldName ? nextName : t.from,
-    to: t.to === oldName ? nextName : t.to
-  }))
-  if (animation.value.stateMachine.initialState === oldName) animation.value.stateMachine.initialState = nextName
-  if (animation.value.stateMachine.currentState === oldName) animation.value.stateMachine.currentState = nextName
+  const prev = selectedClip.value.name
+  const nextClip = { ...selectedClip.value, name: nextName }
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((clip) => clip.name === prev ? nextClip : clip)
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((t) => ({ ...t, from: t.from === prev ? nextName : t.from, to: t.to === prev ? nextName : t.to }))
+  if (animation.value.stateMachine.initialState === prev) animation.value.stateMachine.initialState = nextName
+  if (animation.value.stateMachine.currentState === prev) animation.value.stateMachine.currentState = nextName
   selectedState.value = nextName
   sceneStore.markDirty()
 }
 
 function setSelectedStateLoop(event: Event) {
   if (!animation.value || !selectedClip.value) return
-  const next = { ...selectedClip.value, loop: (event.target as HTMLInputElement).checked }
-  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((clip) => clip.name === selectedClip.value?.name ? next : clip)
+  const loop = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((clip) => clip.name === selectedClip.value?.name ? { ...clip, loop } : clip)
   sceneStore.markDirty()
 }
 
@@ -415,10 +528,8 @@ function setSelectedStateFrames(event: Event) {
 
 function setSelectedStateDurations(event: Event) {
   if (!animation.value || !selectedClip.value) return
-  const values = (event.target as HTMLTextAreaElement).value
-    .split('\n')
-    .map((line) => Math.max(1, Number(line.trim() || 1)))
-  const frameDurations = selectedClip.value.framePaths.map((_, index) => Math.max(1, Number(values[index] ?? 1)))
+  const values = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => Math.max(1, Number(line.trim() || 1)))
+  const frameDurations = selectedClip.value.framePaths.map((_, i) => Math.max(1, Number(values[i] ?? 1)))
   const next = normalizeClip({ ...selectedClip.value, frameDurations })
   animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((clip) => clip.name === selectedClip.value?.name ? next : clip)
   sceneStore.markDirty()
@@ -426,11 +537,7 @@ function setSelectedStateDurations(event: Event) {
 
 function appendSelectedImageToState() {
   if (!animation.value || !selectedClip.value || assets.selectedAsset?.type !== 'image') return
-  const next = normalizeClip({
-    ...selectedClip.value,
-    framePaths: [...selectedClip.value.framePaths, assets.selectedAsset.path],
-    frameDurations: [...selectedClip.value.frameDurations, 1]
-  })
+  const next = normalizeClip({ ...selectedClip.value, framePaths: [...selectedClip.value.framePaths, assets.selectedAsset.path], frameDurations: [...selectedClip.value.frameDurations, 1] })
   animation.value.stateMachine.clips = animation.value.stateMachine.clips.map((clip) => clip.name === selectedClip.value?.name ? next : clip)
   sceneStore.markDirty()
 }
@@ -441,12 +548,8 @@ function removeSelectedState() {
   const name = selectedClip.value.name
   animation.value.stateMachine.clips = animation.value.stateMachine.clips.filter((clip) => clip.name !== name)
   animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.filter((t) => t.from !== name && t.to !== name)
-  if (animation.value.stateMachine.initialState === name) {
-    animation.value.stateMachine.initialState = animation.value.stateMachine.clips[0]?.name || ''
-  }
-  if (animation.value.stateMachine.currentState === name) {
-    animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
-  }
+  if (animation.value.stateMachine.initialState === name) animation.value.stateMachine.initialState = animation.value.stateMachine.clips[0]?.name || ''
+  if (animation.value.stateMachine.currentState === name) animation.value.stateMachine.currentState = animation.value.stateMachine.initialState
   selectedState.value = animation.value.stateMachine.clips[0]?.name || ''
   sceneStore.markDirty()
 }
@@ -455,10 +558,7 @@ function addTransition() {
   if (!animation.value) return
   ensureAnimationStateMachineDefaults()
   const fallback = animation.value.stateMachine.clips[0]?.name || 'Idle'
-  animation.value.stateMachine.transitions = [
-    ...animation.value.stateMachine.transitions,
-    { from: fallback, to: fallback, condition: 'always' }
-  ]
+  animation.value.stateMachine.transitions = [...animation.value.stateMachine.transitions, { from: fallback, to: fallback, condition: 'always' }]
   sceneStore.markDirty()
 }
 
@@ -470,68 +570,76 @@ function removeTransition(index: number) {
 
 function setTransitionFrom(index: number, event: Event) {
   if (!animation.value) return
-  const value = (event.target as HTMLSelectElement).value
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, from: value } : item)
+  const from = (event.target as HTMLSelectElement).value
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, from } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionTo(index: number, event: Event) {
   if (!animation.value) return
-  const value = (event.target as HTMLSelectElement).value
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, to: value } : item)
+  const to = (event.target as HTMLSelectElement).value
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, to } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionCondition(index: number, event: Event) {
   if (!animation.value) return
-  const value = (event.target as HTMLSelectElement).value as AnimationStateTransition['condition']
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, condition: value } : item)
+  const condition = (event.target as HTMLSelectElement).value as AnimationStateTransition['condition']
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, condition } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionAction(index: number, event: Event) {
   if (!animation.value) return
-  const value = (event.target as HTMLInputElement).value.trim()
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
-    i === index ? { ...item, action: value || undefined } : item
-  )
+  const action = (event.target as HTMLInputElement).value.trim()
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, action: action || undefined } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionPriority(index: number, event: Event) {
   if (!animation.value) return
-  const value = Number((event.target as HTMLInputElement).value || 0)
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
-    i === index ? { ...item, priority: Number.isFinite(value) ? value : 0 } : item
-  )
+  const priority = Number((event.target as HTMLInputElement).value || 0)
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, priority: Number.isFinite(priority) ? priority : 0 } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionCanInterrupt(index: number, event: Event) {
   if (!animation.value) return
-  const value = (event.target as HTMLInputElement).checked
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
-    i === index ? { ...item, canInterrupt: value } : item
-  )
+  const canInterrupt = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, canInterrupt } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionOnce(index: number, event: Event) {
   if (!animation.value) return
-  const value = (event.target as HTMLInputElement).checked
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
-    i === index ? { ...item, once: value } : item
-  )
+  const once = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, once } : item)
   sceneStore.markDirty()
 }
 
 function setTransitionMinNormalizedTime(index: number, event: Event) {
   if (!animation.value) return
   const raw = Number((event.target as HTMLInputElement).value || 0)
-  const value = Math.max(0, Math.min(1, Number.isFinite(raw) ? raw : 0))
-  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
-    i === index ? { ...item, minNormalizedTime: value } : item
-  )
+  const minNormalizedTime = Math.max(0, Math.min(1, Number.isFinite(raw) ? raw : 0))
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, minNormalizedTime } : item)
+  sceneStore.markDirty()
+}
+
+function setTransitionExitTime(index: number, event: Event) {
+  if (!animation.value) return
+  const exitTime = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) => i === index ? { ...item, exitTime } : item)
+  sceneStore.markDirty()
+}
+
+function setExitTimeForTransitions(enabled: boolean) {
+  if (!animation.value) return
+  const focus = selectedState.value.trim()
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item) => {
+    if (!focus) return { ...item, exitTime: enabled }
+    if (item.from !== focus) return item
+    return { ...item, exitTime: enabled }
+  })
   sceneStore.markDirty()
 }
 
@@ -555,13 +663,7 @@ async function bindSelectedAtlas() {
   if (!result) return
   const atlas = deserializeAtlasAsset(result.content)
   animation.value.sourceAtlasPath = assets.selectedAsset.path
-  animation.value.atlasGrid = {
-    columns: atlas.atlas.columns,
-    rows: atlas.atlas.rows,
-    cellWidth: atlas.atlas.cellWidth,
-    cellHeight: atlas.atlas.cellHeight,
-    frameCount: atlas.atlas.frameCount
-  }
+  animation.value.atlasGrid = { columns: atlas.atlas.columns, rows: atlas.atlas.rows, cellWidth: atlas.atlas.cellWidth, cellHeight: atlas.atlas.cellHeight, frameCount: atlas.atlas.frameCount }
   animation.value.framePaths = createAtlasFramePaths(atlas.atlas)
   animation.value.frameDurations = animation.value.framePaths.map(() => 1)
   animation.value.currentFrame = 0
@@ -576,9 +678,7 @@ function removeCurrentFrame() {
   const index = currentIndex.value
   animation.value.framePaths = animation.value.framePaths.filter((_, i) => i !== index)
   animation.value.frameDurations = animation.value.frameDurations.filter((_, i) => i !== index)
-  animation.value.frameEvents = animation.value.frameEvents
-    .filter((item) => item.frame !== index)
-    .map((item) => ({ ...item, frame: item.frame > index ? item.frame - 1 : item.frame }))
+  animation.value.frameEvents = animation.value.frameEvents.filter((event) => event.frame !== index).map((event) => ({ ...event, frame: event.frame > index ? event.frame - 1 : event.frame }))
   animation.value.currentFrame = Math.min(animation.value.currentFrame, Math.max(0, animation.value.framePaths.length - 1))
   editor.setTimelineFrameIndex(Math.max(0, index - 1))
   sceneStore.markDirty()
@@ -615,10 +715,7 @@ function setCurrentFrameDuration(event: Event) {
 
 function addEventAtCurrentFrame() {
   if (!animation.value) return
-  animation.value.frameEvents = [
-    ...animation.value.frameEvents,
-    { frame: currentIndex.value, name: `event_${currentIndex.value}`, payload: '' }
-  ]
+  animation.value.frameEvents = [...animation.value.frameEvents, { frame: currentIndex.value, name: `event_${currentIndex.value}`, payload: '' }]
   sceneStore.markDirty()
 }
 
@@ -706,17 +803,9 @@ async function saveAnimationAsset() {
     project.setStatus('当前为示例工程，动画资源保存需在 Electron 本地工程模式下使用。')
     return
   }
-
   syncFrameDurations()
   const content = serializeAnimationAsset(entity.value.name, animation.value)
-  const saved = await window.unu.saveTextAsset({
-    content,
-    projectRoot: project.rootPath,
-    subdir: 'assets/animations',
-    suggestedName: `${entity.value.name}.anim.json`,
-    title: '保存动画资源',
-    filterName: 'UNU Animation'
-  })
+  const saved = await window.unu.saveTextAsset({ content, projectRoot: project.rootPath, subdir: 'assets/animations', suggestedName: `${entity.value.name}.anim.json`, title: '保存动画资源', filterName: 'UNU Animation' })
   if (!saved) return
   animation.value.animationAssetPath = saved.relativePath || saved.name
   await assets.refreshProject()
@@ -732,12 +821,7 @@ async function openAnimationAsset() {
     project.setStatus('当前为示例工程，动画资源打开需在 Electron 本地工程模式下使用。')
     return
   }
-  const result = await window.unu.openTextAsset({
-    projectRoot: project.rootPath,
-    defaultSubdir: 'assets/animations',
-    title: '打开动画资源',
-    extensions: ['json']
-  })
+  const result = await window.unu.openTextAsset({ projectRoot: project.rootPath, defaultSubdir: 'assets/animations', title: '打开动画资源', extensions: ['json'] })
   if (!result) return
   const data = deserializeAnimationAsset(result.content)
   applyAnimationAssetToComponent(animation.value, data, result.relativePath || result.name)
@@ -757,40 +841,42 @@ async function generateAtlasSliceAsset() {
     project.setStatus('当前为示例工程，图集切片资源保存需在 Electron 本地工程模式下使用。')
     return
   }
-
   const columns = Math.max(1, Number(window.prompt('图集列数 columns', '4') || 4))
   const rows = Math.max(1, Number(window.prompt('图集行数 rows', '4') || 4))
   const cellWidth = Math.max(1, Number(window.prompt('单帧宽度 cellWidth', '64') || 64))
   const cellHeight = Math.max(1, Number(window.prompt('单帧高度 cellHeight', '64') || 64))
   const frameCount = Math.max(1, Number(window.prompt('总帧数 frameCount', String(columns * rows)) || (columns * rows)))
-  const content = serializeAtlasAsset({
-    imagePath: assets.selectedAsset.path,
-    columns,
-    rows,
-    cellWidth,
-    cellHeight,
-    frameCount
-  })
+  const content = serializeAtlasAsset({ imagePath: assets.selectedAsset.path, columns, rows, cellWidth, cellHeight, frameCount })
   const baseName = frameLabel(assets.selectedAsset.name).replace(/\.[^.]+$/, '')
-  const saved = await window.unu.saveTextAsset({
-    content,
-    projectRoot: project.rootPath,
-    subdir: 'assets/animations',
-    suggestedName: `${baseName}.atlas.json`,
-    title: '保存图集切片描述',
-    filterName: 'UNU Atlas'
-  })
+  const saved = await window.unu.saveTextAsset({ content, projectRoot: project.rootPath, subdir: 'assets/animations', suggestedName: `${baseName}.atlas.json`, title: '保存图集切片描述', filterName: 'UNU Atlas' })
   if (!saved) return
   await assets.refreshProject()
   project.setStatus(`图集切片描述已生成：${saved.name}`)
 }
 
 watch(
+  () => animation.value?.stateMachine.clips,
+  (clips) => {
+    const safe = clips || []
+    if (!safe.length) {
+      selectedState.value = ''
+      return
+    }
+    if (!selectedState.value || !safe.some((clip) => clip.name === selectedState.value)) {
+      selectedState.value = safe[0].name
+    }
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
   () => selection.selectedEntityId,
   () => stopPreviewLoop()
 )
 
-onBeforeUnmount(() => stopPreviewLoop())
+onBeforeUnmount(() => {
+  stopPreviewLoop()
+})
 </script>
 
 <style scoped>
@@ -824,49 +910,21 @@ textarea { min-height: 90px; resize: vertical; }
 .event-list, .transition-list { display: grid; gap: 10px; }
 .event-card, .transition-item, .state-editor { display: grid; gap: 8px; background: #0f141d; border: 1px solid #2b3648; border-radius: 10px; padding: 10px; }
 .tips { color: #8ea0b8; font-size: 12px; line-height: 1.6; }
-.row-inline { display: flex; gap: 8px; align-items: center; }
+.row-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .grow { flex: 1; min-width: 0; }
 .state-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .state-chip-list { display: flex; gap: 8px; flex-wrap: wrap; }
-.state-chip {
-  border: 1px solid #2f3a4c;
-  background: #1f2735;
-  color: #d7e1ee;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.state-chip.active {
-  border-color: #56b6c2;
-  background: #1c3741;
-}
+.state-chip { border: 1px solid #2f3a4c; background: #1f2735; color: #d7e1ee; border-radius: 999px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.state-chip.active { border-color: #56b6c2; background: #1c3741; }
 .transition-block { display: grid; gap: 8px; }
-.graph-board {
-  border: 1px dashed #35506a;
-  border-radius: 10px;
-  padding: 10px;
-  background: #111a25;
-  display: grid;
-  gap: 8px;
-}
-.graph-title { font-size: 12px; color: #8fb2d1; }
-.graph-list { display: grid; gap: 6px; }
-.graph-edge {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-  font-size: 12px;
-}
-.graph-node {
-  border: 1px solid #3a536d;
-  border-radius: 999px;
-  padding: 2px 8px;
-  color: #e6f1ff;
-  background: #1b2a3c;
-}
-.graph-arrow { color: #83a8cb; }
-.graph-cond { color: #a8bfd6; }
-.graph-meta { color: #86a6c4; font-size: 11px; }
+.state-graph-preview { display: grid; gap: 8px; background: #0f141d; border: 1px solid #2b3648; border-radius: 10px; padding: 10px; overflow: auto; }
+.state-graph-svg { width: 100%; min-width: 760px; height: 300px; background: #0c1119; border: 1px solid #233144; border-radius: 8px; cursor: grab; user-select: none; }
+.state-graph-svg.dragging { cursor: grabbing; }
+.state-graph-edge { fill: none; stroke: #80b4ff; stroke-width: 1.5; opacity: 0.9; }
+.state-graph-edge-label { fill: #a7c8ff; font-size: 11px; text-anchor: middle; }
+.state-graph-node { fill: #1a2433; stroke: #3f5778; stroke-width: 1.2; }
+.state-graph-node.selected { stroke: #56b6c2; stroke-width: 1.6; }
+.state-graph-node.initial { stroke: #f2c94c; }
+.state-graph-node.active { stroke: #78e08f; stroke-width: 1.8; }
+.state-graph-node-label { fill: #e6eefb; font-size: 12px; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
 </style>

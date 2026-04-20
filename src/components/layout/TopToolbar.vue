@@ -14,7 +14,7 @@
       <button @click="runAction('打开场景', () => scene.openSceneFromDisk())">打开场景</button>
       <button @click="runAction('保存场景', () => scene.saveScene())">保存场景</button>
       <button @click="runAction('另存场景', () => scene.saveSceneAs())">另存场景</button>
-      <button @click="runAction('新建实体', () => scene.createEmptyEntity())">新建实体</button>
+      <button @click="editor.openEntityCreateDialog()">新建实体</button>
       <button @click="runAction('保存 Prefab', () => scene.saveSelectedAsPrefab())">保存 Prefab</button>
       <button @click="runAction('实例化 Prefab', () => scene.instantiatePrefabFromDisk())">实例化 Prefab</button>
       <button @click="runAction('复制实体', () => scene.duplicateSelectedEntity())">复制实体</button>
@@ -26,7 +26,9 @@
       <button @click="editor.setTool('scale')">缩放</button>
       <button @click="editor.setRightTab('Timeline')">时间轴</button>
       <button @click="editor.toggleGrid()">{{ editor.showGrid ? '隐藏网格' : '显示网格' }}</button>
-      <button class="play" @click="runAction(runtime.isPlaying ? '停止预览' : '播放预览', togglePlay)">{{ runtime.isPlaying ? '停止预览' : '播放预览' }}</button>
+      <button class="play" @click="runAction(runtime.isPlaying ? '停止预览' : '播放预览', togglePlay)">
+        {{ runtime.isPlaying ? '停止预览' : '播放预览' }}
+      </button>
     </div>
 
     <div class="status">
@@ -95,7 +97,11 @@ function togglePlay() {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.toolbar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 button {
   border: 1px solid #303848;
   background: #202632;
@@ -104,7 +110,9 @@ button {
   border-radius: 8px;
   cursor: pointer;
 }
-.play { background: #264653; }
+.play {
+  background: #264653;
+}
 .status {
   font-size: 13px;
   color: #94a3b8;

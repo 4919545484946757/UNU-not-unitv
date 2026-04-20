@@ -309,23 +309,127 @@ function escapeHtml(input: string) {
     .replace(/>/g, '&gt;')
 }
 
+const JS_KEYWORDS = new Set([
+  'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while',
+  'switch', 'case', 'break', 'continue', 'export', 'default', 'import', 'from',
+  'new', 'class', 'extends', 'try', 'catch', 'finally', 'throw', 'async', 'await'
+])
+
+const JS_CONSTANTS = new Set(['true', 'false', 'null', 'undefined'])
+
+function highlightPlainJsSegment(segment: string) {
+  let out = ''
+  let i = 0
+  while (i < segment.length) {
+    const ch = segment[i]
+    if (/[A-Za-z_$]/.test(ch)) {
+      const start = i
+      i += 1
+      while (i < segment.length && /[A-Za-z0-9_$]/.test(segment[i])) i += 1
+      const word = segment.slice(start, i)
+      if (JS_KEYWORDS.has(word)) out += `<span class="tok-keyword">${escapeHtml(word)}</span>`
+      else if (JS_CONSTANTS.has(word)) out += `<span class="tok-constant">${escapeHtml(word)}</span>`
+      else out += escapeHtml(word)
+      continue
+    }
+
+    if (/\d/.test(ch) || ((ch === '-' || ch === '+') && i + 1 < segment.length && /\d/.test(segment[i + 1]))) {
+      const start = i
+      i += 1
+      while (i < segment.length && /[0-9._eE+-]/.test(segment[i])) i += 1
+      const num = segment.slice(start, i)
+      out += `<span class="tok-number">${escapeHtml(num)}</span>`
+      continue
+    }
+
+    out += escapeHtml(ch)
+    i += 1
+  }
+  return out
+}
+
 function highlightJson(code: string) {
-  let html = escapeHtml(code)
-  html = html.replace(/"(\\.|[^"\\])*"(?=\s*:)/g, '<span class="tok-key">$&</span>')
-  html = html.replace(/"(\\.|[^"\\])*"/g, '<span class="tok-string">$&</span>')
-  html = html.replace(/\b-?\d+(?:\.\d+)?(?:e[+-]?\d+)?\b/gi, '<span class="tok-number">$&</span>')
-  html = html.replace(/\b(true|false|null)\b/g, '<span class="tok-keyword">$1</span>')
-  return html
+  let out = ''
+  let i = 0
+  while (i < code.length) {
+    if (code[i] === '"') {
+      const start = i
+      i += 1
+      while (i < code.length) {
+        if (code[i] === '\\') {
+          i += 2
+          continue
+        }
+        if (code[i] === '"') {
+          i += 1
+          break
+        }
+        i += 1
+      }
+      const str = code.slice(start, i)
+      let j = i
+      while (j < code.length && /\s/.test(code[j])) j += 1
+      const cls = code[j] === ':' ? 'tok-key' : 'tok-string'
+      out += `<span class="${cls}">${escapeHtml(str)}</span>`
+      continue
+    }
+    if (/\d/.test(code[i]) || ((code[i] === '-' || code[i] === '+') && i + 1 < code.length && /\d/.test(code[i + 1]))) {
+      const start = i
+      i += 1
+      while (i < code.length && /[0-9.eE+-]/.test(code[i])) i += 1
+      out += `<span class="tok-number">${escapeHtml(code.slice(start, i))}</span>`
+      continue
+    }
+    if (code.startsWith('true', i) || code.startsWith('false', i) || code.startsWith('null', i)) {
+      const lit = code.startsWith('true', i) ? 'true' : code.startsWith('false', i) ? 'false' : 'null'
+      out += `<span class="tok-keyword">${lit}</span>`
+      i += lit.length
+      continue
+    }
+    out += escapeHtml(code[i])
+    i += 1
+  }
+  return out
 }
 
 function highlightJsLike(code: string) {
-  let html = escapeHtml(code)
-  html = html.replace(/(\/\/[^\n]*)/g, '<span class="tok-comment">$1</span>')
-  html = html.replace(/"(\\.|[^"\\])*"|'(\\.|[^'\\])*'|`(\\.|[^`\\])*`/g, '<span class="tok-string">$&</span>')
-  html = html.replace(/\b-?\d+(?:\.\d+)?(?:e[+-]?\d+)?\b/gi, '<span class="tok-number">$&</span>')
-  html = html.replace(/\b(const|let|var|function|return|if|else|for|while|switch|case|break|continue|export|default|import|from|new|class|extends|try|catch|finally|throw|async|await)\b/g, '<span class="tok-keyword">$1</span>')
-  html = html.replace(/\b(true|false|null|undefined)\b/g, '<span class="tok-constant">$1</span>')
-  return html
+  let out = ''
+  let i = 0
+  while (i < code.length) {
+    if (code[i] === '/' && code[i + 1] === '/') {
+      const start = i
+      i += 2
+      while (i < code.length && code[i] !== '\n') i += 1
+      out += `<span class="tok-comment">${escapeHtml(code.slice(start, i))}</span>`
+      continue
+    }
+    if (code[i] === '"' || code[i] === "'" || code[i] === '`') {
+      const quote = code[i]
+      const start = i
+      i += 1
+      while (i < code.length) {
+        if (code[i] === '\\') {
+          i += 2
+          continue
+        }
+        if (code[i] === quote) {
+          i += 1
+          break
+        }
+        i += 1
+      }
+      out += `<span class="tok-string">${escapeHtml(code.slice(start, i))}</span>`
+      continue
+    }
+
+    const segStart = i
+    while (i < code.length) {
+      if ((code[i] === '/' && code[i + 1] === '/') || code[i] === '"' || code[i] === "'" || code[i] === '`') break
+      i += 1
+    }
+    out += highlightPlainJsSegment(code.slice(segStart, i))
+  }
+  return out
 }
 </script>
 
@@ -393,7 +497,7 @@ textarea {
   overflow-x: auto;
   overflow-y: auto;
   white-space: pre;
-  border: 1px solid #2a3140;
+  border: 0;
   border-radius: 10px;
   background: transparent;
   color: transparent;
@@ -402,7 +506,13 @@ textarea {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 13px;
   line-height: 1.5;
+  font-variant-ligatures: none;
+  tab-size: 2;
+  overflow-wrap: normal;
+  word-break: normal;
+  box-sizing: border-box;
   scrollbar-gutter: stable both-edges;
+  z-index: 2;
 }
 .code-shell {
   position: relative;
@@ -426,8 +536,14 @@ textarea {
   font-family: 'Cascadia Code', 'Fira Code', monospace;
   font-size: 13px;
   line-height: 1.5;
+  font-variant-ligatures: none;
+  tab-size: 2;
+  overflow-wrap: normal;
+  word-break: normal;
+  box-sizing: border-box;
   scrollbar-gutter: stable both-edges;
   color: #dbe4ee;
+  z-index: 1;
 }
 .code-shell textarea::-webkit-scrollbar,
 .code-shell .highlight-layer::-webkit-scrollbar {

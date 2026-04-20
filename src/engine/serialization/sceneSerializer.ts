@@ -2,6 +2,7 @@ import { AnimationComponent } from '../components/AnimationComponent'
 import { AudioComponent } from '../components/AudioComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
+import { InteractableComponent } from '../components/InteractableComponent'
 import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
@@ -172,7 +173,8 @@ export function deserializeEntity(entityData: SerializedEntity) {
                         priority: Number.isFinite(Number(t.priority)) ? Number(t.priority) : 0,
                         canInterrupt: t.canInterrupt === undefined ? true : Boolean(t.canInterrupt),
                         once: Boolean(t.once),
-                        minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0)))
+                        minNormalizedTime: Math.max(0, Math.min(1, Number(t.minNormalizedTime ?? 0))),
+                        exitTime: Boolean(t.exitTime)
                       }))
                     : []
                 }
@@ -240,6 +242,18 @@ export function deserializeEntity(entityData: SerializedEntity) {
         )
         break
       case 'Tilemap':
+        {
+          const rawMap = data.tileTextureMap && typeof data.tileTextureMap === 'object'
+            ? (data.tileTextureMap as Record<string, unknown>)
+            : {}
+          const tileTextureMap: Record<number, string> = {}
+          for (const [key, value] of Object.entries(rawMap)) {
+            const n = Number(key)
+            if (!Number.isFinite(n) || n <= 0) continue
+            const path = String(value ?? '').trim()
+            if (!path) continue
+            tileTextureMap[Math.round(n)] = path
+          }
         entity.addComponent(
           new TilemapComponent(
             Boolean(data.enabled ?? true),
@@ -249,7 +263,23 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Math.max(1, Number(data.tileHeight ?? 48)),
             Array.isArray(data.tiles) ? data.tiles.map((value) => Number(value ?? 0)) : [],
             Array.isArray(data.collision) ? data.collision.map((value) => Number(value ?? 0)) : [],
-            Boolean(data.showCollision ?? true)
+            Boolean(data.showCollision ?? true),
+            tileTextureMap
+          )
+        )
+        }
+        break
+      case 'Interactable':
+        entity.addComponent(
+          new InteractableComponent(
+            Boolean(data.enabled ?? true),
+            Math.max(0, Number(data.interactDistance ?? 160)),
+            data.actionType === 'switchScene' || data.actionType === 'cycleTexture' || data.actionType === 'cycleTint'
+              ? data.actionType
+              : 'none',
+            String(data.targetScene ?? ''),
+            Array.isArray(data.textureCycle) ? data.textureCycle.map((item) => String(item || '').trim()).filter(Boolean) : [],
+            Array.isArray(data.tintCycle) ? data.tintCycle.map((item) => Number(item)).filter((value) => Number.isFinite(value)).map((value) => Math.round(value)) : []
           )
         )
         break

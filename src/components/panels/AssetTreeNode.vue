@@ -59,6 +59,7 @@ const icon = computed(() => {
 async function handleClick() {
   if (props.node.type === 'folder') {
     assets.selectPath(props.node.path)
+    assets.toggleFolder(props.node.path)
     return
   }
   await assets.selectAsset(props.node.path)

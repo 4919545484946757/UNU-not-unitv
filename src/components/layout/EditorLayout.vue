@@ -2,6 +2,8 @@
   <div class="editor-shell">
     <TopToolbar />
     <StatusPopup />
+    <EntityCreateDialog />
+    <SceneListDialog />
     <div ref="mainRef" class="editor-main" :style="mainStyle">
       <LeftPanel />
       <div class="resizer left-resizer" @mousedown.prevent="startResize('left', $event)"></div>
@@ -16,6 +18,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import TopToolbar from './TopToolbarCompact.vue'
 import StatusPopup from '../common/StatusPopup.vue'
+import EntityCreateDialog from '../common/EntityCreateDialog.vue'
+import SceneListDialog from '../common/SceneListDialog.vue'
 import LeftPanel from './LeftPanel.vue'
 import CenterViewport from './CenterViewport.vue'
 import RightPanel from './RightPanel.vue'
@@ -122,18 +126,27 @@ function handleGlobalShortcut(event: KeyboardEvent) {
   }
 
   if (key === 'q') {
+    if (runtime.isPlaying) return
     editor.setTool('select')
     project.setStatus('工具切换：选择 (Q)')
     return
   }
   if (key === 'w') {
+    if (runtime.isPlaying) return
     editor.setTool('move')
     project.setStatus('工具切换：移动 (W)')
     return
   }
   if (key === 'e') {
+    if (runtime.isPlaying) return
     editor.setTool('scale')
     project.setStatus('工具切换：缩放 (E)')
+    return
+  }
+  if (key === 'r') {
+    if (runtime.isPlaying) return
+    editor.setTool('pan')
+    project.setStatus('工具切换：平移 (R)')
     return
   }
   if (key === ' ') {

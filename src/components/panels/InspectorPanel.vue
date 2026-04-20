@@ -155,6 +155,10 @@
                     Min Progress (0-1)
                     <input type="number" step="0.01" min="0" max="1" :value="transition.minNormalizedTime ?? 0" @input="setAnimationTransitionMinNormalizedTime(index, $event)" />
                   </label>
+                  <label class="checkbox-row">
+                    <input type="checkbox" :checked="transition.exitTime ?? false" @change="setAnimationTransitionExitTime(index, $event)" />
+                    Exit Time (At Last Frame)
+                  </label>
                   <button class="small danger" @click="removeAnimationTransition(index)">Remove</button>
                 </div>
               </div>
@@ -188,6 +192,42 @@
       </div>
 
       <div class="group">
+        <div class="group-title">Interactable</div>
+        <template v-if="interactable">
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="interactable.enabled" @change="setChecked('interactable', 'enabled', $event)" />
+            Enabled
+          </label>
+          <label>Interact Distance <input type="number" min="0" :value="interactable.interactDistance" @input="setNumber('interactable', 'interactDistance', $event)" /></label>
+          <label>
+            Action Type
+            <select :value="interactable.actionType" @change="setInteractableActionType">
+              <option value="none">none</option>
+              <option value="switchScene">switchScene</option>
+              <option value="cycleTexture">cycleTexture</option>
+              <option value="cycleTint">cycleTint</option>
+            </select>
+          </label>
+          <label v-if="interactable.actionType === 'switchScene'">
+            Target Scene
+            <input :value="interactable.targetScene" @input="setText('interactable', 'targetScene', $event)" />
+          </label>
+          <label v-if="interactable.actionType === 'cycleTexture'">
+            Texture Cycle Paths (one per line)
+            <textarea :value="interactableTextureCycleBuffer" @input="setInteractableTextureCycle($event)"></textarea>
+          </label>
+          <label v-if="interactable.actionType === 'cycleTint'">
+            Tint Cycle (decimal or 0xhex, one per line)
+            <textarea :value="interactableTintCycleBuffer" @input="setInteractableTintCycle($event)"></textarea>
+          </label>
+        </template>
+        <template v-else>
+          <div class="tips">Current entity does not have Interactable component.</div>
+          <button class="small" @click="addInteractableComponent">Add Interactable Component</button>
+        </template>
+      </div>
+
+      <div class="group">
         <div class="group-title">Tilemap</div>
         <template v-if="tilemap">
           <label class="checkbox-row">
@@ -202,8 +242,26 @@
             <input type="checkbox" :checked="tilemap.showCollision" @change="setChecked('tilemap', 'showCollision', $event)" />
             Show Collision Overlay
           </label>
-          <label>Tiles (CSV rows)<textarea :value="tilemapToText(tilemap.tiles)" @input="setTilemapArray('tiles', $event)"></textarea></label>
-          <label>Collision (CSV rows, 0/1)<textarea :value="tilemapToText(tilemap.collision)" @input="setTilemapArray('collision', $event)"></textarea></label>
+          <div class="row-inline">
+            <button class="small" @click="openTilemapEditor('tiles')">打开 Tiles 图形窗口</button>
+            <button class="small" @click="openTilemapEditor('collision')">打开 Collision 图形窗口</button>
+          </div>
+          <label>
+            Tiles (CSV rows)
+            <textarea v-model="tilemapTilesBuffer" @input="applyTilemapBuffer('tiles')"></textarea>
+          </label>
+          <label>
+            Collision (CSV rows, 0/1)
+            <textarea v-model="tilemapCollisionBuffer" @input="applyTilemapBuffer('collision')"></textarea>
+          </label>
+          <label>
+            Tile Texture Map (value=assetPath, one per line)
+            <textarea v-model="tileTextureMapBuffer" @input="applyTileTextureMapBuffer"></textarea>
+          </label>
+          <div class="asset-picker">
+            <button @click="bindSelectedImageToTileValue">Bind Selected Image To Tile Value</button>
+            <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : 'Select an image and bind to numeric tile value' }}</span>
+          </div>
         </template>
         <template v-else>
           <div class="tips">Current entity does not have Tilemap component.</div>
@@ -297,24 +355,28 @@
     </template>
 
     <div v-else class="empty">Select an entity in Scene Tree or Viewport first.</div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AnimationComponent } from '../../engine/components/AnimationComponent'
 import { AudioComponent } from '../../engine/components/AudioComponent'
 import { CameraComponent } from '../../engine/components/CameraComponent'
 import type { ColliderComponent } from '../../engine/components/ColliderComponent'
+import { InteractableComponent } from '../../engine/components/InteractableComponent'
 import type { SpriteComponent } from '../../engine/components/SpriteComponent'
 import { TilemapComponent } from '../../engine/components/TilemapComponent'
 import type { TransformComponent } from '../../engine/components/TransformComponent'
 import { UIComponent } from '../../engine/components/UIComponent'
 import { useAssetStore } from '../../stores/assets'
+import { useProjectStore } from '../../stores/project'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
 
 const assets = useAssetStore()
+const project = useProjectStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
 
@@ -323,6 +385,7 @@ const transform = computed(() => entity.value?.getComponent<TransformComponent>(
 const sprite = computed(() => entity.value?.getComponent<SpriteComponent>('Sprite') ?? null)
 const animation = computed(() => entity.value?.getComponent<AnimationComponent>('Animation') ?? null)
 const collider = computed(() => entity.value?.getComponent<ColliderComponent>('Collider') ?? null)
+const interactable = computed(() => entity.value?.getComponent<InteractableComponent>('Interactable') ?? null)
 const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camera') ?? null)
 const audio = computed(() => entity.value?.getComponent<AudioComponent>('Audio') ?? null)
 const ui = computed(() => entity.value?.getComponent<UIComponent>('UI') ?? null)
@@ -330,6 +393,48 @@ const tilemap = computed(() => entity.value?.getComponent<TilemapComponent>('Til
 const newAnimationStateName = ref('')
 const selectedAnimationStateName = ref('Idle')
 const animationStateClips = computed(() => animation.value?.stateMachine.clips ?? [])
+const tilemapTilesBuffer = ref('')
+const tilemapCollisionBuffer = ref('')
+const tileTextureMapBuffer = ref('')
+const interactableTextureCycleBuffer = ref('')
+const interactableTintCycleBuffer = ref('')
+
+interface TilemapEditorApplyPayload {
+  entityId: string
+  mode: 'tiles' | 'collision'
+  tiles: number[]
+  collision: number[]
+  tileTextureMap?: Record<number, string>
+}
+
+let removeTilemapEditorListener: (() => void) | null = null
+
+function applyTilemapEditorPayload(raw: unknown) {
+  const payload = (raw || {}) as Partial<TilemapEditorApplyPayload>
+  if (!payload.entityId || !sceneStore.currentScene) return
+  const entity = sceneStore.currentScene.getEntityById(String(payload.entityId))
+  const map = entity?.getComponent<TilemapComponent>('Tilemap')
+  if (!map) return
+  const size = Math.max(1, map.columns * map.rows)
+  map.tiles = normalizeTileArray((payload.tiles || []) as number[], size)
+  map.collision = normalizeTileArray((payload.collision || []) as number[], size)
+  if (payload.tileTextureMap && typeof payload.tileTextureMap === 'object') {
+    map.tileTextureMap = { ...(payload.tileTextureMap as Record<number, string>) }
+  }
+  tilemapTilesBuffer.value = tilemapToText(map.tiles)
+  tilemapCollisionBuffer.value = tilemapToText(map.collision)
+  tileTextureMapBuffer.value = tileTextureMapToText(map.tileTextureMap)
+  sceneStore.markDirty()
+}
+
+onMounted(() => {
+  removeTilemapEditorListener = window.unu?.onTilemapEditorApply?.((payload) => applyTilemapEditorPayload(payload)) || null
+})
+
+onBeforeUnmount(() => {
+  removeTilemapEditorListener?.()
+  removeTilemapEditorListener = null
+})
 
 watch(
   animationStateClips,
@@ -345,13 +450,49 @@ watch(
   { immediate: true, deep: true }
 )
 
+watch(
+  () => [
+    tilemap.value?.columns,
+    tilemap.value?.rows,
+    tilemap.value?.tiles,
+    tilemap.value?.collision,
+    tilemap.value?.tileTextureMap
+  ],
+  () => {
+    if (!tilemap.value) {
+      tilemapTilesBuffer.value = ''
+      tilemapCollisionBuffer.value = ''
+      tileTextureMapBuffer.value = ''
+      return
+    }
+    tilemapTilesBuffer.value = tilemapToText(tilemap.value.tiles)
+    tilemapCollisionBuffer.value = tilemapToText(tilemap.value.collision)
+    tileTextureMapBuffer.value = tileTextureMapToText(tilemap.value.tileTextureMap)
+  },
+  { immediate: true, deep: true }
+)
+
+watch(
+  () => [interactable.value?.actionType, interactable.value?.targetScene, interactable.value?.textureCycle, interactable.value?.tintCycle],
+  () => {
+    if (!interactable.value) {
+      interactableTextureCycleBuffer.value = ''
+      interactableTintCycleBuffer.value = ''
+      return
+    }
+    interactableTextureCycleBuffer.value = (interactable.value.textureCycle || []).map((item) => String(item || '').trim()).filter(Boolean).join('\n')
+    interactableTintCycleBuffer.value = (interactable.value.tintCycle || []).map((item) => String(Math.round(Number(item) || 0))).join('\n')
+  },
+  { immediate: true, deep: true }
+)
+
 function setEntityName(value: string) {
   if (!entity.value) return
   entity.value.name = value
   sceneStore.markDirty()
 }
 
-function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap', key: string, event: Event) {
+function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
   const value = Number((event.target as HTMLInputElement).value)
   if (group === 'transform' && transform.value) (transform.value as Record<string, number>)[key] = value
   if (group === 'sprite' && sprite.value) (sprite.value as Record<string, number>)[key] = value
@@ -361,15 +502,17 @@ function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'c
   if (group === 'audio' && audio.value) (audio.value as Record<string, number>)[key] = value
   if (group === 'ui' && ui.value) (ui.value as Record<string, number>)[key] = value
   if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, number>)[key] = Math.round(value)
+  if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, number>)[key] = Math.max(0, value)
   sceneStore.markDirty()
 }
 
-function setText(group: 'sprite' | 'camera' | 'audio' | 'ui', key: string, event: Event) {
+function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', key: string, event: Event) {
   const value = (event.target as HTMLInputElement).value
   if (group === 'sprite' && sprite.value) (sprite.value as Record<string, string>)[key] = value
   if (group === 'camera' && camera.value) (camera.value as Record<string, string>)[key] = value
   if (group === 'audio' && audio.value) (audio.value as Record<string, string>)[key] = value
   if (group === 'ui' && ui.value) (ui.value as Record<string, string>)[key] = value
+  if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, string>)[key] = value
   sceneStore.markDirty()
 }
 
@@ -382,7 +525,7 @@ function setHexNumber(group: 'ui', key: string, event: Event) {
   sceneStore.markDirty()
 }
 
-function setChecked(group: 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap', key: string, event: Event) {
+function setChecked(group: 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
   const value = (event.target as HTMLInputElement).checked
   if (group === 'sprite' && sprite.value) (sprite.value as Record<string, boolean>)[key] = value
   if (group === 'collider' && collider.value) (collider.value as Record<string, boolean>)[key] = value
@@ -391,6 +534,7 @@ function setChecked(group: 'sprite' | 'collider' | 'animation' | 'camera' | 'aud
   if (group === 'audio' && audio.value) (audio.value as Record<string, boolean>)[key] = value
   if (group === 'ui' && ui.value) (ui.value as Record<string, boolean>)[key] = value
   if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, boolean>)[key] = value
+  if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, boolean>)[key] = value
   sceneStore.markDirty()
 }
 
@@ -420,7 +564,7 @@ function ensureAnimationStateMachineDefaults() {
       { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
       { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
       { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
-      { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+      { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
     ]
   }
 }
@@ -668,6 +812,15 @@ function setAnimationTransitionMinNormalizedTime(index: number, event: Event) {
   sceneStore.markDirty()
 }
 
+function setAnimationTransitionExitTime(index: number, event: Event) {
+  if (!animation.value) return
+  const value = (event.target as HTMLInputElement).checked
+  animation.value.stateMachine.transitions = animation.value.stateMachine.transitions.map((item, i) =>
+    i === index ? { ...item, exitTime: value } : item
+  )
+  sceneStore.markDirty()
+}
+
 async function applySelectedImage() {
   if (!sprite.value || assets.selectedAsset?.type !== 'image') return
   sprite.value.texturePath = assets.selectedAsset.path
@@ -717,7 +870,7 @@ function addAnimationComponent() {
           { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
           { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
           { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
-          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6 }
+          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
         ]
       }
     )
@@ -725,21 +878,26 @@ function addAnimationComponent() {
   sceneStore.markDirty()
 }
 
-function setTilemapArray(kind: 'tiles' | 'collision', event: Event) {
-  if (!tilemap.value) return
-  const rows = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
-  const nextRows = rows.slice(0, tilemap.value.rows)
+function parseTilemapText(text: string, rows: number, cols: number) {
+  const lines = text.split('\n')
   const array: number[] = []
-  for (let r = 0; r < tilemap.value.rows; r += 1) {
-    const rowText = nextRows[r] || ''
-    const values = rowText.split(',').map((v) => Number(v.trim() || 0))
-    for (let c = 0; c < tilemap.value.columns; c += 1) {
+  for (let r = 0; r < rows; r += 1) {
+    const rowText = (lines[r] || '').trim()
+    const values = rowText ? rowText.split(',').map((v) => Number(v.trim() || 0)) : []
+    for (let c = 0; c < cols; c += 1) {
       const value = Number(values[c] ?? 0)
       array.push(Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0)
     }
   }
-  if (kind === 'tiles') tilemap.value.tiles = array
-  else tilemap.value.collision = array
+  return array
+}
+
+function applyTilemapBuffer(kind: 'tiles' | 'collision') {
+  if (!tilemap.value) return
+  const source = kind === 'tiles' ? tilemapTilesBuffer.value : tilemapCollisionBuffer.value
+  const parsed = parseTilemapText(source, tilemap.value.rows, tilemap.value.columns)
+  if (kind === 'tiles') tilemap.value.tiles = parsed
+  else tilemap.value.collision = parsed
   sceneStore.markDirty()
 }
 
@@ -752,6 +910,8 @@ function resizeTilemapData() {
   const size = tilemap.value.columns * tilemap.value.rows
   tilemap.value.tiles = normalizeTileArray(tilemap.value.tiles, size)
   tilemap.value.collision = normalizeTileArray(tilemap.value.collision, size)
+  tilemapTilesBuffer.value = tilemapToText(tilemap.value.tiles)
+  tilemapCollisionBuffer.value = tilemapToText(tilemap.value.collision)
   sceneStore.markDirty()
 }
 
@@ -769,6 +929,69 @@ function normalizeTileArray(values: number[], size: number) {
   const next = values.slice(0, size).map((v) => (Number.isFinite(v) ? Math.max(0, Math.round(v)) : 0))
   while (next.length < size) next.push(0)
   return next
+}
+
+function tileTextureMapToText(map: Record<number, string> | undefined) {
+  const source = map || {}
+  return Object.keys(source)
+    .map((key) => Number(key))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b)
+    .map((value) => `${value}=${String(source[value] || '').trim()}`)
+    .join('\n')
+}
+
+function applyTileTextureMapBuffer() {
+  if (!tilemap.value) return
+  const map: Record<number, string> = {}
+  for (const rawLine of tileTextureMapBuffer.value.split('\n')) {
+    const line = rawLine.trim()
+    if (!line) continue
+    const [left, ...rest] = line.split('=')
+    const value = Math.round(Number(left.trim()))
+    const path = rest.join('=').trim()
+    if (!Number.isFinite(value) || value <= 0 || !path) continue
+    map[value] = path
+  }
+  tilemap.value.tileTextureMap = map
+  sceneStore.markDirty()
+}
+
+function bindSelectedImageToTileValue() {
+  if (!tilemap.value || assets.selectedAsset?.type !== 'image') return
+  const raw = window.prompt('输入要绑定的 Tile 数值（正整数）', '1')
+  if (!raw) return
+  const value = Math.round(Number(raw))
+  if (!Number.isFinite(value) || value <= 0) return
+  tilemap.value.tileTextureMap = { ...(tilemap.value.tileTextureMap || {}), [value]: assets.selectedAsset.path }
+  tileTextureMapBuffer.value = tileTextureMapToText(tilemap.value.tileTextureMap)
+  sceneStore.markDirty()
+}
+
+async function openTilemapEditor(mode: 'tiles' | 'collision') {
+  if (!tilemap.value || !entity.value) return
+  if (!window.unu?.openTilemapEditor) {
+    project.setStatus('当前环境未接入 Tilemap 子窗口编辑器，请使用桌面版运行。')
+    return
+  }
+  const result = await window.unu.openTilemapEditor({
+    entityId: entity.value.id,
+    entityName: entity.value.name,
+    projectRoot: project.rootPath,
+    mode,
+    columns: tilemap.value.columns,
+    rows: tilemap.value.rows,
+    tileWidth: tilemap.value.tileWidth,
+    tileHeight: tilemap.value.tileHeight,
+    tiles: [...tilemap.value.tiles],
+    collision: [...tilemap.value.collision],
+    tileTextureMap: { ...(tilemap.value.tileTextureMap || {}) }
+  })
+  if (!result?.ok) {
+    project.setStatus(`打开 Tilemap 图形窗口失败：${result?.error || '未知错误'}`)
+    return
+  }
+  project.setStatus(`已打开 Tilemap 图形窗口：${mode === 'tiles' ? 'Tiles' : 'Collision'}`)
 }
 
 function addTilemapComponent() {
@@ -892,3 +1115,4 @@ textarea { min-height: 96px; resize: vertical; }
   background: #131b28;
 }
 </style>
+

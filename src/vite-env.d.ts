@@ -19,6 +19,11 @@ declare global {
       openTextAsset?: (payload: { projectRoot?: string; defaultSubdir?: string; title?: string; extensions?: string[] }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       readTextAsset?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       revealInFolder?: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) => Promise<{ ok: boolean; error?: string }>
+      openTilemapEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
+      submitTilemapEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
+      closeTilemapEditor?: () => Promise<{ ok: boolean; error?: string }>
+      onTilemapEditorInit?: (callback: (payload: unknown) => void) => (() => void)
+      onTilemapEditorApply?: (callback: (payload: unknown) => void) => (() => void)
     }
   }
 }

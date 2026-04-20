@@ -2,11 +2,13 @@
 import type { Entity } from '../engine/core/Entity'
 import type { Scene } from '../engine/core/Scene'
 import { ColliderComponent } from '../engine/components/ColliderComponent'
+import { InteractableComponent } from '../engine/components/InteractableComponent'
 import { SpriteComponent } from '../engine/components/SpriteComponent'
 import { TilemapComponent } from '../engine/components/TilemapComponent'
 import { TransformComponent } from '../engine/components/TransformComponent'
 import { Entity as EntityClass } from '../engine/core/Entity'
 import { Scene as SceneClass } from '../engine/core/Scene'
+import { createSampleSceneByName } from '../engine/sampleScene'
 import { instantiatePrefab, serializePrefab, serializePrefabVariant } from '../engine/prefabs/prefabSerializer'
 import { deserializeEntity, deserializeScene, serializeEntity, serializeScene } from '../engine/serialization/sceneSerializer'
 import { useAssetStore } from './assets'
@@ -23,6 +25,7 @@ function createSceneId(prefix = 'scene') {
 
 export const useSceneStore = defineStore('scene', {
   state: () => ({
+    scenes: [] as Scene[],
     currentScene: null as Scene | null,
     revision: 0,
     isDirty: false,
@@ -38,6 +41,15 @@ export const useSceneStore = defineStore('scene', {
   getters: {
     entities(state): Entity[] {
       return state.currentScene?.entities ?? []
+    },
+    sceneList(state): Array<{ id: string; name: string; entityCount: number; isCurrent: boolean }> {
+      const currentId = state.currentScene?.id || ''
+      return state.scenes.map((scene) => ({
+        id: scene.id,
+        name: scene.name,
+        entityCount: scene.entities.length,
+        isCurrent: scene.id === currentId
+      }))
     },
     canUndo(state) {
       return state.historyIndex > 0
@@ -58,6 +70,108 @@ export const useSceneStore = defineStore('scene', {
         this.autoSaveIntervalSec = Math.max(5, Math.round(intervalSec))
       }
       if (!enabled) this.clearAutoSaveTimer()
+    },
+    upsertScene(scene: Scene) {
+      const index = this.scenes.findIndex((item) => item.id === scene.id)
+      if (index >= 0) this.scenes.splice(index, 1, scene)
+      else this.scenes.push(scene)
+    },
+    ensureSampleSceneCatalog() {
+      const project = useProjectStore()
+      if (project.rootPath !== 'sample-project') return
+      const main = createSampleSceneByName('MainScene')
+      const second = createSampleSceneByName('SecondScene')
+      if (main) this.upsertScene(main)
+      if (second) this.upsertScene(second)
+      if (!this.currentScene) {
+        this.currentScene = this.scenes[0] || null
+      }
+    },
+    switchEditingScene(sceneId: string) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const target = this.scenes.find((item) => item.id === sceneId)
+      if (!target) {
+        project.setStatus('切换场景失败：未找到对应场景。')
+        return false
+      }
+      this.currentScene = target
+      this.revision++
+      selection.clearSelection()
+      this.resetHistory()
+      this.clearAutoSaveTimer()
+      this.captureHistorySnapshot()
+      project.setStatus(`已切换编辑场景：${target.name}`)
+      return true
+    },
+    renameScene(sceneId: string, nextName: string) {
+      const project = useProjectStore()
+      const normalized = String(nextName || '').trim()
+      if (!normalized) {
+        project.setStatus('场景重命名失败：名称不能为空。')
+        return false
+      }
+      const target = this.scenes.find((item) => item.id === sceneId)
+      if (!target) {
+        project.setStatus('场景重命名失败：未找到对应场景。')
+        return false
+      }
+      target.name = normalized
+      this.markDirty()
+      project.setStatus(`已重命名场景：${normalized}`)
+      return true
+    },
+    duplicateScene(sceneId: string) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const source = this.scenes.find((item) => item.id === sceneId)
+      if (!source) {
+        project.setStatus('复制场景失败：未找到对应场景。')
+        return false
+      }
+      const copy = new SceneClass(createSceneId('scene'), `${source.name}_Copy`)
+      for (const entity of source.entities) {
+        copy.addEntity(deserializeEntity(serializeEntity(entity)))
+      }
+      this.scenes.push(copy)
+      this.currentScene = copy
+      this.isDirty = true
+      this.revision++
+      selection.clearSelection()
+      this.resetHistory()
+      this.clearAutoSaveTimer()
+      this.captureHistorySnapshot()
+      project.setStatus(`已复制场景：${copy.name}`)
+      return true
+    },
+    removeScene(sceneId: string, force = false) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (this.scenes.length <= 1) {
+        project.setStatus('至少保留一个场景，无法删除。')
+        return false
+      }
+      const index = this.scenes.findIndex((item) => item.id === sceneId)
+      if (index < 0) {
+        project.setStatus('删除场景失败：未找到对应场景。')
+        return false
+      }
+      const target = this.scenes[index]
+      if (!force && !window.confirm(`确认删除场景“${target.name}”吗？`)) {
+        project.setStatus('已取消删除场景。')
+        return false
+      }
+      this.scenes.splice(index, 1)
+      if (this.currentScene?.id === sceneId) {
+        this.currentScene = this.scenes[Math.max(0, index - 1)] || this.scenes[0] || null
+        selection.clearSelection()
+      }
+      this.markDirty()
+      this.resetHistory()
+      this.clearAutoSaveTimer()
+      this.captureHistorySnapshot()
+      project.setStatus(`已删除场景：${target.name}`)
+      return true
     },
     scheduleAutoSave() {
       const project = useProjectStore()
@@ -132,9 +246,22 @@ export const useSceneStore = defineStore('scene', {
       const project = useProjectStore()
       const selection = useSelectionStore()
       const previousSelectedId = selection.selectedEntityId
+      const currentSceneId = this.currentScene?.id || ''
       this.isRestoringHistory = true
       try {
-        this.currentScene = deserializeScene(raw)
+        const restored = deserializeScene(raw)
+        const nextScene = currentSceneId
+          ? new SceneClass(currentSceneId, restored.name)
+          : restored
+        if (currentSceneId) {
+          nextScene.entities = restored.entities
+          nextScene.entities.forEach((entity, idx) => {
+            const transform = entity.getTransform()
+            if (transform) transform.zIndex = idx
+          })
+        }
+        this.currentScene = nextScene
+        this.upsertScene(nextScene)
         this.isDirty = true
         this.revision++
         const hasPreviousEntity = !!this.currentScene.getEntityById(previousSelectedId)
@@ -168,7 +295,9 @@ export const useSceneStore = defineStore('scene', {
       this.restoreSceneFromSerialized(snapshot)
     },
     bootstrap(scene: Scene) {
+      this.scenes = [scene]
       this.currentScene = scene
+      this.ensureSampleSceneCatalog()
       this.isDirty = false
       this.revision++
       this.resetHistory()
@@ -183,6 +312,7 @@ export const useSceneStore = defineStore('scene', {
         return
       }
       this.currentScene = new SceneClass(createSceneId('scene'), name)
+      this.upsertScene(this.currentScene)
       this.isDirty = true
       this.revision++
       selection.clearSelection()
@@ -219,6 +349,113 @@ export const useSceneStore = defineStore('scene', {
       this.markDirty()
       selection.selectEntity(entity.id)
       project.setStatus(`已新建实体：${entity.name}`)
+    },
+    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door') {
+      const project = useProjectStore()
+      if (!this.currentScene) this.createNewScene()
+      if (!this.currentScene) return
+
+      if (type === 'empty') {
+        this.createEmptyEntity()
+        return
+      }
+      if (type === 'tilemap') {
+        this.createTilemapEntity()
+        return
+      }
+
+      const selection = useSelectionStore()
+      const index = this.currentScene.entities.length
+      const entity = new EntityClass(createEntityId(type), `${type}_${index + 1}`)
+      entity.addComponent(new TransformComponent(80 + index * 8, 60 + index * 8, 1, 1, 0, 0.5, 0.5, index))
+
+      if (type === 'camera') {
+        entity.name = 'Camera'
+        entity.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
+      } else if (type === 'ui-text') {
+        entity.name = 'UIText'
+        entity.addComponent(new UIComponent(true, 'text', 'UI Text', 20, 0xffffff, 180, 48, 0x2b3242, 0.5, 0.5, false))
+      } else if (type === 'ui-button') {
+        entity.name = 'UIButton'
+        entity.addComponent(new UIComponent(true, 'button', 'Button', 18, 0xffffff, 180, 48, 0x34528a, 0.5, 0.5, true))
+      } else if (type === 'door' || type === 'interactable') {
+        entity.name = type === 'door' ? 'Door' : 'Interactable'
+        entity.addComponent(new SpriteComponent('', 120, 180, true, 0.95, 0xa67c52, true))
+        entity.addComponent(new ColliderComponent('rect', 120, 180))
+        entity.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
+      } else if (type === 'player') {
+        entity.name = 'Player'
+        entity.addComponent(new SpriteComponent('assets/images/player.png', 90, 90, true, 1, 0xffffff, true))
+        entity.addComponent(new ColliderComponent('rect', 100, 100))
+        entity.addComponent(new ScriptComponent('builtin://player-input', '', true))
+      } else if (type === 'enemy') {
+        entity.name = 'Enemy'
+        entity.addComponent(new SpriteComponent('assets/images/enemy.png', 80, 80, true, 1, 0xffffff, true))
+        entity.addComponent(new ColliderComponent('rect', 80, 80))
+        entity.addComponent(new ScriptComponent('builtin://enemy-chase-respawn', '', true))
+      } else {
+        entity.name = 'Sprite'
+        entity.addComponent(new SpriteComponent('', 96, 96, true, 0.9, 0x8ecae6, true))
+        entity.addComponent(new ColliderComponent('rect', 96, 96))
+      }
+
+      this.currentScene.addEntity(entity)
+      this.markDirty()
+      selection.selectEntity(entity.id)
+      project.setStatus(`已新建${type}类型实体：${entity.name}`)
+    },
+    createEntityFromDialog(payload: {
+      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door'
+      name?: string
+      x?: number
+      y?: number
+      scaleX?: number
+      scaleY?: number
+      rotation?: number
+    }) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      this.createEntityByType(payload.type)
+      if (!this.currentScene || !selection.selectedEntityId) return
+
+      const entity = this.currentScene.getEntityById(selection.selectedEntityId)
+      if (!entity) return
+
+      let changed = false
+      const name = String(payload.name || '').trim()
+      if (name) {
+        entity.name = name
+        changed = true
+      }
+
+      const transform = entity.getTransform()
+      if (transform) {
+        if (Number.isFinite(payload.x)) {
+          transform.x = Number(payload.x)
+          changed = true
+        }
+        if (Number.isFinite(payload.y)) {
+          transform.y = Number(payload.y)
+          changed = true
+        }
+        if (Number.isFinite(payload.scaleX)) {
+          transform.scaleX = Number(payload.scaleX)
+          changed = true
+        }
+        if (Number.isFinite(payload.scaleY)) {
+          transform.scaleY = Number(payload.scaleY)
+          changed = true
+        }
+        if (Number.isFinite(payload.rotation)) {
+          transform.rotation = Number(payload.rotation)
+          changed = true
+        }
+      }
+
+      if (changed) {
+        this.markDirty()
+        project.setStatus(`已新建${payload.type}类型实体：${entity.name}`)
+      }
     },
     createTilemapEntity() {
       const project = useProjectStore()
@@ -284,6 +521,61 @@ export const useSceneStore = defineStore('scene', {
       this.markDirty()
       selection.selectEntity(entity.id)
       project.setStatus(`已从资源创建实体：${entity.name}`)
+    },
+    applyEntityJson(entityId: string, raw: string) {
+      const project = useProjectStore()
+      if (!this.currentScene) return false
+      const index = this.currentScene.entities.findIndex((item) => item.id === entityId)
+      if (index < 0) return false
+      try {
+        const parsed = JSON.parse(raw)
+        const normalized = parsed && typeof parsed === 'object' && 'components' in parsed
+          ? parsed
+          : {
+              id: entityId,
+              name: this.currentScene.entities[index].name,
+              components: []
+            }
+        const nextEntity = deserializeEntity(normalized)
+        nextEntity.id = entityId
+        if (!nextEntity.getComponent('Transform')) {
+          nextEntity.addComponent(new TransformComponent(0, 0, 1, 1, 0, 0.5, 0.5, index))
+        }
+        this.currentScene.entities[index] = nextEntity
+        this.currentScene.entities.forEach((item, idx) => {
+          const transform = item.getTransform()
+          if (transform) transform.zIndex = idx
+        })
+        this.markDirty()
+        project.setStatus(`已更新实体属性：${nextEntity.name}`)
+        return true
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`实体 JSON 应用失败：${message}`)
+        return false
+      }
+    },
+    switchSampleScene(sceneName: string) {
+      const project = useProjectStore()
+      if (project.rootPath !== 'sample-project') {
+        project.setStatus('示例场景切换仅在 sample-project 模式可用。')
+        return false
+      }
+      const scene = createSampleSceneByName(sceneName)
+      if (!scene) {
+        project.setStatus(`找不到场景：${sceneName}`)
+        return false
+      }
+      this.upsertScene(scene)
+      this.currentScene = scene
+      this.isDirty = false
+      this.revision++
+      useSelectionStore().clearSelection()
+      this.resetHistory()
+      this.clearAutoSaveTimer()
+      this.captureHistorySnapshot()
+      project.setStatus(`已切换场景：${scene.name}`)
+      return true
     },
 
     duplicateSelectedEntity() {
@@ -411,6 +703,7 @@ export const useSceneStore = defineStore('scene', {
         return
       }
       const scene = deserializeScene(result.content)
+      this.upsertScene(scene)
       this.currentScene = scene
       this.isDirty = false
       this.revision++
