@@ -50,6 +50,12 @@ export function applySceneAnimation(
     const activeFramePaths = machineResolved?.framePaths ?? animation.framePaths
     const activeFrameDurations = machineResolved?.frameDurations ?? animation.frameDurations
     const activeLoop = machineResolved?.loop ?? animation.loop
+    if (activeFramePaths.length > 0) {
+      animation.currentFrame = Math.max(0, Math.min(animation.currentFrame, activeFramePaths.length - 1))
+    } else {
+      animation.currentFrame = 0
+      animation.elapsed = 0
+    }
     const hasFrameAnim = activeFramePaths.length > 0 && animation.fps > 0
     const hasTransformAnim =
       animation.transformTracks.positionX.length > 0 ||

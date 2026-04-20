@@ -45,6 +45,7 @@ export class PixiRenderer {
   private gridVisible = true
   private isPlaying = false
   private isPaused = false
+  private playDebugEnabled = false
   private textureCache = new Map<string, Texture>()
   private selectedEntityId = ''
   private activeTool: 'select' | 'move' | 'scale' | 'pan' = 'select'
@@ -63,7 +64,8 @@ export class PixiRenderer {
     await this.app.init({
       background: '#0b0f16',
       resizeTo: this.options.container,
-      antialias: true
+      antialias: false,
+      roundPixels: true
     })
 
     this.root.addChild(this.world)
@@ -71,6 +73,7 @@ export class PixiRenderer {
     this.root.addChild(this.overlay)
     this.app.stage.addChild(this.root)
     this.options.container.appendChild(this.app.canvas)
+    this.app.canvas.style.imageRendering = 'pixelated'
 
     this.sourceScene = scene
     this.currentScene = scene
@@ -181,6 +184,13 @@ export class PixiRenderer {
   setGridVisible(visible: boolean) {
     this.gridVisible = visible
     this.drawGrid()
+  }
+
+  setPlayDebugEnabled(enabled: boolean) {
+    this.playDebugEnabled = !!enabled
+    this.drawGrid()
+    this.drawSelectionGizmo()
+    if (this.currentScene) void this.renderScene(this.currentScene)
   }
 
   setRuntimeState(isPlaying: boolean, isPaused: boolean, scene: Scene | null, refreshPlayingScene = false) {
@@ -336,15 +346,18 @@ export class PixiRenderer {
       if (version !== this.renderVersion) return
       node.addChild(textureNode)
 
-      const label = new Text({
-        text: entity.name,
-        style: { fill: '#ffffff', fontSize: 12 }
-      })
-      label.x = -sprite.width / 2
-      label.y = -sprite.height / 2 - 18
-      node.addChild(label)
+      const showDebug = !this.isPlaying || this.playDebugEnabled
+      if (showDebug) {
+        const label = new Text({
+          text: entity.name,
+          style: { fill: '#ffffff', fontSize: 12 }
+        })
+        label.x = -sprite.width / 2
+        label.y = -sprite.height / 2 - 18
+        node.addChild(label)
+      }
 
-      if (collider) {
+      if (collider && showDebug) {
         const colliderGfx = new Graphics()
         colliderGfx.rect(
           -collider.width / 2 + collider.offsetX,
@@ -513,22 +526,27 @@ export class PixiRenderer {
           graphics.fill({ color, alpha: 0.9 })
         }
       }
-      graphics.rect(x, y, tilemap.tileWidth, tilemap.tileHeight)
-      graphics.stroke({ color: 0x1e2b3d, alpha: 0.65, width: 1 })
-      if (tilemap.showCollision && Number(tilemap.collision[i] ?? 0) > 0) {
+      const showDebug = !this.isPlaying || this.playDebugEnabled
+      if (showDebug) {
+        graphics.rect(x, y, tilemap.tileWidth, tilemap.tileHeight)
+        graphics.stroke({ color: 0x1e2b3d, alpha: 0.65, width: 1 })
+      }
+      if (showDebug && tilemap.showCollision && Number(tilemap.collision[i] ?? 0) > 0) {
         graphics.rect(x + 3, y + 3, tilemap.tileWidth - 6, tilemap.tileHeight - 6)
         graphics.stroke({ color: 0xff6b6b, alpha: 0.8, width: 2 })
       }
     }
     node.addChild(graphics)
 
-    const label = new Text({
-      text: `${entityName} (${tilemap.columns}x${tilemap.rows})`,
-      style: { fill: '#cde8ff', fontSize: 12 }
-    })
-    label.x = 0
-    label.y = -18
-    node.addChild(label)
+    if (!this.isPlaying || this.playDebugEnabled) {
+      const label = new Text({
+        text: `${entityName} (${tilemap.columns}x${tilemap.rows})`,
+        style: { fill: '#cde8ff', fontSize: 12 }
+      })
+      label.x = 0
+      label.y = -18
+      node.addChild(label)
+    }
     return node
   }
 
@@ -673,24 +691,41 @@ export class PixiRenderer {
 
     if (texturePath.startsWith('data:image/')) {
       const texture = await this.loadTextureFromDataUrl(texturePath)
+      this.configurePixelTextureSampling(texture)
       this.textureCache.set(texturePath, texture)
       return texture
     }
 
     if (texturePath.startsWith('atlas://')) {
       const texture = await this.resolveAtlasFrameTexture(texturePath)
-      if (texture) this.textureCache.set(texturePath, texture)
+      if (texture) {
+        this.configurePixelTextureSampling(texture)
+        this.textureCache.set(texturePath, texture)
+      }
       return texture
     }
 
     const assets = useAssetStore()
     const project = useProjectStore()
     const dataUrl = assets.previews[texturePath] || await assets.ensurePreview(texturePath)
-    if (!dataUrl) return null
-    const texture = await this.loadTextureFromDataUrl(dataUrl)
-    this.textureCache.set(texturePath, texture)
-          project.setStatus(`已加载贴图：${texturePath}`)
-    return texture
+    if (dataUrl) {
+      const texture = await this.loadTextureFromDataUrl(dataUrl)
+      this.configurePixelTextureSampling(texture)
+      this.textureCache.set(texturePath, texture)
+      project.setStatus(`已加载贴图：${texturePath}`)
+      return texture
+    }
+
+    if (!/^https?:\/\//i.test(texturePath) && !texturePath.startsWith('/')) {
+      const fromPublic = await this.loadTextureFromUrl(`/${texturePath}`)
+      if (fromPublic) {
+        this.configurePixelTextureSampling(fromPublic)
+        this.textureCache.set(texturePath, fromPublic)
+        project.setStatus(`已加载贴图：${texturePath}`)
+        return fromPublic
+      }
+    }
+    return null
   }
 
 
@@ -708,6 +743,23 @@ export class PixiRenderer {
     return Texture.from(image)
   }
 
+  private async loadTextureFromUrl(url: string) {
+    const image = new Image()
+    image.decoding = 'async'
+    image.crossOrigin = 'anonymous'
+    image.src = url
+    try {
+      await image.decode()
+    } catch {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve()
+        image.onerror = () => reject(new Error('图片加载失败'))
+      }).catch(() => undefined)
+    }
+    if (!image.complete || !image.naturalWidth || !image.naturalHeight) return null
+    return Texture.from(image)
+  }
+
   private async resolveAtlasFrameTexture(texturePath: string) {
     const match = texturePath.match(/^atlas:\/\/(.+)#(\d+),(\d+),(\d+),(\d+)$/)
     if (!match) return null
@@ -715,7 +767,20 @@ export class PixiRenderer {
     const baseTexture = await this.resolveTexture(imagePath)
     if (!baseTexture) return null
     const frame = new Rectangle(Number(x), Number(y), Number(w), Number(h))
-    return new Texture({ source: (baseTexture as any).source, frame })
+    const texture = new Texture({ source: (baseTexture as any).source, frame })
+    this.configurePixelTextureSampling(texture)
+    return texture
+  }
+
+  private configurePixelTextureSampling(texture: Texture) {
+    const anyTexture = texture as unknown as {
+      source?: { scaleMode?: 'nearest' | 'linear'; antialias?: boolean; style?: { imageRendering?: string } }
+    }
+    if (anyTexture.source) {
+      anyTexture.source.scaleMode = 'nearest'
+      anyTexture.source.antialias = false
+      if (anyTexture.source.style) anyTexture.source.style.imageRendering = 'pixelated'
+    }
   }
 
   private resetAnimations(scene: Scene) {
@@ -917,13 +982,15 @@ export class PixiRenderer {
       box.stroke({ color: 0xffe082, alpha: 0.95, width: 2 })
       this.overlay.addChild(box)
 
-      const hint = new Text({
-        text: '右键交互',
-        style: { fill: '#ffe9b3', fontSize: 12, fontWeight: '700' }
-      })
-      hint.x = boxX
-      hint.y = boxY - 18
-      this.overlay.addChild(hint)
+      if (this.playDebugEnabled) {
+        const hint = new Text({
+          text: '右键交互',
+          style: { fill: '#ffe9b3', fontSize: 12, fontWeight: '700' }
+        })
+        hint.x = boxX
+        hint.y = boxY - 18
+        this.overlay.addChild(hint)
+      }
     }
   }
 
@@ -931,6 +998,7 @@ export class PixiRenderer {
     const existing = this.world.children.find((child) => child.label === 'grid')
     existing?.destroy()
     if (!this.gridVisible) return
+    if (this.isPlaying && !this.playDebugEnabled) return
 
     const grid = new Graphics()
     grid.label = 'grid'

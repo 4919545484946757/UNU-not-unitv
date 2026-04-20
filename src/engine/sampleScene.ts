@@ -10,18 +10,34 @@ import { UIComponent } from './components/UIComponent'
 import { Entity } from './core/Entity'
 import { Scene } from './core/Scene'
 
-function createStateTexture(color: string, label: string) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
-  <rect x="4" y="4" width="88" height="88" rx="14" ry="14" fill="${color}" stroke="#f5f8ff" stroke-width="4"/>
-  <text x="48" y="56" text-anchor="middle" font-size="26" font-family="Arial, sans-serif" fill="#0b1020">${label}</text>
-</svg>`
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
-}
-
-const playerIdleTexture = createStateTexture('#5ab6ff', 'I')
-const playerRunTextureA = createStateTexture('#57d88c', 'R')
-const playerRunTextureB = createStateTexture('#38c1d9', 'R')
-const playerAttackTexture = createStateTexture('#ff6b6b', 'A')
+const playerIdleFrames = [
+  'assets/images/pixel/player/idle/idle_01.png',
+  'assets/images/pixel/player/idle/idle_02.png',
+  'assets/images/pixel/player/idle/idle_03.png',
+  'assets/images/pixel/player/idle/idle_04.png'
+]
+const playerRunFrames = [
+  'assets/images/pixel/player/run/run_01.png',
+  'assets/images/pixel/player/run/run_02.png',
+  'assets/images/pixel/player/run/run_03.png',
+  'assets/images/pixel/player/run/run_04.png',
+  'assets/images/pixel/player/run/run_05.png',
+  'assets/images/pixel/player/run/run_06.png'
+]
+const playerAttackFrames = [
+  'assets/images/pixel/player/forward/forward_01.png',
+  'assets/images/pixel/player/forward/forward_02.png',
+  'assets/images/pixel/player/forward/forward_03.png',
+  'assets/images/pixel/player/forward/forward_04.png',
+  'assets/images/pixel/player/forward/forward_05.png',
+  'assets/images/pixel/player/forward/forward_06.png'
+]
+const enemyFrames = [
+  'assets/images/pixel/enemy/tube_01.png',
+  'assets/images/pixel/enemy/tube_02.png',
+  'assets/images/pixel/enemy/tube_03.png',
+  'assets/images/pixel/enemy/tube_04.png'
+]
 
 export function createDemoScene() {
   const scene = new Scene('scene_main', 'MainScene')
@@ -29,17 +45,17 @@ export function createDemoScene() {
   const player = new Entity('player_001', 'Player')
   // 放在 LevelTilemap 的非碰撞区域（上半区域）避免开局卡在碰撞格里。
   player.addComponent(new TransformComponent(180, 40, 1, 1))
-  player.addComponent(new SpriteComponent(playerIdleTexture, 90, 90, true, 1, 0xffffff))
-  player.addComponent(new ColliderComponent('rect', 100, 100, 0, 0, false))
+  player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
+  player.addComponent(new ColliderComponent('rect', 60, 80, 0, 0, false))
   player.addComponent(
     new AnimationComponent(
       true,
       true,
-      8,
+      10,
       true,
       0,
       0,
-      [playerIdleTexture],
+      [...playerIdleFrames],
       [1],
       '',
       '',
@@ -51,9 +67,9 @@ export function createDemoScene() {
         initialState: 'Idle',
         currentState: 'Idle',
         clips: [
-          { name: 'Idle', framePaths: [playerIdleTexture], frameDurations: [1], loop: true },
-          { name: 'Run', framePaths: [playerRunTextureA, playerRunTextureB], frameDurations: [1, 1], loop: true },
-          { name: 'Attack', framePaths: [playerAttackTexture], frameDurations: [1], loop: false }
+          { name: 'Idle', framePaths: [...playerIdleFrames], frameDurations: [1, 1, 1, 1], loop: true },
+          { name: 'Run', framePaths: [...playerRunFrames], frameDurations: [1, 1, 1, 1, 1, 1], loop: true },
+          { name: 'Attack', framePaths: [...playerAttackFrames], frameDurations: [1, 1, 1, 1, 1, 1], loop: false }
         ],
         transitions: [
           { from: 'Idle', to: 'Run', condition: 'ifMoving' },
@@ -82,8 +98,11 @@ export function createDemoScene() {
 
   const enemy = new Entity('enemy_001', 'Enemy')
   enemy.addComponent(new TransformComponent(420, 320, 1, 1))
-  enemy.addComponent(new SpriteComponent('assets/images/enemy.png', 80, 80, true, 1, 0xffffff))
-  enemy.addComponent(new ColliderComponent('rect', 80, 80))
+  enemy.addComponent(new SpriteComponent(enemyFrames[0], 80, 80, true, 1, 0xffffff))
+  enemy.addComponent(new ColliderComponent('rect', 40, 80))
+  enemy.addComponent(
+    new AnimationComponent(true, true, 8, true, 0, 0, [...enemyFrames], [1, 1, 1, 1])
+  )
   enemy.addComponent(
     new ScriptComponent(
       'builtin://enemy-chase-respawn',
@@ -102,7 +121,7 @@ export function createDemoScene() {
 
   const item = new Entity('item_001', 'Chest')
   item.addComponent(new TransformComponent(620, 180, 1, 1))
-  item.addComponent(new SpriteComponent('assets/images/chest.png', 72, 72, true, 1, 0xffffff))
+  item.addComponent(new SpriteComponent('assets/images/pixel/tilemap/texture_2.png', 72, 72, true, 1, 0xffffff))
   item.addComponent(new ColliderComponent('rect', 72, 72))
   item.addComponent(
     new InteractableComponent(
@@ -158,7 +177,8 @@ export function createDemoScene() {
         1,0,0,0,0,0,0,0,0,0,0,1,
         1,1,1,1,1,1,1,1,1,1,1,1
       ],
-      true
+      true,
+      { 1: 'assets/images/pixel/tilemap/texture_1.png', 2: 'assets/images/pixel/tilemap/texture_2.png', 4: 'assets/images/pixel/tilemap/texture_4.png' }
     )
   )
 
@@ -176,7 +196,7 @@ export function createDemoScene() {
 
   const doorToSecond = new Entity('door_to_second_001', 'DoorToSecond')
   doorToSecond.addComponent(new TransformComponent(295, 68, 1, 1))
-  doorToSecond.addComponent(new SpriteComponent('', 110, 180, true, 0.95, 0x8a6742))
+  doorToSecond.addComponent(new SpriteComponent('assets/images/pixel/props/door.png', 110, 180, true, 0.95, 0xffffff))
   doorToSecond.addComponent(new ColliderComponent('rect', 110, 180))
   doorToSecond.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
 
@@ -197,9 +217,43 @@ export function createSecondScene() {
 
   const player = new Entity('player_002', 'Player')
   player.addComponent(new TransformComponent(-120, 20, 1, 1))
-  player.addComponent(new SpriteComponent(playerIdleTexture, 90, 90, true, 1, 0xffffff))
+  player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
   player.addComponent(new ColliderComponent('rect', 100, 100, 0, 0, false))
   player.addComponent(new ScriptComponent('builtin://player-input', ''))
+  player.addComponent(
+    new AnimationComponent(
+      true,
+      true,
+      10,
+      true,
+      0,
+      0,
+      [...playerIdleFrames],
+      [1, 1, 1, 1],
+      '',
+      '',
+      null,
+      [],
+      { positionX: [], positionY: [], rotation: [] },
+      {
+        enabled: true,
+        initialState: 'Idle',
+        currentState: 'Idle',
+        clips: [
+          { name: 'Idle', framePaths: [...playerIdleFrames], frameDurations: [1, 1, 1, 1], loop: true },
+          { name: 'Run', framePaths: [...playerRunFrames], frameDurations: [1, 1, 1, 1, 1, 1], loop: true },
+          { name: 'Attack', framePaths: [...playerAttackFrames], frameDurations: [1, 1, 1, 1, 1, 1], loop: false }
+        ],
+        transitions: [
+          { from: 'Idle', to: 'Run', condition: 'ifMoving' },
+          { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
+          { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+          { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
+          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
+        ]
+      }
+    )
+  )
 
   const tilemap = new Entity('tilemap_002', 'LevelTilemap')
   tilemap.addComponent(new TransformComponent(-300, -120, 1, 1))
@@ -231,13 +285,13 @@ export function createSecondScene() {
         1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       true,
-      { 1: 'assets/images/player.png', 2: 'assets/images/chest.png' }
+      { 1: 'assets/images/pixel/tilemap/texture_1.png', 2: 'assets/images/pixel/tilemap/texture_2.png', 4: 'assets/images/pixel/tilemap/texture_4.png' }
     )
   )
 
   const doorBack = new Entity('door_to_main_001', 'DoorToMain')
   doorBack.addComponent(new TransformComponent(-220, 20, 1, 1))
-  doorBack.addComponent(new SpriteComponent('', 110, 180, true, 0.95, 0x5f7f9f))
+  doorBack.addComponent(new SpriteComponent('assets/images/pixel/props/door.png', 110, 180, true, 0.95, 0xe8f3ff))
   doorBack.addComponent(new ColliderComponent('rect', 110, 180))
   doorBack.addComponent(new InteractableComponent(true, 180, 'switchScene', 'MainScene'))
 

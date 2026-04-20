@@ -1,4 +1,5 @@
 import { ScriptComponent } from '../components/ScriptComponent'
+import { AnimationComponent } from '../components/AnimationComponent'
 import type { AudioGroup } from '../components/AudioComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
@@ -35,6 +36,7 @@ interface EnemyCollisionEntry {
   transform: TransformComponent
   collider: ColliderComponent
   sprite: SpriteComponent | null
+  animation: AnimationComponent | null
   minX: number
   maxX: number
   minY: number
@@ -106,9 +108,18 @@ const scriptRegistry: Record<string, ScriptHooks> = {
     onUpdate: ({ entity, api }) => {
       const transform = entity.getTransform()
       if (!transform) return
+      const state = api.getState<{ facingBaseScaleX?: number }>(entity)
+      if (!Number.isFinite(state.facingBaseScaleX)) {
+        state.facingBaseScaleX = Math.max(0.001, Math.abs(transform.scaleX || 1))
+      }
       const collider = entity.getComponent<ColliderComponent>('Collider')
       const speed = api.input.isActionDown('fire') ? 220 : 140
       const move = api.input.getMoveVector(true)
+      if (move.x > 1e-4) {
+        transform.scaleX = -Math.abs(state.facingBaseScaleX || 1)
+      } else if (move.x < -1e-4) {
+        transform.scaleX = Math.abs(state.facingBaseScaleX || 1)
+      }
       if (move.x !== 0 || move.y !== 0) {
         const nextX = transform.x + move.x * speed * api.delta
         const nextY = transform.y + move.y * speed * api.delta
@@ -160,7 +171,7 @@ const scriptRegistry: Record<string, ScriptHooks> = {
         const player = api.findEntityByName('Player')
         const playerTransform = player?.getTransform()
         const spawnPoint = randomSpawnAwayFrom(playerTransform?.x ?? 0, playerTransform?.y ?? 0, 160)
-        api.spawnEntity(createEnemyEntityAt(spawnPoint.x, spawnPoint.y, hit.collider, hit.sprite ?? undefined))
+        api.spawnEntity(createEnemyEntityAt(spawnPoint.x, spawnPoint.y, hit.collider, hit.sprite ?? undefined, hit.animation ?? undefined))
       }
     }
   },
@@ -200,6 +211,7 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       const selfTransform = entity.getTransform()
       const selfCollider = entity.getComponent<ColliderComponent>('Collider')
       const selfSprite = entity.getComponent<SpriteComponent>('Sprite')
+      const selfAnimation = entity.getComponent<AnimationComponent>('Animation')
       if (!selfTransform || !selfCollider || !selfSprite) return
 
       const player = api.findEntityByName('Player')
@@ -269,6 +281,41 @@ const scriptRegistry: Record<string, ScriptHooks> = {
           selfCollider.isTrigger
         )
       )
+      if (selfAnimation) {
+        enemy.addComponent(
+          new AnimationComponent(
+            selfAnimation.enabled,
+            true,
+            selfAnimation.fps,
+            selfAnimation.loop,
+            0,
+            0,
+            [...selfAnimation.framePaths],
+            [...selfAnimation.frameDurations],
+            selfAnimation.animationAssetPath,
+            selfAnimation.sourceAtlasPath,
+            selfAnimation.atlasGrid ? { ...selfAnimation.atlasGrid } : null,
+            selfAnimation.frameEvents.map((event) => ({ ...event })),
+            {
+              positionX: selfAnimation.transformTracks.positionX.map((point) => ({ ...point })),
+              positionY: selfAnimation.transformTracks.positionY.map((point) => ({ ...point })),
+              rotation: selfAnimation.transformTracks.rotation.map((point) => ({ ...point }))
+            },
+            {
+              enabled: selfAnimation.stateMachine.enabled,
+              initialState: selfAnimation.stateMachine.initialState,
+              currentState: selfAnimation.stateMachine.initialState,
+              clips: selfAnimation.stateMachine.clips.map((clip) => ({
+                name: clip.name,
+                framePaths: [...clip.framePaths],
+                frameDurations: [...clip.frameDurations],
+                loop: clip.loop
+              })),
+              transitions: selfAnimation.stateMachine.transitions.map((transition) => ({ ...transition }))
+            }
+          )
+        )
+      }
       enemy.addComponent(
         new ScriptComponent(
           'builtin://enemy-chase-respawn',
@@ -662,6 +709,7 @@ function buildCollisionFrameCache(scene: Scene): CollisionFrameCache {
     const collider = entity.getComponent<ColliderComponent>('Collider')
     if (!transform || !collider) continue
     const sprite = entity.getComponent<SpriteComponent>('Sprite')
+    const animation = entity.getComponent<AnimationComponent>('Animation')
     const cx = transform.x + collider.offsetX
     const cy = transform.y + collider.offsetY
     const halfW = Math.max(0, collider.width / 2)
@@ -671,7 +719,7 @@ function buildCollisionFrameCache(scene: Scene): CollisionFrameCache {
     const minY = cy - halfH
     const maxY = cy + halfH
     const index = enemyEntries.length
-    enemyEntries.push({ entity, transform, collider, sprite, minX, maxX, minY, maxY })
+    enemyEntries.push({ entity, transform, collider, sprite, animation, minX, maxX, minY, maxY })
 
     const minCol = Math.floor(minX / cellSize)
     const maxCol = Math.floor(maxX / cellSize)
@@ -814,13 +862,14 @@ function createEnemyEntityAt(
   x: number,
   y: number,
   colliderTemplate: ColliderComponent,
-  spriteTemplate?: SpriteComponent
+  spriteTemplate?: SpriteComponent,
+  animationTemplate?: AnimationComponent
 ) {
   const enemy = new Entity(`enemy_${Math.random().toString(36).slice(2, 8)}`, 'Enemy')
   enemy.addComponent(new TransformComponent(x, y, 1, 1, 0, 0.5, 0.5))
   enemy.addComponent(
     new SpriteComponent(
-      spriteTemplate?.texturePath || 'assets/images/enemy.png',
+      spriteTemplate?.texturePath || 'assets/images/pixel/enemy/tube_01.png',
       spriteTemplate?.width || 80,
       spriteTemplate?.height || 80,
       spriteTemplate?.visible ?? true,
@@ -839,6 +888,41 @@ function createEnemyEntityAt(
       colliderTemplate.isTrigger
     )
   )
+  if (animationTemplate) {
+    enemy.addComponent(
+      new AnimationComponent(
+        animationTemplate.enabled,
+        true,
+        animationTemplate.fps,
+        animationTemplate.loop,
+        0,
+        0,
+        [...animationTemplate.framePaths],
+        [...animationTemplate.frameDurations],
+        animationTemplate.animationAssetPath,
+        animationTemplate.sourceAtlasPath,
+        animationTemplate.atlasGrid ? { ...animationTemplate.atlasGrid } : null,
+        animationTemplate.frameEvents.map((event) => ({ ...event })),
+        {
+          positionX: animationTemplate.transformTracks.positionX.map((point) => ({ ...point })),
+          positionY: animationTemplate.transformTracks.positionY.map((point) => ({ ...point })),
+          rotation: animationTemplate.transformTracks.rotation.map((point) => ({ ...point }))
+        },
+        {
+          enabled: animationTemplate.stateMachine.enabled,
+          initialState: animationTemplate.stateMachine.initialState,
+          currentState: animationTemplate.stateMachine.initialState,
+          clips: animationTemplate.stateMachine.clips.map((clip) => ({
+            name: clip.name,
+            framePaths: [...clip.framePaths],
+            frameDurations: [...clip.frameDurations],
+            loop: clip.loop
+          })),
+          transitions: animationTemplate.stateMachine.transitions.map((transition) => ({ ...transition }))
+        }
+      )
+    )
+  }
   enemy.addComponent(
     new ScriptComponent(
       'builtin://enemy-chase-respawn',

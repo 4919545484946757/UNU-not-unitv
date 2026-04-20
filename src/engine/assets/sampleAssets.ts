@@ -16,7 +16,94 @@ export const sampleAssetRoots: AssetNode[] = [
         children: [
           { id: 'assets/images/player.png', name: 'player.png', type: 'image', path: 'assets/images/player.png' },
           { id: 'assets/images/enemy.png', name: 'enemy.png', type: 'image', path: 'assets/images/enemy.png' },
-          { id: 'assets/images/chest.png', name: 'chest.png', type: 'image', path: 'assets/images/chest.png' }
+          { id: 'assets/images/chest.png', name: 'chest.png', type: 'image', path: 'assets/images/chest.png' },
+          {
+            id: 'assets/images/pixel',
+            name: 'pixel',
+            type: 'folder',
+            path: 'assets/images/pixel',
+            children: [
+              {
+                id: 'assets/images/pixel/player',
+                name: 'player',
+                type: 'folder',
+                path: 'assets/images/pixel/player',
+                children: [
+                  {
+                    id: 'assets/images/pixel/player/idle',
+                    name: 'idle',
+                    type: 'folder',
+                    path: 'assets/images/pixel/player/idle',
+                    children: [
+                      { id: 'assets/images/pixel/player/idle/idle_01.png', name: 'idle_01.png', type: 'image', path: 'assets/images/pixel/player/idle/idle_01.png' },
+                      { id: 'assets/images/pixel/player/idle/idle_02.png', name: 'idle_02.png', type: 'image', path: 'assets/images/pixel/player/idle/idle_02.png' },
+                      { id: 'assets/images/pixel/player/idle/idle_03.png', name: 'idle_03.png', type: 'image', path: 'assets/images/pixel/player/idle/idle_03.png' },
+                      { id: 'assets/images/pixel/player/idle/idle_04.png', name: 'idle_04.png', type: 'image', path: 'assets/images/pixel/player/idle/idle_04.png' }
+                    ]
+                  },
+                  {
+                    id: 'assets/images/pixel/player/run',
+                    name: 'run',
+                    type: 'folder',
+                    path: 'assets/images/pixel/player/run',
+                    children: [
+                      { id: 'assets/images/pixel/player/run/run_01.png', name: 'run_01.png', type: 'image', path: 'assets/images/pixel/player/run/run_01.png' },
+                      { id: 'assets/images/pixel/player/run/run_02.png', name: 'run_02.png', type: 'image', path: 'assets/images/pixel/player/run/run_02.png' },
+                      { id: 'assets/images/pixel/player/run/run_03.png', name: 'run_03.png', type: 'image', path: 'assets/images/pixel/player/run/run_03.png' },
+                      { id: 'assets/images/pixel/player/run/run_04.png', name: 'run_04.png', type: 'image', path: 'assets/images/pixel/player/run/run_04.png' },
+                      { id: 'assets/images/pixel/player/run/run_05.png', name: 'run_05.png', type: 'image', path: 'assets/images/pixel/player/run/run_05.png' },
+                      { id: 'assets/images/pixel/player/run/run_06.png', name: 'run_06.png', type: 'image', path: 'assets/images/pixel/player/run/run_06.png' }
+                    ]
+                  },
+                  {
+                    id: 'assets/images/pixel/player/forward',
+                    name: 'forward',
+                    type: 'folder',
+                    path: 'assets/images/pixel/player/forward',
+                    children: [
+                      { id: 'assets/images/pixel/player/forward/forward_01.png', name: 'forward_01.png', type: 'image', path: 'assets/images/pixel/player/forward/forward_01.png' },
+                      { id: 'assets/images/pixel/player/forward/forward_02.png', name: 'forward_02.png', type: 'image', path: 'assets/images/pixel/player/forward/forward_02.png' },
+                      { id: 'assets/images/pixel/player/forward/forward_03.png', name: 'forward_03.png', type: 'image', path: 'assets/images/pixel/player/forward/forward_03.png' },
+                      { id: 'assets/images/pixel/player/forward/forward_04.png', name: 'forward_04.png', type: 'image', path: 'assets/images/pixel/player/forward/forward_04.png' },
+                      { id: 'assets/images/pixel/player/forward/forward_05.png', name: 'forward_05.png', type: 'image', path: 'assets/images/pixel/player/forward/forward_05.png' },
+                      { id: 'assets/images/pixel/player/forward/forward_06.png', name: 'forward_06.png', type: 'image', path: 'assets/images/pixel/player/forward/forward_06.png' }
+                    ]
+                  }
+                ]
+              },
+              {
+                id: 'assets/images/pixel/enemy',
+                name: 'enemy',
+                type: 'folder',
+                path: 'assets/images/pixel/enemy',
+                children: [
+                  { id: 'assets/images/pixel/enemy/tube_01.png', name: 'tube_01.png', type: 'image', path: 'assets/images/pixel/enemy/tube_01.png' },
+                  { id: 'assets/images/pixel/enemy/tube_02.png', name: 'tube_02.png', type: 'image', path: 'assets/images/pixel/enemy/tube_02.png' },
+                  { id: 'assets/images/pixel/enemy/tube_03.png', name: 'tube_03.png', type: 'image', path: 'assets/images/pixel/enemy/tube_03.png' },
+                  { id: 'assets/images/pixel/enemy/tube_04.png', name: 'tube_04.png', type: 'image', path: 'assets/images/pixel/enemy/tube_04.png' }
+                ]
+              },
+              {
+                id: 'assets/images/pixel/props',
+                name: 'props',
+                type: 'folder',
+                path: 'assets/images/pixel/props',
+                children: [{ id: 'assets/images/pixel/props/door.png', name: 'door.png', type: 'image', path: 'assets/images/pixel/props/door.png' }]
+              },
+              {
+                id: 'assets/images/pixel/tilemap',
+                name: 'tilemap',
+                type: 'folder',
+                path: 'assets/images/pixel/tilemap',
+                children: [
+                  { id: 'assets/images/pixel/tilemap/facility_tileset.png', name: 'facility_tileset.png', type: 'image', path: 'assets/images/pixel/tilemap/facility_tileset.png' },
+                  { id: 'assets/images/pixel/tilemap/texture_1.png', name: 'texture_1.png', type: 'image', path: 'assets/images/pixel/tilemap/texture_1.png' },
+                  { id: 'assets/images/pixel/tilemap/texture_2.png', name: 'texture_2.png', type: 'image', path: 'assets/images/pixel/tilemap/texture_2.png' },
+                  { id: 'assets/images/pixel/tilemap/texture_4.png', name: 'texture_4.png', type: 'image', path: 'assets/images/pixel/tilemap/texture_4.png' }
+                ]
+              }
+            ]
+          }
         ]
       },
       {

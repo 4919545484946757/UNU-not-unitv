@@ -4,6 +4,7 @@ export const useRuntimeStore = defineStore('runtime', {
   state: () => ({
     isPlaying: false,
     isPaused: false,
+    playDebugEnabled: false,
     fps: 60,
     deltaTime: 0
   }),
@@ -33,6 +34,12 @@ export const useRuntimeStore = defineStore('runtime', {
     togglePlay() {
       this.isPlaying = !this.isPlaying
       this.isPaused = false
+    },
+    setPlayDebugEnabled(enabled: boolean) {
+      this.playDebugEnabled = !!enabled
+    },
+    togglePlayDebug() {
+      this.playDebugEnabled = !this.playDebugEnabled
     },
     stop() {
       this.isPlaying = false

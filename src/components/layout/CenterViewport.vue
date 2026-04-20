@@ -10,6 +10,13 @@
           </button>
           <button class="preview-btn stop" @click="runtime.stop()">停止</button>
         </template>
+        <button
+          class="preview-btn debug"
+          :class="{ active: runtime.playDebugEnabled }"
+          @click="runtime.togglePlayDebug()"
+        >
+          调试播放
+        </button>
       </div>
       <span class="hint">
         选择 / 移动 / 缩放 / 平移 · Timeline 支持 .anim.json · 当前工具：{{ editor.tool }} · 当前场景：{{ project.currentScenePath || '内存场景' }}
@@ -66,6 +73,7 @@ onMounted(async () => {
     })
     await renderer.init(sceneStore.currentScene)
     renderer.setGridVisible(editor.showGrid)
+    renderer.setPlayDebugEnabled(runtime.playDebugEnabled)
     renderer.setSelection(selection.selectedEntityId)
     renderer.setTool(editor.tool)
   } catch (error) {
@@ -111,6 +119,11 @@ watch(
     }
     project.setStatus(isPaused ? '预览已暂停（可继续）' : '已进入播放预览（运行态副本）')
   }
+)
+
+watch(
+  () => runtime.playDebugEnabled,
+  (enabled) => renderer?.setPlayDebugEnabled(enabled)
 )
 
 function handleDragOver(event: DragEvent) {
@@ -178,6 +191,10 @@ onBeforeUnmount(() => {
 }
 .preview-btn.stop {
   background: #3b2020;
+}
+.preview-btn.debug.active {
+  background: #2c5a35;
+  border-color: #4d9f5f;
 }
 .viewport-canvas {
   position: relative;
