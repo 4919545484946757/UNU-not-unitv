@@ -4,6 +4,7 @@ export const useProjectStore = defineStore('project', {
   state: () => ({
     rootPath: 'sample-project',
     name: 'sample-project',
+    sampleProjectId: 'action-2d',
     currentScenePath: '',
     statusMessage: '正在使用示例工程数据',
     lastSavedAt: '',
@@ -12,9 +13,10 @@ export const useProjectStore = defineStore('project', {
     statusPopupY: 0
   }),
   actions: {
-    setProject(payload: { rootPath: string; name: string }) {
+    setProject(payload: { rootPath: string; name: string; sampleProjectId?: string }) {
       this.rootPath = payload.rootPath
       this.name = payload.name
+      this.sampleProjectId = payload.sampleProjectId || ''
       this.currentScenePath = ''
       this.statusMessage = `已打开工程：${payload.name}`
     },

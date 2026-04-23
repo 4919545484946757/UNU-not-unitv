@@ -1,111 +1,105 @@
 # UNU Engine Starter
 
-UNU Engine Starter 是一个基于 `Vue 3 + Pinia + Pixi.js + Electron` 的 2D 编辑器与运行时示例工程，目标是提供“可直接上手做原型”的桌面化 2D 游戏开发基础。
+UNU Engine Starter 是一个基于 `Vue 3 + Pinia + Pixi.js + Electron` 的 2D 游戏编辑器与运行时示例工程。  
+目标是提供“可直接上手、可持续扩展”的桌面端 2D 游戏开发基础。
 
-本文档面向当前主分支代码状态。
+- 文档更新时间：`2026-04-23`
+- 项目版本：`0.1.0`
 
-- 文档最后更新：`2026-04-19`
-- 当前版本：`0.1.0`
+## 文档导航
 
-## 当前能力概览
+- [引擎路线图](docs/ROADMAP.zh-CN.md)
+- [新手教程](docs/BEGINNER_TUTORIAL.zh-CN.md)
+- [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md)
 
-### 已完成（按路线图）
+## 核心能力总览
 
-- 阶段 1：编辑体验与稳定性
-  - 场景历史快照 + 撤销/重做
-  - 全局快捷键（保存、撤销/重做、复制、删除、工具切换、播放控制）
-  - 关键确认弹窗（删除实体、切换/关闭未保存场景）
-  - 自动保存（默认 20 秒，仅对已有场景路径生效）
-  - 顶部独立消息弹窗（可拖动/关闭）
+### 1) 项目与启动流程
 
-- 阶段 2：运行时核心能力
-  - Input 系统（键鼠 + 动作映射）
-  - Camera 组件（跟随、缩放、边界）
-  - Audio 组件（BGM/SFX/UI 分组、音量、自动播放）
-  - UI 组件（Text/Button、屏幕锚点布局）
+- 启动器界面（Launcher）：
+  - 历史项目列表（打开、重命名、删除）
+  - 示例项目列表（当前已提供 1 个可用示例）
+  - 新建项目弹窗（项目名、目标目录可选输入）
+- 新建项目逻辑：
+  - 如果填写项目名与目录，则创建到 `目标目录/项目名/`
+  - 如果留空，则使用默认项目名并在创建时选择目录
+- 主窗口尺寸策略：
+  - 启动器窗口较小
+  - 进入编辑器后自动切换为更大的编辑窗口
 
-- 阶段 3：内容生产能力（已完成部分）
-  - Tilemap（图块层 + 碰撞层）
-  - Prefab 变体与嵌套（Prefab v2）
+### 2) 编辑器基础能力
 
-### 未完成（当前代码尚未交付）
+- 场景编辑：新建、打开、保存、另存
+- 实体编辑：新建（类型化）、复制、删除、图层调整
+- 视图工具：选择、移动、缩放、平移
+- 资源管理：
+  - 资源树浏览与刷新
+  - 导入图片到 `assets/images`
+  - 导入音频到 `assets/audio`
+  - 右键在系统文件管理器中打开目录/定位文件
+- 文本资源编辑：脚本、动画、图集、JSON 等文本资源可打开与保存
 
-- 动画状态机（Idle/Run/Attack）
-- Timeline 关键帧属性轨（完整生产级版本）
-- 阶段 4~6 的功能（2D 物理、脚本模块化加载、性能分析、资源管线、自动化测试等）
+### 3) 运行时与预览
 
-详情见 [docs/ROADMAP.zh-CN.md](docs/ROADMAP.zh-CN.md)。
-- 小优化目标计划表：[docs/OPTIMIZATION_PLAN.zh-CN.md](docs/OPTIMIZATION_PLAN.zh-CN.md)
-- 引擎新手教程：[docs/BEGINNER_TUTORIAL.zh-CN.md](docs/BEGINNER_TUTORIAL.zh-CN.md)
+- 中央预览支持：播放、暂停、继续、停止
+- 播放态/编辑态分离：
+  - 播放态默认隐藏调试信息
+  - 可通过“调试播放”选项显示调试信息
+- 工程切换时自动刷新预览：
+  - 在编辑器内打开其他工程后，Scene View 会自动重载对应项目场景
 
-## 功能支持清单
-
-### 1. 项目与资源
-
-- 新建项目/打开项目/项目另存（含示例工程另存）
-- 资源树浏览与刷新
-- 导入图片到 `assets/images`
-- 导入音频到 `assets/audio`
-- 右键在文件管理器中打开目录/定位文件（Electron）
-- 文本资产（脚本/动画/图集/场景/prefab）可在编辑器面板打开与保存
-
-### 2. 场景与实体编辑
-
-- 新建/打开/保存/另存场景（`.scene.json`）
-- 新建实体、复制、删除、图层调整
-- 视口中选择/移动/缩放实体
-- 播放态支持暂停/继续/停止
-- 播放过程中允许选中和部分编辑操作
-
-### 3. 组件系统（当前内置）
+### 4) 组件系统（当前内置）
 
 - `Transform`
 - `Sprite`
 - `Collider`
-- `Animation`
+- `Animation`（含状态机）
 - `Script`
 - `Camera`
+- `Background`
+- `Interactable`
 - `Audio`
 - `UI`
 - `Tilemap`
 
-### 4. Prefab（v2）
+### 5) Tilemap / Prefab / 动画
 
-- 保存实体为 Prefab（支持树形子节点嵌套）
-- 从磁盘实例化 Prefab
-- 应用源 Prefab 更新到实例
-- 保存为 Prefab 变体（Variant，记录 `variantOf`）
+- Tilemap：
+  - 图块层 + 碰撞层
+  - 支持数值到材质映射
+  - 提供图形化编辑子窗口
+- Prefab：
+  - 保存实体为 Prefab
+  - 从磁盘实例化 Prefab
+  - 支持 Variant 工作流
+- 动画：
+  - 支持 `.anim.json` 与 `.atlas.json` 编辑
+  - 状态机支持 `Idle/Run/Attack` 等常见流转
 
-### 5. 动画与时间轴
+### 6) 交互与脚本化玩法（示例）
 
-- 打开/编辑/保存 `.anim.json`
-- 打开/编辑/保存 `.atlas.json`
-- 预览播放、帧时长与事件轨道编辑
-
-### 6. 脚本与示例玩法
-
-- 内置脚本注册：
-  - `builtin://player-input`
-  - `builtin://bullet-projectile`
-  - `builtin://enemy-chase-respawn`
-  - `builtin://orbit-around-chest`
-  - `builtin://patrol`
-  - `builtin://spin`
-- 示例项目包含 Player/Enemy/Chest、追踪/射击/重生等演示逻辑
-
-## 技术栈
-
-- 前端：Vue 3 + Pinia + TypeScript
-- 渲染：Pixi.js
-- 桌面端：Electron
-- 构建：Vite
+- Player：
+  - `W/A/S/D` 移动（斜向归一化）
+  - 鼠标左键射击
+  - `Shift` 冲刺（可配置速度）
+- Enemy：
+  - 追踪 Player
+  - 与子弹碰撞后销毁并随机重生
+- 可交互对象：
+  - 鼠标右键与可交互实体交互
+  - 可在脚本中定义交互逻辑（不限于切场景）
+- 场景切换：
+  - 示例含双场景门交互往返
+- 背景系统：
+  - 背景可跟随相机
+  - 支持脚本切换背景贴图
 
 ## 快速开始
 
 ### 环境要求
 
-- Node.js 18+（推荐 Node.js 20）
-- npm 9+
+- Node.js `18+`（建议 20+）
+- npm `9+`
 
 ### 安装依赖
 
@@ -131,43 +125,7 @@ npm run build
 npm run preview
 ```
 
-## 编辑器使用说明
-
-### 推荐上手流程
-
-1. `新建项目` 或 `打开工程`。
-2. 导入图片/音频资源。
-3. `新建场景`。
-4. 新建实体，或从资源树/资源面板双击图片创建 Sprite。
-5. 在 `Inspector` 编辑组件参数。
-6. 保存场景到 `scenes/*.scene.json`。
-7. 在 `Prefab` 面板保存可复用实体。
-8. 点击播放预览，验证运行逻辑。
-
-### Tilemap 基础流程
-
-1. 工具栏或场景树点击 `新建 Tilemap`。
-2. 在 Inspector 的 Tilemap 区设置行列与格子尺寸。
-3. 编辑 `tiles` 与 `collision`（CSV 文本，每行一行）。
-4. 勾选 `showCollision` 可在视口叠加碰撞可视化。
-5. 脚本中使用 `ctx.api.isBlockedAt(x, y)` 做阻挡判定。
-
-### Prefab 变体与嵌套流程
-
-1. 选中实体，点击 `保存当前实体为 Prefab`。
-2. 如需变体：点击 `保存当前实体为 Prefab 变体`。
-3. 点击 `从文件实例化 Prefab` 放入场景。
-4. 选中实例后可点击 `应用源 Prefab 更新到实例`。
-
-## 输入映射（默认）
-
-- `move_left`：`A` / `Left`
-- `move_right`：`D` / `Right`
-- `move_up`：`W` / `Up`
-- `move_down`：`S` / `Down`
-- `fire`：`J` / 鼠标左键
-
-## 快捷键（编辑器）
+## 常用快捷键
 
 - `Ctrl/Cmd + S`：保存场景
 - `Ctrl/Cmd + Shift + S`：场景另存
@@ -176,35 +134,36 @@ npm run preview
 - `Ctrl/Cmd + D`：复制实体
 - `Delete / Backspace`：删除实体
 - `Q / W / E`：选择/移动/缩放工具
-- `P`：播放态下暂停/继续（未播放则开始播放）
+- `P`：播放态暂停/继续（未播放时开始播放）
 - `Ctrl/Cmd + Space`：停止播放
 
 ## 目录结构
 
 ```txt
 .
-├─ electron/                 # Electron 主进程与预加载桥接
+├─ electron/
 │  ├─ main.ts
 │  └─ preload.ts
 ├─ src/
-│  ├─ components/            # 编辑器 UI（工具栏、面板、视口等）
-│  ├─ engine/                # 引擎核心、组件、序列化、动画、运行时
-│  ├─ stores/                # Pinia 状态管理
+│  ├─ components/
+│  ├─ engine/
+│  ├─ stores/
 │  └─ main.ts
 ├─ docs/
-│  └─ ROADMAP.zh-CN.md
+│  ├─ ROADMAP.zh-CN.md
+│  ├─ BEGINNER_TUTORIAL.zh-CN.md
+│  └─ OPTIMIZATION_PLAN.zh-CN.md
 ├─ vite.config.ts
 ├─ vite.electron.config.ts
 └─ package.json
 ```
 
-## 接口说明（当前实现）
+## Electron 接口（`window.unu`）
 
-### 1. 渲染进程桥接接口（`window.unu`）
+类型定义见：`src/vite-env.d.ts`
 
-由 `electron/preload.ts` 暴露：
-
-- `createProject()`
+- `createProject(payload?)`
+- `pickDirectory(payload?)`
 - `saveProjectAs(payload)`
 - `pickProjectFolder()`
 - `scanProject(projectRoot)`
@@ -218,13 +177,21 @@ npm run preview
 - `saveTextAsset(payload)`
 - `openTextAsset(payload)`
 - `readTextAsset(payload)`
+- `renameProject(payload)`
+- `deleteProject(payload)`
 - `revealInFolder(payload)`
+- `openTilemapEditor(payload)`
+- `submitTilemapEditorUpdate(payload)`
+- `closeTilemapEditor()`
+- `setMainWindowPreset(preset)`
+- `onTilemapEditorInit(callback)`
+- `onTilemapEditorApply(callback)`
 
-类型声明见 [src/vite-env.d.ts](src/vite-env.d.ts)。
-
-### 2. IPC 通道（主进程）
+## IPC 通道（主进程）
 
 - `unu:create-project`
+- `unu:create-project-v2`
+- `unu:pick-directory`
 - `unu:save-project-as`
 - `unu:pick-project-folder`
 - `unu:scan-project`
@@ -238,46 +205,16 @@ npm run preview
 - `unu:save-text-asset`
 - `unu:open-text-asset`
 - `unu:read-text-asset`
+- `unu:rename-project`
+- `unu:delete-project`
 - `unu:reveal-in-folder`
+- `unu:open-tilemap-editor`
+- `unu:tilemap-editor-update`
+- `unu:close-tilemap-editor`
+- `unu:set-main-window-preset`
 
-### 3. 资源文件格式
+## 当前已知限制
 
-- Scene：`format: "unu-scene"`（`version: 1`）
-- Prefab：`format: "unu-prefab"`（`version: 2`，支持嵌套与 `variantOf`）
-- Animation：`format: "unu-animation"`
-- Atlas：`format: "unu-atlas"`
-
-### 4. 脚本生命周期与 API
-
-生命周期：
-
-- `onInit(ctx)`
-- `onStart(ctx)`
-- `onUpdate(ctx)`
-- `onDestroy(ctx)`
-
-`ctx.api` 当前提供：
-
-- `delta`
-- `time`
-- `getState(entity)`
-- `input`：`isKeyDown` / `isMouseDown` / `wasMousePressed` / `isActionDown` / `getAxis` / `getMoveVector` / `getMousePosition`
-- `audio`：`playOneShot` / `playEntity` / `stopEntity` / `setMasterVolume` / `setGroupVolume` / `getMasterVolume` / `getGroupVolume`
-- `findEntityByName(name)`
-- `removeEntity(entity)`
-- `spawnEntity(entity)`
-- `isBlockedAt(x, y)`（Tilemap 碰撞查询）
-
-## NPM 脚本
-
-- `npm run dev`：并行启动 Vite + Electron
-- `npm run dev:electron`：仅启动 Electron（依赖 5173）
-- `npm run build`：构建前端与 Electron 主进程
-- `npm run preview`：预览前端构建结果
-
-## 已知限制（当前版本）
-
-- 动画状态机尚未接入。
-- Prefab 变体当前为“全量保存 + 记录基线路径”，尚未实现字段级差量覆盖 UI。
-- Tilemap 编辑当前为 CSV 文本输入，尚未提供笔刷式绘制工具。
-- 构建会提示主包体积偏大（>500KB），尚未进行细粒度拆包优化。
+- 主包体积仍偏大（构建会提示 `>500KB`），后续会继续做拆包与按需加载。
+- 仍有部分历史代码区域存在可继续整理的编码与注释问题（不影响主功能使用）。
+- Tilemap 图形化编辑与动画状态机编辑仍可继续提升可视化细节与交互效率。

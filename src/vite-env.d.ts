@@ -4,7 +4,8 @@ declare global {
   interface Window {
     unu?: {
       version: string
-      createProject?: () => Promise<{ rootPath: string; name: string; created: boolean } | null>
+      createProject?: (payload?: { projectName?: string; parentDir?: string }) => Promise<{ rootPath: string; name: string; parentDir?: string; created: boolean } | null>
+      pickDirectory?: (payload?: { title?: string; defaultPath?: string }) => Promise<{ dirPath: string; name: string } | null>
       saveProjectAs?: (payload: { sourceProjectRoot?: string; projectName?: string; currentSceneContent?: string; currentSceneName?: string }) => Promise<{ rootPath: string; name: string; sceneFilePath?: string; fromSample: boolean } | null>
       pickProjectFolder?: () => Promise<{ rootPath: string; name: string } | null>
       scanProject?: (projectRoot: string) => Promise<{ rootPath: string; name: string; tree: import('./engine/assets/types').AssetNode[] }>
@@ -18,10 +19,13 @@ declare global {
       saveTextAsset?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string; subdir?: string; title?: string; filterName?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       openTextAsset?: (payload: { projectRoot?: string; defaultSubdir?: string; title?: string; extensions?: string[] }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       readTextAsset?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
+      renameProject?: (payload: { projectRoot: string; nextName: string }) => Promise<{ rootPath: string; name: string } | null>
+      deleteProject?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
       revealInFolder?: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) => Promise<{ ok: boolean; error?: string }>
       openTilemapEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       submitTilemapEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       closeTilemapEditor?: () => Promise<{ ok: boolean; error?: string }>
+      setMainWindowPreset?: (preset: 'launcher' | 'editor') => Promise<{ ok: boolean; error?: string }>
       onTilemapEditorInit?: (callback: (payload: unknown) => void) => (() => void)
       onTilemapEditorApply?: (callback: (payload: unknown) => void) => (() => void)
     }

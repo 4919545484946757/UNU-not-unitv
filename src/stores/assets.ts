@@ -145,8 +145,8 @@ export const useAssetStore = defineStore('assets', {
         return
       }
       const result = await window.unu.scanProject(picked.rootPath)
-      project.setProject({ rootPath: result.rootPath, name: result.name })
       this.hydrateTree(result.tree)
+      project.setProject({ rootPath: result.rootPath, name: result.name })
       project.setStatus(`已打开工程：${result.name}`)
     },
     async saveProjectAs() {
@@ -170,10 +170,10 @@ export const useAssetStore = defineStore('assets', {
       }
 
       const scanned = await window.unu.scanProject(saved.rootPath)
-      project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
-      if (saved.sceneFilePath) project.setSceneFile(saved.sceneFilePath)
       this.hydrateTree(scanned.tree)
       this.selectedPath = 'assets'
+      project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
+      if (saved.sceneFilePath) project.setSceneFile(saved.sceneFilePath)
       project.setStatus(saved.fromSample ? `示例项目已另存为：${scanned.rootPath}` : `项目已另存为：${scanned.rootPath}`)
     },
     async refreshProject() {

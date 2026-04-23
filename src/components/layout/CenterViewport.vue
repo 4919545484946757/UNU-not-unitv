@@ -38,6 +38,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createDemoScene } from '../../engine/sampleScene'
 import { PixiRenderer } from '../../engine/renderer/PixiRenderer'
+import { deserializeScene } from '../../engine/serialization/sceneSerializer'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
@@ -56,17 +57,69 @@ const selection = useSelectionStore()
 let renderer: PixiRenderer | null = null
 let lastRuntimeSyncAt = 0
 
+async function ensureInitialSceneReady() {
+  if (sceneStore.currentScene) return
+
+  if (project.rootPath === 'sample-project') {
+    sceneStore.bootstrap(createDemoScene())
+    return
+  }
+
+  if (!window.unu?.readTextAsset) {
+    sceneStore.createNewScene('MainScene', true)
+    return
+  }
+
+  const sceneAsset = assets.flat.find((node) => node.type === 'scene')
+  if (!sceneAsset) {
+    sceneStore.createNewScene('MainScene', true)
+    return
+  }
+
+  try {
+    const loaded = await window.unu.readTextAsset({
+      projectRoot: project.rootPath,
+      relativePath: sceneAsset.path
+    })
+    if (!loaded?.content) {
+      sceneStore.createNewScene('MainScene', true)
+      return
+    }
+    const scene = deserializeScene(loaded.content)
+    sceneStore.bootstrap(scene)
+    project.setSceneFile(loaded.filePath)
+  } catch {
+    sceneStore.createNewScene('MainScene', true)
+  }
+}
+
+async function reloadCurrentProjectScene() {
+  runtime.stop()
+  selection.clearSelection()
+  sceneStore.currentScene = null
+  sceneStore.scenes = []
+  sceneStore.runtimeScene = null
+  sceneStore.runtimeRevision += 1
+  sceneStore.revision += 1
+  sceneStore.isDirty = false
+  sceneStore.resetHistory()
+  sceneStore.clearAutoSaveTimer()
+  project.resetSceneFile()
+
+  await ensureInitialSceneReady()
+  sceneStore.repairCurrentSceneComponents()
+  if (!sceneStore.currentScene) return
+  await renderer?.renderScene(sceneStore.currentScene)
+  renderer?.setSelection(selection.selectedEntityId)
+  renderer?.setRuntimeState(false, false, sceneStore.currentScene, true)
+}
+
 onMounted(async () => {
   if (!containerRef.value) return
 
   try {
-    if (!sceneStore.currentScene) {
-      sceneStore.bootstrap(createDemoScene())
-    }
+    await ensureInitialSceneReady()
     sceneStore.repairCurrentSceneComponents()
-    if (assets.tree.length === 0) {
-      await assets.openProjectFolder()
-    }
 
     renderer = new PixiRenderer({
       container: containerRef.value,
@@ -137,6 +190,14 @@ watch(
 watch(
   () => runtime.playDebugEnabled,
   (enabled) => renderer?.setPlayDebugEnabled(enabled)
+)
+
+watch(
+  () => `${project.rootPath}::${project.sampleProjectId}`,
+  (nextKey, prevKey) => {
+    if (!prevKey || nextKey === prevKey) return
+    void reloadCurrentProjectScene()
+  }
 )
 
 function handleDragOver(event: DragEvent) {

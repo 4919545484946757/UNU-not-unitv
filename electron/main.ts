@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen, shell } from 'electron'
 import * as fs from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -61,6 +61,23 @@ async function exists(targetPath: string) {
   } catch {
     return false
   }
+}
+
+function makeDefaultProjectName() {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`
+  const time = `${pad(now.getHours())}${pad(now.getMinutes())}`
+  return `UNUProject_${date}_${time}`
+}
+
+function sanitizeProjectName(input?: string) {
+  const raw = String(input || '').trim()
+  const cleaned = raw
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/[. ]+$/g, '')
+    .trim()
+  return cleaned || ''
 }
 
 async function copyIfExists(from: string, to: string) {
@@ -367,10 +384,10 @@ async function openTextAsset(payload: { projectRoot?: string; defaultSubdir?: st
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1600,
-    height: 900,
-    minWidth: 1200,
-    minHeight: 720,
+    width: 1120,
+    height: 700,
+    minWidth: 980,
+    minHeight: 640,
     backgroundColor: '#111318',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -379,6 +396,7 @@ function createWindow() {
       sandbox: false
     }
   })
+  applyMainWindowPreset(win, 'launcher')
 
   if (!app.isPackaged) {
     win.loadURL('http://localhost:5173')
@@ -392,6 +410,22 @@ function createWindow() {
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null
   })
+}
+
+function applyMainWindowPreset(win: BrowserWindow, preset: 'launcher' | 'editor') {
+  if (!win || win.isDestroyed()) return
+  const workArea = screen.getPrimaryDisplay().workAreaSize
+  if (preset === 'editor') {
+    const width = Math.min(1680, Math.max(1200, workArea.width - 120))
+    const height = Math.min(980, Math.max(760, workArea.height - 100))
+    win.setSize(width, height, true)
+    win.center()
+    return
+  }
+  const width = Math.min(1180, Math.max(980, workArea.width - 220))
+  const height = Math.min(760, Math.max(640, workArea.height - 180))
+  win.setSize(width, height, true)
+  win.center()
 }
 
 function loadTilemapEditorWindow(win: BrowserWindow) {
@@ -466,6 +500,52 @@ app.whenReady().then(() => {
       rootPath: projectRoot,
       name: path.basename(projectRoot),
       created: true
+    }
+  })
+
+  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string }) => {
+    let parentDir = String(payload?.parentDir || '').trim()
+    if (!parentDir) {
+      const result = await dialog.showOpenDialog({
+        title: '新建 UNU 工程',
+        properties: ['openDirectory', 'createDirectory']
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      parentDir = result.filePaths[0]
+    }
+
+    const parentStat = await fs.stat(parentDir).catch(() => null)
+    if (!parentStat?.isDirectory()) {
+      throw new Error('无效的项目目录')
+    }
+
+    const projectName = sanitizeProjectName(payload?.projectName) || makeDefaultProjectName()
+    const projectRoot = path.join(parentDir, projectName)
+    if (await exists(projectRoot)) {
+      throw new Error(`目标目录已存在: ${projectRoot}`)
+    }
+
+    await ensureProjectStructure(projectRoot)
+    await writeProjectFile(projectRoot, projectName)
+    return {
+      rootPath: projectRoot,
+      name: projectName,
+      parentDir,
+      created: true
+    }
+  })
+
+  ipcMain.handle('unu:pick-directory', async (_event, payload?: { title?: string; defaultPath?: string }) => {
+    const result = await dialog.showOpenDialog({
+      title: payload?.title || '选择目标目录',
+      defaultPath: payload?.defaultPath,
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const dirPath = result.filePaths[0]
+    return {
+      dirPath,
+      name: path.basename(dirPath)
     }
   })
 
@@ -663,6 +743,54 @@ app.whenReady().then(() => {
     return { filePath, name: path.basename(filePath), relativePath: payload.relativePath, content }
   })
 
+  ipcMain.handle('unu:rename-project', async (_event, payload: { projectRoot: string; nextName: string }) => {
+    const projectRoot = String(payload?.projectRoot || '').trim()
+    const nextName = String(payload?.nextName || '').trim()
+    if (!projectRoot || !nextName) return null
+    if (projectRoot === 'sample-project') {
+      throw new Error('示例项目不支持重命名')
+    }
+    if (/[\\/]/.test(nextName)) {
+      throw new Error('项目名称不能包含路径分隔符')
+    }
+    const sourcePath = path.resolve(projectRoot)
+    const sourceStat = await fs.stat(sourcePath).catch(() => null)
+    if (!sourceStat || !sourceStat.isDirectory()) {
+      throw new Error('项目目录不存在')
+    }
+    const parentDir = path.dirname(sourcePath)
+    const targetPath = path.join(parentDir, nextName)
+    if (path.resolve(targetPath) === sourcePath) {
+      return {
+        rootPath: sourcePath,
+        name: nextName
+      }
+    }
+    if (await exists(targetPath)) {
+      throw new Error('目标目录已存在')
+    }
+    await fs.rename(sourcePath, targetPath)
+    return {
+      rootPath: targetPath,
+      name: nextName
+    }
+  })
+
+  ipcMain.handle('unu:delete-project', async (_event, payload: { projectRoot: string }) => {
+    const projectRoot = String(payload?.projectRoot || '').trim()
+    if (!projectRoot) return { ok: false }
+    if (projectRoot === 'sample-project') {
+      throw new Error('示例项目不支持删除')
+    }
+    const target = path.resolve(projectRoot)
+    const targetStat = await fs.stat(target).catch(() => null)
+    if (!targetStat || !targetStat.isDirectory()) {
+      return { ok: false, error: '项目目录不存在' }
+    }
+    await fs.rm(target, { recursive: true, force: true })
+    return { ok: true }
+  })
+
   ipcMain.handle('unu:reveal-in-folder', async (_event, payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) => {
     if (!payload.projectRoot || !payload.relativePath) return { ok: false }
     const targetPath = path.join(payload.projectRoot, payload.relativePath)
@@ -705,6 +833,13 @@ app.whenReady().then(() => {
   ipcMain.handle('unu:close-tilemap-editor', async () => {
     if (tilemapEditorWindow && !tilemapEditorWindow.isDestroyed()) tilemapEditorWindow.close()
     tilemapEditorWindow = null
+    return { ok: true }
+  })
+
+  ipcMain.handle('unu:set-main-window-preset', async (_event, preset: 'launcher' | 'editor') => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'main window not ready' }
+    if (preset !== 'launcher' && preset !== 'editor') return { ok: false, error: 'invalid preset' }
+    applyMainWindowPreset(mainWindow, preset)
     return { ok: true }
   })
 

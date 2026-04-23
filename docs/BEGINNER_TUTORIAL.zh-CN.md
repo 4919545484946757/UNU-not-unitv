@@ -1,97 +1,133 @@
 # UNU Engine 新手教程（快速上手）
 
-更新时间：2026-04-19
+更新时间：`2026-04-23`
 
-## 1. 你将完成什么
+## 1. 你将学会什么
+
 完成本教程后，你可以：
-- 打开并运行示例项目
-- 在场景中选中/移动实体
-- 给实体添加脚本和动画状态机
-- 用 WASD + 鼠标左键体验 Player 移动与射击
+
+- 使用启动器创建/打开项目
+- 在编辑器中完成场景与实体基础编辑
+- 跑通示例项目的移动、射击、交互、切场景流程
+- 使用脚本配置 Player/Enemy/可交互对象
 
 ## 2. 环境准备
-1. 安装 Node.js（建议 LTS）
+
+1. 安装 Node.js（建议 LTS，18+）。
 2. 在项目根目录安装依赖：
+
 ```bash
 npm install
 ```
+
 3. 启动编辑器（Vite + Electron）：
+
 ```bash
 npm run dev
 ```
 
-## 3. 编辑器界面速览
+## 3. 启动器（Launcher）使用
+
+启动后先进入启动器界面，可以做以下操作：
+
+- 打开历史项目
+- 打开本地已有项目目录
+- 新建项目（推荐）
+  - 可填“项目名称”和“目标目录”
+  - 创建路径固定为：`目标目录/项目名称/`
+  - 留空时将使用默认项目名，并在创建时选择目录
+
+## 4. 编辑器界面速览
+
 - 左侧：场景树、资源树
-- 中央：Viewport（场景可视化与选中操作）
-- 右侧：Inspector / Script / Timeline 面板
-- 顶部：工具栏（播放、暂停、保存、实体操作）
+- 中央：Scene View（可编辑与播放预览）
+- 右侧：Inspector / Script / Timeline 等面板
+- 顶部：项目、场景、实体下拉工具与编辑工具按钮
 
-## 4. 第一次运行示例
-1. 点击顶部“播放”
-2. 控制 Player：
-   - `W/A/S/D`：移动（支持斜向等速）
-   - 鼠标左键：射击
-3. 观察：
-   - Enemy 会追踪 Player
-   - 子弹命中 Enemy 后会重生
-   - Player 状态机会在 Idle/Run/Attack 间切换
+## 5. 第一轮操作（推荐）
 
-## 5. 常见编辑操作
-## 5.1 选中与变换
-1. 在场景树或视口点击实体
-2. 在 Inspector 修改 `Transform`（位置、缩放、旋转）
+1. 在“项目”菜单选择“新建项目”或“打开工程”。
+2. 在“场景”菜单新建场景。
+3. 在“实体”菜单新建实体（如 `player` / `enemy` / `tilemap`）。
+4. 在 Inspector 调整 `Transform` / `Sprite` / `Collider`。
+5. 点击播放按钮进入预览。
+6. 再次点击可暂停/继续，点击停止退出预览。
 
-## 5.2 调整碰撞箱
-1. 选中实体
-2. 在 Inspector 的 `Collider` 中调整 `Width/Height`
-3. 进入播放态验证是否符合预期
+## 6. 示例项目玩法验证
 
-## 5.3 配置动画状态机
-1. 选中带 `Animation` 的实体
-2. 在 Inspector 或 Timeline 的状态机区域：
-   - 新增状态（例如 `Jump`）
-   - 配置转场（from/to/condition）
-   - 调整高级参数：
-     - `priority`
-     - `canInterrupt`
-     - `once`
-     - `minNormalizedTime`
+打开示例项目后，可直接验证：
 
-## 6. 脚本系统最小示例
-在脚本中你常用的 API：
-- `ctx.api.input.getMoveVector(true)`
-- `ctx.api.findEntityByName(name)`
-- `ctx.api.spawnEntity(entity)`
-- `ctx.api.removeEntity(entity)`
-- `ctx.api.isBlockedRect(...)`
+- `W/A/S/D` 控制 Player 移动（斜向保持速度正确）
+- 鼠标左键射击
+- Enemy 追踪玩家，被子弹命中后销毁并重生
+- 接近可交互门，右键交互触发场景切换
 
-示例结构：
+## 7. 常见编辑操作
+
+### 7.1 实体操作
+
+- 复制实体：`Ctrl/Cmd + D`
+- 删除实体：`Delete / Backspace`
+- 图层上移/下移：工具栏实体菜单
+
+### 7.2 工具切换
+
+- `Q / W / E`：选择 / 移动 / 缩放
+- 平移工具：工具栏 `pan`（非播放态）
+
+### 7.3 场景文件
+
+- 打开：场景菜单 -> 打开场景
+- 保存：`Ctrl/Cmd + S`
+- 另存：`Ctrl/Cmd + Shift + S`
+
+## 8. 脚本最小示例
+
+脚本生命周期：
+
+- `onInit(ctx)`
+- `onStart(ctx)`
+- `onUpdate(ctx)`
+- `onInteract(ctx)`（可交互对象）
+- `onDestroy(ctx)`
+
+示例：
+
 ```js
 export default {
-  onInit(ctx) {},
-  onStart(ctx) {},
   onUpdate(ctx) {
     const move = ctx.api.input.getMoveVector(true)
-    // your logic...
-  },
-  onDestroy(ctx) {}
+    const tf = ctx.entity.getTransform()
+    if (!tf) return
+    tf.x += move.x * 120 * ctx.api.delta
+    tf.y += move.y * 120 * ctx.api.delta
+  }
 }
 ```
 
-## 7. 保存与另存项目
-- 常规保存：保存当前场景与资源变更
-- 项目另存：可将示例项目另存到本地目录进行独立开发
+常用 API：
 
-## 8. 排错建议
-- 运行后无法选中实体：
-  - 检查是否在正确工具模式（Select）
-- 动画状态卡住：
-  - 检查转场 `condition` 与 `minNormalizedTime` 是否冲突
-- 角色穿墙：
-  - 检查脚本是否使用 `isBlockedRect` 而非单点检测
+- `ctx.api.input.*`（键鼠与动作映射）
+- `ctx.api.findEntityByName(name)`
+- `ctx.api.spawnEntity(entity)`
+- `ctx.api.removeEntity(entity)`
+- `ctx.api.switchScene(sceneName)`
+- `ctx.api.isBlockedAt(x, y)`
+- `ctx.api.isBlockedRect(cx, cy, halfW, halfH)`
+- `ctx.api.setBackgroundTexture(path)`
+- `ctx.api.cycleBackgroundTexture(paths)`
 
-## 9. 推荐下一步
-1. 给 Player 增加 `Jump` 状态和对应转场
-2. 给 Enemy 增加受击闪烁动画
-3. 使用 Timeline 为技能特效加事件轨道
+## 9. 排错建议
 
+- 切换工程后预览没变化：
+  - 当前版本已支持自动重载项目场景；若异常请先停止播放再重试切换。
+- 播放态无法编辑：
+  - 播放态默认禁用部分编辑工具，先停止播放后再改。
+- 看不到调试信息：
+  - 在播放按钮右侧打开“调试播放”。
+
+## 10. 下一步建议
+
+1. 为 Player 脚本增加技能冷却与音效。
+2. 为 Enemy 增加受击反馈与动画事件。
+3. 基于 Interactable + Script 扩展任务/道具交互逻辑。
