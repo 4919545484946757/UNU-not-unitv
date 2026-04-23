@@ -1,8 +1,11 @@
 ﻿import { defineStore } from 'pinia'
 import type { Entity } from '../engine/core/Entity'
 import type { Scene } from '../engine/core/Scene'
+import { BackgroundComponent } from '../engine/components/BackgroundComponent'
+import { CameraComponent } from '../engine/components/CameraComponent'
 import { ColliderComponent } from '../engine/components/ColliderComponent'
 import { InteractableComponent } from '../engine/components/InteractableComponent'
+import { ScriptComponent } from '../engine/components/ScriptComponent'
 import { SpriteComponent } from '../engine/components/SpriteComponent'
 import { TilemapComponent } from '../engine/components/TilemapComponent'
 import { TransformComponent } from '../engine/components/TransformComponent'
@@ -33,6 +36,8 @@ export const useSceneStore = defineStore('scene', {
     historyIndex: -1,
     historyTimer: 0 as number,
     isRestoringHistory: false,
+    runtimeScene: null as Scene | null,
+    runtimeRevision: 0,
     autoSaveEnabled: true,
     autoSaveIntervalSec: 20,
     autoSaveTimer: 0 as number,
@@ -72,6 +77,7 @@ export const useSceneStore = defineStore('scene', {
       if (!enabled) this.clearAutoSaveTimer()
     },
     upsertScene(scene: Scene) {
+      repairSceneEntityComponents(scene)
       const index = this.scenes.findIndex((item) => item.id === scene.id)
       if (index >= 0) this.scenes.splice(index, 1, scene)
       else this.scenes.push(scene)
@@ -95,7 +101,10 @@ export const useSceneStore = defineStore('scene', {
         project.setStatus('切换场景失败：未找到对应场景。')
         return false
       }
+      repairSceneEntityComponents(target)
       this.currentScene = target
+      this.runtimeScene = null
+      this.runtimeRevision += 1
       this.revision++
       selection.clearSelection()
       this.resetHistory()
@@ -135,6 +144,8 @@ export const useSceneStore = defineStore('scene', {
       }
       this.scenes.push(copy)
       this.currentScene = copy
+      this.runtimeScene = null
+      this.runtimeRevision += 1
       this.isDirty = true
       this.revision++
       selection.clearSelection()
@@ -166,6 +177,8 @@ export const useSceneStore = defineStore('scene', {
         this.currentScene = this.scenes[Math.max(0, index - 1)] || this.scenes[0] || null
         selection.clearSelection()
       }
+      this.runtimeScene = null
+      this.runtimeRevision += 1
       this.markDirty()
       this.resetHistory()
       this.clearAutoSaveTimer()
@@ -261,6 +274,8 @@ export const useSceneStore = defineStore('scene', {
           })
         }
         this.currentScene = nextScene
+        this.runtimeScene = null
+        this.runtimeRevision += 1
         this.upsertScene(nextScene)
         this.isDirty = true
         this.revision++
@@ -295,8 +310,11 @@ export const useSceneStore = defineStore('scene', {
       this.restoreSceneFromSerialized(snapshot)
     },
     bootstrap(scene: Scene) {
+      repairSceneEntityComponents(scene)
       this.scenes = [scene]
       this.currentScene = scene
+      this.runtimeScene = null
+      this.runtimeRevision = 0
       this.ensureSampleSceneCatalog()
       this.isDirty = false
       this.revision++
@@ -312,6 +330,9 @@ export const useSceneStore = defineStore('scene', {
         return
       }
       this.currentScene = new SceneClass(createSceneId('scene'), name)
+      repairSceneEntityComponents(this.currentScene)
+      this.runtimeScene = null
+      this.runtimeRevision = 0
       this.upsertScene(this.currentScene)
       this.isDirty = true
       this.revision++
@@ -350,7 +371,7 @@ export const useSceneStore = defineStore('scene', {
       selection.selectEntity(entity.id)
       project.setStatus(`已新建实体：${entity.name}`)
     },
-    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door') {
+    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background') {
       const project = useProjectStore()
       if (!this.currentScene) this.createNewScene()
       if (!this.currentScene) return
@@ -372,6 +393,11 @@ export const useSceneStore = defineStore('scene', {
       if (type === 'camera') {
         entity.name = 'Camera'
         entity.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
+      } else if (type === 'background') {
+        entity.name = 'Background'
+        entity.addComponent(new SpriteComponent('assets/images/pixel/background/background-img.png', 1539, 1022, true, 1, 0xffffff, false))
+        entity.addComponent(new BackgroundComponent(true, true, 'cover'))
+        entity.addComponent(new CameraComponent(false, 1, '', 0.18, 0, 0, false))
       } else if (type === 'ui-text') {
         entity.name = 'UIText'
         entity.addComponent(new UIComponent(true, 'text', 'UI Text', 20, 0xffffff, 180, 48, 0x2b3242, 0.5, 0.5, false))
@@ -382,7 +408,21 @@ export const useSceneStore = defineStore('scene', {
         entity.name = type === 'door' ? 'Door' : 'Interactable'
         entity.addComponent(new SpriteComponent('', 120, 180, true, 0.95, 0xa67c52, true))
         entity.addComponent(new ColliderComponent('rect', 120, 180))
-        entity.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
+        if (type === 'door') {
+          entity.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
+        } else {
+          entity.addComponent(new InteractableComponent(true, 180, 'scripted'))
+          entity.addComponent(
+            new ScriptComponent(
+              'custom://interaction',
+              `{
+  "onInteract": [
+    { "type": "cycleTint", "target": "self", "values": [16777215, 16762880, 9293460, 7979007] }
+  ]
+}`
+            )
+          )
+        }
       } else if (type === 'player') {
         entity.name = 'Player'
         entity.addComponent(new SpriteComponent('assets/images/player.png', 90, 90, true, 1, 0xffffff, true))
@@ -405,7 +445,7 @@ export const useSceneStore = defineStore('scene', {
       project.setStatus(`已新建${type}类型实体：${entity.name}`)
     },
     createEntityFromDialog(payload: {
-      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door'
+      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background'
       name?: string
       x?: number
       y?: number
@@ -566,8 +606,11 @@ export const useSceneStore = defineStore('scene', {
         project.setStatus(`找不到场景：${sceneName}`)
         return false
       }
+      repairSceneEntityComponents(scene)
       this.upsertScene(scene)
       this.currentScene = scene
+      this.runtimeScene = null
+      this.runtimeRevision = 0
       this.isDirty = false
       this.revision++
       useSelectionStore().clearSelection()
@@ -703,8 +746,11 @@ export const useSceneStore = defineStore('scene', {
         return
       }
       const scene = deserializeScene(result.content)
+      repairSceneEntityComponents(scene)
       this.upsertScene(scene)
       this.currentScene = scene
+      this.runtimeScene = null
+      this.runtimeRevision = 0
       this.isDirty = false
       this.revision++
       useSelectionStore().clearSelection()
@@ -844,6 +890,21 @@ export const useSceneStore = defineStore('scene', {
         project.setStatus(`应用 Prefab 源失败：${message}`)
       }
     }
+    ,
+    setRuntimeScene(scene: Scene | null) {
+      if (scene) repairSceneEntityComponents(scene)
+      this.runtimeScene = scene
+      this.runtimeRevision += 1
+    },
+    clearRuntimeScene() {
+      this.runtimeScene = null
+      this.runtimeRevision += 1
+    },
+    repairCurrentSceneComponents() {
+      if (!this.currentScene) return
+      repairSceneEntityComponents(this.currentScene)
+      this.revision += 1
+    }
   }
 })
 
@@ -885,4 +946,48 @@ function removeEntityTreeFromScene(scene: Scene, root: Entity) {
     const transform = entity.getTransform()
     if (transform) transform.zIndex = idx
   })
+}
+
+function repairSceneEntityComponents(scene: Scene) {
+  for (let idx = 0; idx < scene.entities.length; idx += 1) {
+    const entity = scene.entities[idx]
+    let transform = entity.getTransform()
+    if (!transform) {
+      transform = entity.addComponent(new TransformComponent(0, 0, 1, 1, 0, 0.5, 0.5, idx))
+    } else {
+      transform.zIndex = idx
+    }
+
+    const sprite = entity.getComponent<SpriteComponent>('Sprite')
+    const background = entity.getComponent<BackgroundComponent>('Background')
+    const camera = entity.getComponent<CameraComponent>('Camera')
+    const interactable = entity.getComponent<InteractableComponent>('Interactable')
+    const script = entity.getComponent<ScriptComponent>('Script')
+
+    const isBackgroundEntity = entity.name === 'Background' || !!background
+    if (isBackgroundEntity) {
+      if (!background) entity.addComponent(new BackgroundComponent(true, true, 'cover'))
+      if (!sprite) {
+        entity.addComponent(new SpriteComponent('assets/images/pixel/background/background-img.png', 1539, 1022, true, 1, 0xffffff, false))
+      }
+      if (!camera) {
+        // Background owns an optional camera component for inspector-level consistency.
+        entity.addComponent(new CameraComponent(false, 1, '', 0.18, 0, 0, false))
+      }
+    }
+
+    if (interactable?.actionType === 'scripted' && !script) {
+      entity.addComponent(
+        new ScriptComponent(
+          'custom://interaction',
+          `{
+  "onInteract": [
+    { "type": "cycleTint", "target": "self", "values": [16777215, 16762880, 9293460, 7979007] }
+  ]
+}`,
+          true
+        )
+      )
+    }
+  }
 }

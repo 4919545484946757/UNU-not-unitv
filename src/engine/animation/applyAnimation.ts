@@ -1,9 +1,11 @@
 import { AnimationComponent, type TransformTrackPoint } from '../components/AnimationComponent'
+import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TransformComponent } from '../components/TransformComponent'
 import type { Scene } from '../core/Scene'
 
 const stateRuntime = new WeakMap<AnimationComponent, { consumed: Set<string>; lastState: string }>()
+const scriptConfigCache = new WeakMap<ScriptComponent, { raw: string; parsed: Record<string, unknown> | null }>()
 
 export function getAnimationFrameDuration(animation: AnimationComponent, frameIndex: number) {
   const safeIndex = Math.max(0, Math.min(frameIndex, animation.framePaths.length - 1))
@@ -50,6 +52,14 @@ export function applySceneAnimation(
     const activeFramePaths = machineResolved?.framePaths ?? animation.framePaths
     const activeFrameDurations = machineResolved?.frameDurations ?? animation.frameDurations
     const activeLoop = machineResolved?.loop ?? animation.loop
+    const sprintRunMultiplier = getPlayerRunSprintAnimationMultiplier(entity.getComponent<ScriptComponent>('Script'))
+    const sprintRunBoost = (
+      entity.name === 'Player' &&
+      animation.stateMachine?.enabled &&
+      animation.stateMachine.currentState === 'Run' &&
+      !!input?.isActionDown('sprint')
+    ) ? sprintRunMultiplier : 1
+    const playbackFps = Math.max(1, animation.fps) * sprintRunBoost
     if (activeFramePaths.length > 0) {
       animation.currentFrame = Math.max(0, Math.min(animation.currentFrame, activeFramePaths.length - 1))
     } else {
@@ -69,7 +79,7 @@ export function applySceneAnimation(
       while (true) {
         const frameIndex = Math.max(0, Math.min(animation.currentFrame, activeFramePaths.length - 1))
         const durationMultiplier = Math.max(1, Number(activeFrameDurations[frameIndex] ?? 1))
-        const frameDuration = durationMultiplier / Math.max(1, animation.fps)
+        const frameDuration = durationMultiplier / playbackFps
         if (animation.elapsed < frameDuration) break
 
         animation.elapsed -= frameDuration
@@ -99,7 +109,7 @@ export function applySceneAnimation(
 
     if (!hasFrameAnim && hasTransformAnim) {
       const maxFrame = getTrackMaxFrame(animation)
-      const speedFps = Math.max(1, animation.fps)
+      const speedFps = playbackFps
       animation.elapsed += delta
       let cursor = animation.elapsed * speedFps
       if (animation.loop) {
@@ -120,6 +130,46 @@ export function applySceneAnimation(
       applyTransformTrack(transform, animation.transformTracks.rotation, frameCursor, 'rotation')
     }
   }
+}
+
+function getPlayerRunSprintAnimationMultiplier(script?: ScriptComponent | null) {
+  if (!script || script.scriptPath !== 'builtin://player-input') return 2
+  const config = parseScriptConfigObject(script)
+  const value = readConfigNumber(config, 'runAnimationMultiplierWhenSprint', 2)
+  return clampNumber(value, 0.1, 8)
+}
+
+function parseScriptConfigObject(script?: ScriptComponent | null) {
+  if (!script) return null
+  const raw = String(script.sourceCode || '').trim()
+  if (!raw.startsWith('{')) return null
+  const cached = scriptConfigCache.get(script)
+  if (cached && cached.raw === raw) return cached.parsed
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const normalized = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+    scriptConfigCache.set(script, { raw, parsed: normalized })
+    return normalized
+  } catch {
+    scriptConfigCache.set(script, { raw, parsed: null })
+    return null
+  }
+}
+
+function readConfigNumber(config: Record<string, unknown> | null, key: string, fallback: number) {
+  if (!config) return fallback
+  const value = config[key]
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
 }
 
 function resolveAnimationStateMachine(animation: AnimationComponent, input?: AnimationRuntimeInput) {
@@ -168,7 +218,10 @@ function resolveAnimationStateMachine(animation: AnimationComponent, input?: Ani
     if (currentClipProgress + 1e-6 < minNormalizedTime) continue
     const transitionKey = `${index}|${transition.from}|${transition.to}|${transition.condition}|${transition.action || ''}|${minNormalizedTime}`
     if (transition.once && runtime.consumed.has(transitionKey)) continue
-    if (!checkTransitionCondition(transition.condition, input, transition.action)) continue
+    if (!checkTransitionCondition(transition.condition, input, transition.action, {
+      currentClipFinished,
+      transitionExitTime: !!transition.exitTime
+    })) continue
     const priority = Number.isFinite(Number(transition.priority)) ? Number(transition.priority) : 0
     const fromSpecificity = transition.from === machine.currentState ? 1 : 0
     const conditionRank = getTransitionConditionRank(transition.condition)
@@ -229,7 +282,8 @@ function getClipProgress(animation: AnimationComponent, frameDurations: number[]
 function checkTransitionCondition(
   condition: 'always' | 'ifMoving' | 'ifNotMoving' | 'ifActionDown' | 'ifActionUp',
   input?: AnimationRuntimeInput,
-  action?: string
+  action?: string,
+  runtime?: { currentClipFinished?: boolean; transitionExitTime?: boolean }
 ) {
   if (condition === 'always') return true
   if (!input) return false
@@ -244,7 +298,12 @@ function checkTransitionCondition(
   }
   const releasedThisFrame = input.wasActionReleased ? input.wasActionReleased(actionName) : false
   const notPressedNow = !input.isActionDown(actionName)
-  return releasedThisFrame || notPressedNow
+  if (releasedThisFrame || notPressedNow) return true
+  if (runtime?.transitionExitTime && runtime.currentClipFinished) {
+    // Avoid sticky non-loop attack states when key/mouse is held.
+    return true
+  }
+  return false
 }
 
 function getTrackMaxFrame(animation: AnimationComponent) {

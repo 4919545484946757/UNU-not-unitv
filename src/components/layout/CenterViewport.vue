@@ -54,6 +54,7 @@ const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
 let renderer: PixiRenderer | null = null
+let lastRuntimeSyncAt = 0
 
 onMounted(async () => {
   if (!containerRef.value) return
@@ -62,6 +63,7 @@ onMounted(async () => {
     if (!sceneStore.currentScene) {
       sceneStore.bootstrap(createDemoScene())
     }
+    sceneStore.repairCurrentSceneComponents()
     if (assets.tree.length === 0) {
       await assets.openProjectFolder()
     }
@@ -69,7 +71,17 @@ onMounted(async () => {
     renderer = new PixiRenderer({
       container: containerRef.value,
       onEntitySelected: (entityId) => selection.selectEntity(entityId),
-      onSceneMutated: () => sceneStore.markDirty()
+      onSceneMutated: () => sceneStore.markDirty(),
+      onRuntimeSceneUpdated: (scene) => {
+        if (!runtime.isPlaying) {
+          sceneStore.clearRuntimeScene()
+          return
+        }
+        const now = performance.now()
+        if (now - lastRuntimeSyncAt < 120) return
+        lastRuntimeSyncAt = now
+        sceneStore.setRuntimeScene(scene)
+      }
     })
     await renderer.init(sceneStore.currentScene)
     renderer.setGridVisible(editor.showGrid)
@@ -114,6 +126,7 @@ watch(
   ([isPlaying, isPaused]) => {
     renderer?.setRuntimeState(isPlaying, isPaused, sceneStore.currentScene)
     if (!isPlaying) {
+      sceneStore.clearRuntimeScene()
       project.setStatus('已停止播放预览，返回编辑态')
       return
     }

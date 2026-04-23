@@ -1,4 +1,5 @@
 ﻿import { AnimationComponent } from './components/AnimationComponent'
+import { BackgroundComponent } from './components/BackgroundComponent'
 import { CameraComponent } from './components/CameraComponent'
 import { ColliderComponent } from './components/ColliderComponent'
 import { InteractableComponent } from './components/InteractableComponent'
@@ -38,9 +39,22 @@ const enemyFrames = [
   'assets/images/pixel/enemy/tube_03.png',
   'assets/images/pixel/enemy/tube_04.png'
 ]
+const torchFxFrames = [
+  'assets/images/pixel/enemy/tube_01.png',
+  'assets/images/pixel/enemy/tube_02.png',
+  'assets/images/pixel/enemy/tube_03.png'
+]
+const backgroundImagePath = 'assets/images/pixel/background/background-img.png'
+const facilityBackgroundImagePath = 'assets/images/pixel/background/background-facility.png'
 
 export function createDemoScene() {
   const scene = new Scene('scene_main', 'MainScene')
+
+  const background = new Entity('background_main_001', 'Background')
+  background.addComponent(new TransformComponent(180, 40, 1, 1, 0, 0.5, 0.5, -100000))
+  background.addComponent(new SpriteComponent(backgroundImagePath, 1539, 1022, true, 1, 0xffffff, false))
+  background.addComponent(new BackgroundComponent(true, true, 'cover'))
+  background.addComponent(new CameraComponent(false, 1, '', 0.18, 0, 0, false))
 
   const player = new Entity('player_001', 'Player')
   // 放在 LevelTilemap 的非碰撞区域（上半区域）避免开局卡在碰撞格里。
@@ -76,22 +90,29 @@ export function createDemoScene() {
           { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
           { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
           { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
-          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
+          { from: 'Attack', to: 'Run', condition: 'ifMoving', minNormalizedTime: 0.6, exitTime: true },
+          { from: 'Attack', to: 'Idle', condition: 'ifNotMoving', minNormalizedTime: 0.6, exitTime: true }
         ]
       }
     )
   )
   player.addComponent(
     new ScriptComponent(
-      'builtin://player-input',
-      `export default {
-  onInit(ctx) {},
-  onStart(ctx) {},
-  onUpdate(ctx) {
-    const move = ctx.api.input.getMoveVector(true)
-    // WASD / 方向键控制移动，斜向移动会自动归一化（例如 W + D 保持同速）
-  },
-  onDestroy(ctx) {}
+      'assets/scripts/player-input.js',
+      `{
+  "moveSpeed": 140,
+  "sprintSpeed": 280,
+  "runAnimationMultiplierWhenSprint": 2,
+  "shootAction": "fire",
+  "fireCooldown": 0,
+  "bullet": {
+    "speed": 420,
+    "life": 2,
+    "maxDistance": 560,
+    "width": 20,
+    "height": 8,
+    "tint": 15922687
+  }
 }`
     )
   )
@@ -105,7 +126,7 @@ export function createDemoScene() {
   )
   enemy.addComponent(
     new ScriptComponent(
-      'builtin://enemy-chase-respawn',
+      'assets/scripts/enemy-chase-respawn.js',
       `export default {
   onUpdate(ctx) {
     const enemy = ctx.entity
@@ -124,13 +145,27 @@ export function createDemoScene() {
   item.addComponent(new SpriteComponent('assets/images/pixel/tilemap/texture_2.png', 72, 72, true, 1, 0xffffff))
   item.addComponent(new ColliderComponent('rect', 72, 72))
   item.addComponent(
+    new ScriptComponent(
+      'custom://interaction',
+      `{
+  "onInteract": [
+    {
+      "type": "cycleTint",
+      "target": "self",
+      "values": [16777215, 16763072, 9293460, 7979007, 16748431]
+    }
+  ]
+}`
+    )
+  )
+  item.addComponent(
     new InteractableComponent(
       true,
       220,
-      'cycleTint',
+      'scripted',
       '',
       [],
-      [0xffffff, 0xffc857, 0x8dd694, 0x79b8ff, 0xff8fab]
+      []
     )
   )
 
@@ -138,15 +173,11 @@ export function createDemoScene() {
   fx.addComponent(new TransformComponent(760, 320, 1, 1))
   fx.addComponent(new SpriteComponent('', 64, 64, true, 0.95, 0xffc857))
   fx.addComponent(new ColliderComponent('rect', 64, 64))
-  fx.addComponent(new AnimationComponent(true, true, 6, true, 0, 0, [
-    'assets/images/player.png',
-    'assets/images/enemy.png',
-    'assets/images/chest.png'
-  ], [1, 1, 2], 'assets/animations/TorchFX.anim.json'))
+  fx.addComponent(new AnimationComponent(true, true, 6, true, 0, 0, [...torchFxFrames], [1, 1, 2], 'assets/animations/TorchFX.anim.json'))
 
   const camera = new Entity('camera_main', 'MainCamera')
   camera.addComponent(new TransformComponent(180, 40, 1, 1))
-  camera.addComponent(new CameraComponent(true, 1, player.id, 0.16, 0, 0, false))
+  camera.addComponent(new CameraComponent(true, 1, player.id, 1, 0, 0, false))
 
   const tilemap = new Entity('tilemap_001', 'LevelTilemap')
   tilemap.addComponent(new TransformComponent(-260, -120, 1, 1))
@@ -200,6 +231,7 @@ export function createDemoScene() {
   doorToSecond.addComponent(new ColliderComponent('rect', 110, 180))
   doorToSecond.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
 
+  scene.addEntity(background)
   scene.addEntity(tilemap)
   scene.addEntity(player)
   scene.addEntity(enemy)
@@ -215,11 +247,36 @@ export function createDemoScene() {
 export function createSecondScene() {
   const scene = new Scene('scene_second', 'SecondScene')
 
+  const background = new Entity('background_second_001', 'Background')
+  background.addComponent(new TransformComponent(-120, 20, 1, 1, 0, 0.5, 0.5, -100000))
+  background.addComponent(new SpriteComponent(facilityBackgroundImagePath, 1539, 1022, true, 1, 0xffffff, false))
+  background.addComponent(new BackgroundComponent(true, true, 'cover'))
+  background.addComponent(new CameraComponent(false, 1, '', 0.18, 0, 0, false))
+
   const player = new Entity('player_002', 'Player')
   player.addComponent(new TransformComponent(-120, 20, 1, 1))
   player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
   player.addComponent(new ColliderComponent('rect', 100, 100, 0, 0, false))
-  player.addComponent(new ScriptComponent('builtin://player-input', ''))
+  player.addComponent(
+    new ScriptComponent(
+      'assets/scripts/player-input.js',
+      `{
+  "moveSpeed": 140,
+  "sprintSpeed": 280,
+  "runAnimationMultiplierWhenSprint": 2,
+  "shootAction": "fire",
+  "fireCooldown": 0,
+  "bullet": {
+    "speed": 420,
+    "life": 2,
+    "maxDistance": 560,
+    "width": 20,
+    "height": 8,
+    "tint": 15922687
+  }
+}`
+    )
+  )
   player.addComponent(
     new AnimationComponent(
       true,
@@ -249,7 +306,8 @@ export function createSecondScene() {
           { from: 'Run', to: 'Idle', condition: 'ifNotMoving' },
           { from: 'Idle', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
           { from: 'Run', to: 'Attack', condition: 'ifActionDown', action: 'fire' },
-          { from: 'Attack', to: 'Run', condition: 'ifActionUp', action: 'fire', minNormalizedTime: 0.6, exitTime: true }
+          { from: 'Attack', to: 'Run', condition: 'ifMoving', minNormalizedTime: 0.6, exitTime: true },
+          { from: 'Attack', to: 'Idle', condition: 'ifNotMoving', minNormalizedTime: 0.6, exitTime: true }
         ]
       }
     )
@@ -297,8 +355,9 @@ export function createSecondScene() {
 
   const camera = new Entity('camera_second', 'MainCamera')
   camera.addComponent(new TransformComponent(-120, 20, 1, 1))
-  camera.addComponent(new CameraComponent(true, 1, player.id, 0.16, 0, 0, false))
+  camera.addComponent(new CameraComponent(true, 1, player.id, 1, 0, 0, false))
 
+  scene.addEntity(background)
   scene.addEntity(tilemap)
   scene.addEntity(player)
   scene.addEntity(doorBack)

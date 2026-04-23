@@ -91,6 +91,26 @@ export const sampleAssetRoots: AssetNode[] = [
                 children: [{ id: 'assets/images/pixel/props/door.png', name: 'door.png', type: 'image', path: 'assets/images/pixel/props/door.png' }]
               },
               {
+                id: 'assets/images/pixel/background',
+                name: 'background',
+                type: 'folder',
+                path: 'assets/images/pixel/background',
+                children: [
+                  {
+                    id: 'assets/images/pixel/background/background-img.png',
+                    name: 'background-img.png',
+                    type: 'image',
+                    path: 'assets/images/pixel/background/background-img.png'
+                  },
+                  {
+                    id: 'assets/images/pixel/background/background-facility.png',
+                    name: 'background-facility.png',
+                    type: 'image',
+                    path: 'assets/images/pixel/background/background-facility.png'
+                  }
+                ]
+              },
+              {
                 id: 'assets/images/pixel/tilemap',
                 name: 'tilemap',
                 type: 'folder',

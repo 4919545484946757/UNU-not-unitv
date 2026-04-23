@@ -1,5 +1,6 @@
 import { AnimationComponent } from '../components/AnimationComponent'
 import { AudioComponent } from '../components/AudioComponent'
+import { BackgroundComponent } from '../components/BackgroundComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
@@ -78,6 +79,15 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.alpha ?? 1),
             Number(data.tint ?? 0xffffff),
             Boolean(data.preserveAspect ?? true)
+          )
+        )
+        break
+      case 'Background':
+        entity.addComponent(
+          new BackgroundComponent(
+            Boolean(data.enabled ?? true),
+            Boolean(data.followCamera ?? true),
+            data.fitMode === 'contain' ? 'contain' : 'cover'
           )
         )
         break
@@ -274,7 +284,7 @@ export function deserializeEntity(entityData: SerializedEntity) {
           new InteractableComponent(
             Boolean(data.enabled ?? true),
             Math.max(0, Number(data.interactDistance ?? 160)),
-            data.actionType === 'switchScene' || data.actionType === 'cycleTexture' || data.actionType === 'cycleTint'
+            data.actionType === 'switchScene' || data.actionType === 'cycleTexture' || data.actionType === 'cycleTint' || data.actionType === 'scripted'
               ? data.actionType
               : 'none',
             String(data.targetScene ?? ''),

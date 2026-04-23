@@ -2,6 +2,7 @@
 import { Application, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js'
 import { AnimationComponent } from '../components/AnimationComponent'
 import { AudioComponent } from '../components/AudioComponent'
+import { BackgroundComponent } from '../components/BackgroundComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
@@ -25,13 +26,21 @@ interface PixiRendererOptions {
   container: HTMLDivElement
   onEntitySelected?: (entityId: string) => void
   onSceneMutated?: () => void
+  onRuntimeSceneUpdated?: (scene: Scene | null) => void
 }
 
 type GizmoMode = 'none' | 'move' | 'scale' | 'pan'
+interface CameraViewState {
+  x: number
+  y: number
+  zoom: number
+}
+type CachedWorldNodeKind = 'sprite' | 'tilemap'
 
 export class PixiRenderer {
   private app!: Application
   private readonly root = new Container()
+  private readonly backdrop = new Container()
   private readonly world = new Container()
   private readonly ui = new Container()
   private readonly overlay = new Container()
@@ -56,6 +65,10 @@ export class PixiRenderer {
   private renderVersion = 0
   private renderInFlight: Promise<void> | null = null
   private queuedScene: Scene | null = null
+  private cachedSceneRef: Scene | null = null
+  private readonly backdropNodeCache = new Map<string, { signature: string; node: Container }>()
+  private readonly worldNodeCache = new Map<string, { kind: CachedWorldNodeKind; signature: string; node: Container }>()
+  private readonly uiNodeCache = new Map<string, { signature: string; node: Container }>()
 
   constructor(private readonly options: PixiRendererOptions) {}
 
@@ -68,6 +81,7 @@ export class PixiRenderer {
       roundPixels: true
     })
 
+    this.root.addChild(this.backdrop)
     this.root.addChild(this.world)
     this.root.addChild(this.ui)
     this.root.addChild(this.overlay)
@@ -135,6 +149,7 @@ export class PixiRenderer {
         void this.audioRuntime.syncScene(this.currentScene)
         this.updateCameraFromScene(this.currentScene)
         void this.renderScene(this.currentScene)
+        this.options.onRuntimeSceneUpdated?.(this.currentScene)
       }
       this.inputState.endFrame()
     })
@@ -203,10 +218,13 @@ export class PixiRenderer {
       this.isPaused = false
       this.playScene = null
       this.currentScene = null
+      this.cachedSceneRef = null
+      this.clearSceneNodeCaches()
       this.audioRuntime.stopAll()
       this.resetCameraTransform()
       this.app.stage.cursor = this.activeTool === 'pan' ? 'grab' : 'default'
       this.drawSelectionGizmo()
+      this.options.onRuntimeSceneUpdated?.(null)
       return
     }
 
@@ -224,6 +242,7 @@ export class PixiRenderer {
       this.app.stage.cursor = this.activeTool === 'pan' ? 'grab' : 'default'
       this.drawSelectionGizmo()
       void this.renderScene(scene)
+      this.options.onRuntimeSceneUpdated?.(null)
       return
     }
 
@@ -250,6 +269,7 @@ export class PixiRenderer {
       this.updateCameraFromScene(this.currentScene)
     }
     this.drawSelectionGizmo()
+    this.options.onRuntimeSceneUpdated?.(this.currentScene)
   }
 
   setSelection(entityId: string) {
@@ -287,9 +307,18 @@ export class PixiRenderer {
 
   private async renderSceneImmediate(scene: Scene) {
     this.currentScene = scene
+    if (this.cachedSceneRef !== scene) {
+      this.clearSceneNodeCaches()
+      this.cachedSceneRef = scene
+    }
     const version = ++this.renderVersion
+    const backdropNodes: Container[] = []
     const worldNodes: Container[] = []
     const uiNodes: Container[] = []
+    const cameraView = this.getSceneCameraView(scene)
+    const activeBackdropIds = new Set<string>()
+    const activeWorldIds = new Set<string>()
+    const activeUiIds = new Set<string>()
 
     for (const entity of scene.entities) {
       const transform = entity.getComponent<TransformComponent>('Transform')
@@ -297,88 +326,103 @@ export class PixiRenderer {
       const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
       const sprite = entity.getComponent<SpriteComponent>('Sprite')
       const collider = entity.getComponent<ColliderComponent>('Collider')
+      const background = entity.getComponent<BackgroundComponent>('Background')
       if (!transform) continue
 
       if (ui?.enabled) {
-        const uiNode = this.createUiNode(entity, transform, ui)
+        const uiNode = this.getCachedUiNode(entity, transform, ui)
+        uiNode.x = this.options.container.clientWidth * ui.anchorX + transform.x
+        uiNode.y = this.options.container.clientHeight * ui.anchorY + transform.y
+        uiNode.rotation = transform.rotation
+        uiNode.scale.set(transform.scaleX, transform.scaleY)
+        uiNode.zIndex = transform.zIndex ?? 0
+        activeUiIds.add(entity.id)
         uiNodes.push(uiNode)
         continue
       }
       if (tilemap?.enabled) {
-        const tilemapNode = await this.createTilemapNode(entity.id, entity.name, transform, tilemap)
+        const tilemapNode = await this.getCachedTilemapNode(entity.id, entity.name, transform, tilemap)
+        if (version !== this.renderVersion) return
+        tilemapNode.x = transform.x
+        tilemapNode.y = transform.y
+        tilemapNode.rotation = transform.rotation
+        tilemapNode.scale.set(transform.scaleX, transform.scaleY)
+        tilemapNode.zIndex = transform.zIndex ?? 0
+        activeWorldIds.add(entity.id)
         worldNodes.push(tilemapNode)
         continue
       }
       if (!sprite) continue
 
-      const node = new Container()
+      const isBackgroundEntity = Boolean(background?.enabled || entity.name === 'Background')
+      const shouldFollowCamera = background ? !!background.followCamera : entity.name === 'Background'
+      const isCameraBoundBackground = isBackgroundEntity && shouldFollowCamera && !!cameraView
+      const node = isCameraBoundBackground
+        ? await this.getCachedBackdropNode(
+            entity.id,
+            sprite,
+            {
+              targetWidth: this.options.container.clientWidth,
+              targetHeight: this.options.container.clientHeight,
+              fitMode: background?.fitMode || 'cover'
+            },
+            transform,
+            entity.name
+          )
+        : await this.getCachedWorldSpriteNode(entity, transform, sprite, collider)
+      if (version !== this.renderVersion) return
+
       node.label = entity.id
-      node.x = transform.x
-      node.y = transform.y
+      if (isCameraBoundBackground) {
+        // Follow-camera backgrounds are rendered in a dedicated screen-space backdrop layer.
+        node.x = this.options.container.clientWidth / 2
+        node.y = this.options.container.clientHeight / 2
+        activeBackdropIds.add(entity.id)
+      } else {
+        node.x = transform.x
+        node.y = transform.y
+      }
       node.rotation = transform.rotation
       node.scale.set(transform.scaleX, transform.scaleY)
-      node.eventMode = 'static'
-      node.cursor = 'pointer'
-      node.zIndex = transform.zIndex ?? 0
-      node.on('pointerdown', (event: FederatedPointerEvent) => {
-        if (this.isPlaying) return
-        if (!this.isPlaying && this.activeTool === 'pan') {
-          this.gizmoMode = 'pan'
-          this.panState.lastX = event.global.x
-          this.panState.lastY = event.global.y
-          this.app.stage.cursor = 'grabbing'
-          event.stopPropagation()
-          return
-        }
-        this.options.onEntitySelected?.(entity.id)
-        this.selectedEntityId = entity.id
-        this.drawSelectionGizmo()
-        const local = event.getLocalPosition(this.world)
-        this.dragOffset.x = local.x - transform.x
-        this.dragOffset.y = local.y - transform.y
-        if (this.activeTool === 'move') {
-          this.gizmoMode = 'move'
-        }
-        event.stopPropagation()
-      })
-
-      const textureNode = await this.createSpriteNode(sprite)
-      if (version !== this.renderVersion) return
-      node.addChild(textureNode)
-
-      const showDebug = !this.isPlaying || this.playDebugEnabled
-      if (showDebug) {
-        const label = new Text({
-          text: entity.name,
-          style: { fill: '#ffffff', fontSize: 12 }
-        })
-        label.x = -sprite.width / 2
-        label.y = -sprite.height / 2 - 18
-        node.addChild(label)
+      if (!isCameraBoundBackground) {
+        node.eventMode = 'static'
+        node.cursor = 'pointer'
       }
+      node.zIndex = isBackgroundEntity ? -100000 + (transform.zIndex ?? 0) : (transform.zIndex ?? 0)
 
-      if (collider && showDebug) {
-        const colliderGfx = new Graphics()
-        colliderGfx.rect(
-          -collider.width / 2 + collider.offsetX,
-          -collider.height / 2 + collider.offsetY,
-          collider.width,
-          collider.height
-        )
-        colliderGfx.stroke({ color: 0x00d1ff, alpha: 0.9, width: 2 })
-        node.addChild(colliderGfx)
+      if (isCameraBoundBackground) {
+        backdropNodes.push(node)
+      } else {
+        activeWorldIds.add(entity.id)
+        worldNodes.push(node)
       }
-
-      worldNodes.push(node)
     }
 
     if (version !== this.renderVersion) return
 
-    const removableWorld = this.world.children.filter((child) => child.label !== 'grid')
-    removableWorld.forEach((child) => child.destroy())
+    for (const [id, cached] of this.backdropNodeCache.entries()) {
+      if (activeBackdropIds.has(id)) continue
+      cached.node.destroy({ children: true })
+      this.backdropNodeCache.delete(id)
+    }
+    for (const [id, cached] of this.worldNodeCache.entries()) {
+      if (activeWorldIds.has(id)) continue
+      cached.node.destroy({ children: true })
+      this.worldNodeCache.delete(id)
+    }
+    for (const [id, cached] of this.uiNodeCache.entries()) {
+      if (activeUiIds.has(id)) continue
+      cached.node.destroy({ children: true })
+      this.uiNodeCache.delete(id)
+    }
+
+    this.backdrop.removeChildren()
+    backdropNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).forEach((node) => this.backdrop.addChild(node))
+
+    this.world.removeChildren()
     worldNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).forEach((node) => this.world.addChild(node))
 
-    this.ui.removeChildren().forEach((child) => child.destroy())
+    this.ui.removeChildren()
     uiNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).forEach((node) => this.ui.addChild(node))
 
     this.drawGrid()
@@ -455,6 +499,30 @@ export class PixiRenderer {
       })
     }
 
+    return node
+  }
+
+  private getCachedUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
+    const signature = [
+      ui.mode,
+      ui.text,
+      ui.fontSize,
+      ui.textColor,
+      ui.width,
+      ui.height,
+      ui.backgroundColor,
+      ui.anchorX,
+      ui.anchorY,
+      ui.interactable,
+      ui.enabled,
+      transform.zIndex ?? 0
+    ].join('|')
+    const cached = this.uiNodeCache.get(entity.id)
+    if (cached && cached.signature === signature) return cached.node
+
+    const node = this.createUiNode(entity, transform, ui)
+    if (cached) cached.node.destroy({ children: true })
+    this.uiNodeCache.set(entity.id, { signature, node })
     return node
   }
 
@@ -547,6 +615,34 @@ export class PixiRenderer {
       label.y = -18
       node.addChild(label)
     }
+    return node
+  }
+
+  private async getCachedTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent) {
+    const textureMapSig = Object.entries(tilemap.tileTextureMap || {})
+      .map(([key, value]) => `${key}:${String(value || '').trim()}`)
+      .sort()
+      .join('|')
+    const signature = [
+      entityName,
+      tilemap.enabled,
+      tilemap.columns,
+      tilemap.rows,
+      tilemap.tileWidth,
+      tilemap.tileHeight,
+      tilemap.showCollision,
+      this.isPlaying ? 1 : 0,
+      this.playDebugEnabled ? 1 : 0,
+      textureMapSig,
+      tilemap.tiles.join(','),
+      tilemap.collision.join(',')
+    ].join('|')
+    const cached = this.worldNodeCache.get(entityId)
+    if (cached && cached.kind === 'tilemap' && cached.signature === signature) return cached.node
+
+    const node = await this.createTilemapNode(entityId, entityName, transform, tilemap)
+    if (cached) cached.node.destroy({ children: true })
+    this.worldNodeCache.set(entityId, { kind: 'tilemap', signature, node })
     return node
   }
 
@@ -657,14 +753,31 @@ export class PixiRenderer {
     return null
   }
 
-  private async createSpriteNode(sprite: SpriteComponent) {
+  private async createSpriteNode(
+    sprite: SpriteComponent,
+    options?: { targetWidth: number; targetHeight: number; fitMode: 'cover' | 'contain' }
+  ) {
     const texture = await this.resolveTexture(sprite.texturePath)
     if (texture) {
       const node = new Sprite(texture)
       node.visible = sprite.visible
       node.alpha = sprite.alpha
       node.anchor.set(0.5)
-      if (sprite.preserveAspect) {
+      if (options && options.targetWidth > 0 && options.targetHeight > 0) {
+        const sourceWidth = texture.width || sprite.width
+        const sourceHeight = texture.height || sprite.height
+        const scale = options.fitMode === 'contain'
+          ? Math.min(
+              options.targetWidth / Math.max(1, sourceWidth),
+              options.targetHeight / Math.max(1, sourceHeight)
+            )
+          : Math.max(
+              options.targetWidth / Math.max(1, sourceWidth),
+              options.targetHeight / Math.max(1, sourceHeight)
+            )
+        node.width = Math.max(1, Math.ceil(sourceWidth * scale))
+        node.height = Math.max(1, Math.ceil(sourceHeight * scale))
+      } else if (sprite.preserveAspect) {
         const sourceWidth = texture.width || sprite.width
         const sourceHeight = texture.height || sprite.height
         const fit = Math.min(sprite.width / Math.max(1, sourceWidth), sprite.height / Math.max(1, sourceHeight))
@@ -683,6 +796,98 @@ export class PixiRenderer {
     box.fill({ color: sprite.tint, alpha: sprite.alpha })
     box.stroke({ color: 0xffffff, alpha: 0.35, width: 1 })
     return box
+  }
+
+  private async getCachedWorldSpriteNode(
+    entity: Scene['entities'][number],
+    transform: TransformComponent,
+    sprite: SpriteComponent,
+    collider: ColliderComponent | undefined
+  ) {
+    const showDebug = !this.isPlaying || this.playDebugEnabled
+    const signature = [
+      entity.name,
+      sprite.texturePath,
+      sprite.width,
+      sprite.height,
+      sprite.visible,
+      sprite.alpha,
+      sprite.tint,
+      sprite.preserveAspect,
+      showDebug ? 1 : 0,
+      collider ? [collider.width, collider.height, collider.offsetX, collider.offsetY, collider.isTrigger ? 1 : 0].join(',') : 'no-collider'
+    ].join('|')
+
+    const cached = this.worldNodeCache.get(entity.id)
+    if (cached && cached.kind === 'sprite' && cached.signature === signature) return cached.node
+
+    const node = new Container()
+    node.label = entity.id
+    node.eventMode = 'static'
+    node.cursor = 'pointer'
+    node.on('pointerdown', (event: FederatedPointerEvent) => {
+      if (this.isPlaying) return
+      if (!this.isPlaying && this.activeTool === 'pan') {
+        this.gizmoMode = 'pan'
+        this.panState.lastX = event.global.x
+        this.panState.lastY = event.global.y
+        this.app.stage.cursor = 'grabbing'
+        event.stopPropagation()
+        return
+      }
+      this.options.onEntitySelected?.(entity.id)
+      this.selectedEntityId = entity.id
+      this.drawSelectionGizmo()
+      const local = event.getLocalPosition(this.world)
+      this.dragOffset.x = local.x - transform.x
+      this.dragOffset.y = local.y - transform.y
+      if (this.activeTool === 'move') {
+        this.gizmoMode = 'move'
+      }
+      event.stopPropagation()
+    })
+
+    const textureNode = await this.createSpriteNode(sprite)
+    node.addChild(textureNode)
+
+    if (showDebug) {
+      const label = new Text({
+        text: entity.name,
+        style: { fill: '#ffffff', fontSize: 12 }
+      })
+      label.x = -sprite.width / 2
+      label.y = -sprite.height / 2 - 18
+      node.addChild(label)
+    }
+
+    if (collider && showDebug) {
+      const colliderGfx = new Graphics()
+      colliderGfx.rect(
+        -collider.width / 2 + collider.offsetX,
+        -collider.height / 2 + collider.offsetY,
+        collider.width,
+        collider.height
+      )
+      colliderGfx.stroke({ color: 0x00d1ff, alpha: 0.9, width: 2 })
+      node.addChild(colliderGfx)
+    }
+
+    if (cached) cached.node.destroy({ children: true })
+    this.worldNodeCache.set(entity.id, { kind: 'sprite', signature, node })
+    return node
+  }
+
+  private getSceneCameraView(scene: Scene): CameraViewState | null {
+    const cameraEntity = this.findActiveCameraEntity(scene)
+    if (!cameraEntity) return null
+    const camera = cameraEntity.getComponent<CameraComponent>('Camera')
+    const transform = cameraEntity.getComponent<TransformComponent>('Transform')
+    if (!camera || !transform) return null
+    return {
+      x: transform.x,
+      y: transform.y,
+      zoom: Math.max(0.1, Math.min(5, camera.zoom || 1))
+    }
   }
 
   private async resolveTexture(texturePath: string) {
@@ -803,11 +1008,7 @@ export class PixiRenderer {
   }
 
   private updateCameraFromScene(scene: Scene) {
-    const cameraEntity = scene.entities.find((entity) => {
-      const camera = entity.getComponent<CameraComponent>('Camera')
-      const transform = entity.getComponent<TransformComponent>('Transform')
-      return !!camera && !!transform && camera.enabled
-    })
+    const cameraEntity = this.findActiveCameraEntity(scene)
     if (!cameraEntity) {
       this.resetCameraTransform()
       return
@@ -853,6 +1054,21 @@ export class PixiRenderer {
     this.world.position.set(worldX, worldY)
     this.overlay.scale.set(zoom)
     this.overlay.position.set(worldX, worldY)
+  }
+
+  private findActiveCameraEntity(scene: Scene) {
+    const candidates = scene.entities.filter((entity) => {
+      const camera = entity.getComponent<CameraComponent>('Camera')
+      const transform = entity.getComponent<TransformComponent>('Transform')
+      if (!camera || !transform || !camera.enabled) return false
+      // Background entities may carry a camera component for inspector tooling,
+      // but they should never drive the runtime viewport camera.
+      const background = entity.getComponent<BackgroundComponent>('Background')
+      return !background
+    })
+    if (!candidates.length) return null
+    const namedMain = candidates.find((entity) => entity.name === 'MainCamera')
+    return namedMain || candidates[0]
   }
 
   private resetCameraTransform() {
@@ -1028,7 +1244,94 @@ export class PixiRenderer {
     this.audioRuntime.stopAll()
     this.inputState.detach()
     this.resizeObserver?.disconnect()
+    this.cachedSceneRef = null
+    this.clearSceneNodeCaches()
     this.app?.destroy(true, { children: true })
+  }
+
+  private clearSceneNodeCaches() {
+    this.backdrop.removeChildren()
+    this.world.removeChildren()
+    this.ui.removeChildren()
+    for (const cached of this.backdropNodeCache.values()) cached.node.destroy({ children: true })
+    this.backdropNodeCache.clear()
+    for (const cached of this.worldNodeCache.values()) cached.node.destroy({ children: true })
+    this.worldNodeCache.clear()
+    for (const cached of this.uiNodeCache.values()) cached.node.destroy({ children: true })
+    this.uiNodeCache.clear()
+  }
+
+  private async getCachedBackdropNode(
+    entityId: string,
+    sprite: SpriteComponent,
+    options: { targetWidth: number; targetHeight: number; fitMode: 'cover' | 'contain' },
+    transform: TransformComponent,
+    entityName: string
+  ) {
+    const signature = [
+      sprite.texturePath,
+      sprite.width,
+      sprite.height,
+      sprite.alpha,
+      sprite.tint,
+      sprite.visible,
+      options.targetWidth,
+      options.targetHeight,
+      options.fitMode,
+      this.isPlaying ? 1 : 0,
+      this.playDebugEnabled ? 1 : 0,
+      transform.rotation,
+      transform.scaleX,
+      transform.scaleY
+    ].join('|')
+
+    const cached = this.backdropNodeCache.get(entityId)
+    if (cached && cached.signature === signature) {
+      return cached.node
+    }
+
+    const node = new Container()
+    node.label = entityId
+    node.eventMode = 'static'
+    node.cursor = 'pointer'
+    node.on('pointerdown', (event: FederatedPointerEvent) => {
+      if (this.isPlaying) return
+      if (!this.isPlaying && this.activeTool === 'pan') {
+        this.gizmoMode = 'pan'
+        this.panState.lastX = event.global.x
+        this.panState.lastY = event.global.y
+        this.app.stage.cursor = 'grabbing'
+        event.stopPropagation()
+        return
+      }
+      this.options.onEntitySelected?.(entityId)
+      this.selectedEntityId = entityId
+      this.drawSelectionGizmo()
+      if (this.activeTool === 'move') {
+        this.gizmoMode = 'move'
+      }
+      event.stopPropagation()
+    })
+
+    const textureNode = await this.createSpriteNode(sprite, options)
+    node.addChild(textureNode)
+
+    const showDebug = !this.isPlaying || this.playDebugEnabled
+    if (showDebug) {
+      const label = new Text({
+        text: entityName,
+        style: { fill: '#ffffff', fontSize: 12 }
+      })
+      label.x = -Math.max(40, options.targetWidth / 2) + 12
+      label.y = -Math.max(24, options.targetHeight / 2) + 8
+      node.addChild(label)
+    }
+
+    if (cached) {
+      cached.node.destroy({ children: true })
+    }
+    this.backdropNodeCache.set(entityId, { signature, node })
+    return node
   }
 }
 

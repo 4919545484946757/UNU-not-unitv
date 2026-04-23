@@ -1,6 +1,6 @@
 import { Component } from '../core/Component'
 
-export type InteractableActionType = 'none' | 'switchScene' | 'cycleTexture' | 'cycleTint'
+export type InteractableActionType = 'none' | 'switchScene' | 'cycleTexture' | 'cycleTint' | 'scripted'
 
 export class InteractableComponent extends Component {
   readonly type = 'Interactable'
@@ -16,4 +16,3 @@ export class InteractableComponent extends Component {
     super()
   }
 }
-

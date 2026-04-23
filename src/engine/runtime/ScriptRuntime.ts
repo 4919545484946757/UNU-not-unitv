@@ -1,6 +1,7 @@
 import { ScriptComponent } from '../components/ScriptComponent'
 import { AnimationComponent } from '../components/AnimationComponent'
 import type { AudioGroup } from '../components/AudioComponent'
+import { BackgroundComponent } from '../components/BackgroundComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
@@ -50,6 +51,7 @@ interface CollisionFrameCache {
 }
 
 const collisionFrameCacheByScene = new WeakMap<Scene, CollisionFrameCache>()
+const scriptConfigCache = new WeakMap<ScriptComponent, { raw: string; parsed: Record<string, unknown> | null }>()
 
 export interface ScriptContext {
   entity: Entity
@@ -64,6 +66,8 @@ export interface ScriptContext {
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
     switchScene: (sceneName: string) => void
+    setBackgroundTexture: (texturePath: string) => void
+    cycleBackgroundTexture: (texturePaths: string[]) => void
     isBlockedAt: (x: number, y: number) => boolean
     isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) => boolean
     audio: RuntimeAudio
@@ -76,6 +80,21 @@ export interface ScriptHooks {
   onUpdate?: (ctx: ScriptContext) => void
   onInteract?: (ctx: ScriptContext) => void
   onDestroy?: (ctx: ScriptContext) => void
+}
+
+interface InteractionScriptAction {
+  type?: string
+  target?: 'self' | string
+  scene?: string
+  path?: string
+  value?: number | string
+  values?: Array<number | string>
+  actions?: InteractionScriptAction[]
+}
+
+interface InteractionScriptDefinition {
+  onInteract?: InteractionScriptAction[]
+  actions?: InteractionScriptAction[]
 }
 
 const scriptRegistry: Record<string, ScriptHooks> = {
@@ -108,12 +127,16 @@ const scriptRegistry: Record<string, ScriptHooks> = {
     onUpdate: ({ entity, api }) => {
       const transform = entity.getTransform()
       if (!transform) return
-      const state = api.getState<{ facingBaseScaleX?: number }>(entity)
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const config = parseScriptConfigObject(script)
+      const state = api.getState<{ facingBaseScaleX?: number; lastFireTime?: number }>(entity)
       if (!Number.isFinite(state.facingBaseScaleX)) {
         state.facingBaseScaleX = Math.max(0.001, Math.abs(transform.scaleX || 1))
       }
       const collider = entity.getComponent<ColliderComponent>('Collider')
-      const speed = api.input.isActionDown('fire') ? 220 : 140
+      const moveSpeed = clampNumber(readConfigNumber(config, 'moveSpeed', 140), 1, 5000)
+      const sprintSpeed = clampNumber(readConfigNumber(config, 'sprintSpeed', 280), 1, 5000)
+      const speed = api.input.isActionDown('sprint') ? sprintSpeed : moveSpeed
       const move = api.input.getMoveVector(true)
       if (move.x > 1e-4) {
         transform.scaleX = -Math.abs(state.facingBaseScaleX || 1)
@@ -131,33 +154,63 @@ const scriptRegistry: Record<string, ScriptHooks> = {
         if (!api.isBlockedRect(transform.x + offsetX, nextY + offsetY, halfWidth, halfHeight)) transform.y = nextY
       }
 
-      if (!api.input.wasMousePressed(0)) return
+      const shootAction = readConfigString(config, 'shootAction', 'fire')
+      const fireCooldown = Math.max(0, readConfigNumber(config, 'fireCooldown', 0))
+      if (!api.input.wasActionPressed(shootAction)) return
+      if (fireCooldown > 0) {
+        const lastFireTime = Number(state.lastFireTime ?? -1e9)
+        if (api.time - lastFireTime < fireCooldown) return
+        state.lastFireTime = api.time
+      }
       const mouse = api.input.getMousePosition()
       const dx = mouse.x - transform.x
       const dy = mouse.y - transform.y
       const length = Math.hypot(dx, dy)
       if (length < 0.001) return
       const angle = Math.atan2(dy, dx)
-      api.spawnEntity(createBulletEntity(transform.x, transform.y, angle))
+      const bulletConfig = readConfigObject(config, 'bullet')
+      api.spawnEntity(createBulletEntity(transform.x, transform.y, angle, {
+        speed: readConfigNumber(bulletConfig, 'speed', 420),
+        life: readConfigNumber(bulletConfig, 'life', 2),
+        maxDistance: readConfigNumber(bulletConfig, 'maxDistance', 560),
+        width: readConfigNumber(bulletConfig, 'width', 20),
+        height: readConfigNumber(bulletConfig, 'height', 8),
+        tint: readConfigNumber(bulletConfig, 'tint', 0xf2f5ff)
+      }))
     }
   },
   'builtin://bullet-projectile': {
     onInit: ({ entity, api }) => {
-      const state = api.getState<{ vx?: number; vy?: number; life?: number }>(entity)
+      const state = api.getState<{ vx?: number; vy?: number; life?: number; originX?: number; originY?: number; maxDistance?: number }>(entity)
       const transform = entity.getTransform()
-      const speed = 420
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const config = parseScriptConfigObject(script)
+      const speed = clampNumber(readConfigNumber(config, 'speed', 420), 1, 10000)
       const angle = transform?.rotation ?? 0
       state.vx = Math.cos(angle) * speed
       state.vy = Math.sin(angle) * speed
-      state.life = 2
+      state.life = clampNumber(readConfigNumber(config, 'life', 2), 0.05, 120)
+      state.originX = transform?.x ?? 0
+      state.originY = transform?.y ?? 0
+      state.maxDistance = clampNumber(readConfigNumber(config, 'maxDistance', 560), 1, 200000)
     },
     onUpdate: ({ entity, scene, api }) => {
       const transform = entity.getTransform()
       const collider = entity.getComponent<ColliderComponent>('Collider')
       if (!transform || !collider) return
-      const state = api.getState<{ vx?: number; vy?: number; life?: number }>(entity)
+      const state = api.getState<{ vx?: number; vy?: number; life?: number; originX?: number; originY?: number; maxDistance?: number }>(entity)
       transform.x += Number(state.vx ?? 0) * api.delta
       transform.y += Number(state.vy ?? 0) * api.delta
+
+      const distance = Math.hypot(
+        transform.x - Number(state.originX ?? transform.x),
+        transform.y - Number(state.originY ?? transform.y)
+      )
+      if (distance >= Math.max(1, Number(state.maxDistance ?? 560))) {
+        api.removeEntity(entity)
+        return
+      }
+
       state.life = Number(state.life ?? 0) - api.delta
       if (Number(state.life ?? 0) <= 0) {
         api.removeEntity(entity)
@@ -321,8 +374,8 @@ const scriptRegistry: Record<string, ScriptHooks> = {
           'builtin://enemy-chase-respawn',
           `export default {
   onUpdate(ctx) {
-    // Enemy 持续追踪 Player
-    // 与 Player 接触后删除自身，并在随机位置生成新的 Enemy
+    // Enemy 鎸佺画杩借釜 Player
+    // 涓?Player 鎺ヨЕ鍚庡垹闄よ嚜韬紝骞跺湪闅忔満浣嶇疆鐢熸垚鏂扮殑 Enemy
   }
 }`,
           true
@@ -385,7 +438,7 @@ export class ScriptRuntime {
     for (const entity of scene.entities) {
       const script = entity.getComponent<ScriptComponent>('Script')
       if (!script || !script.enabled) continue
-      const hooks = scriptRegistry[script.scriptPath]
+      const hooks = this.resolveScriptHooks(script)
       script.instance = hooks ?? null
       if (!hooks || script.initialized) continue
       hooks.onInit?.(this.createContext(entity, 0))
@@ -472,6 +525,12 @@ export class ScriptRuntime {
           if (!name) return
           this.pendingSceneSwitch = name
         },
+        setBackgroundTexture: (texturePath: string) => {
+          this.setSceneBackgroundTexture(this.activeScene, texturePath)
+        },
+        cycleBackgroundTexture: (texturePaths: string[]) => {
+          this.cycleSceneBackgroundTexture(this.activeScene, texturePaths)
+        },
         isBlockedAt: (x: number, y: number) => isWorldBlocked(this.activeScene, x, y),
         isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) =>
           isWorldRectBlocked(this.activeScene, centerX, centerY, halfWidth, halfHeight),
@@ -519,7 +578,7 @@ export class ScriptRuntime {
         scene.addEntity(spawned)
         const script = spawned.getComponent<ScriptComponent>('Script')
         if (script && script.enabled) {
-          const hooks = scriptRegistry[script.scriptPath]
+          const hooks = this.resolveScriptHooks(script)
           script.instance = hooks ?? null
           if (hooks && !script.initialized) {
             hooks.onInit?.(this.createContext(spawned, 0))
@@ -552,6 +611,10 @@ export class ScriptRuntime {
   }
 
   private applyInteractableAction(scene: Scene, entity: Entity, interactable: InteractableComponent) {
+    if (interactable.actionType === 'scripted') {
+      return
+    }
+
     if (interactable.actionType === 'switchScene') {
       const target = String(interactable.targetScene || '').trim()
       if (target) this.pendingSceneSwitch = target
@@ -582,6 +645,185 @@ export class ScriptRuntime {
       state[key] = nextIndex
       sprite.tint = Math.max(0, Math.round(cycle[nextIndex]))
     }
+  }
+
+  private resolveScriptHooks(script: ScriptComponent) {
+    const builtinKey = resolveBuiltinScriptKey(script.scriptPath)
+    const builtinHooks = builtinKey ? scriptRegistry[builtinKey] ?? null : null
+    const customHooks = this.buildCustomInteractionHooks(script.sourceCode)
+    if (!builtinHooks && !customHooks) return null
+    if (!builtinHooks) return customHooks
+    if (!customHooks) return builtinHooks
+    return {
+      onInit: customHooks.onInit ?? builtinHooks.onInit,
+      onStart: customHooks.onStart ?? builtinHooks.onStart,
+      onUpdate: customHooks.onUpdate ?? builtinHooks.onUpdate,
+      onInteract: customHooks.onInteract ?? builtinHooks.onInteract,
+      onDestroy: customHooks.onDestroy ?? builtinHooks.onDestroy
+    }
+  }
+
+  private buildCustomInteractionHooks(sourceCode: string): ScriptHooks | null {
+    const parsed = parseInteractionScriptDefinition(sourceCode)
+    if (!parsed) return null
+    const actions = normalizeInteractionActionList(parsed.onInteract ?? parsed.actions ?? [])
+    if (!actions.length) return null
+    return {
+      onInteract: (ctx) => {
+        this.runInteractionActions(actions, ctx.scene, ctx.entity)
+      }
+    }
+  }
+
+  private runInteractionActions(actions: InteractionScriptAction[], scene: Scene, self: Entity) {
+    for (const action of actions) {
+      this.runInteractionAction(action, scene, self)
+    }
+  }
+
+  private runInteractionAction(action: InteractionScriptAction, scene: Scene, self: Entity) {
+    const type = String(action.type || '').trim()
+    if (!type) return
+
+    if (type === 'sequence') {
+      const actions = normalizeInteractionActionList(action.actions || [])
+      this.runInteractionActions(actions, scene, self)
+      return
+    }
+
+    if (type === 'randomOne') {
+      const actions = normalizeInteractionActionList(action.actions || [])
+      if (!actions.length) return
+      const picked = actions[Math.floor(Math.random() * actions.length)]
+      if (picked) this.runInteractionAction(picked, scene, self)
+      return
+    }
+
+    const target = this.resolveInteractionTarget(scene, self, action.target)
+    if (!target) return
+
+    if (type === 'switchScene') {
+      const targetScene = String(action.scene || '').trim()
+      if (targetScene) this.pendingSceneSwitch = targetScene
+      return
+    }
+
+    if (type === 'setBackgroundTexture') {
+      const path = String(action.path || '').trim()
+      if (!path) return
+      this.setSceneBackgroundTexture(scene, path)
+      return
+    }
+
+    if (type === 'cycleBackgroundTexture') {
+      const paths = (action.values || []).map((item) => String(item || '').trim()).filter(Boolean)
+      this.cycleSceneBackgroundTexture(scene, paths)
+      return
+    }
+
+    if (type === 'setTexture') {
+      const sprite = target.getComponent<SpriteComponent>('Sprite')
+      const path = String(action.path || '').trim()
+      if (!sprite || !path) return
+      sprite.texturePath = path
+      return
+    }
+
+    if (type === 'cycleTexture') {
+      const sprite = target.getComponent<SpriteComponent>('Sprite')
+      const cycle = (action.values || []).map((item) => String(item || '').trim()).filter(Boolean)
+      if (!sprite || !cycle.length) return
+      const state = this.ensureEntityState(target)
+      const key = `__custom_cycle_texture_${target.id}`
+      const current = Number(state[key] ?? -1)
+      const nextIndex = (current + 1 + cycle.length) % cycle.length
+      state[key] = nextIndex
+      sprite.texturePath = cycle[nextIndex]
+      return
+    }
+
+    if (type === 'setTint') {
+      const sprite = target.getComponent<SpriteComponent>('Sprite')
+      if (!sprite) return
+      const parsed = parseNumericValue(action.value)
+      if (parsed === null) return
+      sprite.tint = Math.max(0, Math.round(parsed))
+      return
+    }
+
+    if (type === 'cycleTint') {
+      const sprite = target.getComponent<SpriteComponent>('Sprite')
+      const cycle = (action.values || []).map((item) => parseNumericValue(item)).filter((item): item is number => item !== null)
+      if (!sprite || !cycle.length) return
+      const state = this.ensureEntityState(target)
+      const key = `__custom_cycle_tint_${target.id}`
+      const current = Number(state[key] ?? -1)
+      const nextIndex = (current + 1 + cycle.length) % cycle.length
+      state[key] = nextIndex
+      sprite.tint = Math.max(0, Math.round(cycle[nextIndex]))
+      return
+    }
+
+    if (type === 'toggleVisible') {
+      const sprite = target.getComponent<SpriteComponent>('Sprite')
+      if (!sprite) return
+      sprite.visible = !sprite.visible
+      return
+    }
+
+    if (type === 'setInteractDistance') {
+      const interactable = target.getComponent<InteractableComponent>('Interactable')
+      const parsed = parseNumericValue(action.value)
+      if (!interactable || parsed === null) return
+      interactable.interactDistance = Math.max(0, parsed)
+      return
+    }
+
+    if (type === 'removeEntity') {
+      this.pendingRemovals.add(target.id)
+    }
+  }
+
+  private resolveInteractionTarget(scene: Scene, self: Entity, rawTarget?: string) {
+    const target = String(rawTarget || 'self').trim()
+    if (!target || target === 'self') return self
+    if (target === 'selected') return scene.getEntityById(this.selectedEntityId) ?? null
+    if (target.startsWith('id:')) return scene.getEntityById(target.slice(3).trim()) ?? null
+    return scene.entities.find((entity) => entity.name === target) ?? null
+  }
+
+  private findSceneBackgroundEntity(scene: Scene | null) {
+    if (!scene) return null
+    const withComponent = scene.entities.find((entity) => {
+      const background = entity.getComponent<BackgroundComponent>('Background')
+      return !!background?.enabled
+    })
+    if (withComponent) return withComponent
+    return scene.entities.find((entity) => entity.name === 'Background') || null
+  }
+
+  private setSceneBackgroundTexture(scene: Scene | null, texturePath: string) {
+    const path = String(texturePath || '').trim()
+    if (!scene || !path) return
+    const target = this.findSceneBackgroundEntity(scene)
+    const sprite = target?.getComponent<SpriteComponent>('Sprite')
+    if (!sprite) return
+    sprite.texturePath = path
+  }
+
+  private cycleSceneBackgroundTexture(scene: Scene | null, texturePaths: string[]) {
+    if (!scene) return
+    const paths = (texturePaths || []).map((item) => String(item || '').trim()).filter(Boolean)
+    if (!paths.length) return
+    const target = this.findSceneBackgroundEntity(scene)
+    const sprite = target?.getComponent<SpriteComponent>('Sprite')
+    if (!target || !sprite) return
+    const state = this.ensureEntityState(target)
+    const key = '__scene_background_cycle_index'
+    const current = Number(state[key] ?? -1)
+    const nextIndex = (current + 1 + paths.length) % paths.length
+    state[key] = nextIndex
+    sprite.texturePath = paths[nextIndex]
   }
 
   private isPointerInsideEntity(entity: Entity, pointerX: number, pointerY: number) {
@@ -680,6 +922,102 @@ export class ScriptRuntime {
     }
     return null
   }
+}
+
+function parseInteractionScriptDefinition(sourceCode: string): InteractionScriptDefinition | null {
+  const trimmed = String(sourceCode || '').trim()
+  if (!trimmed) return null
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
+  try {
+    const parsed = JSON.parse(trimmed) as unknown
+    if (Array.isArray(parsed)) return { onInteract: parsed as InteractionScriptAction[] }
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed as InteractionScriptDefinition
+  } catch {
+    return null
+  }
+}
+
+function normalizeInteractionActionList(input: unknown): InteractionScriptAction[] {
+  if (!Array.isArray(input)) return []
+  return input.filter((item) => item && typeof item === 'object') as InteractionScriptAction[]
+}
+
+function parseNumericValue(input: unknown) {
+  if (typeof input === 'number' && Number.isFinite(input)) return input
+  if (typeof input !== 'string') return null
+  const text = input.trim()
+  if (!text) return null
+  if (/^0x[0-9a-f]+$/i.test(text)) {
+    const parsedHex = Number.parseInt(text.slice(2), 16)
+    return Number.isFinite(parsedHex) ? parsedHex : null
+  }
+  const parsed = Number(text)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function parseScriptConfigObject(script?: ScriptComponent | null) {
+  if (!script) return null
+  const raw = String(script.sourceCode || '').trim()
+  if (!raw.startsWith('{')) return null
+  const cached = scriptConfigCache.get(script)
+  if (cached && cached.raw === raw) return cached.parsed
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const normalized = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : null
+    scriptConfigCache.set(script, { raw, parsed: normalized })
+    return normalized
+  } catch {
+    scriptConfigCache.set(script, { raw, parsed: null })
+    return null
+  }
+}
+
+function readConfigNumber(config: Record<string, unknown> | null, key: string, fallback: number) {
+  if (!config) return fallback
+  const value = config[key]
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value !== 'string') return fallback
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function readConfigString(config: Record<string, unknown> | null, key: string, fallback: string) {
+  if (!config) return fallback
+  const value = config[key]
+  if (typeof value !== 'string') return fallback
+  const text = value.trim()
+  return text || fallback
+}
+
+function readConfigObject(config: Record<string, unknown> | null, key: string) {
+  if (!config) return null
+  const value = config[key]
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
+}
+
+function resolveBuiltinScriptKey(scriptPath: string) {
+  const normalized = String(scriptPath || '').trim().replace(/\\/g, '/')
+  if (!normalized) return ''
+  if (scriptRegistry[normalized]) return normalized
+
+  const aliases: Record<string, string> = {
+    'assets/scripts/player-input.js': 'builtin://player-input',
+    'assets/scripts/bullet-projectile.js': 'builtin://bullet-projectile',
+    'assets/scripts/patrol.js': 'builtin://patrol',
+    'assets/scripts/orbit-around-chest.js': 'builtin://orbit-around-chest',
+    'assets/scripts/spin.js': 'builtin://spin',
+    'assets/scripts/enemy-chase-respawn.js': 'builtin://enemy-chase-respawn'
+  }
+  return aliases[normalized] || ''
 }
 
 function randomInRange(min: number, max: number) {
@@ -839,20 +1177,28 @@ function isWorldRectBlocked(
   return false
 }
 
-function createBulletEntity(x: number, y: number, angle: number) {
+function createBulletEntity(
+  x: number,
+  y: number,
+  angle: number,
+  config?: { speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number }
+) {
+  const width = clampNumber(Number(config?.width ?? 20), 1, 2048)
+  const height = clampNumber(Number(config?.height ?? 8), 1, 2048)
+  const tint = Math.max(0, Math.round(Number(config?.tint ?? 0xf2f5ff)))
+  const scriptConfig = {
+    speed: clampNumber(Number(config?.speed ?? 420), 1, 10000),
+    life: clampNumber(Number(config?.life ?? 2), 0.05, 120),
+    maxDistance: clampNumber(Number(config?.maxDistance ?? 560), 1, 200000)
+  }
   const bullet = new Entity(`bullet_${Math.random().toString(36).slice(2, 8)}`, 'Bullet')
   bullet.addComponent(new TransformComponent(x, y, 1, 1, angle, 0.5, 0.5))
-  bullet.addComponent(new SpriteComponent('', 20, 8, true, 1, 0xf2f5ff))
-  bullet.addComponent(new ColliderComponent('rect', 20, 8))
+  bullet.addComponent(new SpriteComponent('', width, height, true, 1, tint))
+  bullet.addComponent(new ColliderComponent('rect', width, height))
   bullet.addComponent(
     new ScriptComponent(
-      'builtin://bullet-projectile',
-      `export default {
-  onInit(ctx) {
-    // 子弹从 player 位置发射，朝鼠标点击方向飞行
-  },
-  onUpdate(ctx) {}
-}`
+      'assets/scripts/bullet-projectile.js',
+      JSON.stringify(scriptConfig, null, 2)
     )
   )
   return bullet
@@ -925,11 +1271,10 @@ function createEnemyEntityAt(
   }
   enemy.addComponent(
     new ScriptComponent(
-      'builtin://enemy-chase-respawn',
+      'assets/scripts/enemy-chase-respawn.js',
       `export default {
   onUpdate(ctx) {
-    // 敌人追踪玩家，被子弹命中后重生
-  }
+    // 鏁屼汉杩借釜鐜╁锛岃瀛愬脊鍛戒腑鍚庨噸鐢?  }
 }`
     )
   )
@@ -946,3 +1291,5 @@ function randomSpawnAwayFrom(x: number, y: number, minDistance: number) {
   }
   return { x: randomInRange(-420, 420), y: randomInRange(-240, 240) }
 }
+
+

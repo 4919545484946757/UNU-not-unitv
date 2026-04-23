@@ -2,6 +2,7 @@
   <div class="inspector">
     <template v-if="entity && transform">
       <h3>{{ entity.name }}</h3>
+      <div v-if="runtime.isPlaying" class="tips">播放态为只读同步预览（显示运行时实体状态），停止播放后可编辑。</div>
 
       <div class="group">
         <div class="group-title">Basic</div>
@@ -35,6 +36,35 @@
           <input type="checkbox" :checked="sprite.visible" @change="setChecked('sprite', 'visible', $event)" />
           Visible
         </label>
+      </div>
+
+      <div class="group">
+        <div class="group-title">Background</div>
+        <template v-if="background">
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="background.enabled" @change="setChecked('background', 'enabled', $event)" />
+            Enabled
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="background.followCamera" @change="setChecked('background', 'followCamera', $event)" />
+            Follow Camera
+          </label>
+          <label>
+            Fit Mode
+            <select :value="background.fitMode" @change="setBackgroundFitMode">
+              <option value="cover">cover</option>
+              <option value="contain">contain</option>
+            </select>
+          </label>
+          <div class="asset-picker">
+            <button @click="void applySelectedImageToBackground()">Use Selected Image As Background</button>
+            <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : 'Select an image in Asset Tree first' }}</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="tips">Current entity does not have Background component.</div>
+          <button class="small" @click="addBackgroundComponent">Add Background Component</button>
+        </template>
       </div>
 
       <div class="group" v-if="animation || sprite">
@@ -206,6 +236,7 @@
               <option value="switchScene">switchScene</option>
               <option value="cycleTexture">cycleTexture</option>
               <option value="cycleTint">cycleTint</option>
+              <option value="scripted">scripted</option>
             </select>
           </label>
           <label v-if="interactable.actionType === 'switchScene'">
@@ -220,6 +251,10 @@
             Tint Cycle (decimal or 0xhex, one per line)
             <textarea :value="interactableTintCycleBuffer" @input="setInteractableTintCycle($event)"></textarea>
           </label>
+          <template v-if="interactable.actionType === 'scripted'">
+            <div class="tips">Use Script component + JSON actions to define interaction behavior.</div>
+            <button class="small" @click="ensureInteractionScript">Create/Reset Interaction Script Template</button>
+          </template>
         </template>
         <template v-else>
           <div class="tips">Current entity does not have Interactable component.</div>
@@ -363,29 +398,44 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { AnimationComponent } from '../../engine/components/AnimationComponent'
 import { AudioComponent } from '../../engine/components/AudioComponent'
+import { BackgroundComponent } from '../../engine/components/BackgroundComponent'
 import { CameraComponent } from '../../engine/components/CameraComponent'
 import type { ColliderComponent } from '../../engine/components/ColliderComponent'
 import { InteractableComponent } from '../../engine/components/InteractableComponent'
+import { ScriptComponent } from '../../engine/components/ScriptComponent'
 import type { SpriteComponent } from '../../engine/components/SpriteComponent'
 import { TilemapComponent } from '../../engine/components/TilemapComponent'
 import type { TransformComponent } from '../../engine/components/TransformComponent'
 import { UIComponent } from '../../engine/components/UIComponent'
 import { useAssetStore } from '../../stores/assets'
 import { useProjectStore } from '../../stores/project'
+import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
 
 const assets = useAssetStore()
 const project = useProjectStore()
+const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
 
-const entity = computed(() => sceneStore.currentScene?.getEntityById(selection.selectedEntityId) ?? null)
+const activeScene = computed(() => {
+  if (runtime.isPlaying && sceneStore.runtimeScene) {
+    const _tick = sceneStore.runtimeRevision
+    void _tick
+    return sceneStore.runtimeScene
+  }
+  return sceneStore.currentScene
+})
+
+const entity = computed(() => activeScene.value?.getEntityById(selection.selectedEntityId) ?? null)
 const transform = computed(() => entity.value?.getComponent<TransformComponent>('Transform') ?? null)
 const sprite = computed(() => entity.value?.getComponent<SpriteComponent>('Sprite') ?? null)
+const background = computed(() => entity.value?.getComponent<BackgroundComponent>('Background') ?? null)
 const animation = computed(() => entity.value?.getComponent<AnimationComponent>('Animation') ?? null)
 const collider = computed(() => entity.value?.getComponent<ColliderComponent>('Collider') ?? null)
 const interactable = computed(() => entity.value?.getComponent<InteractableComponent>('Interactable') ?? null)
+const script = computed(() => entity.value?.getComponent<ScriptComponent>('Script') ?? null)
 const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camera') ?? null)
 const audio = computed(() => entity.value?.getComponent<AudioComponent>('Audio') ?? null)
 const ui = computed(() => entity.value?.getComponent<UIComponent>('UI') ?? null)
@@ -487,12 +537,14 @@ watch(
 )
 
 function setEntityName(value: string) {
+  if (runtime.isPlaying) return
   if (!entity.value) return
   entity.value.name = value
   sceneStore.markDirty()
 }
 
 function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
+  if (runtime.isPlaying) return
   const value = Number((event.target as HTMLInputElement).value)
   if (group === 'transform' && transform.value) (transform.value as Record<string, number>)[key] = value
   if (group === 'sprite' && sprite.value) (sprite.value as Record<string, number>)[key] = value
@@ -507,6 +559,7 @@ function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'c
 }
 
 function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', key: string, event: Event) {
+  if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).value
   if (group === 'sprite' && sprite.value) (sprite.value as Record<string, string>)[key] = value
   if (group === 'camera' && camera.value) (camera.value as Record<string, string>)[key] = value
@@ -517,6 +570,7 @@ function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', k
 }
 
 function setHexNumber(group: 'ui', key: string, event: Event) {
+  if (runtime.isPlaying) return
   const raw = (event.target as HTMLInputElement).value.trim()
   const normalized = raw.startsWith('0x') || raw.startsWith('0X') ? raw.slice(2) : raw.replace('#', '')
   const parsed = Number.parseInt(normalized, 16)
@@ -525,9 +579,11 @@ function setHexNumber(group: 'ui', key: string, event: Event) {
   sceneStore.markDirty()
 }
 
-function setChecked(group: 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
+function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
+  if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).checked
   if (group === 'sprite' && sprite.value) (sprite.value as Record<string, boolean>)[key] = value
+  if (group === 'background' && background.value) (background.value as unknown as Record<string, boolean>)[key] = value
   if (group === 'collider' && collider.value) (collider.value as Record<string, boolean>)[key] = value
   if (group === 'animation' && animation.value) (animation.value as Record<string, boolean>)[key] = value
   if (group === 'camera' && camera.value) (camera.value as Record<string, boolean>)[key] = value
@@ -538,9 +594,100 @@ function setChecked(group: 'sprite' | 'collider' | 'animation' | 'camera' | 'aud
   sceneStore.markDirty()
 }
 
+function setInteractableActionType(event: Event) {
+  if (runtime.isPlaying) return
+  if (!interactable.value) return
+  const value = (event.target as HTMLSelectElement).value
+  if (value === 'switchScene' || value === 'cycleTexture' || value === 'cycleTint' || value === 'scripted' || value === 'none') {
+    interactable.value.actionType = value
+    sceneStore.markDirty()
+  }
+}
+
+function setInteractableTextureCycle(event: Event) {
+  if (runtime.isPlaying) return
+  if (!interactable.value) return
+  const rows = (event.target as HTMLTextAreaElement).value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+  interactableTextureCycleBuffer.value = rows.join('\n')
+  interactable.value.textureCycle = rows
+  sceneStore.markDirty()
+}
+
+function setInteractableTintCycle(event: Event) {
+  if (runtime.isPlaying) return
+  if (!interactable.value) return
+  const rows = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
+  const parsed = rows
+    .map((value) => {
+      if (/^0x[0-9a-f]+$/i.test(value)) return Number.parseInt(value.slice(2), 16)
+      const n = Number(value)
+      return Number.isFinite(n) ? Math.round(n) : null
+    })
+    .filter((value): value is number => value !== null)
+  interactableTintCycleBuffer.value = rows.join('\n')
+  interactable.value.tintCycle = parsed
+  sceneStore.markDirty()
+}
+
+function addInteractableComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || interactable.value) return
+  entity.value.addComponent(new InteractableComponent(true, 180, 'none'))
+  sceneStore.markDirty()
+}
+
+function ensureInteractionScript() {
+  if (runtime.isPlaying) return
+  if (!entity.value) return
+  const template = `{
+  "onInteract": [
+    {
+      "type": "cycleTint",
+      "target": "self",
+      "values": [16777215, 16762880, 9293460, 7979007]
+    }
+  ]
+}`
+  let component = script.value
+  if (!component) {
+    component = new ScriptComponent('custom://interaction', template, true)
+    entity.value.addComponent(component)
+  } else {
+    component.scriptPath = component.scriptPath || 'custom://interaction'
+    component.sourceCode = template
+    component.enabled = true
+    component.instance = null
+    component.initialized = false
+    component.started = false
+  }
+  sceneStore.markDirty()
+}
+
 function setAnimationFrames(event: Event) {
+  if (runtime.isPlaying) return
   if (!animation.value) return
   animation.value.framePaths = (event.target as HTMLTextAreaElement).value.split('\n').map((line) => line.trim()).filter(Boolean)
+  sceneStore.markDirty()
+}
+
+function setBackgroundFitMode(event: Event) {
+  if (runtime.isPlaying) return
+  if (!background.value) return
+  const value = (event.target as HTMLSelectElement).value
+  background.value.fitMode = value === 'contain' ? 'contain' : 'cover'
+  sceneStore.markDirty()
+}
+
+function addBackgroundComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || background.value) return
+  entity.value.addComponent(new BackgroundComponent(true, true, 'cover'))
+  if (!sprite.value) {
+    entity.value.addComponent(new SpriteComponent('assets/images/pixel/background/background-img.png', 1539, 1022, true, 1, 0xffffff, false))
+  }
   sceneStore.markDirty()
 }
 
@@ -822,6 +969,7 @@ function setAnimationTransitionExitTime(index: number, event: Event) {
 }
 
 async function applySelectedImage() {
+  if (runtime.isPlaying) return
   if (!sprite.value || assets.selectedAsset?.type !== 'image') return
   sprite.value.texturePath = assets.selectedAsset.path
   const imageSize = await assets.ensureImageSize(assets.selectedAsset.path)
@@ -834,12 +982,14 @@ async function applySelectedImage() {
 }
 
 function appendSelectedImageToAnimation() {
+  if (runtime.isPlaying) return
   if (!animation.value || assets.selectedAsset?.type !== 'image') return
   animation.value.framePaths = [...animation.value.framePaths, assets.selectedAsset.path]
   sceneStore.markDirty()
 }
 
 function addAnimationComponent() {
+  if (runtime.isPlaying) return
   if (!entity.value) return
   entity.value.addComponent(
     new AnimationComponent(
@@ -893,6 +1043,7 @@ function parseTilemapText(text: string, rows: number, cols: number) {
 }
 
 function applyTilemapBuffer(kind: 'tiles' | 'collision') {
+  if (runtime.isPlaying) return
   if (!tilemap.value) return
   const source = kind === 'tiles' ? tilemapTilesBuffer.value : tilemapCollisionBuffer.value
   const parsed = parseTilemapText(source, tilemap.value.rows, tilemap.value.columns)
@@ -902,6 +1053,7 @@ function applyTilemapBuffer(kind: 'tiles' | 'collision') {
 }
 
 function resizeTilemapData() {
+  if (runtime.isPlaying) return
   if (!tilemap.value) return
   tilemap.value.columns = Math.max(1, Math.round(tilemap.value.columns))
   tilemap.value.rows = Math.max(1, Math.round(tilemap.value.rows))
@@ -942,6 +1094,7 @@ function tileTextureMapToText(map: Record<number, string> | undefined) {
 }
 
 function applyTileTextureMapBuffer() {
+  if (runtime.isPlaying) return
   if (!tilemap.value) return
   const map: Record<number, string> = {}
   for (const rawLine of tileTextureMapBuffer.value.split('\n')) {
@@ -958,6 +1111,7 @@ function applyTileTextureMapBuffer() {
 }
 
 function bindSelectedImageToTileValue() {
+  if (runtime.isPlaying) return
   if (!tilemap.value || assets.selectedAsset?.type !== 'image') return
   const raw = window.prompt('输入要绑定的 Tile 数值（正整数）', '1')
   if (!raw) return
@@ -968,7 +1122,23 @@ function bindSelectedImageToTileValue() {
   sceneStore.markDirty()
 }
 
+async function applySelectedImageToBackground() {
+  if (runtime.isPlaying) return
+  if (assets.selectedAsset?.type !== 'image') return
+  if (!entity.value) return
+  if (!sprite.value) {
+    entity.value.addComponent(new SpriteComponent(assets.selectedAsset.path, 1539, 1022, true, 1, 0xffffff, false))
+  } else {
+    sprite.value.texturePath = assets.selectedAsset.path
+  }
+  if (!background.value) {
+    entity.value.addComponent(new BackgroundComponent(true, true, 'cover'))
+  }
+  sceneStore.markDirty()
+}
+
 async function openTilemapEditor(mode: 'tiles' | 'collision') {
+  if (runtime.isPlaying) return
   if (!tilemap.value || !entity.value) return
   if (!window.unu?.openTilemapEditor) {
     project.setStatus('当前环境未接入 Tilemap 子窗口编辑器，请使用桌面版运行。')
@@ -995,24 +1165,28 @@ async function openTilemapEditor(mode: 'tiles' | 'collision') {
 }
 
 function addTilemapComponent() {
+  if (runtime.isPlaying) return
   if (!entity.value || tilemap.value) return
   entity.value.addComponent(new TilemapComponent(true, 12, 8, 48, 48))
   sceneStore.markDirty()
 }
 
 function setUIMode(event: Event) {
+  if (runtime.isPlaying) return
   if (!ui.value) return
   ui.value.mode = (event.target as HTMLSelectElement).value === 'button' ? 'button' : 'text'
   sceneStore.markDirty()
 }
 
 function addUIComponent() {
+  if (runtime.isPlaying) return
   if (!entity.value || ui.value) return
   entity.value.addComponent(new UIComponent(true, 'text', 'UI Text', 20, 0xffffff, 180, 48, 0x2b3242, 0.5, 0.5, true))
   sceneStore.markDirty()
 }
 
 function setAudioGroup(event: Event) {
+  if (runtime.isPlaying) return
   if (!audio.value) return
   const next = (event.target as HTMLSelectElement).value
   audio.value.group = next === 'bgm' || next === 'ui' ? next : 'sfx'
@@ -1020,18 +1194,21 @@ function setAudioGroup(event: Event) {
 }
 
 async function applySelectedAudio() {
+  if (runtime.isPlaying) return
   if (!audio.value || assets.selectedAsset?.type !== 'audio') return
   audio.value.clipPath = assets.selectedAsset.path
   sceneStore.markDirty()
 }
 
 function addAudioComponent() {
+  if (runtime.isPlaying) return
   if (!entity.value || audio.value) return
   entity.value.addComponent(new AudioComponent(true, '', 'sfx', 1, false, false, false))
   sceneStore.markDirty()
 }
 
 function addCameraComponent() {
+  if (runtime.isPlaying) return
   if (!entity.value || camera.value) return
   entity.value.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
   sceneStore.markDirty()

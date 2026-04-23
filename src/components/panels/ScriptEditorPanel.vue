@@ -28,7 +28,9 @@
 
     <div class="tips">
       运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
-      脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`。
+      `builtin://player-input` 与 `builtin://bullet-projectile` 支持直接填写 JSON 配置（如移动速度、疾跑速度、疾跑动画倍速、子弹速度/寿命/射程）。
+      脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
+      交互物体支持 JSON 交互脚本（`custom://interaction`）：`switchScene`、`setBackgroundTexture`、`cycleBackgroundTexture`、`setTexture`、`cycleTexture`、`setTint`、`cycleTint`、`toggleVisible`、`setInteractDistance`、`removeEntity`、`sequence`、`randomOne`。
       <span v-if="mode === 'asset' && !canSaveAsset">当前为示例工程（内存资源）或非桌面环境，脚本文件不可直接保存。</span>
     </div>
   </div>
@@ -63,7 +65,7 @@ const mode = computed<'entity' | 'asset' | 'none'>(() => {
   return 'none'
 })
 
-const defaultTemplate = `export default {
+const defaultJsTemplate = `export default {
   onInit(ctx) {},
   onStart(ctx) {},
   onUpdate(ctx) {
@@ -73,27 +75,50 @@ const defaultTemplate = `export default {
   onDestroy(ctx) {}
 }`
 
-const builtinScriptTemplates: Record<string, string> = {
-  'assets/scripts/player-input.js': `export default {
-  onUpdate(ctx) {
-    const transform = ctx.entity.getTransform()
-    if (!transform) return
-    const speed = 140
-    const move = ctx.api.input.getMoveVector(true)
-    transform.x += move.x * speed * ctx.api.delta
-    transform.y += move.y * speed * ctx.api.delta
-    if (ctx.api.input.wasMousePressed(0)) {
-      // 左键点击触发射击（由内置运行时生成子弹）
+const interactionDslTemplate = `{
+  "onInteract": [
+    {
+      "type": "cycleTint",
+      "target": "self",
+      "values": [16777215, 16762880, 9293460, 7979007]
     }
+  ]
+}`
+
+const defaultTemplate = computed(() => {
+  const path = script.value?.scriptPath || selectedTextAssetPath.value || ''
+  if (path.startsWith('custom://interaction') || path.includes('interaction')) {
+    return interactionDslTemplate
+  }
+  if (path.includes('builtin://player-input') || path.endsWith('/player-input.js')) {
+    return builtinScriptTemplates['assets/scripts/player-input.js']
+  }
+  if (path.includes('builtin://bullet-projectile') || path.endsWith('/bullet-projectile.js')) {
+    return builtinScriptTemplates['assets/scripts/bullet-projectile.js']
+  }
+  return defaultJsTemplate
+})
+
+const builtinScriptTemplates: Record<string, string> = {
+  'assets/scripts/player-input.js': `{
+  "moveSpeed": 140,
+  "sprintSpeed": 280,
+  "runAnimationMultiplierWhenSprint": 2,
+  "shootAction": "fire",
+  "fireCooldown": 0,
+  "bullet": {
+    "speed": 420,
+    "life": 2,
+    "maxDistance": 560,
+    "width": 20,
+    "height": 8,
+    "tint": 15922687
   }
 }`,
-  'assets/scripts/bullet-projectile.js': `export default {
-  onInit(ctx) {
-    // 子弹从 player 位置发射，朝鼠标点击方向飞行
-  },
-  onUpdate(ctx) {
-    // 子弹命中 Enemy 后，Enemy 被销毁并随机重生
-  }
+  'assets/scripts/bullet-projectile.js': `{
+  "speed": 420,
+  "life": 2,
+  "maxDistance": 560
 }`,
   'assets/scripts/patrol.js': `export default {
   onInit(ctx) {
@@ -171,7 +196,7 @@ const canSaveAsset = computed(() => {
 
 const editorText = computed({
   get: () => {
-    if (mode.value === 'entity') return script.value?.sourceCode ?? defaultTemplate
+    if (mode.value === 'entity') return script.value?.sourceCode ?? defaultTemplate.value
     if (mode.value === 'asset') return assetScriptText.value
     return ''
   },
@@ -190,6 +215,7 @@ const editorText = computed({
 const currentLanguage = computed<'js' | 'json' | 'plain'>(() => {
   const path = mode.value === 'asset' ? selectedTextAssetPath.value : script.value?.scriptPath || ''
   const lower = path.toLowerCase()
+  if (lower.includes('custom://interaction') || lower.includes('interaction')) return 'json'
   if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.includes('builtin://')) return 'js'
   if (lower.endsWith('.json') || lower.endsWith('.anim') || lower.endsWith('.atlas')) return 'json'
   return 'plain'
@@ -231,13 +257,13 @@ async function loadAssetScript(relativePath: string) {
     assetFilePath.value = ''
 
     if (!window.unu?.readTextAsset || project.rootPath === 'sample-project') {
-      assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate
+      assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
       return
     }
 
     const result = await window.unu.readTextAsset({ projectRoot: project.rootPath, relativePath })
     if (!result) {
-      assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate
+      assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
       project.setStatus(`读取脚本失败：${relativePath}`)
       return
     }
@@ -245,7 +271,7 @@ async function loadAssetScript(relativePath: string) {
     assetScriptText.value = result.content
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate
+    assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
     project.setStatus(`读取脚本失败：${message}`)
   } finally {
     loadingAsset.value = false

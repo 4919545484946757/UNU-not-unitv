@@ -16,6 +16,7 @@
             <option value="enemy">Enemy</option>
             <option value="tilemap">Tilemap</option>
             <option value="camera">Camera</option>
+            <option value="background">Background</option>
             <option value="ui-text">UI Text</option>
             <option value="ui-button">UI Button</option>
             <option value="interactable">Interactable</option>
@@ -54,7 +55,7 @@ import { reactive, watch } from 'vue'
 import { useEditorStore } from '../../stores/editor'
 import { useSceneStore } from '../../stores/scene'
 
-type EntityType = 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable'
+type EntityType = 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'background' | 'ui-text' | 'ui-button' | 'interactable'
 
 const editor = useEditorStore()
 const scene = useSceneStore()
@@ -76,6 +77,7 @@ const suggestedNames: Record<EntityType, string> = {
   enemy: 'Enemy',
   tilemap: 'LevelTilemap',
   camera: 'Camera',
+  background: 'Background',
   'ui-text': 'UIText',
   'ui-button': 'UIButton',
   interactable: 'Interactable'
