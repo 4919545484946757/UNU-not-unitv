@@ -8,6 +8,35 @@ import { useProjectStore } from './project'
 const fallbackProject = createFallbackProject()
 const fallbackDatabase = new AssetDatabase(fallbackProject.tree)
 
+function buildProjectHealthMessage(
+  result: {
+    name?: string
+    sceneCatalogRepaired?: boolean
+    sceneCount?: number
+    sceneCreatedByReference?: number
+    assetIntegrityRepaired?: boolean
+    normalizedSceneFiles?: number
+    copiedAssets?: number
+    unresolvedAssets?: number
+  },
+  base: string
+) {
+  const suffixes: string[] = []
+  if (result.sceneCatalogRepaired) {
+    const sceneBase = `场景目录已修复（${result.sceneCount ?? 0}）`
+    const created = Number(result.sceneCreatedByReference || 0)
+    suffixes.push(created > 0 ? `${sceneBase}，补全场景 ${created} 个` : sceneBase)
+  }
+  if (result.assetIntegrityRepaired) {
+    const normalized = Number(result.normalizedSceneFiles || 0)
+    const copied = Number(result.copiedAssets || 0)
+    suffixes.push(`资源引用已修复（路径规范 ${normalized}，补齐素材 ${copied}）`)
+  }
+  const unresolved = Number(result.unresolvedAssets || 0)
+  if (unresolved > 0) suffixes.push(`仍有 ${unresolved} 个资源引用未解析`)
+  return suffixes.length ? `${base}（${suffixes.join('；')}）` : base
+}
+
 export const useAssetStore = defineStore('assets', {
   state: () => ({
     tree: fallbackDatabase.getRoots() as AssetNode[],
@@ -122,7 +151,7 @@ export const useAssetStore = defineStore('assets', {
       this.hydrateTree(result.tree)
       this.selectedPath = 'assets'
       scene.createNewScene('MainScene', true)
-      project.setStatus(`已新建工程：${result.name}`)
+      project.setStatus(buildProjectHealthMessage(result, `已新建工程：${result.name}`))
     },
     async openProjectFolder() {
       const project = useProjectStore()
@@ -147,7 +176,7 @@ export const useAssetStore = defineStore('assets', {
       const result = await window.unu.scanProject(picked.rootPath)
       this.hydrateTree(result.tree)
       project.setProject({ rootPath: result.rootPath, name: result.name })
-      project.setStatus(`已打开工程：${result.name}`)
+      project.setStatus(buildProjectHealthMessage(result, `已打开工程：${result.name}`))
     },
     async saveProjectAs() {
       const project = useProjectStore()
@@ -158,11 +187,21 @@ export const useAssetStore = defineStore('assets', {
         return
       }
       const currentScene = scene.currentScene
+      const sceneFiles = scene.scenes.length > 0
+        ? scene.scenes.map((sceneItem) => ({
+            fileName: `${sceneItem.name}.scene.json`,
+            content: serializeScene(sceneItem)
+          }))
+        : (currentScene ? [{
+            fileName: `${currentScene.name}.scene.json`,
+            content: serializeScene(currentScene)
+          }] : [])
       const saved = await window.unu.saveProjectAs({
         sourceProjectRoot: project.rootPath,
         projectName: project.name,
         currentSceneContent: currentScene ? serializeScene(currentScene) : undefined,
-        currentSceneName: currentScene ? `${currentScene.name}.scene.json` : undefined
+        currentSceneName: currentScene ? `${currentScene.name}.scene.json` : undefined,
+        sceneFiles
       })
       if (!saved) {
         project.setStatus('已取消项目另存。')
@@ -174,14 +213,19 @@ export const useAssetStore = defineStore('assets', {
       this.selectedPath = 'assets'
       project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
       if (saved.sceneFilePath) project.setSceneFile(saved.sceneFilePath)
-      project.setStatus(saved.fromSample ? `示例项目已另存为：${scanned.rootPath}` : `项目已另存为：${scanned.rootPath}`)
+      project.setStatus(
+        buildProjectHealthMessage(
+          scanned,
+          saved.fromSample ? `示例项目已另存为：${scanned.rootPath}` : `项目已另存为：${scanned.rootPath}`
+        )
+      )
     },
     async refreshProject() {
       const project = useProjectStore()
       if (!project.rootPath || !window.unu?.scanProject) return
       const result = await window.unu.scanProject(project.rootPath)
       this.hydrateTree(result.tree)
-      project.setStatus(`工程已刷新：${result.name}`)
+      project.setStatus(buildProjectHealthMessage(result, `工程已刷新：${result.name}`))
     },
     async importImages() {
       const project = useProjectStore()

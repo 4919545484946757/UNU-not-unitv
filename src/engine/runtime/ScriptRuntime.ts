@@ -1,4 +1,4 @@
-import { ScriptComponent } from '../components/ScriptComponent'
+﻿import { ScriptComponent } from '../components/ScriptComponent'
 import { AnimationComponent } from '../components/AnimationComponent'
 import type { AudioGroup } from '../components/AudioComponent'
 import { BackgroundComponent } from '../components/BackgroundComponent'
@@ -9,6 +9,7 @@ import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
 import { Entity } from '../core/Entity'
 import type { Scene } from '../core/Scene'
+import * as ts from 'typescript'
 
 interface RuntimeInput {
   isKeyDown: (code: string) => boolean
@@ -70,6 +71,17 @@ export interface ScriptContext {
     cycleBackgroundTexture: (texturePaths: string[]) => void
     isBlockedAt: (x: number, y: number) => boolean
     isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) => boolean
+    findEnemyOverlap: (target?: Entity) => Entity | null
+    isTouching: (left: Entity, right: Entity) => boolean
+    moveTowards: (source: Entity, target: Entity, speed: number, useCollision?: boolean) => void
+    spawnEnemyLike: (
+      source?: Entity,
+      options?: { x?: number; y?: number; avoidX?: number; avoidY?: number; minDistance?: number }
+    ) => Entity | null
+    spawnBullet: (
+      source?: Entity,
+      options?: { angle?: number; targetX?: number; targetY?: number; speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number }
+    ) => Entity | null
     audio: RuntimeAudio
   }
 }
@@ -95,6 +107,11 @@ interface InteractionScriptAction {
 interface InteractionScriptDefinition {
   onInteract?: InteractionScriptAction[]
   actions?: InteractionScriptAction[]
+}
+
+interface ProjectRuntimeModule {
+  scripts?: Record<string, ScriptHooks>
+  [key: string]: unknown
 }
 
 const scriptRegistry: Record<string, ScriptHooks> = {
@@ -223,8 +240,18 @@ const scriptRegistry: Record<string, ScriptHooks> = {
         api.removeEntity(hit.entity)
         const player = api.findEntityByName('Player')
         const playerTransform = player?.getTransform()
-        const spawnPoint = randomSpawnAwayFrom(playerTransform?.x ?? 0, playerTransform?.y ?? 0, 160)
-        api.spawnEntity(createEnemyEntityAt(spawnPoint.x, spawnPoint.y, hit.collider, hit.sprite ?? undefined, hit.animation ?? undefined))
+        const hitScript = hit.entity.getComponent<ScriptComponent>('Script')
+        const enemyConfig = parseScriptConfigObject(hitScript)
+        const respawnMinDistance = clampNumber(readConfigNumber(enemyConfig, 'respawnMinDistance', 160), 0, 2000)
+        const spawnPoint = randomSpawnAwayFrom(playerTransform?.x ?? 0, playerTransform?.y ?? 0, respawnMinDistance)
+        api.spawnEntity(createEnemyEntityAt(
+          spawnPoint.x,
+          spawnPoint.y,
+          hit.collider,
+          hit.sprite ?? undefined,
+          hit.animation ?? undefined,
+          hitScript ?? undefined
+        ))
       }
     }
   },
@@ -265,6 +292,8 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       const selfCollider = entity.getComponent<ColliderComponent>('Collider')
       const selfSprite = entity.getComponent<SpriteComponent>('Sprite')
       const selfAnimation = entity.getComponent<AnimationComponent>('Animation')
+      const selfScript = entity.getComponent<ScriptComponent>('Script')
+      const config = parseScriptConfigObject(selfScript)
       if (!selfTransform || !selfCollider || !selfSprite) return
 
       const player = api.findEntityByName('Player')
@@ -275,7 +304,7 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       const dx = playerTransform.x - selfTransform.x
       const dy = playerTransform.y - selfTransform.y
       const distance = Math.hypot(dx, dy)
-      const speed = 120
+      const speed = clampNumber(readConfigNumber(config, 'chaseSpeed', 120), 1, 5000)
       if (distance > 1) {
         const stepX = (dx / distance) * speed * api.delta
         const stepY = (dy / distance) * speed * api.delta
@@ -300,7 +329,8 @@ const scriptRegistry: Record<string, ScriptHooks> = {
 
       api.removeEntity(entity)
 
-      const spawnPoint = randomSpawnAwayFrom(playerTransform.x, playerTransform.y, 160)
+      const respawnMinDistance = clampNumber(readConfigNumber(config, 'respawnMinDistance', 160), 0, 2000)
+      const spawnPoint = randomSpawnAwayFrom(playerTransform.x, playerTransform.y, respawnMinDistance)
       const enemy = new Entity(`enemy_${Math.random().toString(36).slice(2, 8)}`, 'Enemy')
       enemy.addComponent(
         new TransformComponent(
@@ -371,12 +401,10 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       }
       enemy.addComponent(
         new ScriptComponent(
-          'builtin://enemy-chase-respawn',
-          `export default {
-  onUpdate(ctx) {
-    // Enemy 鎸佺画杩借釜 Player
-    // 涓?Player 鎺ヨЕ鍚庡垹闄よ嚜韬紝骞跺湪闅忔満浣嶇疆鐢熸垚鏂扮殑 Enemy
-  }
+          selfScript?.scriptPath || 'assets/scripts/enemy-chase-respawn.js',
+          selfScript?.sourceCode || `{
+  "chaseSpeed": 120,
+  "respawnMinDistance": 160
 }`,
           true
         )
@@ -415,6 +443,13 @@ export class ScriptRuntime {
     setGroupVolume: (_group: AudioGroup, _volume: number) => undefined,
     getMasterVolume: () => 1,
     getGroupVolume: (_group: AudioGroup) => 1
+  }
+  private projectRuntimePath = ''
+  private projectScriptRegistry: Record<string, ScriptHooks> = {}
+
+  setProjectRuntimeSource(sourceCode: string | null, scriptPath = 'assets/scripts/ScriptRuntime.ts') {
+    this.projectRuntimePath = normalizeScriptPath(scriptPath)
+    this.projectScriptRegistry = parseProjectRuntimeRegistry(sourceCode, this.projectRuntimePath)
   }
 
   setAudioAdapter(adapter: {
@@ -534,6 +569,92 @@ export class ScriptRuntime {
         isBlockedAt: (x: number, y: number) => isWorldBlocked(this.activeScene, x, y),
         isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) =>
           isWorldRectBlocked(this.activeScene, centerX, centerY, halfWidth, halfHeight),
+        findEnemyOverlap: (target?: Entity) => {
+          const source = target ?? entity
+          const transform = source.getComponent<TransformComponent>('Transform')
+          const collider = source.getComponent<ColliderComponent>('Collider')
+          if (!transform || !collider || !this.activeScene) return null
+          return findFirstEnemyOverlap(this.activeScene, source.id, transform, collider)?.entity ?? null
+        },
+        isTouching: (left: Entity, right: Entity) => {
+          const leftTransform = left.getComponent<TransformComponent>('Transform')
+          const leftCollider = left.getComponent<ColliderComponent>('Collider')
+          const rightTransform = right.getComponent<TransformComponent>('Transform')
+          const rightCollider = right.getComponent<ColliderComponent>('Collider')
+          if (!leftTransform || !leftCollider || !rightTransform || !rightCollider) return false
+          return isRectColliderOverlap(leftTransform, leftCollider, rightTransform, rightCollider)
+        },
+        moveTowards: (source: Entity, target: Entity, speed: number, useCollision = true) => {
+          const sourceTransform = source.getComponent<TransformComponent>('Transform')
+          const sourceCollider = source.getComponent<ColliderComponent>('Collider')
+          const targetTransform = target.getComponent<TransformComponent>('Transform')
+          if (!sourceTransform || !targetTransform) return
+          const dx = targetTransform.x - sourceTransform.x
+          const dy = targetTransform.y - sourceTransform.y
+          const distance = Math.hypot(dx, dy)
+          if (distance <= 1e-6) return
+          const moveSpeed = clampNumber(Number(speed), 0, 100000)
+          const stepX = (dx / distance) * moveSpeed * delta
+          const stepY = (dy / distance) * moveSpeed * delta
+          if (!useCollision || !sourceCollider) {
+            sourceTransform.x += stepX
+            sourceTransform.y += stepY
+            return
+          }
+          const halfWidth = Math.max(2, Number(sourceCollider.width) / 2)
+          const halfHeight = Math.max(2, Number(sourceCollider.height) / 2)
+          const offsetX = Number(sourceCollider.offsetX || 0)
+          const offsetY = Number(sourceCollider.offsetY || 0)
+          const nextX = sourceTransform.x + stepX
+          const nextY = sourceTransform.y + stepY
+          if (!isWorldRectBlocked(this.activeScene, nextX + offsetX, sourceTransform.y + offsetY, halfWidth, halfHeight)) {
+            sourceTransform.x = nextX
+          }
+          if (!isWorldRectBlocked(this.activeScene, sourceTransform.x + offsetX, nextY + offsetY, halfWidth, halfHeight)) {
+            sourceTransform.y = nextY
+          }
+        },
+        spawnEnemyLike: (source?: Entity, options?: { x?: number; y?: number; avoidX?: number; avoidY?: number; minDistance?: number }) => {
+          const base = source ?? entity
+          const transform = base.getComponent<TransformComponent>('Transform')
+          const collider = base.getComponent<ColliderComponent>('Collider')
+          const sprite = base.getComponent<SpriteComponent>('Sprite')
+          const animation = base.getComponent<AnimationComponent>('Animation')
+          const script = base.getComponent<ScriptComponent>('Script')
+          if (!transform || !collider || !sprite) return null
+          const spawnPoint = randomSpawnAwayFrom(
+            Number(options?.avoidX ?? transform.x),
+            Number(options?.avoidY ?? transform.y),
+            clampNumber(Number(options?.minDistance ?? 160), 0, 2000)
+          )
+          const x = Number.isFinite(options?.x as number) ? Number(options?.x) : spawnPoint.x
+          const y = Number.isFinite(options?.y as number) ? Number(options?.y) : spawnPoint.y
+          const spawned = createEnemyEntityAt(x, y, collider, sprite, animation ?? undefined, script ?? undefined)
+          this.pendingSpawns.push(spawned)
+          return spawned
+        },
+        spawnBullet: (
+          source?: Entity,
+          options?: { angle?: number; targetX?: number; targetY?: number; speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number }
+        ) => {
+          const base = source ?? entity
+          const transform = base.getComponent<TransformComponent>('Transform')
+          if (!transform) return null
+          let angle = Number(options?.angle ?? transform.rotation ?? 0)
+          if (Number.isFinite(options?.targetX as number) && Number.isFinite(options?.targetY as number)) {
+            angle = Math.atan2(Number(options?.targetY) - transform.y, Number(options?.targetX) - transform.x)
+          }
+          const spawned = createBulletEntity(transform.x, transform.y, angle, {
+            speed: Number(options?.speed),
+            life: Number(options?.life),
+            maxDistance: Number(options?.maxDistance),
+            width: Number(options?.width),
+            height: Number(options?.height),
+            tint: Number(options?.tint)
+          })
+          this.pendingSpawns.push(spawned)
+          return spawned
+        },
         audio: {
           playOneShot: async (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => {
             await this.audioAdapter.playOneShot(clipPath, options)
@@ -648,19 +769,33 @@ export class ScriptRuntime {
   }
 
   private resolveScriptHooks(script: ScriptComponent) {
+    const projectHooks = this.resolveProjectScriptHooks(script.scriptPath)
     const builtinKey = resolveBuiltinScriptKey(script.scriptPath)
     const builtinHooks = builtinKey ? scriptRegistry[builtinKey] ?? null : null
+    const baseHooks = projectHooks ?? builtinHooks
     const customHooks = this.buildCustomInteractionHooks(script.sourceCode)
-    if (!builtinHooks && !customHooks) return null
-    if (!builtinHooks) return customHooks
-    if (!customHooks) return builtinHooks
+    if (!baseHooks && !customHooks) return null
+    if (!baseHooks) return customHooks
+    if (!customHooks) return baseHooks
     return {
-      onInit: customHooks.onInit ?? builtinHooks.onInit,
-      onStart: customHooks.onStart ?? builtinHooks.onStart,
-      onUpdate: customHooks.onUpdate ?? builtinHooks.onUpdate,
-      onInteract: customHooks.onInteract ?? builtinHooks.onInteract,
-      onDestroy: customHooks.onDestroy ?? builtinHooks.onDestroy
+      onInit: customHooks.onInit ?? baseHooks.onInit,
+      onStart: customHooks.onStart ?? baseHooks.onStart,
+      onUpdate: customHooks.onUpdate ?? baseHooks.onUpdate,
+      onInteract: customHooks.onInteract ?? baseHooks.onInteract,
+      onDestroy: customHooks.onDestroy ?? baseHooks.onDestroy
     }
+  }
+
+  private resolveProjectScriptHooks(scriptPath: string) {
+    const normalized = normalizeScriptPath(scriptPath)
+    if (!normalized) return null
+    const direct = this.projectScriptRegistry[normalized]
+    if (direct) return direct
+    const builtin = resolveBuiltinScriptKey(normalized)
+    if (builtin && this.projectScriptRegistry[builtin]) return this.projectScriptRegistry[builtin]
+    const canonical = resolveCanonicalScriptPath(normalized)
+    if (canonical && this.projectScriptRegistry[canonical]) return this.projectScriptRegistry[canonical]
+    return null
   }
 
   private buildCustomInteractionHooks(sourceCode: string): ScriptHooks | null {
@@ -1020,6 +1155,60 @@ function resolveBuiltinScriptKey(scriptPath: string) {
   return aliases[normalized] || ''
 }
 
+function normalizeScriptPath(input: string) {
+  return String(input || '').trim().replace(/\\/g, '/')
+}
+
+function resolveCanonicalScriptPath(scriptPath: string) {
+  const normalized = normalizeScriptPath(scriptPath)
+  if (!normalized) return ''
+  const aliases: Record<string, string> = {
+    'builtin://player-input': 'assets/scripts/player-input.js',
+    'builtin://bullet-projectile': 'assets/scripts/bullet-projectile.js',
+    'builtin://enemy-chase-respawn': 'assets/scripts/enemy-chase-respawn.js',
+    'builtin://patrol': 'assets/scripts/patrol.js',
+    'builtin://orbit-around-chest': 'assets/scripts/orbit-around-chest.js',
+    'builtin://spin': 'assets/scripts/spin.js'
+  }
+  return aliases[normalized] || normalized
+}
+
+function parseProjectRuntimeRegistry(sourceCode: string | null, scriptPath: string) {
+  const raw = String(sourceCode || '').trim()
+  if (!raw) return {}
+  try {
+    const transpiled = ts.transpileModule(raw, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        jsx: ts.JsxEmit.Preserve
+      },
+      fileName: scriptPath || 'ScriptRuntime.ts'
+    })
+    const exportsBag: Record<string, unknown> = {}
+    const moduleBag: { exports: Record<string, unknown> } = { exports: exportsBag }
+    const evaluator = new Function('module', 'exports', transpiled.outputText)
+    evaluator(moduleBag, exportsBag)
+    const loaded = ((moduleBag.exports && (moduleBag.exports.default as unknown)) || moduleBag.exports) as ProjectRuntimeModule | null
+    const scripts = loaded && typeof loaded === 'object'
+      ? (loaded.scripts && typeof loaded.scripts === 'object' ? loaded.scripts : loaded)
+      : null
+    if (!scripts || typeof scripts !== 'object') return {}
+    const result: Record<string, ScriptHooks> = {}
+    for (const [key, value] of Object.entries(scripts as Record<string, unknown>)) {
+      if (!value || typeof value !== 'object') continue
+      const normalizedKey = resolveCanonicalScriptPath(key)
+      result[normalizedKey] = value as ScriptHooks
+      const builtin = resolveBuiltinScriptKey(normalizedKey)
+      if (builtin) result[builtin] = value as ScriptHooks
+    }
+    return result
+  } catch (error) {
+    console.warn('[UNU][runtime] failed to parse project ScriptRuntime.ts:', error)
+    return {}
+  }
+}
+
 function randomInRange(min: number, max: number) {
   return min + Math.random() * (max - min)
 }
@@ -1209,7 +1398,8 @@ function createEnemyEntityAt(
   y: number,
   colliderTemplate: ColliderComponent,
   spriteTemplate?: SpriteComponent,
-  animationTemplate?: AnimationComponent
+  animationTemplate?: AnimationComponent,
+  scriptTemplate?: ScriptComponent
 ) {
   const enemy = new Entity(`enemy_${Math.random().toString(36).slice(2, 8)}`, 'Enemy')
   enemy.addComponent(new TransformComponent(x, y, 1, 1, 0, 0.5, 0.5))
@@ -1271,10 +1461,10 @@ function createEnemyEntityAt(
   }
   enemy.addComponent(
     new ScriptComponent(
-      'assets/scripts/enemy-chase-respawn.js',
-      `export default {
-  onUpdate(ctx) {
-    // 鏁屼汉杩借釜鐜╁锛岃瀛愬脊鍛戒腑鍚庨噸鐢?  }
+      scriptTemplate?.scriptPath || 'assets/scripts/enemy-chase-respawn.js',
+      scriptTemplate?.sourceCode || `{
+  "chaseSpeed": 120,
+  "respawnMinDistance": 160
 }`
     )
   )
@@ -1291,5 +1481,6 @@ function randomSpawnAwayFrom(x: number, y: number, minDistance: number) {
   }
   return { x: randomInRange(-420, 420), y: randomInRange(-240, 240) }
 }
+
 
 

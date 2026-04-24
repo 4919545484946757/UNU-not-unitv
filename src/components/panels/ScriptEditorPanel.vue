@@ -27,6 +27,7 @@
     <div v-else class="empty-state">请在场景中选择带 Script 组件的实体，或在资源树中选择一个脚本文件。</div>
 
     <div class="tips">
+      项目级运行时覆盖文件：`assets/scripts/ScriptRuntime.ts`。保存后重新进入播放态即可生效。
       运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
       `builtin://player-input` 与 `builtin://bullet-projectile` 支持直接填写 JSON 配置（如移动速度、疾跑速度、疾跑动画倍速、子弹速度/寿命/射程）。
       脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
@@ -314,7 +315,12 @@ async function saveAssetScript() {
     }
     assetFilePath.value = saved.filePath
     assetDirty.value = false
-    project.setStatus(`脚本已保存：${saved.name}`)
+    const linkedCount = sceneStore.syncScriptSourceByPath(selectedTextAssetPath.value, assetScriptText.value)
+    if (linkedCount > 0) {
+      project.setStatus(`脚本已保存并同步到 ${linkedCount} 个实体：${saved.name}`)
+    } else {
+      project.setStatus(`脚本已保存：${saved.name}`)
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     project.setStatus(`保存脚本失败：${message}`)

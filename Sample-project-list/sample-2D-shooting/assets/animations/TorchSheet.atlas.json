@@ -1,0 +1,12 @@
+{
+  "format": "unu-atlas",
+  "version": 1,
+  "atlas": {
+    "imagePath": "assets/images/player.png",
+    "columns": 1,
+    "rows": 1,
+    "cellWidth": 1,
+    "cellHeight": 1,
+    "frameCount": 1
+  }
+}

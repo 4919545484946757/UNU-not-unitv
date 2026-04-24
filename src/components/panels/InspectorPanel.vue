@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="inspector">
     <template v-if="entity && transform">
       <h3>{{ entity.name }}</h3>
@@ -215,6 +215,8 @@
         <div class="group-title">Collider</div>
         <label>Width <input type="number" :value="collider.width" @input="setNumber('collider', 'width', $event)" /></label>
         <label>Height <input type="number" :value="collider.height" @input="setNumber('collider', 'height', $event)" /></label>
+        <label>Offset X <input type="number" :value="collider.offsetX" @input="setNumber('collider', 'offsetX', $event)" /></label>
+        <label>Offset Y <input type="number" :value="collider.offsetY" @input="setNumber('collider', 'offsetY', $event)" /></label>
         <label class="checkbox-row">
           <input type="checkbox" :checked="collider.isTrigger" @change="setChecked('collider', 'isTrigger', $event)" />
           Trigger
@@ -295,6 +297,14 @@
           </label>
           <div class="asset-picker">
             <button @click="bindSelectedImageToTileValue">Bind Selected Image To Tile Value</button>
+            <input
+              class="tile-bind-input"
+              v-model="tileTextureBindValueInput"
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Tile Value"
+            />
             <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : 'Select an image and bind to numeric tile value' }}</span>
           </div>
         </template>
@@ -446,6 +456,7 @@ const animationStateClips = computed(() => animation.value?.stateMachine.clips ?
 const tilemapTilesBuffer = ref('')
 const tilemapCollisionBuffer = ref('')
 const tileTextureMapBuffer = ref('')
+const tileTextureBindValueInput = ref('1')
 const interactableTextureCycleBuffer = ref('')
 const interactableTintCycleBuffer = ref('')
 
@@ -1112,14 +1123,20 @@ function applyTileTextureMapBuffer() {
 
 function bindSelectedImageToTileValue() {
   if (runtime.isPlaying) return
-  if (!tilemap.value || assets.selectedAsset?.type !== 'image') return
-  const raw = window.prompt('输入要绑定的 Tile 数值（正整数）', '1')
-  if (!raw) return
-  const value = Math.round(Number(raw))
-  if (!Number.isFinite(value) || value <= 0) return
+  if (!tilemap.value) return
+  if (assets.selectedAsset?.type !== 'image') {
+    project.setStatus('请先在资源树中选中一张图片。')
+    return
+  }
+  const value = Math.round(Number(tileTextureBindValueInput.value))
+  if (!Number.isFinite(value) || value <= 0) {
+    project.setStatus('请输入有效的 Tile 数值（正整数）。')
+    return
+  }
   tilemap.value.tileTextureMap = { ...(tilemap.value.tileTextureMap || {}), [value]: assets.selectedAsset.path }
   tileTextureMapBuffer.value = tileTextureMapToText(tilemap.value.tileTextureMap)
   sceneStore.markDirty()
+  project.setStatus(`已绑定 Tile 值 ${value} -> ${assets.selectedAsset.path}`)
 }
 
 async function applySelectedImageToBackground() {
@@ -1216,18 +1233,21 @@ function addCameraComponent() {
 </script>
 
 <style scoped>
-.inspector { display: grid; gap: 12px; }
+.inspector { display: grid; gap: 12px; min-width: 0; width: 100%; }
 h3 { margin: 0; }
-.group { padding: 12px; border-radius: 10px; background: #1a2030; display: grid; gap: 8px; }
-.subgroup { border: 1px solid #2b3344; border-radius: 8px; padding: 8px; display: grid; gap: 8px; background: #161d2a; }
+.group { padding: 12px; border-radius: 10px; background: #1a2030; display: grid; gap: 8px; min-width: 0; width: 100%; box-sizing: border-box; }
+.subgroup { border: 1px solid #2b3344; border-radius: 8px; padding: 8px; display: grid; gap: 8px; background: #161d2a; min-width: 0; width: 100%; box-sizing: border-box; }
 .group-title { color: #9bb0c9; font-size: 13px; }
-label { display: grid; gap: 6px; font-size: 13px; }
-input, textarea, select {
+label { display: grid; gap: 6px; font-size: 13px; min-width: 0; width: 100%; }
+input:not([type='checkbox']), textarea, select {
   background: #0f141d;
   color: #ecf0f7;
   border: 1px solid #313a4a;
   border-radius: 8px;
   padding: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 textarea { min-height: 96px; resize: vertical; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
@@ -1238,6 +1258,20 @@ textarea { min-height: 96px; resize: vertical; }
   align-items: center;
   font-size: 12px;
   color: #9bb0c9;
+  min-width: 0;
+  width: 100%;
+}
+.asset-picker .tile-bind-input {
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  padding: 6px 8px;
+}
+.asset-picker span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .asset-picker button, .small {
   border: 1px solid #303848;
@@ -1255,12 +1289,15 @@ textarea { min-height: 96px; resize: vertical; }
   display: flex;
   gap: 8px;
   align-items: center;
+  min-width: 0;
+  width: 100%;
 }
 .grow { flex: 1; min-width: 0; }
 .state-list {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 .state-chip {
   border: 1px solid #2f3a4c;
@@ -1278,10 +1315,12 @@ textarea { min-height: 96px; resize: vertical; }
 .state-transitions {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 .transition-list {
   display: grid;
   gap: 8px;
+  min-width: 0;
 }
 .transition-card {
   display: grid;
@@ -1290,6 +1329,10 @@ textarea { min-height: 96px; resize: vertical; }
   border-radius: 8px;
   padding: 8px;
   background: #131b28;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 </style>
+
 

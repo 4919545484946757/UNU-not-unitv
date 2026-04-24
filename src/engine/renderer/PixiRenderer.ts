@@ -21,6 +21,7 @@ import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
+import { useSceneStore } from '../../stores/scene'
 
 interface PixiRendererOptions {
   container: HTMLDivElement
@@ -107,6 +108,7 @@ export class PixiRenderer {
       getGroupVolume: (group) => this.audioRuntime.getGroupVolume(group)
     })
     this.audioRuntime.setProjectRoot(useProjectStore().rootPath)
+    await this.refreshProjectScriptRuntime()
     this.inputState.attach()
     this.resetCameraTransform()
     this.installStageInteractions()
@@ -191,9 +193,27 @@ export class PixiRenderer {
   }
 
   private resolveSceneTemplateByName(sceneName: string) {
+    const normalized = String(sceneName || '').trim()
+    if (!normalized) return null
+
+    const match = (value: string) => value.trim().toLowerCase() === normalized.toLowerCase()
     const currentSourceName = this.sourceScene?.name || ''
-    if (currentSourceName === sceneName && this.sourceScene) return this.sourceScene
-    return createSampleSceneByName(sceneName)
+    if (this.sourceScene && (match(currentSourceName) || match(this.sourceScene.id))) {
+      return this.sourceScene
+    }
+
+    const sceneStore = useSceneStore()
+    const localScene =
+      sceneStore.scenes.find((item) => match(item.name)) ||
+      sceneStore.scenes.find((item) => match(item.id)) ||
+      null
+    if (localScene) return localScene
+
+    const projectStore = useProjectStore()
+    if (projectStore.rootPath === 'sample-project') {
+      return createSampleSceneByName(normalized)
+    }
+    return null
   }
 
   setGridVisible(visible: boolean) {
@@ -208,7 +228,7 @@ export class PixiRenderer {
     if (this.currentScene) void this.renderScene(this.currentScene)
   }
 
-  setRuntimeState(isPlaying: boolean, isPaused: boolean, scene: Scene | null, refreshPlayingScene = false) {
+  async setRuntimeState(isPlaying: boolean, isPaused: boolean, scene: Scene | null, refreshPlayingScene = false) {
     const wasPlaying = this.isPlaying
     this.sourceScene = scene
     this.audioRuntime.setProjectRoot(useProjectStore().rootPath)
@@ -247,6 +267,7 @@ export class PixiRenderer {
     }
 
     if (!wasPlaying || refreshPlayingScene) {
+      await this.refreshProjectScriptRuntime()
       if (this.playScene) {
         this.scriptRuntime.destroyScene(this.playScene)
       }
@@ -270,6 +291,24 @@ export class PixiRenderer {
     }
     this.drawSelectionGizmo()
     this.options.onRuntimeSceneUpdated?.(this.currentScene)
+  }
+
+  private async refreshProjectScriptRuntime() {
+    const projectStore = useProjectStore()
+    const runtimePath = 'assets/scripts/ScriptRuntime.ts'
+    if (!window.unu?.readTextAsset || !projectStore.rootPath || projectStore.rootPath === 'sample-project') {
+      this.scriptRuntime.setProjectRuntimeSource('', runtimePath)
+      return
+    }
+    try {
+      const loaded = await window.unu.readTextAsset({
+        projectRoot: projectStore.rootPath,
+        relativePath: runtimePath
+      })
+      this.scriptRuntime.setProjectRuntimeSource(loaded?.content || '', runtimePath)
+    } catch {
+      this.scriptRuntime.setProjectRuntimeSource('', runtimePath)
+    }
   }
 
   setSelection(entityId: string) {

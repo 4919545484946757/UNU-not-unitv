@@ -1,0 +1,1855 @@
+{
+  "format": "unu-scene",
+  "version": 1,
+  "scene": {
+    "id": "scene_main",
+    "name": "MainScene",
+    "entities": [
+      {
+        "id": "background_main_001",
+        "name": "Background",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 152.80014038085938,
+              "y": 33.5999755859375,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 0
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/background/background-img.png",
+              "width": 1539,
+              "height": 1022,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": false
+            }
+          },
+          {
+            "type": "Background",
+            "data": {
+              "type": "Background",
+              "enabled": true,
+              "followCamera": true,
+              "fitMode": "cover"
+            }
+          },
+          {
+            "type": "Camera",
+            "data": {
+              "type": "Camera",
+              "enabled": false,
+              "zoom": 1,
+              "followEntityId": "",
+              "followSmoothing": 0.18,
+              "offsetX": 0,
+              "offsetY": 0,
+              "boundsEnabled": false,
+              "minX": -2000,
+              "maxX": 2000,
+              "minY": -2000,
+              "maxY": 2000
+            }
+          }
+        ]
+      },
+      {
+        "id": "tilemap_001",
+        "name": "LevelTilemap",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -260,
+              "y": -120,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 1
+            }
+          },
+          {
+            "type": "Tilemap",
+            "data": {
+              "type": "Tilemap",
+              "enabled": true,
+              "columns": 12,
+              "rows": 8,
+              "tileWidth": 48,
+              "tileHeight": 48,
+              "tiles": [
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                4,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                4,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4
+              ],
+              "collision": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "showCollision": true,
+              "tileTextureMap": {
+                "1": "assets/images/pixel/tilemap/texture_1.png",
+                "2": "assets/images/pixel/tilemap/texture_2.png",
+                "4": "assets/images/pixel/tilemap/texture_4.png"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "tilemap_bywrnz",
+        "name": "LevelTilemap01",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 315,
+              "y": -505,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0,
+              "anchorY": 0,
+              "zIndex": 2
+            }
+          },
+          {
+            "type": "Tilemap",
+            "data": {
+              "type": "Tilemap",
+              "enabled": true,
+              "columns": 12,
+              "rows": 16,
+              "tileWidth": 48,
+              "tileHeight": 48,
+              "tiles": [
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                4,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                4,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                4,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                4,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                2,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                4,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                4,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                4,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                2,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4
+              ],
+              "collision": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "showCollision": true,
+              "tileTextureMap": {
+                "1": "assets/images/pixel/tilemap/texture_1.png",
+                "2": "assets/images/pixel/tilemap/texture_2.png",
+                "3": "assets/images/pixel/tilemap/texture_4.png",
+                "4": "assets/images/pixel/tilemap/texture_4.png"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "copy_5ygi23",
+        "name": "LevelTilemap_Copy",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 890,
+              "y": -288,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 3
+            }
+          },
+          {
+            "type": "Tilemap",
+            "data": {
+              "type": "Tilemap",
+              "enabled": true,
+              "columns": 12,
+              "rows": 8,
+              "tileWidth": 48,
+              "tileHeight": 48,
+              "tiles": [
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                4,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                4,
+                1,
+                1,
+                2,
+                1,
+                1,
+                1,
+                1,
+                2,
+                1,
+                1,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4,
+                4
+              ],
+              "collision": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "showCollision": true,
+              "tileTextureMap": {
+                "1": "assets/images/pixel/tilemap/texture_1.png",
+                "2": "assets/images/pixel/tilemap/texture_2.png",
+                "4": "assets/images/pixel/tilemap/texture_4.png"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "player_001",
+        "name": "Player",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 180,
+              "y": 40,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 4
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/player/idle/idle_01.png",
+              "width": 96,
+              "height": 96,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 60,
+              "height": 50,
+              "offsetX": 0,
+              "offsetY": 15,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 10,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/player/idle/idle_01.png",
+                "assets/images/pixel/player/idle/idle_02.png",
+                "assets/images/pixel/player/idle/idle_03.png",
+                "assets/images/pixel/player/idle/idle_04.png"
+              ],
+              "frameDurations": [
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": true,
+                "initialState": "Idle",
+                "currentState": "Idle",
+                "clips": [
+                  {
+                    "name": "Idle",
+                    "framePaths": [
+                      "assets/images/pixel/player/idle/idle_01.png",
+                      "assets/images/pixel/player/idle/idle_02.png",
+                      "assets/images/pixel/player/idle/idle_03.png",
+                      "assets/images/pixel/player/idle/idle_04.png"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "Run",
+                    "framePaths": [
+                      "assets/images/pixel/player/run/run_01.png",
+                      "assets/images/pixel/player/run/run_02.png",
+                      "assets/images/pixel/player/run/run_03.png",
+                      "assets/images/pixel/player/run/run_04.png",
+                      "assets/images/pixel/player/run/run_05.png",
+                      "assets/images/pixel/player/run/run_06.png"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "Attack",
+                    "framePaths": [
+                      "assets/images/pixel/player/forward/forward_01.png",
+                      "assets/images/pixel/player/forward/forward_02.png",
+                      "assets/images/pixel/player/forward/forward_03.png",
+                      "assets/images/pixel/player/forward/forward_04.png",
+                      "assets/images/pixel/player/forward/forward_05.png",
+                      "assets/images/pixel/player/forward/forward_06.png"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  }
+                ],
+                "transitions": [
+                  {
+                    "from": "Idle",
+                    "to": "Run",
+                    "condition": "ifMoving",
+                    "priority": 0,
+                    "canInterrupt": true,
+                    "once": false,
+                    "minNormalizedTime": 0,
+                    "exitTime": false
+                  },
+                  {
+                    "from": "Run",
+                    "to": "Idle",
+                    "condition": "ifNotMoving",
+                    "priority": 0,
+                    "canInterrupt": true,
+                    "once": false,
+                    "minNormalizedTime": 0,
+                    "exitTime": false
+                  },
+                  {
+                    "from": "Idle",
+                    "to": "Attack",
+                    "condition": "ifActionDown",
+                    "action": "fire",
+                    "priority": 0,
+                    "canInterrupt": true,
+                    "once": false,
+                    "minNormalizedTime": 0,
+                    "exitTime": false
+                  },
+                  {
+                    "from": "Run",
+                    "to": "Attack",
+                    "condition": "ifActionDown",
+                    "action": "fire",
+                    "priority": 0,
+                    "canInterrupt": true,
+                    "once": false,
+                    "minNormalizedTime": 0,
+                    "exitTime": false
+                  },
+                  {
+                    "from": "Attack",
+                    "to": "Run",
+                    "condition": "ifMoving",
+                    "priority": 0,
+                    "canInterrupt": true,
+                    "once": false,
+                    "minNormalizedTime": 0.6,
+                    "exitTime": true
+                  },
+                  {
+                    "from": "Attack",
+                    "to": "Idle",
+                    "condition": "ifNotMoving",
+                    "priority": 0,
+                    "canInterrupt": true,
+                    "once": false,
+                    "minNormalizedTime": 0.6,
+                    "exitTime": true
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/player-input.js",
+              "sourceCode": "{\n  \"moveSpeed\": 140,\n  \"sprintSpeed\": 280,\n  \"runAnimationMultiplierWhenSprint\": 2,\n  \"shootAction\": \"fire\",\n  \"fireCooldown\": 0,\n  \"bullet\": {\n    \"speed\": 420,\n    \"life\": 2,\n    \"maxDistance\": 560,\n    \"width\": 20,\n    \"height\": 8,\n    \"tint\": 15922687\n  }\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "enemy_001",
+        "name": "Enemy",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 420,
+              "y": 320,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 5
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/enemy/tube_01.png",
+              "width": 80,
+              "height": 80,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 40,
+              "height": 80,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/enemy/tube_01.png",
+                "assets/images/pixel/enemy/tube_02.png",
+                "assets/images/pixel/enemy/tube_03.png",
+                "assets/images/pixel/enemy/tube_04.png"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": false,
+                "initialState": "Idle",
+                "currentState": "",
+                "clips": [],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "item_001",
+        "name": "Chest",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 687.2000732421875,
+              "y": 673.6000366210938,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 6
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/tilemap/texture_2.png",
+              "width": 72,
+              "height": 72,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 72,
+              "height": 72,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "custom://interaction",
+              "sourceCode": "{\n  \"onInteract\": [\n    {\n      \"type\": \"cycleTint\",\n      \"target\": \"self\",\n      \"values\": [16777215, 16763072, 9293460, 7979007, 16748431]\n    }\n  ]\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          },
+          {
+            "type": "Interactable",
+            "data": {
+              "type": "Interactable",
+              "enabled": true,
+              "interactDistance": 220,
+              "actionType": "scripted",
+              "targetScene": "",
+              "textureCycle": [],
+              "tintCycle": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "fx_001",
+        "name": "TorchFX",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 760.7999267578125,
+              "y": 676.7999877929688,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 7
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/enemy/tube_01.png",
+              "width": 64,
+              "height": 64,
+              "visible": true,
+              "alpha": 0.95,
+              "tint": 16762967,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 64,
+              "height": 64,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 6,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/enemy/tube_01.png",
+                "assets/images/pixel/enemy/tube_02.png",
+                "assets/images/pixel/enemy/tube_03.png"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                2
+              ],
+              "animationAssetPath": "assets/animations/TorchFX.anim.json",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": false,
+                "initialState": "Idle",
+                "currentState": "",
+                "clips": [],
+                "transitions": []
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "camera_main",
+        "name": "MainCamera",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 180,
+              "y": 40,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 8
+            }
+          },
+          {
+            "type": "Camera",
+            "data": {
+              "type": "Camera",
+              "enabled": true,
+              "zoom": 1,
+              "followEntityId": "player_001",
+              "followSmoothing": 1,
+              "offsetX": 0,
+              "offsetY": 0,
+              "boundsEnabled": false,
+              "minX": -2000,
+              "maxX": 2000,
+              "minY": -2000,
+              "maxY": 2000
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui_title_001",
+        "name": "UI_Title",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 24,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 9
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": true,
+              "mode": "text",
+              "text": "UNU Demo Stage",
+              "fontSize": 24,
+              "textColor": 15201279,
+              "width": 260,
+              "height": 40,
+              "backgroundColor": 2830914,
+              "anchorX": 0.5,
+              "anchorY": 0,
+              "interactable": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui_btn_001",
+        "name": "UI_Button",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -110,
+              "y": -36,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 10
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": true,
+              "mode": "button",
+              "text": "Click Me",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 160,
+              "height": 44,
+              "backgroundColor": 3429002,
+              "anchorX": 1,
+              "anchorY": 1,
+              "interactable": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "door_to_second_001",
+        "name": "DoorToSecond",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 28,
+              "y": -144,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 11
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/props/door.png",
+              "width": 110,
+              "height": 180,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 110,
+              "height": 180,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Interactable",
+            "data": {
+              "type": "Interactable",
+              "enabled": true,
+              "interactDistance": 180,
+              "actionType": "switchScene",
+              "targetScene": "SecondScene",
+              "textureCycle": [],
+              "tintCycle": []
+            }
+          }
+        ]
+      },
+      {
+        "id": "copy_jh5emg",
+        "name": "Enemy_Copy",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 452,
+              "y": 352,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 12
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/enemy/tube_01.png",
+              "width": 80,
+              "height": 80,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 40,
+              "height": 80,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/enemy/tube_01.png",
+                "assets/images/pixel/enemy/tube_02.png",
+                "assets/images/pixel/enemy/tube_03.png",
+                "assets/images/pixel/enemy/tube_04.png"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": false,
+                "initialState": "Idle",
+                "currentState": "",
+                "clips": [],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "copy_9jiijf",
+        "name": "Enemy_Copy_Copy",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 484,
+              "y": 384,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 13
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/enemy/tube_01.png",
+              "width": 80,
+              "height": 80,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 40,
+              "height": 80,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/enemy/tube_01.png",
+                "assets/images/pixel/enemy/tube_02.png",
+                "assets/images/pixel/enemy/tube_03.png",
+                "assets/images/pixel/enemy/tube_04.png"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": false,
+                "initialState": "Idle",
+                "currentState": "",
+                "clips": [],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "interactable_akhldc",
+        "name": "Chest",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 600,
+              "y": -350,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 14
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 180,
+              "height": 100,
+              "visible": true,
+              "alpha": 1,
+              "tint": 10910802,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 180,
+              "height": 100,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Interactable",
+            "data": {
+              "type": "Interactable",
+              "enabled": true,
+              "interactDistance": 180,
+              "actionType": "scripted",
+              "targetScene": "",
+              "textureCycle": [],
+              "tintCycle": []
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "custom://interaction",
+              "sourceCode": "{\n  \"onInteract\": [\n    { \"type\": \"cycleTint\", \"target\": \"self\", \"values\": [16777215, 16762880, 9293460, 7979007] }\n  ]\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

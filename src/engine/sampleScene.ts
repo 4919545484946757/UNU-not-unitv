@@ -60,7 +60,8 @@ export function createDemoScene() {
   // 放在 LevelTilemap 的非碰撞区域（上半区域）避免开局卡在碰撞格里。
   player.addComponent(new TransformComponent(180, 40, 1, 1))
   player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
-  player.addComponent(new ColliderComponent('rect', 60, 80, 0, 0, false))
+  // 玩家碰撞箱：半高，并向下偏移 20（相对实体中心）。
+  player.addComponent(new ColliderComponent('rect', 60, 40, 0, 20, false))
   player.addComponent(
     new AnimationComponent(
       true,
@@ -190,12 +191,12 @@ export function createDemoScene() {
       48,
       [
         4,4,4,4,4,4,4,4,4,4,4,4,
-        4,1,1,1,1,1,1,1,1,1,1,4,
-        1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,
-        1,1,1,1,1,1,1,1,1,1,1,1,
-        4,1,1,1,1,1,1,1,1,1,1,4,
+        4,1,1,2,1,1,1,1,2,1,1,4,
+        1,1,1,2,1,1,1,1,2,1,1,1,
+        1,1,1,2,1,1,1,1,2,1,1,1,
+        1,1,1,2,1,1,1,1,2,1,1,1,
+        1,1,1,2,1,1,1,1,2,1,1,1,
+        4,1,1,2,1,1,1,1,2,1,1,4,
         4,4,4,4,4,4,4,4,4,4,4,4
       ],
       [
@@ -256,7 +257,8 @@ export function createSecondScene() {
   const player = new Entity('player_002', 'Player')
   player.addComponent(new TransformComponent(-120, 20, 1, 1))
   player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
-  player.addComponent(new ColliderComponent('rect', 100, 100, 0, 0, false))
+  // 玩家碰撞箱：半高，并向下偏移 20（相对实体中心）。
+  player.addComponent(new ColliderComponent('rect', 100, 50, 0, 20, false))
   player.addComponent(
     new ScriptComponent(
       'assets/scripts/player-input.js',

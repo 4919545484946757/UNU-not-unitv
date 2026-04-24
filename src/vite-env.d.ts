@@ -4,11 +4,50 @@ declare global {
   interface Window {
     unu?: {
       version: string
-      createProject?: (payload?: { projectName?: string; parentDir?: string }) => Promise<{ rootPath: string; name: string; parentDir?: string; created: boolean } | null>
+      createProject?: (payload?: { projectName?: string; parentDir?: string }) => Promise<{
+        rootPath: string
+        name: string
+        parentDir?: string
+        created: boolean
+        integrity?: {
+          repaired: boolean
+          normalizedSceneFiles: number
+          copiedAssets: number
+          unresolvedAssets: number
+        }
+      } | null>
       pickDirectory?: (payload?: { title?: string; defaultPath?: string }) => Promise<{ dirPath: string; name: string } | null>
-      saveProjectAs?: (payload: { sourceProjectRoot?: string; projectName?: string; currentSceneContent?: string; currentSceneName?: string }) => Promise<{ rootPath: string; name: string; sceneFilePath?: string; fromSample: boolean } | null>
+      saveProjectAs?: (payload: {
+        sourceProjectRoot?: string
+        projectName?: string
+        currentSceneContent?: string
+        currentSceneName?: string
+        sceneFiles?: Array<{ fileName?: string; content: string }>
+      }) => Promise<{
+        rootPath: string
+        name: string
+        sceneFilePath?: string
+        fromSample: boolean
+        integrity?: {
+          repaired: boolean
+          normalizedSceneFiles: number
+          copiedAssets: number
+          unresolvedAssets: number
+        }
+      } | null>
       pickProjectFolder?: () => Promise<{ rootPath: string; name: string } | null>
-      scanProject?: (projectRoot: string) => Promise<{ rootPath: string; name: string; tree: import('./engine/assets/types').AssetNode[] }>
+      scanProject?: (projectRoot: string) => Promise<{
+        rootPath: string
+        name: string
+        tree: import('./engine/assets/types').AssetNode[]
+        sceneCatalogRepaired?: boolean
+        sceneCount?: number
+        sceneCreatedByReference?: number
+        assetIntegrityRepaired?: boolean
+        normalizedSceneFiles?: number
+        copiedAssets?: number
+        unresolvedAssets?: number
+      }>
       saveScene?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => Promise<{ filePath: string; name: string } | null>
       openScene?: (payload: { projectRoot?: string }) => Promise<{ filePath: string; name: string; content: string } | null>
       readAssetDataUrl?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ dataUrl: string } | null>

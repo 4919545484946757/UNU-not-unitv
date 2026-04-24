@@ -29,6 +29,7 @@ function createSceneId(prefix = 'scene') {
 export const useSceneStore = defineStore('scene', {
   state: () => ({
     scenes: [] as Scene[],
+    sceneFilePathById: {} as Record<string, string>,
     currentScene: null as Scene | null,
     revision: 0,
     isDirty: false,
@@ -64,6 +65,36 @@ export const useSceneStore = defineStore('scene', {
     }
   },
   actions: {
+    resetProjectSceneState() {
+      this.scenes = []
+      this.sceneFilePathById = {}
+      this.currentScene = null
+      this.runtimeScene = null
+      this.runtimeRevision += 1
+      this.revision += 1
+      this.isDirty = false
+      this.resetHistory()
+      this.clearAutoSaveTimer()
+      const project = useProjectStore()
+      project.resetSceneFile()
+    },
+    setSceneFileBinding(sceneId: string, filePath: string) {
+      const id = String(sceneId || '').trim()
+      const path = String(filePath || '').trim()
+      if (!id || !path) return
+      this.sceneFilePathById = { ...this.sceneFilePathById, [id]: path }
+    },
+    clearSceneFileBinding(sceneId: string) {
+      const id = String(sceneId || '').trim()
+      if (!id) return
+      if (!this.sceneFilePathById[id]) return
+      const next = { ...this.sceneFilePathById }
+      delete next[id]
+      this.sceneFilePathById = next
+    },
+    getSceneFileBinding(sceneId: string) {
+      return String(this.sceneFilePathById[String(sceneId || '').trim()] || '')
+    },
     clearAutoSaveTimer() {
       if (!this.autoSaveTimer) return
       window.clearTimeout(this.autoSaveTimer)
@@ -110,6 +141,9 @@ export const useSceneStore = defineStore('scene', {
       this.resetHistory()
       this.clearAutoSaveTimer()
       this.captureHistorySnapshot()
+      const targetPath = this.getSceneFileBinding(target.id)
+      if (targetPath) project.setSceneFile(targetPath)
+      else project.resetSceneFile()
       project.setStatus(`已切换编辑场景：${target.name}`)
       return true
     },
@@ -144,6 +178,7 @@ export const useSceneStore = defineStore('scene', {
       }
       this.scenes.push(copy)
       this.currentScene = copy
+      this.clearSceneFileBinding(copy.id)
       this.runtimeScene = null
       this.runtimeRevision += 1
       this.isDirty = true
@@ -168,6 +203,7 @@ export const useSceneStore = defineStore('scene', {
         return false
       }
       const target = this.scenes[index]
+      this.clearSceneFileBinding(target.id)
       if (!force && !window.confirm(`确认删除场景“${target.name}”吗？`)) {
         project.setStatus('已取消删除场景。')
         return false
@@ -312,6 +348,7 @@ export const useSceneStore = defineStore('scene', {
     bootstrap(scene: Scene) {
       repairSceneEntityComponents(scene)
       this.scenes = [scene]
+      this.sceneFilePathById = {}
       this.currentScene = scene
       this.runtimeScene = null
       this.runtimeRevision = 0
@@ -322,6 +359,46 @@ export const useSceneStore = defineStore('scene', {
       this.clearAutoSaveTimer()
       this.captureHistorySnapshot()
     },
+    bootstrapSceneCollection(
+      entries: Array<{ scene: Scene; filePath?: string }>,
+      currentSceneId?: string
+    ) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const normalizedEntries = entries
+        .filter((item) => !!item?.scene)
+        .map((item) => ({ scene: item.scene, filePath: String(item.filePath || '').trim() }))
+      if (!normalizedEntries.length) {
+        this.createNewScene('MainScene', true)
+        return
+      }
+
+      normalizedEntries.forEach((item) => repairSceneEntityComponents(item.scene))
+      this.scenes = normalizedEntries.map((item) => item.scene)
+      const fileMap: Record<string, string> = {}
+      for (const item of normalizedEntries) {
+        if (item.filePath) fileMap[item.scene.id] = item.filePath
+      }
+      this.sceneFilePathById = fileMap
+
+      const preferredId = String(currentSceneId || '').trim()
+      this.currentScene =
+        this.scenes.find((item) => item.id === preferredId) ||
+        this.scenes[0] ||
+        null
+      this.runtimeScene = null
+      this.runtimeRevision = 0
+      this.isDirty = false
+      this.revision += 1
+      selection.clearSelection()
+      this.resetHistory()
+      this.clearAutoSaveTimer()
+      this.captureHistorySnapshot()
+
+      const currentPath = this.currentScene ? this.getSceneFileBinding(this.currentScene.id) : ''
+      if (currentPath) project.setSceneFile(currentPath)
+      else project.resetSceneFile()
+    },
     createNewScene(name = 'MainScene', force = false) {
       const project = useProjectStore()
       const selection = useSelectionStore()
@@ -330,6 +407,7 @@ export const useSceneStore = defineStore('scene', {
         return
       }
       this.currentScene = new SceneClass(createSceneId('scene'), name)
+      this.clearSceneFileBinding(this.currentScene.id)
       repairSceneEntityComponents(this.currentScene)
       this.runtimeScene = null
       this.runtimeRevision = 0
@@ -347,6 +425,23 @@ export const useSceneStore = defineStore('scene', {
       this.revision++
       this.scheduleHistoryCapture()
       this.scheduleAutoSave()
+    },
+    syncScriptSourceByPath(scriptPath: string, sourceCode: string) {
+      const normalizedTarget = normalizeScriptPath(scriptPath)
+      if (!normalizedTarget) return 0
+      let updated = 0
+      for (const scene of this.scenes) {
+        for (const entity of scene.entities) {
+          const script = entity.getComponent<ScriptComponent>('Script')
+          if (!script) continue
+          if (!isScriptPathEquivalent(script.scriptPath, normalizedTarget)) continue
+          if (script.sourceCode === sourceCode) continue
+          script.sourceCode = sourceCode
+          updated += 1
+        }
+      }
+      if (updated > 0) this.markDirty()
+      return updated
     },
     addEntity(entity: Entity) {
       if (!this.currentScene) return
@@ -426,7 +521,7 @@ export const useSceneStore = defineStore('scene', {
       } else if (type === 'player') {
         entity.name = 'Player'
         entity.addComponent(new SpriteComponent('assets/images/player.png', 90, 90, true, 1, 0xffffff, true))
-        entity.addComponent(new ColliderComponent('rect', 100, 100))
+        entity.addComponent(new ColliderComponent('rect', 100, 50, 0, 20))
         entity.addComponent(new ScriptComponent('builtin://player-input', '', true))
       } else if (type === 'enemy') {
         entity.name = 'Enemy'
@@ -609,6 +704,7 @@ export const useSceneStore = defineStore('scene', {
       repairSceneEntityComponents(scene)
       this.upsertScene(scene)
       this.currentScene = scene
+      this.sceneFilePathById = {}
       this.runtimeScene = null
       this.runtimeRevision = 0
       this.isDirty = false
@@ -617,6 +713,7 @@ export const useSceneStore = defineStore('scene', {
       this.resetHistory()
       this.clearAutoSaveTimer()
       this.captureHistorySnapshot()
+      project.resetSceneFile()
       project.setStatus(`已切换场景：${scene.name}`)
       return true
     },
@@ -702,6 +799,7 @@ export const useSceneStore = defineStore('scene', {
         projectRoot: project.rootPath
       })
       if (!saved) return
+      this.setSceneFileBinding(this.currentScene.id, saved.filePath)
       project.setSceneFile(saved.filePath)
       project.markSaved()
       this.isDirty = false
@@ -726,6 +824,7 @@ export const useSceneStore = defineStore('scene', {
         projectRoot: project.rootPath
       })
       if (!saved) return
+      this.setSceneFileBinding(this.currentScene.id, saved.filePath)
       project.markSaved()
       this.isDirty = false
       this.clearAutoSaveTimer()
@@ -749,6 +848,7 @@ export const useSceneStore = defineStore('scene', {
       repairSceneEntityComponents(scene)
       this.upsertScene(scene)
       this.currentScene = scene
+      this.setSceneFileBinding(scene.id, result.filePath)
       this.runtimeScene = null
       this.runtimeRevision = 0
       this.isDirty = false
@@ -946,6 +1046,26 @@ function removeEntityTreeFromScene(scene: Scene, root: Entity) {
     const transform = entity.getTransform()
     if (transform) transform.zIndex = idx
   })
+}
+
+function normalizeScriptPath(input: string) {
+  return String(input || '').trim().replace(/\\/g, '/')
+}
+
+function isScriptPathEquivalent(left: string, right: string) {
+  const a = normalizeScriptPath(left)
+  const b = normalizeScriptPath(right)
+  if (!a || !b) return false
+  if (a === b) return true
+  const aliases: Record<string, string> = {
+    'builtin://player-input': 'assets/scripts/player-input.js',
+    'builtin://bullet-projectile': 'assets/scripts/bullet-projectile.js',
+    'builtin://enemy-chase-respawn': 'assets/scripts/enemy-chase-respawn.js',
+    'builtin://patrol': 'assets/scripts/patrol.js',
+    'builtin://orbit-around-chest': 'assets/scripts/orbit-around-chest.js',
+    'builtin://spin': 'assets/scripts/spin.js'
+  }
+  return aliases[a] === b || aliases[b] === a
 }
 
 function repairSceneEntityComponents(scene: Scene) {

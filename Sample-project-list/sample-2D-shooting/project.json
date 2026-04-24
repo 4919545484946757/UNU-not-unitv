@@ -1,0 +1,19 @@
+{
+  "format": "unu-project",
+  "version": 1,
+  "name": "sample-2D-shooting",
+  "createdAt": "2026-04-24T03:20:39.708Z",
+  "updatedAt": "2026-04-24T04:29:08.326Z",
+  "sceneCatalogVersion": 1,
+  "sceneCatalog": [
+    {
+      "file": "MainScene.scene.json",
+      "name": "MainScene"
+    },
+    {
+      "file": "SecondScene.scene.json",
+      "name": "SecondScene"
+    }
+  ],
+  "startupScene": "MainScene.scene.json"
+}

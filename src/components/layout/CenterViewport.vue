@@ -19,7 +19,8 @@
         </button>
       </div>
       <span class="hint">
-        选择 / 移动 / 缩放 / 平移 · Timeline 支持 .anim.json · 当前工具：{{ editor.tool }} · 当前场景：{{ project.currentScenePath || '内存场景' }}
+        选择 / 移动 / 缩放 / 平移 · Timeline 支持 .anim.json · 当前工具：{{ editor.tool }} · 当前场景：
+        <span class="scene-path" :title="scenePathTitle">{{ scenePathDisplay }}</span>
       </span>
     </div>
     <div
@@ -35,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createDemoScene } from '../../engine/sampleScene'
 import { PixiRenderer } from '../../engine/renderer/PixiRenderer'
 import { deserializeScene } from '../../engine/serialization/sceneSerializer'
@@ -57,6 +58,24 @@ const selection = useSelectionStore()
 let renderer: PixiRenderer | null = null
 let lastRuntimeSyncAt = 0
 
+const scenePathTitle = computed(() => project.currentScenePath || '内存场景')
+const scenePathDisplay = computed(() => {
+  const fullPath = String(project.currentScenePath || '').trim()
+  if (!fullPath) return '内存场景'
+
+  const normalizedFull = fullPath.replace(/\\/g, '/')
+  const root = String(project.rootPath || '').trim().replace(/\\/g, '/').replace(/\/+$/g, '')
+  if (root && root !== 'sample-project') {
+    const fullLower = normalizedFull.toLowerCase()
+    const rootLower = root.toLowerCase()
+    if (fullLower.startsWith(`${rootLower}/`)) {
+      return normalizedFull.slice(root.length + 1)
+    }
+  }
+  const lastSlash = normalizedFull.lastIndexOf('/')
+  return lastSlash >= 0 ? normalizedFull.slice(lastSlash + 1) : normalizedFull
+})
+
 async function ensureInitialSceneReady() {
   if (sceneStore.currentScene) return
 
@@ -70,24 +89,34 @@ async function ensureInitialSceneReady() {
     return
   }
 
-  const sceneAsset = assets.flat.find((node) => node.type === 'scene')
-  if (!sceneAsset) {
+  const sceneAssets = assets.flat
+    .filter((node) => node.type === 'scene' && !!node.path)
+    .sort((a, b) => a.path.localeCompare(b.path))
+  if (!sceneAssets.length) {
     sceneStore.createNewScene('MainScene', true)
     return
   }
 
   try {
-    const loaded = await window.unu.readTextAsset({
-      projectRoot: project.rootPath,
-      relativePath: sceneAsset.path
-    })
-    if (!loaded?.content) {
+    const loadedScenes: Array<{ scene: ReturnType<typeof deserializeScene>; filePath: string }> = []
+    for (const sceneAsset of sceneAssets) {
+      const loaded = await window.unu.readTextAsset({
+        projectRoot: project.rootPath,
+        relativePath: sceneAsset.path
+      })
+      if (!loaded?.content) continue
+      try {
+        const scene = deserializeScene(loaded.content)
+        loadedScenes.push({ scene, filePath: loaded.filePath })
+      } catch {
+        // Ignore broken scene files and continue loading others.
+      }
+    }
+    if (!loadedScenes.length) {
       sceneStore.createNewScene('MainScene', true)
       return
     }
-    const scene = deserializeScene(loaded.content)
-    sceneStore.bootstrap(scene)
-    project.setSceneFile(loaded.filePath)
+    sceneStore.bootstrapSceneCollection(loadedScenes)
   } catch {
     sceneStore.createNewScene('MainScene', true)
   }
@@ -96,15 +125,7 @@ async function ensureInitialSceneReady() {
 async function reloadCurrentProjectScene() {
   runtime.stop()
   selection.clearSelection()
-  sceneStore.currentScene = null
-  sceneStore.scenes = []
-  sceneStore.runtimeScene = null
-  sceneStore.runtimeRevision += 1
-  sceneStore.revision += 1
-  sceneStore.isDirty = false
-  sceneStore.resetHistory()
-  sceneStore.clearAutoSaveTimer()
-  project.resetSceneFile()
+  sceneStore.resetProjectSceneState()
 
   await ensureInitialSceneReady()
   sceneStore.repairCurrentSceneComponents()
@@ -241,7 +262,7 @@ onBeforeUnmount(() => {
 }
 .viewport-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 0 12px;
   border-bottom: 1px solid #252c38;
@@ -253,6 +274,7 @@ onBeforeUnmount(() => {
 .preview-controls {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 .preview-btn {
   border: 1px solid #3a465d;
@@ -294,10 +316,14 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 .hint {
+  flex: 1;
   opacity: 0.8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
+}
+.scene-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 </style>

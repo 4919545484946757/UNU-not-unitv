@@ -315,7 +315,8 @@ export function serializeScene(scene: Scene) {
 }
 
 export function deserializeScene(raw: string) {
-  const parsed = JSON.parse(raw) as SerializedScene
+  const normalizedRaw = String(raw || '').replace(/^\uFEFF/, '')
+  const parsed = JSON.parse(normalizedRaw) as SerializedScene
   if (parsed.format !== 'unu-scene') {
     throw new Error('不是有效的 UNU 场景文件。')
   }

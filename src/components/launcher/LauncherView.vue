@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="launcher-shell">
     <div class="hero">
       <h1>UNU Engine</h1>
@@ -43,7 +43,7 @@
           </div>
           <div class="item-actions">
             <button class="small primary" @click="openProject(item)">打开</button>
-            <button class="small" @click="renameProject(item)">重命名</button>
+            <button class="small" @click="openRenameDialog(item)">重命名</button>
             <button class="small danger" @click="deleteProject(item)">删除</button>
           </div>
         </article>
@@ -92,6 +92,41 @@
         </div>
       </div>
     </div>
+
+    <div v-if="renameDialogVisible" class="create-dialog-mask" @click.self="closeRenameDialog">
+      <div class="create-dialog rename-dialog">
+        <div class="dialog-head">
+          <h3>重命名项目</h3>
+          <button class="close-btn" @click="closeRenameDialog">×</button>
+        </div>
+
+        <label class="field">
+          <span>当前项目</span>
+          <input :value="renameForm.currentName" type="text" readonly>
+        </label>
+
+        <label class="field">
+          <span>新项目名称</span>
+          <input
+            v-model="renameForm.nextName"
+            type="text"
+            placeholder="输入新的项目名称"
+            maxlength="80"
+            @keydown.enter.prevent="submitRenameProject"
+          >
+        </label>
+
+        <p class="hint">项目目录将被重命名，内部配置会自动同步。</p>
+        <p v-if="renameError" class="error">{{ renameError }}</p>
+
+        <div class="dialog-actions">
+          <button class="ghost" :disabled="renamingProject" @click="closeRenameDialog">取消</button>
+          <button class="primary" :disabled="renamingProject" @click="submitRenameProject">
+            {{ renamingProject ? '重命名中...' : '确认重命名' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -121,6 +156,15 @@ const createError = ref('')
 const createForm = ref({
   projectName: '',
   parentDir: ''
+})
+
+const renameDialogVisible = ref(false)
+const renamingProject = ref(false)
+const renameError = ref('')
+const renameForm = ref({
+  projectRoot: '',
+  currentName: '',
+  nextName: ''
 })
 
 function readHistory() {
@@ -261,23 +305,65 @@ async function submitCreateProject() {
   }
 }
 
-async function renameProject(item: HistoryProject) {
-  const nextName = window.prompt('输入新的项目名称', item.name)?.trim()
-  if (!nextName || nextName === item.name) return
+function openRenameDialog(item: HistoryProject) {
+  renameError.value = ''
+  renameForm.value = {
+    projectRoot: item.rootPath,
+    currentName: item.name,
+    nextName: item.name
+  }
+  renameDialogVisible.value = true
+}
+
+function closeRenameDialog() {
+  if (renamingProject.value) return
+  renameDialogVisible.value = false
+}
+
+async function submitRenameProject() {
   if (!window.unu?.renameProject) return
-  const renamed = await window.unu.renameProject({ projectRoot: item.rootPath, nextName })
-  if (!renamed) return
-  removeHistory(item.rootPath)
-  upsertHistory({ rootPath: renamed.rootPath, name: renamed.name, lastOpenedAt: Date.now() })
+  const nextName = renameForm.value.nextName.trim()
+  if (!nextName) {
+    renameError.value = '请输入新项目名称'
+    return
+  }
+  if (nextName === renameForm.value.currentName) {
+    closeRenameDialog()
+    return
+  }
+  renamingProject.value = true
+  renameError.value = ''
+  try {
+    const renamed = await window.unu.renameProject({
+      projectRoot: renameForm.value.projectRoot,
+      nextName
+    })
+    if (!renamed) return
+    removeHistory(renameForm.value.projectRoot)
+    upsertHistory({ rootPath: renamed.rootPath, name: renamed.name, lastOpenedAt: Date.now() })
+    closeRenameDialog()
+  } catch (error) {
+    renameError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    renamingProject.value = false
+  }
 }
 
 async function deleteProject(item: HistoryProject) {
   const ok = window.confirm(`确认删除项目目录？\n${item.rootPath}\n此操作不可恢复。`)
   if (!ok) return
   if (!window.unu?.deleteProject) return
-  const result = await window.unu.deleteProject({ projectRoot: item.rootPath })
-  if (!result?.ok) return
-  removeHistory(item.rootPath)
+  try {
+    const result = await window.unu.deleteProject({ projectRoot: item.rootPath })
+    if (!result?.ok) {
+      window.alert(result?.error ? `删除失败：${result.error}` : '删除失败')
+      return
+    }
+    removeHistory(item.rootPath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    window.alert(`删除失败：${message}`)
+  }
 }
 
 onMounted(() => {
@@ -462,6 +548,10 @@ button.danger {
   padding: 14px;
   display: grid;
   gap: 12px;
+}
+
+.rename-dialog {
+  width: min(520px, calc(100vw - 40px));
 }
 
 .dialog-head {
