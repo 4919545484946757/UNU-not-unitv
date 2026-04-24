@@ -137,6 +137,9 @@ export const sampleAssetRoots: AssetNode[] = [
           { id: 'assets/scripts/patrol.js', name: 'patrol.js', type: 'script', path: 'assets/scripts/patrol.js' },
           { id: 'assets/scripts/orbit-around-chest.js', name: 'orbit-around-chest.js', type: 'script', path: 'assets/scripts/orbit-around-chest.js' },
           { id: 'assets/scripts/spin.js', name: 'spin.js', type: 'script', path: 'assets/scripts/spin.js' },
+          { id: 'assets/scripts/ScriptRuntime.ts', name: 'ScriptRuntime.ts', type: 'script', path: 'assets/scripts/ScriptRuntime.ts' },
+          { id: 'assets/scripts/InputState.ts', name: 'InputState.ts', type: 'script', path: 'assets/scripts/InputState.ts' },
+          { id: 'assets/scripts/AudioRuntime.ts', name: 'AudioRuntime.ts', type: 'script', path: 'assets/scripts/AudioRuntime.ts' },
           {
             id: 'assets/scripts/enemy-chase-respawn.js',
             name: 'enemy-chase-respawn.js',

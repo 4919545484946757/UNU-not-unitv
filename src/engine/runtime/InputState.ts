@@ -1,4 +1,57 @@
+import * as ts from 'typescript'
+
 export type InputActionMap = Record<string, string[]>
+
+type InputRuntimeHooks = {
+  actionMap?: InputActionMap
+  isActionDown?: (ctx: {
+    action: string
+    defaultValue: boolean
+    isKeyDown: (code: string) => boolean
+    isMouseDown: (button?: number) => boolean
+    wasMousePressed: (button?: number) => boolean
+    wasActionPressed: (action: string) => boolean
+    wasActionReleased: (action: string) => boolean
+    getAxis: (axis: 'horizontal' | 'vertical') => number
+    getMoveVector: (normalized?: boolean) => { x: number; y: number }
+  }) => boolean
+  wasActionPressed?: (ctx: {
+    action: string
+    defaultValue: boolean
+    isKeyDown: (code: string) => boolean
+    isMouseDown: (button?: number) => boolean
+    wasMousePressed: (button?: number) => boolean
+    wasActionReleased: (action: string) => boolean
+    getAxis: (axis: 'horizontal' | 'vertical') => number
+    getMoveVector: (normalized?: boolean) => { x: number; y: number }
+  }) => boolean
+  wasActionReleased?: (ctx: {
+    action: string
+    defaultValue: boolean
+    isKeyDown: (code: string) => boolean
+    isMouseDown: (button?: number) => boolean
+    wasMousePressed: (button?: number) => boolean
+    wasActionPressed: (action: string) => boolean
+    getAxis: (axis: 'horizontal' | 'vertical') => number
+    getMoveVector: (normalized?: boolean) => { x: number; y: number }
+  }) => boolean
+  getAxis?: (ctx: {
+    axis: 'horizontal' | 'vertical'
+    defaultValue: number
+    isActionDown: (action: string) => boolean
+    wasActionPressed: (action: string) => boolean
+    wasActionReleased: (action: string) => boolean
+    getMoveVector: (normalized?: boolean) => { x: number; y: number }
+  }) => number
+  getMoveVector?: (ctx: {
+    normalized: boolean
+    defaultValue: { x: number; y: number }
+    getAxis: (axis: 'horizontal' | 'vertical') => number
+    isActionDown: (action: string) => boolean
+    wasActionPressed: (action: string) => boolean
+    wasActionReleased: (action: string) => boolean
+  }) => { x: number; y: number }
+}
 
 const defaultActionMap: InputActionMap = {
   move_left: ['KeyA', 'ArrowLeft'],
@@ -26,10 +79,18 @@ export class InputState {
   private worldOffsetY = 0
   private worldScale = 1
   private readonly actionMap: InputActionMap
+  private projectActionMap: InputActionMap | null = null
+  private projectHooks: InputRuntimeHooks = {}
   private attached = false
 
   constructor(actionMap: InputActionMap = defaultActionMap) {
     this.actionMap = actionMap
+  }
+
+  setProjectRuntimeSource(sourceCode: string | null, scriptPath = 'assets/scripts/InputState.ts') {
+    const loaded = parseProjectInputRuntime(sourceCode, scriptPath)
+    this.projectHooks = loaded
+    this.projectActionMap = loaded.actionMap && typeof loaded.actionMap === 'object' ? loaded.actionMap : null
   }
 
   attach() {
@@ -72,7 +133,113 @@ export class InputState {
   }
 
   isActionDown(action: string) {
-    const bindings = this.actionMap[action]
+    const defaultValue = this.resolveActionDownDefault(action)
+    if (typeof this.projectHooks.isActionDown === 'function') {
+      try {
+        return Boolean(this.projectHooks.isActionDown({
+          action,
+          defaultValue,
+          isKeyDown: (code) => this.isKeyDown(code),
+          isMouseDown: (button) => this.isMouseDown(button),
+          wasMousePressed: (button) => this.wasMousePressed(button),
+          wasActionPressed: (name) => this.resolveActionPressedDefault(name),
+          wasActionReleased: (name) => this.resolveActionReleasedDefault(name),
+          getAxis: (axis) => this.getAxis(axis),
+          getMoveVector: (normalized = true) => this.getMoveVector(normalized)
+        }))
+      } catch (error) {
+        console.warn('[UNU][input] isActionDown override failed:', error)
+      }
+    }
+    return defaultValue
+  }
+
+  wasActionPressed(action: string) {
+    const defaultValue = this.resolveActionPressedDefault(action)
+    if (typeof this.projectHooks.wasActionPressed === 'function') {
+      try {
+        return Boolean(this.projectHooks.wasActionPressed({
+          action,
+          defaultValue,
+          isKeyDown: (code) => this.isKeyDown(code),
+          isMouseDown: (button) => this.isMouseDown(button),
+          wasMousePressed: (button) => this.wasMousePressed(button),
+          wasActionReleased: (name) => this.resolveActionReleasedDefault(name),
+          getAxis: (axis) => this.getAxis(axis),
+          getMoveVector: (normalized = true) => this.getMoveVector(normalized)
+        }))
+      } catch (error) {
+        console.warn('[UNU][input] wasActionPressed override failed:', error)
+      }
+    }
+    return defaultValue
+  }
+
+  wasActionReleased(action: string) {
+    const defaultValue = this.resolveActionReleasedDefault(action)
+    if (typeof this.projectHooks.wasActionReleased === 'function') {
+      try {
+        return Boolean(this.projectHooks.wasActionReleased({
+          action,
+          defaultValue,
+          isKeyDown: (code) => this.isKeyDown(code),
+          isMouseDown: (button) => this.isMouseDown(button),
+          wasMousePressed: (button) => this.wasMousePressed(button),
+          wasActionPressed: (name) => this.resolveActionPressedDefault(name),
+          getAxis: (axis) => this.getAxis(axis),
+          getMoveVector: (normalized = true) => this.getMoveVector(normalized)
+        }))
+      } catch (error) {
+        console.warn('[UNU][input] wasActionReleased override failed:', error)
+      }
+    }
+    return defaultValue
+  }
+
+  getAxis(axis: 'horizontal' | 'vertical') {
+    const defaultValue = this.resolveAxisDefault(axis)
+    if (typeof this.projectHooks.getAxis === 'function') {
+      try {
+        const resolved = Number(this.projectHooks.getAxis({
+          axis,
+          defaultValue,
+          isActionDown: (action) => this.resolveActionDownDefault(action),
+          wasActionPressed: (action) => this.resolveActionPressedDefault(action),
+          wasActionReleased: (action) => this.resolveActionReleasedDefault(action),
+          getMoveVector: (normalized = true) => this.resolveMoveVectorDefault(normalized)
+        }))
+        if (Number.isFinite(resolved)) return resolved
+      } catch (error) {
+        console.warn('[UNU][input] getAxis override failed:', error)
+      }
+    }
+    return defaultValue
+  }
+
+  getMoveVector(normalized = true) {
+    const defaultValue = this.resolveMoveVectorDefault(normalized)
+    if (typeof this.projectHooks.getMoveVector === 'function') {
+      try {
+        const resolved = this.projectHooks.getMoveVector({
+          normalized,
+          defaultValue,
+          getAxis: (axis) => this.resolveAxisDefault(axis),
+          isActionDown: (action) => this.resolveActionDownDefault(action),
+          wasActionPressed: (action) => this.resolveActionPressedDefault(action),
+          wasActionReleased: (action) => this.resolveActionReleasedDefault(action)
+        })
+        if (resolved && Number.isFinite(resolved.x) && Number.isFinite(resolved.y)) {
+          return { x: resolved.x, y: resolved.y }
+        }
+      } catch (error) {
+        console.warn('[UNU][input] getMoveVector override failed:', error)
+      }
+    }
+    return defaultValue
+  }
+
+  private resolveActionDownDefault(action: string) {
+    const bindings = this.resolveActionBindings(action)
     if (!bindings?.length) return false
     return bindings.some((binding) => {
       if (binding.startsWith('Mouse')) {
@@ -83,8 +250,8 @@ export class InputState {
     })
   }
 
-  wasActionPressed(action: string) {
-    const bindings = this.actionMap[action]
+  private resolveActionPressedDefault(action: string) {
+    const bindings = this.resolveActionBindings(action)
     if (!bindings?.length) return false
     return bindings.some((binding) => {
       if (binding.startsWith('Mouse')) {
@@ -95,8 +262,8 @@ export class InputState {
     })
   }
 
-  wasActionReleased(action: string) {
-    const bindings = this.actionMap[action]
+  private resolveActionReleasedDefault(action: string) {
+    const bindings = this.resolveActionBindings(action)
     if (!bindings?.length) return false
     return bindings.some((binding) => {
       if (binding.startsWith('Mouse')) {
@@ -107,24 +274,30 @@ export class InputState {
     })
   }
 
-  getAxis(axis: 'horizontal' | 'vertical') {
+  private resolveAxisDefault(axis: 'horizontal' | 'vertical') {
     if (axis === 'horizontal') {
-      const left = this.isActionDown('move_left') ? 1 : 0
-      const right = this.isActionDown('move_right') ? 1 : 0
+      const left = this.resolveActionDownDefault('move_left') ? 1 : 0
+      const right = this.resolveActionDownDefault('move_right') ? 1 : 0
       return right - left
     }
-    const up = this.isActionDown('move_up') ? 1 : 0
-    const down = this.isActionDown('move_down') ? 1 : 0
+    const up = this.resolveActionDownDefault('move_up') ? 1 : 0
+    const down = this.resolveActionDownDefault('move_down') ? 1 : 0
     return down - up
   }
 
-  getMoveVector(normalized = true) {
-    const x = this.getAxis('horizontal')
-    const y = this.getAxis('vertical')
+  private resolveMoveVectorDefault(normalized = true) {
+    const x = this.resolveAxisDefault('horizontal')
+    const y = this.resolveAxisDefault('vertical')
     if (!normalized) return { x, y }
     const length = Math.hypot(x, y)
     if (length <= 0) return { x: 0, y: 0 }
     return { x: x / length, y: y / length }
+  }
+
+  private resolveActionBindings(action: string) {
+    const projectBindings = this.projectActionMap?.[action]
+    if (Array.isArray(projectBindings) && projectBindings.length) return projectBindings
+    return this.actionMap[action]
   }
 
   getMousePosition() {
@@ -200,5 +373,46 @@ export class InputState {
 
   private readonly handleContextMenu = (event: MouseEvent) => {
     event.preventDefault()
+  }
+}
+
+function normalizeInputActionMap(value: unknown) {
+  if (!value || typeof value !== 'object') return null
+  const result: InputActionMap = {}
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!Array.isArray(raw)) continue
+    const bindings = raw
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+    if (bindings.length) result[key] = bindings
+  }
+  return result
+}
+
+function parseProjectInputRuntime(sourceCode: string | null, scriptPath: string) {
+  const raw = String(sourceCode || '').trim()
+  if (!raw) return {} as InputRuntimeHooks
+  try {
+    const transpiled = ts.transpileModule(raw, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        jsx: ts.JsxEmit.Preserve
+      },
+      fileName: scriptPath || 'InputState.ts'
+    })
+    const exportsBag: Record<string, unknown> = {}
+    const moduleBag: { exports: Record<string, unknown> } = { exports: exportsBag }
+    const evaluator = new Function('module', 'exports', transpiled.outputText)
+    evaluator(moduleBag, exportsBag)
+    const loaded = ((moduleBag.exports && (moduleBag.exports.default as unknown)) || moduleBag.exports) as Record<string, unknown> | null
+    if (!loaded || typeof loaded !== 'object') return {} as InputRuntimeHooks
+    const hooks = loaded as InputRuntimeHooks
+    const actionMap = normalizeInputActionMap(loaded.actionMap)
+    if (actionMap) hooks.actionMap = actionMap
+    return hooks
+  } catch (error) {
+    console.warn('[UNU][input] failed to parse project InputState.ts:', error)
+    return {} as InputRuntimeHooks
   }
 }

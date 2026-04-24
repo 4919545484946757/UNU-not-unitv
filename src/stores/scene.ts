@@ -784,6 +784,74 @@ export const useSceneStore = defineStore('scene', {
       this.markDirty()
       project.setStatus(`已调整层级：${entity.name}`)
     },
+    renameSelectedEntity(nextName: string) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene || !selection.selectedEntityId) {
+        project.setStatus('请先选择一个实体再重命名。')
+        return false
+      }
+      const entity = this.currentScene.getEntityById(selection.selectedEntityId)
+      if (!entity) {
+        selection.clearSelection()
+        project.setStatus('未找到当前选中的实体。')
+        return false
+      }
+      const normalized = String(nextName || '').trim()
+      if (!normalized) {
+        project.setStatus('实体名称不能为空。')
+        return false
+      }
+      if (entity.name === normalized) return true
+      entity.name = normalized
+      this.markDirty()
+      project.setStatus(`已重命名实体：${normalized}`)
+      return true
+    },
+    updateSelectedEntityId(nextId: string) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene || !selection.selectedEntityId) {
+        project.setStatus('请先选择一个实体再修改 ID。')
+        return false
+      }
+      const entity = this.currentScene.getEntityById(selection.selectedEntityId)
+      if (!entity) {
+        selection.clearSelection()
+        project.setStatus('未找到当前选中的实体。')
+        return false
+      }
+      const normalized = String(nextId || '').trim()
+      if (!normalized) {
+        project.setStatus('实体 ID 不能为空。')
+        return false
+      }
+      if (/\s/.test(normalized)) {
+        project.setStatus('实体 ID 不能包含空白字符。')
+        return false
+      }
+      if (entity.id === normalized) return true
+      const existed = this.currentScene.entities.some((item) => item.id === normalized)
+      if (existed) {
+        project.setStatus(`实体 ID 已存在：${normalized}`)
+        return false
+      }
+      const previousId = entity.id
+      entity.id = normalized
+      for (const item of this.currentScene.entities) {
+        const camera = item.getComponent<CameraComponent>('Camera')
+        if (!camera) continue
+        if (camera.followEntityId === previousId) {
+          camera.followEntityId = normalized
+        }
+      }
+      if (selection.selectedEntityId === previousId) {
+        selection.selectEntity(normalized)
+      }
+      this.markDirty()
+      project.setStatus(`已更新实体 ID：${previousId} -> ${normalized}`)
+      return true
+    },
     async saveSceneAs() {
       if (!this.currentScene) return
       const project = useProjectStore()

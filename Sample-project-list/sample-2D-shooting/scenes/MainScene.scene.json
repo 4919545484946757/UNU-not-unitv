@@ -1268,6 +1268,200 @@
         ]
       },
       {
+        "id": "Enemy_002",
+        "name": "Enemy002",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 452,
+              "y": 352,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 6
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/enemy/tube_01.png",
+              "width": 80,
+              "height": 80,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 40,
+              "height": 80,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/enemy/tube_01.png",
+                "assets/images/pixel/enemy/tube_02.png",
+                "assets/images/pixel/enemy/tube_03.png",
+                "assets/images/pixel/enemy/tube_04.png"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": false,
+                "initialState": "Idle",
+                "currentState": "",
+                "clips": [],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "Enemy_003",
+        "name": "Enemy_003",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 484,
+              "y": 384,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 7
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/enemy/tube_01.png",
+              "width": 80,
+              "height": 80,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 40,
+              "height": 80,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/images/pixel/enemy/tube_01.png",
+                "assets/images/pixel/enemy/tube_02.png",
+                "assets/images/pixel/enemy/tube_03.png",
+                "assets/images/pixel/enemy/tube_04.png"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "",
+              "atlasGrid": null,
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": false,
+                "initialState": "Idle",
+                "currentState": "",
+                "clips": [],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
         "id": "item_001",
         "name": "Chest",
         "components": [
@@ -1282,7 +1476,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 6
+              "zIndex": 8
             }
           },
           {
@@ -1351,7 +1545,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 7
+              "zIndex": 9
             }
           },
           {
@@ -1434,7 +1628,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 8
+              "zIndex": 10
             }
           },
           {
@@ -1471,7 +1665,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 9
+              "zIndex": 11
             }
           },
           {
@@ -1508,7 +1702,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 10
+              "zIndex": 12
             }
           },
           {
@@ -1545,7 +1739,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 11
+              "zIndex": 13
             }
           },
           {
@@ -1583,200 +1777,6 @@
               "targetScene": "SecondScene",
               "textureCycle": [],
               "tintCycle": []
-            }
-          }
-        ]
-      },
-      {
-        "id": "copy_jh5emg",
-        "name": "Enemy_Copy",
-        "components": [
-          {
-            "type": "Transform",
-            "data": {
-              "type": "Transform",
-              "x": 452,
-              "y": 352,
-              "scaleX": 1,
-              "scaleY": 1,
-              "rotation": 0,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
-              "zIndex": 12
-            }
-          },
-          {
-            "type": "Sprite",
-            "data": {
-              "type": "Sprite",
-              "texturePath": "assets/images/pixel/enemy/tube_01.png",
-              "width": 80,
-              "height": 80,
-              "visible": true,
-              "alpha": 1,
-              "tint": 16777215,
-              "preserveAspect": true
-            }
-          },
-          {
-            "type": "Collider",
-            "data": {
-              "type": "Collider",
-              "shape": "rect",
-              "width": 40,
-              "height": 80,
-              "offsetX": 0,
-              "offsetY": 0,
-              "isTrigger": false
-            }
-          },
-          {
-            "type": "Animation",
-            "data": {
-              "type": "Animation",
-              "enabled": true,
-              "playing": true,
-              "fps": 8,
-              "loop": true,
-              "currentFrame": 0,
-              "elapsed": 0,
-              "framePaths": [
-                "assets/images/pixel/enemy/tube_01.png",
-                "assets/images/pixel/enemy/tube_02.png",
-                "assets/images/pixel/enemy/tube_03.png",
-                "assets/images/pixel/enemy/tube_04.png"
-              ],
-              "frameDurations": [
-                1,
-                1,
-                1,
-                1
-              ],
-              "animationAssetPath": "",
-              "sourceAtlasPath": "",
-              "atlasGrid": null,
-              "frameEvents": [],
-              "transformTracks": {
-                "positionX": [],
-                "positionY": [],
-                "rotation": []
-              },
-              "stateMachine": {
-                "enabled": false,
-                "initialState": "Idle",
-                "currentState": "",
-                "clips": [],
-                "transitions": []
-              }
-            }
-          },
-          {
-            "type": "Script",
-            "data": {
-              "type": "Script",
-              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
-              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
-              "enabled": true,
-              "instance": null,
-              "initialized": false,
-              "started": false
-            }
-          }
-        ]
-      },
-      {
-        "id": "copy_9jiijf",
-        "name": "Enemy_Copy_Copy",
-        "components": [
-          {
-            "type": "Transform",
-            "data": {
-              "type": "Transform",
-              "x": 484,
-              "y": 384,
-              "scaleX": 1,
-              "scaleY": 1,
-              "rotation": 0,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
-              "zIndex": 13
-            }
-          },
-          {
-            "type": "Sprite",
-            "data": {
-              "type": "Sprite",
-              "texturePath": "assets/images/pixel/enemy/tube_01.png",
-              "width": 80,
-              "height": 80,
-              "visible": true,
-              "alpha": 1,
-              "tint": 16777215,
-              "preserveAspect": true
-            }
-          },
-          {
-            "type": "Collider",
-            "data": {
-              "type": "Collider",
-              "shape": "rect",
-              "width": 40,
-              "height": 80,
-              "offsetX": 0,
-              "offsetY": 0,
-              "isTrigger": false
-            }
-          },
-          {
-            "type": "Animation",
-            "data": {
-              "type": "Animation",
-              "enabled": true,
-              "playing": true,
-              "fps": 8,
-              "loop": true,
-              "currentFrame": 0,
-              "elapsed": 0,
-              "framePaths": [
-                "assets/images/pixel/enemy/tube_01.png",
-                "assets/images/pixel/enemy/tube_02.png",
-                "assets/images/pixel/enemy/tube_03.png",
-                "assets/images/pixel/enemy/tube_04.png"
-              ],
-              "frameDurations": [
-                1,
-                1,
-                1,
-                1
-              ],
-              "animationAssetPath": "",
-              "sourceAtlasPath": "",
-              "atlasGrid": null,
-              "frameEvents": [],
-              "transformTracks": {
-                "positionX": [],
-                "positionY": [],
-                "rotation": []
-              },
-              "stateMachine": {
-                "enabled": false,
-                "initialState": "Idle",
-                "currentState": "",
-                "clips": [],
-                "transitions": []
-              }
-            }
-          },
-          {
-            "type": "Script",
-            "data": {
-              "type": "Script",
-              "scriptPath": "assets/scripts/enemy-chase-respawn.js",
-              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
-              "enabled": true,
-              "instance": null,
-              "initialized": false,
-              "started": false
             }
           }
         ]

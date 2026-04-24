@@ -2,6 +2,7 @@ import type { AudioGroup } from '../components/AudioComponent'
 import { AudioComponent } from '../components/AudioComponent'
 import type { Entity } from '../core/Entity'
 import type { Scene } from '../core/Scene'
+import * as ts from 'typescript'
 
 type ManagedAudio = {
   entityId: string
@@ -18,6 +19,40 @@ type PlayOneShotOptions = {
   loop?: boolean
 }
 
+type AudioRuntimeHooks = {
+  initialMasterVolume?: number
+  initialGroupVolumes?: Partial<Record<AudioGroup, number>>
+  resolveOneShot?: (request: {
+    clipPath: string
+    options: PlayOneShotOptions
+    projectRoot: string
+    paused: boolean
+    masterVolume: number
+    groupVolumes: Record<AudioGroup, number>
+  }) => {
+    clipPath?: string
+    options?: PlayOneShotOptions
+    cancel?: boolean
+  } | null | undefined
+  resolveEntityAudio?: (request: {
+    entity: Entity
+    clipPath: string
+    group: AudioGroup
+    volume: number
+    loop: boolean
+    projectRoot: string
+    paused: boolean
+    masterVolume: number
+    groupVolumes: Record<AudioGroup, number>
+  }) => {
+    clipPath?: string
+    group?: AudioGroup
+    volume?: number
+    loop?: boolean
+    cancel?: boolean
+  } | null | undefined
+}
+
 export class AudioRuntime {
   private readonly managedByEntity = new Map<string, ManagedAudio>()
   private readonly oneShotAudios = new Set<HTMLAudioElement>()
@@ -26,9 +61,26 @@ export class AudioRuntime {
   private groupVolumes: Record<AudioGroup, number> = { bgm: 0.8, sfx: 1, ui: 1 }
   private projectRoot = ''
   private paused = false
+  private projectHooks: AudioRuntimeHooks = {}
 
   setProjectRoot(projectRoot: string) {
     this.projectRoot = projectRoot
+    this.dataUrlCache.clear()
+  }
+
+  setProjectRuntimeSource(sourceCode: string | null, scriptPath = 'assets/scripts/AudioRuntime.ts') {
+    this.projectHooks = parseProjectAudioRuntime(sourceCode, scriptPath)
+    if (Number.isFinite(this.projectHooks.initialMasterVolume)) {
+      this.masterVolume = clamp01(Number(this.projectHooks.initialMasterVolume))
+    }
+    if (this.projectHooks.initialGroupVolumes && typeof this.projectHooks.initialGroupVolumes === 'object') {
+      const groups: AudioGroup[] = ['bgm', 'sfx', 'ui']
+      for (const group of groups) {
+        const value = this.projectHooks.initialGroupVolumes[group]
+        if (Number.isFinite(value)) this.groupVolumes[group] = clamp01(Number(value))
+      }
+    }
+    this.refreshVolumes()
   }
 
   setPaused(paused: boolean) {
@@ -64,13 +116,15 @@ export class AudioRuntime {
   }
 
   async playOneShot(clipPath: string, options: PlayOneShotOptions = {}) {
-    const source = await this.resolveAudioSource(clipPath)
+    const resolvedRequest = this.resolveOneShotRequest(clipPath, options)
+    if (!resolvedRequest) return null
+    const source = await this.resolveAudioSource(resolvedRequest.clipPath)
     if (!source) return null
-    const group: AudioGroup = options.group ?? 'sfx'
-    const baseVolume = clamp01(options.volume ?? 1)
+    const group: AudioGroup = resolvedRequest.options.group ?? 'sfx'
+    const baseVolume = clamp01(resolvedRequest.options.volume ?? 1)
     const audio = new Audio(source)
     audio.preload = 'auto'
-    audio.loop = Boolean(options.loop)
+    audio.loop = Boolean(resolvedRequest.options.loop)
     audio.volume = this.computeVolume(group, baseVolume)
     this.oneShotAudios.add(audio)
     audio.addEventListener('ended', () => {
@@ -88,14 +142,20 @@ export class AudioRuntime {
   async playEntityAudio(entity: Entity) {
     const audioComp = entity.getComponent<AudioComponent>('Audio')
     if (!audioComp || !audioComp.enabled) return
-    const source = await this.resolveAudioSource(audioComp.clipPath)
+    const resolvedRequest = this.resolveEntityAudioRequest(entity, audioComp.clipPath, audioComp.group, audioComp.volume, audioComp.loop)
+    if (!resolvedRequest) {
+      this.stopEntityAudio(entity.id)
+      audioComp.playing = false
+      return
+    }
+    const source = await this.resolveAudioSource(resolvedRequest.clipPath)
     if (!source) return
     const existing = this.managedByEntity.get(entity.id)
-    if (existing && existing.clipPath === audioComp.clipPath) {
-      existing.baseVolume = clamp01(audioComp.volume)
-      existing.group = audioComp.group
-      existing.loop = audioComp.loop
-      existing.element.loop = audioComp.loop
+    if (existing && existing.clipPath === resolvedRequest.clipPath) {
+      existing.baseVolume = clamp01(resolvedRequest.volume)
+      existing.group = resolvedRequest.group
+      existing.loop = resolvedRequest.loop
+      existing.element.loop = resolvedRequest.loop
       existing.element.volume = this.computeVolume(existing.group, existing.baseVolume)
       if (!this.paused && existing.element.paused) {
         await existing.element.play().catch(() => undefined)
@@ -110,10 +170,10 @@ export class AudioRuntime {
     element.loop = audioComp.loop
     const managed: ManagedAudio = {
       entityId: entity.id,
-      clipPath: audioComp.clipPath,
-      group: audioComp.group,
-      baseVolume: clamp01(audioComp.volume),
-      loop: audioComp.loop,
+      clipPath: resolvedRequest.clipPath,
+      group: resolvedRequest.group,
+      baseVolume: clamp01(resolvedRequest.volume),
+      loop: resolvedRequest.loop,
       element
     }
     element.volume = this.computeVolume(managed.group, managed.baseVolume)
@@ -186,6 +246,72 @@ export class AudioRuntime {
     return this.dataUrlCache.get(clipPath) ?? null
   }
 
+  private resolveOneShotRequest(clipPath: string, options: PlayOneShotOptions) {
+    let nextClipPath = String(clipPath || '').trim()
+    let nextOptions: PlayOneShotOptions = {
+      group: options.group ?? 'sfx',
+      volume: options.volume ?? 1,
+      loop: options.loop ?? false
+    }
+    if (typeof this.projectHooks.resolveOneShot === 'function') {
+      try {
+        const patch = this.projectHooks.resolveOneShot({
+          clipPath: nextClipPath,
+          options: { ...nextOptions },
+          projectRoot: this.projectRoot,
+          paused: this.paused,
+          masterVolume: this.masterVolume,
+          groupVolumes: { ...this.groupVolumes }
+        })
+        if (patch?.cancel) return null
+        if (patch?.clipPath != null) nextClipPath = String(patch.clipPath || '').trim()
+        if (patch?.options && typeof patch.options === 'object') {
+          nextOptions = { ...nextOptions, ...patch.options }
+        }
+      } catch (error) {
+        console.warn('[UNU][audio] resolveOneShot override failed:', error)
+      }
+    }
+    if (!nextClipPath) return null
+    return { clipPath: nextClipPath, options: nextOptions }
+  }
+
+  private resolveEntityAudioRequest(entity: Entity, clipPath: string, group: AudioGroup, volume: number, loop: boolean) {
+    let nextClipPath = String(clipPath || '').trim()
+    let nextGroup: AudioGroup = group
+    let nextVolume = volume
+    let nextLoop = loop
+    if (typeof this.projectHooks.resolveEntityAudio === 'function') {
+      try {
+        const patch = this.projectHooks.resolveEntityAudio({
+          entity,
+          clipPath: nextClipPath,
+          group: nextGroup,
+          volume: nextVolume,
+          loop: nextLoop,
+          projectRoot: this.projectRoot,
+          paused: this.paused,
+          masterVolume: this.masterVolume,
+          groupVolumes: { ...this.groupVolumes }
+        })
+        if (patch?.cancel) return null
+        if (patch?.clipPath != null) nextClipPath = String(patch.clipPath || '').trim()
+        if (patch?.group === 'bgm' || patch?.group === 'sfx' || patch?.group === 'ui') nextGroup = patch.group
+        if (Number.isFinite(patch?.volume)) nextVolume = Number(patch?.volume)
+        if (typeof patch?.loop === 'boolean') nextLoop = patch.loop
+      } catch (error) {
+        console.warn('[UNU][audio] resolveEntityAudio override failed:', error)
+      }
+    }
+    if (!nextClipPath) return null
+    return {
+      clipPath: nextClipPath,
+      group: nextGroup,
+      volume: nextVolume,
+      loop: nextLoop
+    }
+  }
+
   private refreshVolumes() {
     for (const managed of this.managedByEntity.values()) {
       managed.element.volume = this.computeVolume(managed.group, managed.baseVolume)
@@ -200,4 +326,29 @@ export class AudioRuntime {
 function clamp01(value: number) {
   if (!Number.isFinite(value)) return 1
   return Math.max(0, Math.min(1, value))
+}
+
+function parseProjectAudioRuntime(sourceCode: string | null, scriptPath: string) {
+  const raw = String(sourceCode || '').trim()
+  if (!raw) return {} as AudioRuntimeHooks
+  try {
+    const transpiled = ts.transpileModule(raw, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        jsx: ts.JsxEmit.Preserve
+      },
+      fileName: scriptPath || 'AudioRuntime.ts'
+    })
+    const exportsBag: Record<string, unknown> = {}
+    const moduleBag: { exports: Record<string, unknown> } = { exports: exportsBag }
+    const evaluator = new Function('module', 'exports', transpiled.outputText)
+    evaluator(moduleBag, exportsBag)
+    const loaded = ((moduleBag.exports && (moduleBag.exports.default as unknown)) || moduleBag.exports) as Record<string, unknown> | null
+    if (!loaded || typeof loaded !== 'object') return {} as AudioRuntimeHooks
+    return loaded as AudioRuntimeHooks
+  } catch (error) {
+    console.warn('[UNU][audio] failed to parse project AudioRuntime.ts:', error)
+    return {} as AudioRuntimeHooks
+  }
 }

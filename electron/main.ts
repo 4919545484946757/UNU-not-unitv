@@ -66,12 +66,51 @@ function createProjectRuntimeTemplate() {
 `
 }
 
-async function ensureProjectRuntimeScriptFile(projectRoot: string) {
-  const runtimePath = path.join(projectRoot, 'assets', 'scripts', 'ScriptRuntime.ts')
-  if (await exists(runtimePath)) return false
-  await fs.mkdir(path.dirname(runtimePath), { recursive: true })
-  await fs.writeFile(runtimePath, createProjectRuntimeTemplate(), 'utf-8')
-  return true
+function createProjectInputRuntimeTemplate() {
+  return `export default {
+  // 项目输入映射覆盖。键位字符串兼容 KeyboardEvent.code 与 MouseN（例如 Mouse0/Mouse2）。
+  actionMap: {
+    move_left: ['KeyA', 'ArrowLeft'],
+    move_right: ['KeyD', 'ArrowRight'],
+    move_up: ['KeyW', 'ArrowUp'],
+    move_down: ['KeyS', 'ArrowDown'],
+    sprint: ['ShiftLeft', 'ShiftRight'],
+    jump: ['Space'],
+    fire: ['KeyJ', 'Mouse0'],
+    interact: ['Mouse2']
+  }
+}
+`
+}
+
+function createProjectAudioRuntimeTemplate() {
+  return `export default {
+  // 项目音频运行时覆盖。可按项目需要调默认音量，或在播放前重写请求。
+  initialMasterVolume: 1,
+  initialGroupVolumes: {
+    bgm: 0.8,
+    sfx: 1,
+    ui: 1
+  }
+}
+`
+}
+
+async function ensureProjectRuntimeScriptFiles(projectRoot: string) {
+  const runtimeFiles: Array<{ fileName: string; content: string }> = [
+    { fileName: 'ScriptRuntime.ts', content: createProjectRuntimeTemplate() },
+    { fileName: 'InputState.ts', content: createProjectInputRuntimeTemplate() },
+    { fileName: 'AudioRuntime.ts', content: createProjectAudioRuntimeTemplate() }
+  ]
+  let createdCount = 0
+  for (const file of runtimeFiles) {
+    const target = path.join(projectRoot, 'assets', 'scripts', file.fileName)
+    if (await exists(target)) continue
+    await fs.mkdir(path.dirname(target), { recursive: true })
+    await fs.writeFile(target, file.content, 'utf-8')
+    createdCount += 1
+  }
+  return createdCount
 }
 
 function parseSceneBaseName(fileName: string) {
@@ -603,6 +642,15 @@ async function writeSampleScriptFiles(projectRoot: string) {
   }
 }
 
+const resolveEnemyMatcher = (cfg) => {
+  const fromConfig = cfg && typeof cfg.enemyMatch === 'object' ? cfg.enemyMatch : null
+  if (fromConfig) return fromConfig
+  return {
+    scriptPath: 'assets/scripts/enemy-chase-respawn.js',
+    namePrefix: 'Enemy'
+  }
+}
+
 export default {
   scripts: {
     'assets/scripts/player-input.js': {
@@ -678,7 +726,7 @@ export default {
           return
         }
 
-        const hitEnemy = ctx.api.findEnemyOverlap(ctx.entity)
+        const hitEnemy = ctx.api.findEnemyOverlap(ctx.entity, resolveEnemyMatcher(cfg))
         if (!hitEnemy) return
         ctx.api.removeEntity(ctx.entity)
         ctx.api.removeEntity(hitEnemy)
@@ -687,7 +735,7 @@ export default {
         ctx.api.spawnEnemyLike(hitEnemy, {
           avoidX: playerTransform?.x ?? 0,
           avoidY: playerTransform?.y ?? 0,
-          minDistance: 160
+          minDistance: Number(cfg.respawnMinDistance ?? 160)
         })
       }
     },
@@ -708,6 +756,28 @@ export default {
         })
       }
     }
+  }
+}
+`,
+    'InputState.ts': `export default {
+  actionMap: {
+    move_left: ['KeyA', 'ArrowLeft'],
+    move_right: ['KeyD', 'ArrowRight'],
+    move_up: ['KeyW', 'ArrowUp'],
+    move_down: ['KeyS', 'ArrowDown'],
+    sprint: ['ShiftLeft', 'ShiftRight'],
+    jump: ['Space'],
+    fire: ['KeyJ', 'Mouse0'],
+    interact: ['Mouse2']
+  }
+}
+`,
+    'AudioRuntime.ts': `export default {
+  initialMasterVolume: 1,
+  initialGroupVolumes: {
+    bgm: 0.8,
+    sfx: 1,
+    ui: 1
   }
 }
 `
@@ -1259,7 +1329,7 @@ app.whenReady().then(() => {
 
     await ensureProjectStructure(projectRoot)
     await writeProjectFile(projectRoot, projectName)
-    await ensureProjectRuntimeScriptFile(projectRoot)
+    await ensureProjectRuntimeScriptFiles(projectRoot)
     const integrity = await ensureProjectAssetIntegrity(projectRoot)
     return {
       rootPath: projectRoot,
@@ -1331,7 +1401,7 @@ app.whenReady().then(() => {
     }
 
     await writeProjectFile(targetRoot, payload.projectName)
-    await ensureProjectRuntimeScriptFile(targetRoot)
+    await ensureProjectRuntimeScriptFiles(targetRoot)
 
     let sceneFilePath: string | undefined
     const sceneFiles = Array.isArray(payload.sceneFiles) ? payload.sceneFiles : []
@@ -1377,7 +1447,7 @@ app.whenReady().then(() => {
   ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {
     if (!projectRoot) return { rootPath: '', name: '', tree: [] }
     await ensureProjectStructure(projectRoot)
-    await ensureProjectRuntimeScriptFile(projectRoot)
+    await ensureProjectRuntimeScriptFiles(projectRoot)
     const projectName = path.basename(projectRoot)
     const reconcile = await reconcileProjectSceneCatalog(projectRoot, projectName)
     const integrity = await ensureProjectAssetIntegrity(projectRoot)

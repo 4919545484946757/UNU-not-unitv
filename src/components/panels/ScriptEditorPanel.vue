@@ -27,7 +27,7 @@
     <div v-else class="empty-state">请在场景中选择带 Script 组件的实体，或在资源树中选择一个脚本文件。</div>
 
     <div class="tips">
-      项目级运行时覆盖文件：`assets/scripts/ScriptRuntime.ts`。保存后重新进入播放态即可生效。
+      项目级运行时覆盖文件：`assets/scripts/ScriptRuntime.ts`、`assets/scripts/InputState.ts`、`assets/scripts/AudioRuntime.ts`。保存后重新进入播放态即可生效。
       运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
       `builtin://player-input` 与 `builtin://bullet-projectile` 支持直接填写 JSON 配置（如移动速度、疾跑速度、疾跑动画倍速、子弹速度/寿命/射程）。
       脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
@@ -97,6 +97,15 @@ const defaultTemplate = computed(() => {
   if (path.includes('builtin://bullet-projectile') || path.endsWith('/bullet-projectile.js')) {
     return builtinScriptTemplates['assets/scripts/bullet-projectile.js']
   }
+  if (path.endsWith('/ScriptRuntime.ts')) {
+    return builtinScriptTemplates['assets/scripts/ScriptRuntime.ts']
+  }
+  if (path.endsWith('/InputState.ts')) {
+    return builtinScriptTemplates['assets/scripts/InputState.ts']
+  }
+  if (path.endsWith('/AudioRuntime.ts')) {
+    return builtinScriptTemplates['assets/scripts/AudioRuntime.ts']
+  }
   return defaultJsTemplate
 })
 
@@ -120,6 +129,13 @@ const builtinScriptTemplates: Record<string, string> = {
   "speed": 420,
   "life": 2,
   "maxDistance": 560
+}`,
+  'assets/scripts/ScriptRuntime.ts': `export default {
+  scripts: {
+    // 'assets/scripts/player-input.js': {
+    //   onUpdate(ctx) {}
+    // }
+  }
 }`,
   'assets/scripts/patrol.js': `export default {
   onInit(ctx) {
@@ -179,6 +195,26 @@ const builtinScriptTemplates: Record<string, string> = {
     if (!player) return
     // Enemy 持续追踪 Player
     // 与 Player 接触后删除自身，并在随机位置生成新的 Enemy
+  }
+}`,
+  'assets/scripts/InputState.ts': `export default {
+  actionMap: {
+    move_left: ['KeyA', 'ArrowLeft'],
+    move_right: ['KeyD', 'ArrowRight'],
+    move_up: ['KeyW', 'ArrowUp'],
+    move_down: ['KeyS', 'ArrowDown'],
+    sprint: ['ShiftLeft', 'ShiftRight'],
+    jump: ['Space'],
+    fire: ['KeyJ', 'Mouse0'],
+    interact: ['Mouse2']
+  }
+}`,
+  'assets/scripts/AudioRuntime.ts': `export default {
+  initialMasterVolume: 1,
+  initialGroupVolumes: {
+    bgm: 0.8,
+    sfx: 1,
+    ui: 1
   }
 }`
 }

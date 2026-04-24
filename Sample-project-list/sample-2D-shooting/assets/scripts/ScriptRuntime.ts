@@ -9,6 +9,15 @@
   }
 }
 
+const resolveEnemyMatcher = (cfg) => {
+  const fromConfig = cfg && typeof cfg.enemyMatch === 'object' ? cfg.enemyMatch : null
+  if (fromConfig) return fromConfig
+  return {
+    scriptPath: 'assets/scripts/enemy-chase-respawn.js',
+    namePrefix: 'Enemy'
+  }
+}
+
 export default {
   scripts: {
     'assets/scripts/player-input.js': {
@@ -74,6 +83,7 @@ export default {
         const transform = ctx.entity.getTransform()
         if (!transform) return
         const state = ctx.api.getState(ctx.entity)
+        const cfg = parseConfig(ctx)
         transform.x += Number(state.vx || 0) * ctx.api.delta
         transform.y += Number(state.vy || 0) * ctx.api.delta
         state.life = Number(state.life || 0) - ctx.api.delta
@@ -84,7 +94,7 @@ export default {
           return
         }
 
-        const hitEnemy = ctx.api.findEnemyOverlap(ctx.entity)
+        const hitEnemy = ctx.api.findEnemyOverlap(ctx.entity, resolveEnemyMatcher(cfg))
         if (!hitEnemy) return
         ctx.api.removeEntity(ctx.entity)
         ctx.api.removeEntity(hitEnemy)
@@ -93,7 +103,7 @@ export default {
         ctx.api.spawnEnemyLike(hitEnemy, {
           avoidX: playerTransform?.x ?? 0,
           avoidY: playerTransform?.y ?? 0,
-          minDistance: 160
+          minDistance: Number(cfg.respawnMinDistance ?? 160)
         })
       }
     },

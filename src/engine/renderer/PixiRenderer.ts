@@ -108,7 +108,7 @@ export class PixiRenderer {
       getGroupVolume: (group) => this.audioRuntime.getGroupVolume(group)
     })
     this.audioRuntime.setProjectRoot(useProjectStore().rootPath)
-    await this.refreshProjectScriptRuntime()
+    await this.refreshProjectRuntimeFiles()
     this.inputState.attach()
     this.resetCameraTransform()
     this.installStageInteractions()
@@ -267,7 +267,7 @@ export class PixiRenderer {
     }
 
     if (!wasPlaying || refreshPlayingScene) {
-      await this.refreshProjectScriptRuntime()
+      await this.refreshProjectRuntimeFiles()
       if (this.playScene) {
         this.scriptRuntime.destroyScene(this.playScene)
       }
@@ -293,22 +293,34 @@ export class PixiRenderer {
     this.options.onRuntimeSceneUpdated?.(this.currentScene)
   }
 
-  private async refreshProjectScriptRuntime() {
+  private async refreshProjectRuntimeFiles() {
     const projectStore = useProjectStore()
-    const runtimePath = 'assets/scripts/ScriptRuntime.ts'
+    const scriptRuntimePath = 'assets/scripts/ScriptRuntime.ts'
+    const inputRuntimePath = 'assets/scripts/InputState.ts'
+    const audioRuntimePath = 'assets/scripts/AudioRuntime.ts'
     if (!window.unu?.readTextAsset || !projectStore.rootPath || projectStore.rootPath === 'sample-project') {
-      this.scriptRuntime.setProjectRuntimeSource('', runtimePath)
+      this.scriptRuntime.setProjectRuntimeSource('', scriptRuntimePath)
+      this.inputState.setProjectRuntimeSource('', inputRuntimePath)
+      this.audioRuntime.setProjectRuntimeSource('', audioRuntimePath)
       return
     }
-    try {
-      const loaded = await window.unu.readTextAsset({
+    const [scriptLoaded, inputLoaded, audioLoaded] = await Promise.all([
+      window.unu.readTextAsset({
         projectRoot: projectStore.rootPath,
-        relativePath: runtimePath
-      })
-      this.scriptRuntime.setProjectRuntimeSource(loaded?.content || '', runtimePath)
-    } catch {
-      this.scriptRuntime.setProjectRuntimeSource('', runtimePath)
-    }
+        relativePath: scriptRuntimePath
+      }).catch(() => null),
+      window.unu.readTextAsset({
+        projectRoot: projectStore.rootPath,
+        relativePath: inputRuntimePath
+      }).catch(() => null),
+      window.unu.readTextAsset({
+        projectRoot: projectStore.rootPath,
+        relativePath: audioRuntimePath
+      }).catch(() => null)
+    ])
+    this.scriptRuntime.setProjectRuntimeSource(scriptLoaded?.content || '', scriptRuntimePath)
+    this.inputState.setProjectRuntimeSource(inputLoaded?.content || '', inputRuntimePath)
+    this.audioRuntime.setProjectRuntimeSource(audioLoaded?.content || '', audioRuntimePath)
   }
 
   setSelection(entityId: string) {

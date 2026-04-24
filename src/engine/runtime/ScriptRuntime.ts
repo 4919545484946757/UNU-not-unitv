@@ -33,25 +33,20 @@ interface RuntimeAudio {
   getGroupVolume: (group: AudioGroup) => number
 }
 
-interface EnemyCollisionEntry {
-  entity: Entity
-  transform: TransformComponent
-  collider: ColliderComponent
-  sprite: SpriteComponent | null
-  animation: AnimationComponent | null
-  minX: number
-  maxX: number
-  minY: number
-  maxY: number
+interface EntityMatchQuery {
+  id?: string
+  ids?: string[]
+  idPrefix?: string
+  name?: string
+  names?: string[]
+  namePrefix?: string
+  scriptPath?: string
+  scriptPaths?: string[]
+  scriptPathPrefix?: string
+  requireCollider?: boolean
+  requireSprite?: boolean
 }
 
-interface CollisionFrameCache {
-  cellSize: number
-  enemyEntries: EnemyCollisionEntry[]
-  enemyBuckets: Map<string, number[]>
-}
-
-const collisionFrameCacheByScene = new WeakMap<Scene, CollisionFrameCache>()
 const scriptConfigCache = new WeakMap<ScriptComponent, { raw: string; parsed: Record<string, unknown> | null }>()
 
 export interface ScriptContext {
@@ -71,7 +66,7 @@ export interface ScriptContext {
     cycleBackgroundTexture: (texturePaths: string[]) => void
     isBlockedAt: (x: number, y: number) => boolean
     isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) => boolean
-    findEnemyOverlap: (target?: Entity) => Entity | null
+    findEnemyOverlap: (target?: Entity, matcher?: EntityMatchQuery | null) => Entity | null
     isTouching: (left: Entity, right: Entity) => boolean
     moveTowards: (source: Entity, target: Entity, speed: number, useCollision?: boolean) => void
     spawnEnemyLike: (
@@ -211,10 +206,12 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       state.originY = transform?.y ?? 0
       state.maxDistance = clampNumber(readConfigNumber(config, 'maxDistance', 560), 1, 200000)
     },
-    onUpdate: ({ entity, scene, api }) => {
+    onUpdate: ({ entity, api }) => {
       const transform = entity.getTransform()
       const collider = entity.getComponent<ColliderComponent>('Collider')
       if (!transform || !collider) return
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const config = parseScriptConfigObject(script)
       const state = api.getState<{ vx?: number; vy?: number; life?: number; originX?: number; originY?: number; maxDistance?: number }>(entity)
       transform.x += Number(state.vx ?? 0) * api.delta
       transform.y += Number(state.vy ?? 0) * api.delta
@@ -234,22 +231,26 @@ const scriptRegistry: Record<string, ScriptHooks> = {
         return
       }
 
-      const hit = findFirstEnemyOverlap(scene, entity.id, transform, collider)
-      if (hit) {
+      const hitEntity = api.findEnemyOverlap(entity, resolveEnemyMatchQuery(config))
+      if (hitEntity) {
         api.removeEntity(entity)
-        api.removeEntity(hit.entity)
+        api.removeEntity(hitEntity)
         const player = api.findEntityByName('Player')
         const playerTransform = player?.getTransform()
-        const hitScript = hit.entity.getComponent<ScriptComponent>('Script')
+        const hitScript = hitEntity.getComponent<ScriptComponent>('Script')
         const enemyConfig = parseScriptConfigObject(hitScript)
+        const hitCollider = hitEntity.getComponent<ColliderComponent>('Collider')
+        const hitSprite = hitEntity.getComponent<SpriteComponent>('Sprite')
+        const hitAnimation = hitEntity.getComponent<AnimationComponent>('Animation')
+        if (!hitCollider || !hitSprite) return
         const respawnMinDistance = clampNumber(readConfigNumber(enemyConfig, 'respawnMinDistance', 160), 0, 2000)
         const spawnPoint = randomSpawnAwayFrom(playerTransform?.x ?? 0, playerTransform?.y ?? 0, respawnMinDistance)
         api.spawnEntity(createEnemyEntityAt(
           spawnPoint.x,
           spawnPoint.y,
-          hit.collider,
-          hit.sprite ?? undefined,
-          hit.animation ?? undefined,
+          hitCollider,
+          hitSprite ?? undefined,
+          hitAnimation ?? undefined,
           hitScript ?? undefined
         ))
       }
@@ -497,7 +498,6 @@ export class ScriptRuntime {
     this.elapsed += delta
     if (input) this.input = input
     this.processInteractableSelection(scene)
-    collisionFrameCacheByScene.set(scene, buildCollisionFrameCache(scene))
     for (const entity of scene.entities) {
       if (this.pendingRemovals.has(entity.id)) continue
       const script = entity.getComponent<ScriptComponent>('Script')
@@ -569,12 +569,12 @@ export class ScriptRuntime {
         isBlockedAt: (x: number, y: number) => isWorldBlocked(this.activeScene, x, y),
         isBlockedRect: (centerX: number, centerY: number, halfWidth: number, halfHeight: number) =>
           isWorldRectBlocked(this.activeScene, centerX, centerY, halfWidth, halfHeight),
-        findEnemyOverlap: (target?: Entity) => {
+        findEnemyOverlap: (target?: Entity, matcher?: EntityMatchQuery | null) => {
           const source = target ?? entity
           const transform = source.getComponent<TransformComponent>('Transform')
           const collider = source.getComponent<ColliderComponent>('Collider')
           if (!transform || !collider || !this.activeScene) return null
-          return findFirstEnemyOverlap(this.activeScene, source.id, transform, collider)?.entity ?? null
+          return findFirstEntityOverlap(this.activeScene, source.id, transform, collider, matcher ?? null) ?? null
         },
         isTouching: (left: Entity, right: Entity) => {
           const leftTransform = left.getComponent<TransformComponent>('Transform')
@@ -1134,6 +1134,24 @@ function readConfigObject(config: Record<string, unknown> | null, key: string) {
   return value as Record<string, unknown>
 }
 
+function resolveEnemyMatchQuery(config: Record<string, unknown> | null) {
+  const raw = readConfigObject(config, 'enemyMatch')
+  if (!raw) return null
+  const query: EntityMatchQuery = {}
+  if (typeof raw.id === 'string' && raw.id.trim()) query.id = raw.id.trim()
+  if (Array.isArray(raw.ids)) query.ids = raw.ids.map((item) => String(item || '').trim()).filter(Boolean)
+  if (typeof raw.idPrefix === 'string' && raw.idPrefix.trim()) query.idPrefix = raw.idPrefix.trim()
+  if (typeof raw.name === 'string' && raw.name.trim()) query.name = raw.name.trim()
+  if (Array.isArray(raw.names)) query.names = raw.names.map((item) => String(item || '').trim()).filter(Boolean)
+  if (typeof raw.namePrefix === 'string' && raw.namePrefix.trim()) query.namePrefix = raw.namePrefix.trim()
+  if (typeof raw.scriptPath === 'string' && raw.scriptPath.trim()) query.scriptPath = raw.scriptPath.trim()
+  if (Array.isArray(raw.scriptPaths)) query.scriptPaths = raw.scriptPaths.map((item) => String(item || '').trim()).filter(Boolean)
+  if (typeof raw.scriptPathPrefix === 'string' && raw.scriptPathPrefix.trim()) query.scriptPathPrefix = raw.scriptPathPrefix.trim()
+  if (typeof raw.requireCollider === 'boolean') query.requireCollider = raw.requireCollider
+  if (typeof raw.requireSprite === 'boolean') query.requireSprite = raw.requireSprite
+  return Object.keys(query).length ? query : null
+}
+
 function clampNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min
   return Math.max(min, Math.min(max, value))
@@ -1225,85 +1243,63 @@ function isRectColliderOverlap(
   )
 }
 
-function buildCollisionFrameCache(scene: Scene): CollisionFrameCache {
-  const cellSize = 128
-  const enemyEntries: EnemyCollisionEntry[] = []
-  const enemyBuckets = new Map<string, number[]>()
-
-  for (const entity of scene.entities) {
-    if (entity.name !== 'Enemy') continue
-    const transform = entity.getComponent<TransformComponent>('Transform')
-    const collider = entity.getComponent<ColliderComponent>('Collider')
-    if (!transform || !collider) continue
-    const sprite = entity.getComponent<SpriteComponent>('Sprite')
-    const animation = entity.getComponent<AnimationComponent>('Animation')
-    const cx = transform.x + collider.offsetX
-    const cy = transform.y + collider.offsetY
-    const halfW = Math.max(0, collider.width / 2)
-    const halfH = Math.max(0, collider.height / 2)
-    const minX = cx - halfW
-    const maxX = cx + halfW
-    const minY = cy - halfH
-    const maxY = cy + halfH
-    const index = enemyEntries.length
-    enemyEntries.push({ entity, transform, collider, sprite, animation, minX, maxX, minY, maxY })
-
-    const minCol = Math.floor(minX / cellSize)
-    const maxCol = Math.floor(maxX / cellSize)
-    const minRow = Math.floor(minY / cellSize)
-    const maxRow = Math.floor(maxY / cellSize)
-    for (let row = minRow; row <= maxRow; row += 1) {
-      for (let col = minCol; col <= maxCol; col += 1) {
-        const key = `${col},${row}`
-        const bucket = enemyBuckets.get(key)
-        if (bucket) bucket.push(index)
-        else enemyBuckets.set(key, [index])
-      }
-    }
-  }
-
-  return { cellSize, enemyEntries, enemyBuckets }
-}
-
-function findFirstEnemyOverlap(
+function findFirstEntityOverlap(
   scene: Scene,
   selfId: string,
   transform: TransformComponent,
-  collider: ColliderComponent
+  collider: ColliderComponent,
+  matcher?: EntityMatchQuery | null
 ) {
-  const cache = collisionFrameCacheByScene.get(scene) ?? buildCollisionFrameCache(scene)
-  if (!collisionFrameCacheByScene.has(scene)) collisionFrameCacheByScene.set(scene, cache)
-
-  const cx = transform.x + collider.offsetX
-  const cy = transform.y + collider.offsetY
-  const halfW = Math.max(0, collider.width / 2)
-  const halfH = Math.max(0, collider.height / 2)
-  const minX = cx - halfW
-  const maxX = cx + halfW
-  const minY = cy - halfH
-  const maxY = cy + halfH
-  const minCol = Math.floor(minX / cache.cellSize)
-  const maxCol = Math.floor(maxX / cache.cellSize)
-  const minRow = Math.floor(minY / cache.cellSize)
-  const maxRow = Math.floor(maxY / cache.cellSize)
-  const visited = new Set<number>()
-
-  for (let row = minRow; row <= maxRow; row += 1) {
-    for (let col = minCol; col <= maxCol; col += 1) {
-      const bucket = cache.enemyBuckets.get(`${col},${row}`)
-      if (!bucket) continue
-      for (const idx of bucket) {
-        if (visited.has(idx)) continue
-        visited.add(idx)
-        const item = cache.enemyEntries[idx]
-        if (!item || item.entity.id === selfId) continue
-        if (item.maxX < minX || item.minX > maxX || item.maxY < minY || item.minY > maxY) continue
-        if (!isRectColliderOverlap(transform, collider, item.transform, item.collider)) continue
-        return item
-      }
-    }
+  for (const candidate of scene.entities) {
+    if (candidate.id === selfId) continue
+    if (!matchesEntityQuery(candidate, matcher ?? null)) continue
+    const candidateTransform = candidate.getComponent<TransformComponent>('Transform')
+    const candidateCollider = candidate.getComponent<ColliderComponent>('Collider')
+    if (!candidateTransform || !candidateCollider) continue
+    if (!isRectColliderOverlap(transform, collider, candidateTransform, candidateCollider)) continue
+    return candidate
   }
   return null
+}
+
+function matchesEntityQuery(entity: Entity, matcher?: EntityMatchQuery | null) {
+  if (!matcher) return isDefaultEnemyEntity(entity)
+  const query = matcher as Record<string, unknown>
+  const hasAnyCondition = Object.keys(query).length > 0
+  if (!hasAnyCondition) return isDefaultEnemyEntity(entity)
+
+  const script = entity.getComponent<ScriptComponent>('Script')
+  const normalizedScriptPath = normalizeScriptPath(script?.scriptPath || '')
+  const normalizedId = String(entity.id || '')
+  const normalizedName = String(entity.name || '')
+
+  if (typeof matcher.id === 'string' && matcher.id && normalizedId !== matcher.id) return false
+  if (Array.isArray(matcher.ids) && matcher.ids.length > 0 && !matcher.ids.includes(normalizedId)) return false
+  if (typeof matcher.idPrefix === 'string' && matcher.idPrefix && !normalizedId.startsWith(matcher.idPrefix)) return false
+  if (typeof matcher.name === 'string' && matcher.name && normalizedName !== matcher.name) return false
+  if (Array.isArray(matcher.names) && matcher.names.length > 0 && !matcher.names.includes(normalizedName)) return false
+  if (typeof matcher.namePrefix === 'string' && matcher.namePrefix && !normalizedName.startsWith(matcher.namePrefix)) return false
+  if (typeof matcher.scriptPath === 'string' && matcher.scriptPath && normalizedScriptPath !== normalizeScriptPath(matcher.scriptPath)) return false
+  if (
+    Array.isArray(matcher.scriptPaths) &&
+    matcher.scriptPaths.length > 0 &&
+    !matcher.scriptPaths.some((path) => normalizeScriptPath(path) === normalizedScriptPath)
+  ) return false
+  if (typeof matcher.scriptPathPrefix === 'string' && matcher.scriptPathPrefix) {
+    const prefix = normalizeScriptPath(matcher.scriptPathPrefix)
+    if (!normalizedScriptPath.startsWith(prefix)) return false
+  }
+  if (matcher.requireCollider && !entity.getComponent<ColliderComponent>('Collider')) return false
+  if (matcher.requireSprite && !entity.getComponent<SpriteComponent>('Sprite')) return false
+  return true
+}
+
+function isDefaultEnemyEntity(entity: Entity) {
+  const script = entity.getComponent<ScriptComponent>('Script')
+  const scriptPath = normalizeScriptPath(script?.scriptPath || '')
+  if (scriptPath === 'assets/scripts/enemy-chase-respawn.js' || scriptPath === 'builtin://enemy-chase-respawn') return true
+  const name = String(entity.name || '')
+  return name === 'Enemy' || name.startsWith('Enemy')
 }
 
 function isWorldBlocked(scene: Scene | null, x: number, y: number) {
