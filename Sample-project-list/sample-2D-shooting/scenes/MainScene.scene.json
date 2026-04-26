@@ -1178,8 +1178,8 @@
             "type": "Transform",
             "data": {
               "type": "Transform",
-              "x": 420,
-              "y": 320,
+              "x": 388.79998779296875,
+              "y": 404,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -1275,8 +1275,8 @@
             "type": "Transform",
             "data": {
               "type": "Transform",
-              "x": 452,
-              "y": 352,
+              "x": -156.79998779296875,
+              "y": -221.60000610351562,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -1372,8 +1372,8 @@
             "type": "Transform",
             "data": {
               "type": "Transform",
-              "x": 484,
-              "y": 384,
+              "x": -269.5999755859375,
+              "y": 393.5999755859375,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
