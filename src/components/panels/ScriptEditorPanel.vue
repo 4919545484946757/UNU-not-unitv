@@ -513,7 +513,7 @@ function highlightJsLike(code: string) {
 .title-row {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
+  gap: 40px;
   align-items: center;
   min-width: 0;
 }
@@ -532,9 +532,9 @@ function highlightJsLike(code: string) {
 .badge {
   font-size: 12px;
   color: #dbe4ee;
-  background: #202838;
+  /*background: #202838;*/
   padding: 4px 8px;
-  border-radius: 999px;
+  /*border-radius: 999px;*/
   min-width: 0;
   max-width: 240px;
   overflow: hidden;
@@ -549,6 +549,7 @@ function highlightJsLike(code: string) {
   padding: 6px 10px;
   cursor: pointer;
   font-size: 12px;
+  
 }
 .save-btn:disabled {
   opacity: 0.5;
@@ -641,5 +642,6 @@ textarea {
   color: #8ea0b8;
   font-size: 12px;
   line-height: 1.6;
+  height: 100px;
 }
 </style>

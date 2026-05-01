@@ -227,6 +227,34 @@ export const useAssetStore = defineStore('assets', {
       this.hydrateTree(result.tree)
       project.setStatus(buildProjectHealthMessage(result, `工程已刷新：${result.name}`))
     },
+    async exportGame() {
+      const project = useProjectStore()
+      if (!window.unu?.exportGame) {
+        project.setStatus('当前环境未接入游戏导出接口，请使用桌面版运行。')
+        return
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再导出游戏。')
+        return
+      }
+
+      project.setStatus('正在导出 Web 游戏...')
+      const result = await window.unu.exportGame({
+        projectRoot: project.rootPath,
+        projectName: project.name
+      })
+      if (!result) {
+        project.setStatus('已取消导出 Web 游戏。')
+        return
+      }
+      if (!result.ok) {
+        project.setStatus(`导出 Web 游戏失败：${result.error || '未知错误'}`)
+        return
+      }
+      project.setStatus(
+        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}）`
+      )
+    },
     async importImages() {
       const project = useProjectStore()
       try {

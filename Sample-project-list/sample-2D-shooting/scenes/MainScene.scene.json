@@ -13,8 +13,8 @@
             "type": "Transform",
             "data": {
               "type": "Transform",
-              "x": 152.80014038085938,
-              "y": 33.5999755859375,
+              "x": 411,
+              "y": 19.000030517578125,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -1682,7 +1682,9 @@
               "backgroundColor": 2830914,
               "anchorX": 0.5,
               "anchorY": 0,
-              "interactable": false
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi"
             }
           }
         ]
@@ -1719,7 +1721,9 @@
               "backgroundColor": 3429002,
               "anchorX": 1,
               "anchorY": 1,
-              "interactable": true
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi"
             }
           }
         ]
@@ -1846,6 +1850,45 @@
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui-text_svldwe",
+        "name": "hotkey_list",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -400,
+              "y": 300,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 15
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": true,
+              "mode": "text",
+              "text": "左键：射击\n右键：交互\nWASD：移动\nshift：疾跑",
+              "fontSize": 20,
+              "textColor": 16777215,
+              "width": 180,
+              "height": 48,
+              "backgroundColor": 2830914,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": true,
+              "renderMode": "pixi"
             }
           }
         ]

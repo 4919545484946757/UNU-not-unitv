@@ -242,6 +242,10 @@ function formatTime(timestamp: number) {
 
 function openSampleProject(sample: SampleProjectEntry) {
   if (!sample.available) return
+  if (sample.rootPath) {
+    emit('open-project', { rootPath: sample.rootPath, name: sample.title, sampleProjectId: sample.id })
+    return
+  }
   emit('open-project', { rootPath: 'sample-project', name: sample.title, sampleProjectId: sample.id })
 }
 
@@ -426,7 +430,7 @@ button.danger {
 .history,
 .samples {
   border: 1px solid #253244;
-  border-radius: 12px;
+  border-radius: 6px;
   background: rgba(11, 16, 24, 0.7);
   padding: 12px;
 }
@@ -486,18 +490,22 @@ button.danger {
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .history-item {
-  border: 1px solid #2a374b;
-  border-radius: 10px;
+  /*border: 1px solid #2a374b;*/
+  border-top: 3px solid #2a374b;
+  border-radius: 0px;
   background: #121a27;
   padding: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+}
+.history-item:hover {
+  background: #192436;
 }
 
 .meta {

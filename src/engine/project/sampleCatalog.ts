@@ -3,6 +3,7 @@ export interface SampleProjectEntry {
   title: string
   description: string
   available: boolean
+  rootPath?: string
 }
 
 export const sampleProjectCatalog: SampleProjectEntry[] = [
@@ -10,7 +11,8 @@ export const sampleProjectCatalog: SampleProjectEntry[] = [
     id: 'action-2d',
     title: '2D Action Demo',
     description: 'Current demo: movement, shooting, enemy chase/respawn, scene switch, interaction, and animation state machine.',
-    available: true
+    available: true,
+    rootPath: 'Sample-project-list/sample-2D-shooting'
   },
   {
     id: 'platformer-2d',

@@ -13,6 +13,7 @@
           <option value="new">新建项目</option>
           <option value="open">打开工程</option>
           <option value="saveAs">项目另存</option>
+          <option value="exportGame">导出 Web 游戏</option>
           <option value="refresh">刷新资源</option>
           <option value="import">导入图片</option>
           <option value="importAudio">导入音频</option>
@@ -100,6 +101,7 @@ async function handleProjectAction(event: Event) {
   if (action === 'new') await runAction('新建项目', () => assets.createProject())
   else if (action === 'open') await runAction('打开工程', () => assets.openProjectFolder())
   else if (action === 'saveAs') await runAction('项目另存', () => assets.saveProjectAs())
+  else if (action === 'exportGame') await runAction('导出 Web 游戏', () => assets.exportGame())
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())
   else if (action === 'importAudio') await runAction('导入音频', () => assets.importAudios())
@@ -162,7 +164,7 @@ async function handleEntityAction(event: Event) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .action-select-wrap {
@@ -177,22 +179,29 @@ async function handleEntityAction(event: Event) {
   border: 1px solid #303848;
   background: #202632;
   color: #ecf0f7;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 8px;
+}
+.action-select:hover {
+  background: #333b4c;
 }
 
 .tool-group {
   display: inline-flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 button {
-  border: 1px solid #303848;
-  background: #202632;
+  border: transparent;
+  border-bottom: 3px solid #3d4657;
+  background: #20263200;
   color: #ecf0f7;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: 0px;
   cursor: pointer;
+}
+button:hover {
+  background: #384050a1;
 }
 
 .status-slot {

@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.invoke('unu:delete-project', payload),
   revealInFolder: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) =>
     ipcRenderer.invoke('unu:reveal-in-folder', payload),
+  exportGame: (payload: { projectRoot: string; projectName?: string }) =>
+    ipcRenderer.invoke('unu:export-game', payload),
   openTilemapEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-tilemap-editor', payload),
   submitTilemapEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:tilemap-editor-update', payload),
   closeTilemapEditor: () => ipcRenderer.invoke('unu:close-tilemap-editor'),

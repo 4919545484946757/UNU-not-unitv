@@ -8,7 +8,70 @@
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "dev:electron": "wait-on tcp:5173 && electron .",
     "build": "vite build && vite build --config vite.electron.config.ts",
+    "dist:win": "npm run build && electron-builder --win dir",
+    "dist:win:installer": "npm run build && electron-builder --win",
     "preview": "vite preview"
+  },
+  "build": {
+    "appId": "com.unu.engine.starter",
+    "productName": "UNU Engine",
+    "directories": {
+      "output": "release-fixed"
+    },
+    "afterPack": "scripts/afterPackIcon.cjs",
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json",
+      "public/**/*",
+      "ico.png",
+      "ico.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "dist",
+        "to": "dist"
+      },
+      {
+        "from": "Sample-project-list",
+        "to": "Sample-project-list"
+      },
+      {
+        "from": "sample-project",
+        "to": "sample-project"
+      },
+      {
+        "from": "assets-for-sample",
+        "to": "assets-for-sample"
+      }
+    ],
+    "win": {
+      "icon": "ico.ico",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "installerIcon": "ico.ico",
+      "uninstallerIcon": "ico.ico",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "UNU Engine"
+    }
   },
   "dependencies": {
     "pinia": "^3.0.3",
@@ -20,6 +83,7 @@
     "@vitejs/plugin-vue": "^5.2.4",
     "concurrently": "^9.1.2",
     "electron": "^35.1.4",
+    "electron-builder": "^26.8.1",
     "typescript": "^5.8.3",
     "vite": "^5.4.19",
     "vue-tsc": "^2.2.8",

@@ -1,11 +1,13 @@
 ﻿<template>
-  <TilemapEditorWindow v-if="isTilemapEditorWindow" />
+  <GamePlayer v-if="isGameExport" />
+  <TilemapEditorWindow v-else-if="isTilemapEditorWindow" />
   <LauncherView v-else-if="showLauncher" @open-project="openProjectFromLauncher" />
   <EditorLayout v-else />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import GamePlayer from './components/game/GamePlayer.vue'
 import LauncherView from './components/launcher/LauncherView.vue'
 import EditorLayout from './components/layout/EditorLayout.vue'
 import TilemapEditorWindow from './components/windows/TilemapEditorWindow.vue'
@@ -17,8 +19,11 @@ import { useSceneStore } from './stores/scene'
 import { useSelectionStore } from './stores/selection'
 
 const isTilemapEditorWindow = new URLSearchParams(window.location.search).get('tilemapEditor') === '1'
+const isGameExport =
+  new URLSearchParams(window.location.search).get('game') === '1' ||
+  window.__UNU_GAME_EXPORT__ === true
 const isElectronMode = !!window.unu
-const showLauncher = ref(!isTilemapEditorWindow && isElectronMode)
+const showLauncher = ref(!isGameExport && !isTilemapEditorWindow && isElectronMode)
 
 const assets = useAssetStore()
 const project = useProjectStore()

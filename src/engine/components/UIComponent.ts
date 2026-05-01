@@ -1,6 +1,7 @@
 import { Component } from '../core/Component'
 
 export type UIMode = 'text' | 'button'
+export type UIRenderMode = 'pixi' | 'html'
 
 export class UIComponent extends Component {
   readonly type = 'UI'
@@ -16,7 +17,9 @@ export class UIComponent extends Component {
     public backgroundColor = 0x2b3242,
     public anchorX = 0.5,
     public anchorY = 0.5,
-    public interactable = true
+    public interactable = true,
+    public markdownEnabled = false,
+    public renderMode: UIRenderMode = 'pixi'
   ) {
     super()
   }

@@ -37,6 +37,186 @@ interface CameraViewState {
   zoom: number
 }
 type CachedWorldNodeKind = 'sprite' | 'tilemap'
+type MarkdownLineKind = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'quote' | 'list' | 'code' | 'blank'
+
+type MarkdownLine = {
+  kind: MarkdownLineKind
+  text: string
+  bold?: boolean
+  italic?: boolean
+  indent?: number
+}
+
+function parseBasicMarkdownLines(source: string): MarkdownLine[] {
+  const lines = String(source || '').replace(/\r\n/g, '\n').split('\n')
+  const output: MarkdownLine[] = []
+  let inCodeBlock = false
+  for (const raw of lines) {
+    const line = raw.trimEnd()
+    if (/^```/.test(line.trim())) {
+      inCodeBlock = !inCodeBlock
+      continue
+    }
+    if (inCodeBlock) {
+      output.push({ kind: 'code', text: line || ' ' })
+      continue
+    }
+    if (!line.trim()) {
+      output.push({ kind: 'blank', text: '' })
+      continue
+    }
+    const heading = line.match(/^(#{1,3})\s+(.+)$/)
+    if (heading) {
+      output.push({
+        kind: `heading${heading[1].length}` as MarkdownLineKind,
+        text: stripInlineMarkdown(heading[2]),
+        bold: true
+      })
+      continue
+    }
+    const quote = line.match(/^>\s*(.+)$/)
+    if (quote) {
+      output.push({ kind: 'quote', text: stripInlineMarkdown(quote[1]), italic: true, indent: 12 })
+      continue
+    }
+    const list = line.match(/^(\s*)([-*+]|\d+\.)\s+(.+)$/)
+    if (list) {
+      output.push({
+        kind: 'list',
+        text: `• ${stripInlineMarkdown(list[3])}`,
+        indent: Math.min(48, 14 + Math.floor(list[1].length / 2) * 12)
+      })
+      continue
+    }
+    const inline = analyzeInlineMarkdown(line)
+    output.push({ kind: inline.isCode ? 'code' : 'paragraph', text: inline.text, bold: inline.bold, italic: inline.italic })
+  }
+  return output
+}
+
+function analyzeInlineMarkdown(source: string) {
+  const isCode = /^`[^`]+`$/.test(source.trim())
+  return {
+    text: stripInlineMarkdown(source),
+    bold: /\*\*[^*]+\*\*|__[^_]+__/.test(source),
+    italic: /(^|[^*])\*[^*]+\*|(^|[^_])_[^_]+_/.test(source),
+    isCode
+  }
+}
+
+function stripInlineMarkdown(source: string) {
+  return String(source || '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .trim()
+}
+
+function blendColor(left: number, right: number, amount: number) {
+  const ratio = Math.max(0, Math.min(1, amount))
+  const lr = (left >> 16) & 0xff
+  const lg = (left >> 8) & 0xff
+  const lb = left & 0xff
+  const rr = (right >> 16) & 0xff
+  const rg = (right >> 8) & 0xff
+  const rb = right & 0xff
+  const r = Math.round(lr * (1 - ratio) + rr * ratio)
+  const g = Math.round(lg * (1 - ratio) + rg * ratio)
+  const b = Math.round(lb * (1 - ratio) + rb * ratio)
+  return (r << 16) | (g << 8) | b
+}
+
+function colorToCss(value: number) {
+  const normalized = Math.max(0, Math.min(0xffffff, Math.round(Number(value) || 0)))
+  return `#${normalized.toString(16).padStart(6, '0')}`
+}
+
+function hexToRgba(value: number, alpha: number) {
+  const normalized = Math.max(0, Math.min(0xffffff, Math.round(Number(value) || 0)))
+  const r = (normalized >> 16) & 0xff
+  const g = (normalized >> 8) & 0xff
+  const b = normalized & 0xff
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`
+}
+
+function escapeHtmlContent(source: string) {
+  return String(source || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function sanitizeHtmlContent(source: string) {
+  const template = document.createElement('template')
+  template.innerHTML = String(source || '')
+  const allowedTags = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'CODE', 'PRE', 'P', 'BR', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'SPAN', 'DIV', 'SMALL', 'MARK', 'HR'])
+  const allowedAttrs = new Set(['class', 'title'])
+  const visit = (node: Node) => {
+    for (const child of Array.from(node.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const element = child as HTMLElement
+        if (!allowedTags.has(element.tagName)) {
+          element.replaceWith(document.createTextNode(element.textContent || ''))
+          continue
+        }
+        for (const attr of Array.from(element.attributes)) {
+          if (!allowedAttrs.has(attr.name.toLowerCase())) element.removeAttribute(attr.name)
+        }
+      }
+      visit(child)
+    }
+  }
+  visit(template.content)
+  return template.innerHTML
+}
+
+function basicMarkdownToHtml(source: string) {
+  const lines = parseBasicMarkdownLines(source)
+  const html: string[] = []
+  let listOpen = false
+  const closeList = () => {
+    if (!listOpen) return
+    html.push('</ul>')
+    listOpen = false
+  }
+  for (const line of lines) {
+    if (line.kind !== 'list') closeList()
+    if (line.kind === 'blank') {
+      html.push('<br />')
+      continue
+    }
+    const content = renderInlineMarkdownToHtml(line.text)
+    if (line.kind === 'heading1') html.push(`<h1>${content}</h1>`)
+    else if (line.kind === 'heading2') html.push(`<h2>${content}</h2>`)
+    else if (line.kind === 'heading3') html.push(`<h3>${content}</h3>`)
+    else if (line.kind === 'quote') html.push(`<blockquote>${content}</blockquote>`)
+    else if (line.kind === 'code') html.push(`<pre><code>${escapeHtmlContent(line.text)}</code></pre>`)
+    else if (line.kind === 'list') {
+      if (!listOpen) {
+        html.push('<ul>')
+        listOpen = true
+      }
+      html.push(`<li>${content.replace(/^•\s*/, '')}</li>`)
+    } else {
+      html.push(`<p>${content}</p>`)
+    }
+  }
+  closeList()
+  return html.join('')
+}
+
+function renderInlineMarkdownToHtml(source: string) {
+  return escapeHtmlContent(source)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/_([^_]+)_/g, '<em>$1</em>')
+}
 
 export class PixiRenderer {
   private app!: Application
@@ -45,6 +225,7 @@ export class PixiRenderer {
   private readonly world = new Container()
   private readonly ui = new Container()
   private readonly overlay = new Container()
+  private readonly htmlUiLayer = document.createElement('div')
   private resizeObserver: ResizeObserver | null = null
   private readonly scriptRuntime = new ScriptRuntime()
   private readonly inputState = new InputState()
@@ -70,6 +251,7 @@ export class PixiRenderer {
   private readonly backdropNodeCache = new Map<string, { signature: string; node: Container }>()
   private readonly worldNodeCache = new Map<string, { kind: CachedWorldNodeKind; signature: string; node: Container }>()
   private readonly uiNodeCache = new Map<string, { signature: string; node: Container }>()
+  private readonly htmlUiNodeCache = new Map<string, { signature: string; node: HTMLDivElement }>()
 
   constructor(private readonly options: PixiRendererOptions) {}
 
@@ -87,8 +269,18 @@ export class PixiRenderer {
     this.root.addChild(this.ui)
     this.root.addChild(this.overlay)
     this.app.stage.addChild(this.root)
+    this.options.container.style.position = this.options.container.style.position || 'relative'
     this.options.container.appendChild(this.app.canvas)
     this.app.canvas.style.imageRendering = 'pixelated'
+    this.htmlUiLayer.className = 'unu-html-ui-layer'
+    Object.assign(this.htmlUiLayer.style, {
+      position: 'absolute',
+      inset: '0',
+      overflow: 'hidden',
+      pointerEvents: 'none',
+      zIndex: '5'
+    })
+    this.options.container.appendChild(this.htmlUiLayer)
 
     this.sourceScene = scene
     this.currentScene = scene
@@ -370,6 +562,7 @@ export class PixiRenderer {
     const activeBackdropIds = new Set<string>()
     const activeWorldIds = new Set<string>()
     const activeUiIds = new Set<string>()
+    const activeHtmlUiIds = new Set<string>()
 
     for (const entity of scene.entities) {
       const transform = entity.getComponent<TransformComponent>('Transform')
@@ -381,6 +574,11 @@ export class PixiRenderer {
       if (!transform) continue
 
       if (ui?.enabled) {
+        if (ui.renderMode === 'html') {
+          this.updateHtmlUiNode(entity, transform, ui)
+          activeHtmlUiIds.add(entity.id)
+          continue
+        }
         const uiNode = this.getCachedUiNode(entity, transform, ui)
         uiNode.x = this.options.container.clientWidth * ui.anchorX + transform.x
         uiNode.y = this.options.container.clientHeight * ui.anchorY + transform.y
@@ -466,6 +664,11 @@ export class PixiRenderer {
       cached.node.destroy({ children: true })
       this.uiNodeCache.delete(id)
     }
+    for (const [id, cached] of this.htmlUiNodeCache.entries()) {
+      if (activeHtmlUiIds.has(id)) continue
+      cached.node.remove()
+      this.htmlUiNodeCache.delete(id)
+    }
 
     this.backdrop.removeChildren()
     backdropNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)).forEach((node) => this.backdrop.addChild(node))
@@ -523,16 +726,9 @@ export class PixiRenderer {
       node.addChild(buttonBg)
     }
 
-    const label = new Text({
-      text: ui.text,
-      style: {
-        fill: ui.textColor,
-        fontSize: Math.max(10, ui.fontSize),
-        fontFamily: 'Segoe UI, PingFang SC, sans-serif',
-        align: 'center'
-      }
-    })
-    label.anchor.set(0.5)
+    const label = ui.markdownEnabled
+      ? this.createMarkdownUiContent(ui)
+      : this.createPlainUiText(ui)
     node.addChild(label)
 
     if (ui.mode === 'button' && ui.interactable) {
@@ -553,6 +749,84 @@ export class PixiRenderer {
     return node
   }
 
+  private createPlainUiText(ui: UIComponent) {
+    const label = new Text({
+      text: ui.text,
+      style: {
+        fill: ui.textColor,
+        fontSize: Math.max(10, ui.fontSize),
+        fontFamily: 'Segoe UI, PingFang SC, sans-serif',
+        align: 'center',
+        breakWords: true,
+        lineHeight: Math.round(Math.max(10, ui.fontSize) * 1.25),
+        wordWrap: true,
+        wordWrapWidth: Math.max(1, ui.width)
+      }
+    })
+    label.anchor.set(0.5)
+    return label
+  }
+
+  private createMarkdownUiContent(ui: UIComponent) {
+    const baseSize = Math.max(10, ui.fontSize)
+    const maxWidth = Math.max(1, ui.width)
+    const content = new Container()
+    const lines = parseBasicMarkdownLines(ui.text)
+    let y = 0
+
+    for (const line of lines) {
+      if (line.kind === 'blank') {
+        y += Math.round(baseSize * 0.55)
+        continue
+      }
+      const fontSize = line.kind === 'heading1'
+        ? Math.round(baseSize * 1.45)
+        : line.kind === 'heading2'
+          ? Math.round(baseSize * 1.25)
+          : line.kind === 'heading3'
+            ? Math.round(baseSize * 1.1)
+            : baseSize
+      const isCode = line.kind === 'code'
+      const isQuote = line.kind === 'quote'
+      const textNode = new Text({
+        text: line.text,
+        style: {
+          fill: isQuote ? blendColor(ui.textColor, 0xbfd3ea, 0.45) : ui.textColor,
+          fontFamily: isCode ? 'Consolas, monospace' : 'Segoe UI, PingFang SC, sans-serif',
+          fontSize,
+          fontStyle: line.italic ? 'italic' : 'normal',
+          fontWeight: line.bold || line.kind.startsWith('heading') ? '700' : '400',
+          breakWords: true,
+          lineHeight: Math.round(fontSize * 1.25),
+          wordWrap: true,
+          wordWrapWidth: Math.max(1, maxWidth - (line.indent || 0))
+        }
+      })
+      textNode.x = -maxWidth / 2 + (line.indent || 0)
+      textNode.y = y
+      content.addChild(textNode)
+
+      if (isQuote) {
+        const bar = new Graphics()
+        bar.rect(-maxWidth / 2, y + 2, 3, Math.max(fontSize, textNode.height - 4))
+        bar.fill({ color: ui.textColor, alpha: 0.45 })
+        content.addChild(bar)
+      }
+
+      if (isCode) {
+        const bg = new Graphics()
+        bg.roundRect(textNode.x - 4, y - 2, Math.min(maxWidth, textNode.width + 8), textNode.height + 4, 4)
+        bg.fill({ color: ui.backgroundColor, alpha: 0.75 })
+        content.addChildAt(bg, Math.max(0, content.children.length - 1))
+      }
+
+      y += Math.max(fontSize, textNode.height) + Math.round(baseSize * 0.2)
+    }
+
+    content.y = -Math.min(Math.max(1, ui.height), Math.max(1, y)) / 2
+    return content
+  }
+
   private getCachedUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
     const signature = [
       ui.mode,
@@ -565,6 +839,7 @@ export class PixiRenderer {
       ui.anchorX,
       ui.anchorY,
       ui.interactable,
+      ui.markdownEnabled,
       ui.enabled,
       transform.zIndex ?? 0
     ].join('|')
@@ -575,6 +850,92 @@ export class PixiRenderer {
     if (cached) cached.node.destroy({ children: true })
     this.uiNodeCache.set(entity.id, { signature, node })
     return node
+  }
+
+  private updateHtmlUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
+    const signature = [
+      ui.mode,
+      ui.text,
+      ui.fontSize,
+      ui.textColor,
+      ui.width,
+      ui.height,
+      ui.backgroundColor,
+      ui.interactable,
+      ui.markdownEnabled,
+      ui.renderMode
+    ].join('|')
+    let cached = this.htmlUiNodeCache.get(entity.id)
+    if (!cached) {
+      const node = document.createElement('div')
+      node.className = 'unu-html-ui-node'
+      node.dataset.entityId = entity.id
+      node.addEventListener('pointerdown', (event) => {
+        if (this.isPlaying) return
+        if (this.activeTool === 'pan') {
+          this.gizmoMode = 'pan'
+          this.panState.lastX = event.clientX
+          this.panState.lastY = event.clientY
+          this.app.stage.cursor = 'grabbing'
+          event.stopPropagation()
+          return
+        }
+        this.options.onEntitySelected?.(entity.id)
+        this.selectedEntityId = entity.id
+        this.drawSelectionGizmo()
+        event.stopPropagation()
+      })
+      node.addEventListener('click', (event) => {
+        if (!this.isPlaying || ui.mode !== 'button' || !ui.interactable) return
+        useProjectStore().setStatus(`HTML UI 按钮点击：${stripInlineMarkdown(ui.text)}`)
+        const audio = entity.getComponent<AudioComponent>('Audio')
+        if (audio?.enabled && audio.clipPath) {
+          void this.audioRuntime.playOneShot(audio.clipPath, {
+            group: audio.group,
+            volume: audio.volume,
+            loop: false
+          })
+        }
+        event.stopPropagation()
+      })
+      this.htmlUiLayer.appendChild(node)
+      cached = { signature: '', node }
+      this.htmlUiNodeCache.set(entity.id, cached)
+    }
+
+    const node = cached.node
+    if (cached.signature !== signature) {
+      const html = ui.markdownEnabled ? basicMarkdownToHtml(ui.text) : sanitizeHtmlContent(ui.text)
+      node.innerHTML = html || '&nbsp;'
+      cached.signature = signature
+    }
+
+    const viewportWidth = this.options.container.clientWidth
+    const viewportHeight = this.options.container.clientHeight
+    const x = viewportWidth * ui.anchorX + transform.x
+    const y = viewportHeight * ui.anchorY + transform.y
+    Object.assign(node.style, {
+      position: 'absolute',
+      left: `${x}px`,
+      top: `${y}px`,
+      width: `${Math.max(1, ui.width)}px`,
+      height: `${Math.max(1, ui.height)}px`,
+      boxSizing: 'border-box',
+      transform: `translate(-50%, -50%) rotate(${transform.rotation}rad) scale(${transform.scaleX}, ${transform.scaleY})`,
+      transformOrigin: 'center center',
+      zIndex: String(1000 + (transform.zIndex ?? 0)),
+      color: colorToCss(ui.textColor),
+      fontSize: `${Math.max(10, ui.fontSize)}px`,
+      fontFamily: 'Segoe UI, PingFang SC, sans-serif',
+      lineHeight: '1.35',
+      overflow: 'auto',
+      padding: ui.mode === 'button' ? '8px 12px' : '0',
+      borderRadius: ui.mode === 'button' ? '10px' : '0',
+      border: ui.mode === 'button' ? '1px solid rgba(255,255,255,0.28)' : '0',
+      background: ui.mode === 'button' ? hexToRgba(ui.backgroundColor, 0.95) : 'transparent',
+      pointerEvents: this.isPlaying && ui.mode !== 'button' ? 'none' : 'auto',
+      cursor: ui.mode === 'button' && ui.interactable ? 'pointer' : 'default'
+    })
   }
 
   private async createTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent) {
@@ -972,7 +1333,12 @@ export class PixiRenderer {
       return texture
     }
 
-    if (!/^https?:\/\//i.test(texturePath) && !texturePath.startsWith('/')) {
+    if (
+      !window.unu &&
+      window.location.protocol !== 'file:' &&
+      !/^https?:\/\//i.test(texturePath) &&
+      !texturePath.startsWith('/')
+    ) {
       const fromPublic = await this.loadTextureFromUrl(`/${texturePath}`)
       if (fromPublic) {
         this.configurePixelTextureSampling(fromPublic)
@@ -1297,6 +1663,7 @@ export class PixiRenderer {
     this.resizeObserver?.disconnect()
     this.cachedSceneRef = null
     this.clearSceneNodeCaches()
+    this.htmlUiLayer.remove()
     this.app?.destroy(true, { children: true })
   }
 
@@ -1304,12 +1671,14 @@ export class PixiRenderer {
     this.backdrop.removeChildren()
     this.world.removeChildren()
     this.ui.removeChildren()
+    this.htmlUiLayer.replaceChildren()
     for (const cached of this.backdropNodeCache.values()) cached.node.destroy({ children: true })
     this.backdropNodeCache.clear()
     for (const cached of this.worldNodeCache.values()) cached.node.destroy({ children: true })
     this.worldNodeCache.clear()
     for (const cached of this.uiNodeCache.values()) cached.node.destroy({ children: true })
     this.uiNodeCache.clear()
+    this.htmlUiNodeCache.clear()
   }
 
   private async getCachedBackdropNode(

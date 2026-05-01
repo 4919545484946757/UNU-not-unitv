@@ -2,6 +2,7 @@
 
 declare global {
   interface Window {
+    __UNU_GAME_EXPORT__?: boolean
     unu?: {
       version: string
       createProject?: (payload?: { projectName?: string; parentDir?: string }) => Promise<{
@@ -61,6 +62,14 @@ declare global {
       renameProject?: (payload: { projectRoot: string; nextName: string }) => Promise<{ rootPath: string; name: string } | null>
       deleteProject?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
       revealInFolder?: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) => Promise<{ ok: boolean; error?: string }>
+      exportGame?: (payload: { projectRoot: string; projectName?: string }) => Promise<{
+        ok: boolean
+        outputDir?: string
+        indexPath?: string
+        sceneCount?: number
+        assetCount?: number
+        error?: string
+      } | null>
       openTilemapEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       submitTilemapEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       closeTilemapEditor?: () => Promise<{ ok: boolean; error?: string }>

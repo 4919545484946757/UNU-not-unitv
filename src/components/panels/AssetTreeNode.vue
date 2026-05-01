@@ -11,7 +11,7 @@
       </button>
       <span v-else class="toggle spacer"></span>
 
-      <button class="node" @click="handleClick">
+      <button class="node" @click="handleClick" @dblclick.stop="handleDoubleClick">
         <span>{{ node.type === 'folder' ? '📁' : icon }}</span>
         <span class="label">{{ node.name }}</span>
       </button>
@@ -23,6 +23,7 @@
         :key="child.id"
         :node="child"
         @open-context="$emit('open-context', $event)"
+        @preview-image="$emit('preview-image', $event)"
       />
     </ul>
   </li>
@@ -37,6 +38,7 @@ import { useEditorStore } from '../../stores/editor'
 const props = withDefaults(defineProps<{ node: AssetNode }>(), {})
 const emit = defineEmits<{
   (e: 'open-context', payload: { event: MouseEvent; node: AssetNode }): void
+  (e: 'preview-image', node: AssetNode): void
 }>()
 
 const assets = useAssetStore()
@@ -67,6 +69,17 @@ async function handleClick() {
   if (props.node.type === 'animation' || props.node.type === 'atlas') editor.setRightTab('Timeline')
 }
 
+async function handleDoubleClick() {
+  if (props.node.type === 'folder') return
+  await assets.selectAsset(props.node.path)
+  if (props.node.type === 'image') {
+    emit('preview-image', props.node)
+    return
+  }
+  if (props.node.type === 'script') editor.setRightTab('Script')
+  if (props.node.type === 'animation' || props.node.type === 'atlas') editor.setRightTab('Timeline')
+}
+
 function emitContextMenu(event: MouseEvent) {
   emit('open-context', { event, node: props.node })
 }
@@ -77,9 +90,9 @@ li { list-style: none; }
 .row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0px;
   padding: 2px 0;
-  border-radius: 8px;
+  border-radius: 0px;
 }
 .row.active { background: rgba(86, 182, 194, 0.12); }
 .toggle {
@@ -92,21 +105,25 @@ li { list-style: none; }
   background: transparent;
   color: #8ea0b8;
   cursor: pointer;
+  font-size: x-large;
+  justify-content: center;
+  margin-bottom: 10px;
 }
 .spacer { display: inline-block; }
 .node {
   min-width: max-content;
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
   padding: 8px 10px;
-  background: #1a2030;
-  border-radius: 8px;
+  background: #1a203000;
+  border-radius: 0px;
   border: 1px solid transparent;
+  border-bottom: 2px solid #353b4b;
   color: #dbe4ee;
   cursor: pointer;
 }
-.row.active .node { border-color: #56b6c2; }
+.row.active .node { /*border-color: #56b6c2;*/ }
 .label {
   white-space: nowrap;
 }

@@ -199,7 +199,7 @@ function switchScene(event: Event) {
 <style scoped>
 .scene-tree { position: relative; }
 .header-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
-.section-title { color: #94a3b8; font-size: 13px; }
+.section-title { color: #94a3b8; font-size: 13px; margin-bottom: 10px;}
 .scene-switch-row {
   display: grid;
   gap: 6px;
@@ -216,15 +216,16 @@ function switchScene(event: Event) {
   border-radius: 8px;
   padding: 6px 8px;
 }
-.mini-actions, .layer-actions { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.mini-actions, .layer-actions { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
 button {
   border: 1px solid #303848;
   background: #202632;
   color: #ecf0f7;
   padding: 4px 8px;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
 }
+button:hover { background: #2d3443; }
 .tree { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 li {
   display: flex;
@@ -233,10 +234,12 @@ li {
   gap: 8px;
   padding: 8px 10px;
   background: #1a2030;
-  border-radius: 8px;
+  border-radius: 3px;
+  border-top: 3px solid #344154;
   cursor: pointer;
 }
-li.active { outline: 1px solid #56b6c2; }
+li:hover { background: #29324a; }
+li.active { outline: 2px solid #56b6c2; }
 .meta { display: grid; gap: 2px; min-width: max-content; }
 .prefab-tag {
   margin-left: 6px;

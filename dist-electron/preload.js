@@ -19,6 +19,7 @@ r.exposeInMainWorld("unu", {
   renameProject: (e) => n.invoke("unu:rename-project", e),
   deleteProject: (e) => n.invoke("unu:delete-project", e),
   revealInFolder: (e) => n.invoke("unu:reveal-in-folder", e),
+  exportGame: (e) => n.invoke("unu:export-game", e),
   openTilemapEditor: (e) => n.invoke("unu:open-tilemap-editor", e),
   submitTilemapEditorUpdate: (e) => n.invoke("unu:tilemap-editor-update", e),
   closeTilemapEditor: () => n.invoke("unu:close-tilemap-editor"),

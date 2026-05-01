@@ -247,7 +247,9 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.backgroundColor ?? 0x2b3242),
             Number(data.anchorX ?? 0.5),
             Number(data.anchorY ?? 0.5),
-            Boolean(data.interactable ?? true)
+            Boolean(data.interactable ?? true),
+            Boolean(data.markdownEnabled ?? false),
+            data.renderMode === 'html' ? 'html' : 'pixi'
           )
         )
         break

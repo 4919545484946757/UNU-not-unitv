@@ -24,16 +24,19 @@
           动画名
           <input :value="entity.name + '_anim'" disabled />
         </label>
+        <p></p>
+        <p></p>
         <label>
           FPS
           <input type="number" min="1" :value="animation.fps" @input="setFps" />
         </label>
+        <p></p>
+        <p></p>
         <label class="checkbox-row">
           <input type="checkbox" :checked="animation.loop" @change="setLoop" />
           Loop
         </label>
       </div>
-
       <div class="playhead-block">
         <div class="playhead-header">
           <span>播放头</span>
@@ -74,7 +77,7 @@
           <input type="checkbox" :checked="animation.stateMachine.enabled" @change="setStateMachineEnabled" />
           启用状态机
         </label>
-
+        <br>
         <div class="state-meta">
           <label>
             初始状态
@@ -892,13 +895,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.danger { border-color: #5b2631; background: #3b1e27; }
 .meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 label { display: grid; gap: 6px; font-size: 13px; color: #cfd8e3; }
-input, select, textarea { background: #0f141d; color: #ecf0f7; border: 1px solid #313a4a; border-radius: 8px; padding: 8px; }
+input { background: #0f141d; color: #ecf0f7; border: 1px solid #313a4a; border-radius: 8px; padding: 8px; }
+select, textarea { background: #0f141d; color: #ecf0f7; border: 1px solid #313a4a; border-radius: 8px; padding: 8px; }
 textarea { min-height: 90px; resize: vertical; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
 .playhead-block { display: grid; gap: 8px; }
 .playhead-header { display: flex; justify-content: space-between; color: #aebbd0; font-size: 12px; }
 .playhead-slider { padding: 0; }
-.timeline-strip { display: flex; gap: 10px; overflow: auto; padding-bottom: 2px; }
+.timeline-strip { display: flex; gap: 10px; overflow: auto; padding-bottom: 2px; padding: 2px;}
 .frame-card { min-width: 138px; text-align: left; display: grid; gap: 4px; background: #161c27; }
 .frame-card.active { outline: 2px solid #56b6c2; }
 .frame-card.playback { box-shadow: inset 0 0 0 1px #f2c94c; }

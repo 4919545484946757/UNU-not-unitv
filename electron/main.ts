@@ -433,6 +433,50 @@ async function exists(targetPath: string) {
   }
 }
 
+async function resolveProjectRootPath(projectRoot: string) {
+  const raw = String(projectRoot || '').trim()
+  if (!raw || raw === 'sample-project') return raw
+  if (path.isAbsolute(raw)) return raw
+  const normalized = raw.replace(/\\/g, '/').replace(/^\/+/, '')
+  if (app.isPackaged && normalized.toLowerCase().startsWith('sample-project-list/')) {
+    const sourceCandidates = [
+      path.join(process.resourcesPath, normalized),
+      path.join(app.getAppPath(), normalized)
+    ]
+    const target = path.join(app.getPath('userData'), 'bundled-samples', path.basename(normalized))
+    const targetReady =
+      await exists(path.join(target, 'project.json')) &&
+      await exists(path.join(target, 'scenes')) &&
+      await exists(path.join(target, 'assets'))
+    if (!targetReady) {
+      const source = await firstExistingPath(sourceCandidates)
+      if (source) {
+        await fs.mkdir(path.dirname(target), { recursive: true })
+        await fs.rm(target, { recursive: true, force: true })
+        await fs.cp(source, target, { recursive: true, force: true })
+      }
+    }
+    if (await exists(target)) return target
+  }
+  const candidates = [
+    path.join(app.getAppPath(), normalized),
+    path.join(process.cwd(), normalized),
+    path.resolve(__dirname, '..', normalized),
+    path.resolve(normalized)
+  ]
+  for (const candidate of candidates) {
+    if (await exists(candidate)) return candidate
+  }
+  return path.resolve(raw)
+}
+
+async function firstExistingPath(candidates: string[]) {
+  for (const candidate of candidates) {
+    if (await exists(candidate)) return candidate
+  }
+  return ''
+}
+
 function makeDefaultProjectName() {
   const now = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -1280,6 +1324,196 @@ function openTilemapEditorWindow(payload: unknown) {
   return { ok: true }
 }
 
+function makeExportFolderName(projectName?: string) {
+  const now = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+  const stamp = [
+    now.getFullYear(),
+    pad(now.getMonth() + 1),
+    pad(now.getDate()),
+    '-',
+    pad(now.getHours()),
+    pad(now.getMinutes()),
+    pad(now.getSeconds())
+  ].join('')
+  return `${sanitizeProjectName(projectName) || 'UNUGame'}-web-${stamp}`
+}
+
+async function resolveWebDistRoot() {
+  const candidates = app.isPackaged
+    ? [
+        path.join(process.resourcesPath, 'dist'),
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'dist'),
+        path.join(process.cwd(), 'dist')
+      ]
+    : [
+        path.join(process.cwd(), 'dist'),
+        path.resolve(__dirname, '..', 'dist'),
+        path.join(__dirname, 'dist'),
+        path.join(app.getAppPath(), 'dist')
+      ]
+  for (const candidate of candidates) {
+    if (candidate.includes('.asar')) continue
+    if (await exists(path.join(candidate, 'index.html'))) return candidate
+  }
+  throw new Error(app.isPackaged
+    ? '未找到可复制的 Web 构建目录 resources/dist，请重新打包应用后再导出。'
+    : '未找到 Web 构建目录 dist，请先执行 npm run build。'
+  )
+}
+
+async function countFilesRecursive(rootPath: string) {
+  if (!(await exists(rootPath))) return 0
+  let count = 0
+  const visit = async (targetPath: string) => {
+    const entries = await fs.readdir(targetPath, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      const fullPath = path.join(targetPath, entry.name)
+      if (entry.isDirectory()) await visit(fullPath)
+      else if (entry.isFile()) count += 1
+    }
+  }
+  await visit(rootPath)
+  return count
+}
+
+async function patchExportIndexHtml(indexPath: string, projectName?: string) {
+  let html = await fs.readFile(indexPath, 'utf-8')
+  html = html
+    .replace(/(src|href)="\/assets\//g, '$1="./assets/')
+    .replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(projectName || 'UNU Game')}</title>`)
+  if (!html.includes('__UNU_GAME_EXPORT__')) {
+    html = html.replace(
+      /<head([^>]*)>/i,
+      `<head$1>\n    <script>window.__UNU_GAME_EXPORT__ = true;</script>`
+    )
+  }
+  await fs.writeFile(indexPath, html, 'utf-8')
+}
+
+async function writeExportLaunchFiles(outputDir: string, projectName?: string) {
+  const batContent = [
+    '@echo off',
+    'setlocal',
+    'cd /d "%~dp0"',
+    'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0PLAY_GAME.ps1"',
+    'if errorlevel 1 pause',
+    ''
+  ].join('\r\n')
+
+  const psContent = String.raw`$ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+function Test-PortAvailable([int]$port) {
+  try {
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
+    $listener.Start()
+    $listener.Stop()
+    return $true
+  } catch {
+    return $false
+  }
+}
+
+function Get-MimeType([string]$filePath) {
+  switch ([System.IO.Path]::GetExtension($filePath).ToLowerInvariant()) {
+    ".html" { return "text/html; charset=utf-8" }
+    ".js" { return "text/javascript; charset=utf-8" }
+    ".mjs" { return "text/javascript; charset=utf-8" }
+    ".css" { return "text/css; charset=utf-8" }
+    ".json" { return "application/json; charset=utf-8" }
+    ".png" { return "image/png" }
+    ".jpg" { return "image/jpeg" }
+    ".jpeg" { return "image/jpeg" }
+    ".webp" { return "image/webp" }
+    ".gif" { return "image/gif" }
+    ".svg" { return "image/svg+xml" }
+    ".mp3" { return "audio/mpeg" }
+    ".wav" { return "audio/wav" }
+    ".ogg" { return "audio/ogg" }
+    default { return "application/octet-stream" }
+  }
+}
+
+$port = 4173
+while (-not (Test-PortAvailable $port)) {
+  $port += 1
+}
+
+$server = [System.Net.HttpListener]::new()
+$prefix = "http://127.0.0.1:$port/"
+$server.Prefixes.Add($prefix)
+$server.Start()
+Write-Host "UNU exported game is running at $prefix"
+Write-Host "Press Ctrl+C to stop the local server."
+Start-Process $prefix
+
+try {
+  while ($server.IsListening) {
+    $context = $server.GetContext()
+    $requestPath = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart("/"))
+    if ([string]::IsNullOrWhiteSpace($requestPath)) {
+      $requestPath = "index.html"
+    }
+    $requestPath = $requestPath -replace "/", [System.IO.Path]::DirectorySeparatorChar
+    $targetPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($root, $requestPath))
+    $rootFullPath = [System.IO.Path]::GetFullPath($root)
+
+    if (-not $targetPath.StartsWith($rootFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+      $context.Response.StatusCode = 403
+      $context.Response.Close()
+      continue
+    }
+
+    if (-not [System.IO.File]::Exists($targetPath)) {
+      $targetPath = [System.IO.Path]::Combine($root, "index.html")
+    }
+
+    if ([System.IO.File]::Exists($targetPath)) {
+      $bytes = [System.IO.File]::ReadAllBytes($targetPath)
+      $context.Response.ContentType = Get-MimeType $targetPath
+      $context.Response.ContentLength64 = $bytes.Length
+      $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+    } else {
+      $context.Response.StatusCode = 404
+    }
+    $context.Response.OutputStream.Close()
+  }
+} finally {
+  if ($server.IsListening) {
+    $server.Stop()
+  }
+  $server.Close()
+}
+`
+
+  const readmeContent = [
+    `# ${projectName || 'UNU Game'} Web Export`,
+    '',
+    'Do not open index.html directly with file://. Modern browsers block ES module scripts and CSS under file:// origins.',
+    '',
+    'Windows:',
+    '1. Double-click PLAY_GAME.bat.',
+    '2. The script starts a local HTTP server and opens the game in your default browser.',
+    '3. Close the PowerShell window or press Ctrl+C to stop the server.',
+    '',
+    'If you already have a web server, serve this folder as static files and open index.html through http:// or https://.',
+    ''
+  ].join('\n')
+
+  await fs.writeFile(path.join(outputDir, 'PLAY_GAME.bat'), batContent, 'utf-8')
+  await fs.writeFile(path.join(outputDir, 'PLAY_GAME.ps1'), psContent, 'utf-8')
+  await fs.writeFile(path.join(outputDir, 'EXPORT_README.md'), readmeContent, 'utf-8')
+}
+
+function escapeHtml(input: string) {
+  return String(input)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 process.on('unhandledRejection', (reason) => {
   console.error('[UNU][main] Unhandled promise rejection:', reason)
 })
@@ -1444,16 +1678,75 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {
-    if (!projectRoot) return { rootPath: '', name: '', tree: [] }
+  ipcMain.handle('unu:export-game', async (_event, payload: { projectRoot: string; projectName?: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project' || !(await exists(projectRoot))) {
+      throw new Error('请先打开一个本地项目，再导出游戏。')
+    }
+
     await ensureProjectStructure(projectRoot)
     await ensureProjectRuntimeScriptFiles(projectRoot)
-    const projectName = path.basename(projectRoot)
+    const projectName = sanitizeProjectName(payload?.projectName) || path.basename(projectRoot)
     const reconcile = await reconcileProjectSceneCatalog(projectRoot, projectName)
     const integrity = await ensureProjectAssetIntegrity(projectRoot)
-    const tree = await buildAssetNodes(projectRoot, projectRoot)
+
+    const pick = await dialog.showOpenDialog({
+      title: '导出 Web 游戏到目录',
+      properties: ['openDirectory', 'createDirectory']
+    })
+    if (pick.canceled || pick.filePaths.length === 0) return null
+
+    const distRoot = await resolveWebDistRoot()
+    const outputDir = path.join(pick.filePaths[0], makeExportFolderName(projectName))
+    await fs.mkdir(outputDir, { recursive: true })
+    await fs.cp(distRoot, outputDir, { recursive: true, force: true })
+
+    await copyIfExists(path.join(projectRoot, 'project.json'), path.join(outputDir, 'project.json'))
+    await copyIfExists(path.join(projectRoot, 'assets'), path.join(outputDir, 'assets'))
+    await copyIfExists(path.join(projectRoot, 'scenes'), path.join(outputDir, 'scenes'))
+    await copyIfExists(path.join(projectRoot, 'prefabs'), path.join(outputDir, 'prefabs'))
+
+    const indexPath = path.join(outputDir, 'index.html')
+    await patchExportIndexHtml(indexPath, projectName)
+    await writeExportLaunchFiles(outputDir, projectName)
+    const assetCount = await countFilesRecursive(path.join(outputDir, 'assets'))
+    const report = {
+      format: 'unu-web-export',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      projectName,
+      projectRoot,
+      outputDir,
+      indexPath,
+      launchScript: path.join(outputDir, 'PLAY_GAME.bat'),
+      sceneCount: reconcile.sceneCount,
+      startupScene: reconcile.startupScene,
+      assetCount,
+      assetIntegrityRepaired: integrity.repaired,
+      unresolvedAssets: integrity.unresolvedAssets
+    }
+    await fs.writeFile(path.join(outputDir, 'export-report.json'), JSON.stringify(report, null, 2), 'utf-8')
+
     return {
-      rootPath: projectRoot,
+      ok: true,
+      outputDir,
+      indexPath,
+      sceneCount: reconcile.sceneCount,
+      assetCount
+    }
+  })
+
+  ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {
+    if (!projectRoot) return { rootPath: '', name: '', tree: [] }
+    const resolvedProjectRoot = await resolveProjectRootPath(projectRoot)
+    await ensureProjectStructure(resolvedProjectRoot)
+    await ensureProjectRuntimeScriptFiles(resolvedProjectRoot)
+    const projectName = path.basename(resolvedProjectRoot)
+    const reconcile = await reconcileProjectSceneCatalog(resolvedProjectRoot, projectName)
+    const integrity = await ensureProjectAssetIntegrity(resolvedProjectRoot)
+    const tree = await buildAssetNodes(resolvedProjectRoot, resolvedProjectRoot)
+    return {
+      rootPath: resolvedProjectRoot,
       name: projectName,
       tree,
       sceneCatalogRepaired: reconcile.repaired,
@@ -1511,7 +1804,8 @@ app.whenReady().then(() => {
   ipcMain.handle('unu:read-asset-data-url', async (_event, payload: { projectRoot: string; relativePath: string }) => {
     if (!payload.projectRoot || !payload.relativePath) return null
     try {
-      const resolvedPath = await resolveAssetPathWithFallback(payload.projectRoot, payload.relativePath)
+      const projectRoot = await resolveProjectRootPath(payload.projectRoot)
+      const resolvedPath = await resolveAssetPathWithFallback(projectRoot, payload.relativePath)
       if (!resolvedPath) {
         return null
       }
@@ -1597,7 +1891,8 @@ app.whenReady().then(() => {
 
   ipcMain.handle('unu:read-text-asset', async (_event, payload: { projectRoot: string; relativePath: string }) => {
     if (!payload.projectRoot || !payload.relativePath) return null
-    const filePath = path.join(payload.projectRoot, payload.relativePath)
+    const projectRoot = await resolveProjectRootPath(payload.projectRoot)
+    const filePath = path.join(projectRoot, payload.relativePath)
     const content = await fs.readFile(filePath, 'utf-8')
     return { filePath, name: path.basename(filePath), relativePath: payload.relativePath, content }
   })

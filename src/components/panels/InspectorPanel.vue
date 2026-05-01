@@ -321,13 +321,31 @@
             <input type="checkbox" :checked="ui.enabled" @change="setChecked('ui', 'enabled', $event)" />
             Enabled
           </label>
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="ui.markdownEnabled" @change="setChecked('ui', 'markdownEnabled', $event)" />
+            Markdown
+          </label>
+          <label>Render Mode
+            <select :value="ui.renderMode" @change="setUIRenderMode">
+              <option value="pixi">Pixi Text</option>
+              <option value="html">HTML Overlay</option>
+            </select>
+          </label>
           <label>Mode
             <select :value="ui.mode" @change="setUIMode">
               <option value="text">Text</option>
               <option value="button">Button</option>
             </select>
           </label>
-          <label>Text <input :value="ui.text" @input="setText('ui', 'text', $event)" /></label>
+          <label>
+            Text
+            <textarea
+              class="ui-textarea"
+              :value="ui.text"
+              :placeholder="ui.renderMode === 'html' && !ui.markdownEnabled ? '<h1>Title</h1>\n<p>HTML content</p>' : ui.markdownEnabled ? '# 标题\n- 列表项\n**重点** 与 `代码`' : '支持多行文本，按 Enter 换行'"
+              @input="setText('ui', 'text', $event)"
+            ></textarea>
+          </label>
           <label>Font Size <input type="number" min="8" max="96" :value="ui.fontSize" @input="setNumber('ui', 'fontSize', $event)" /></label>
           <label>Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /></label>
           <label>Width <input type="number" min="10" :value="ui.width" @input="setNumber('ui', 'width', $event)" /></label>
@@ -413,7 +431,7 @@ import { CameraComponent } from '../../engine/components/CameraComponent'
 import type { ColliderComponent } from '../../engine/components/ColliderComponent'
 import { InteractableComponent } from '../../engine/components/InteractableComponent'
 import { ScriptComponent } from '../../engine/components/ScriptComponent'
-import type { SpriteComponent } from '../../engine/components/SpriteComponent'
+import { SpriteComponent } from '../../engine/components/SpriteComponent'
 import { TilemapComponent } from '../../engine/components/TilemapComponent'
 import type { TransformComponent } from '../../engine/components/TransformComponent'
 import { UIComponent } from '../../engine/components/UIComponent'
@@ -1195,6 +1213,13 @@ function setUIMode(event: Event) {
   sceneStore.markDirty()
 }
 
+function setUIRenderMode(event: Event) {
+  if (runtime.isPlaying) return
+  if (!ui.value) return
+  ui.value.renderMode = (event.target as HTMLSelectElement).value === 'html' ? 'html' : 'pixi'
+  sceneStore.markDirty()
+}
+
 function addUIComponent() {
   if (runtime.isPlaying) return
   if (!entity.value || ui.value) return
@@ -1235,7 +1260,8 @@ function addCameraComponent() {
 <style scoped>
 .inspector { display: grid; gap: 12px; min-width: 0; width: 100%; }
 h3 { margin: 0; }
-.group { padding: 12px; border-radius: 10px; background: #1a2030; display: grid; gap: 8px; min-width: 0; width: 100%; box-sizing: border-box; }
+.group { padding: 12px; border-radius: 10px; background: #1a2030; display: grid; gap: 8px; min-width: 0; width: 100%; box-sizing: border-box; transition: all ease-in-out 0.1s; }
+.group:hover { background: #202637; }
 .subgroup { border: 1px solid #2b3344; border-radius: 8px; padding: 8px; display: grid; gap: 8px; background: #161d2a; min-width: 0; width: 100%; box-sizing: border-box; }
 .group-title { color: #9bb0c9; font-size: 13px; }
 label { display: grid; gap: 6px; font-size: 13px; min-width: 0; width: 100%; }
@@ -1332,7 +1358,9 @@ textarea { min-height: 96px; resize: vertical; }
   min-width: 0;
   width: 100%;
   box-sizing: border-box;
+  transition: all ease-in-out 0.1s;
 }
+.transition-card:hover { background: #192436; }
 </style>
 
 
