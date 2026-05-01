@@ -1,105 +1,160 @@
-# UNU Engine Starter
+﻿# UNU Engine Starter
 
-UNU Engine Starter 是一个基于 `Vue 3 + Pinia + Pixi.js + Electron` 的 2D 游戏编辑器与运行时示例工程。  
-目标是提供“可直接上手、可持续扩展”的桌面端 2D 游戏开发基础。
+UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时示例工程。它的目标不是只做一个演示壳子，而是逐步形成一个可以真正支撑 2D 游戏开发的轻量引擎：项目管理、场景编辑、资源管理、组件系统、脚本运行时、动画状态机、Tilemap、UI、音频、打包与 Web 导出都在同一套工作流里闭环。
 
-- 文档更新时间：`2026-04-23`
+- 文档更新时间：`2026-05-01`
 - 项目版本：`0.1.0`
+- 当前定位：桌面端 2D 游戏编辑器 + 可导出 Web 游戏运行包
 
 ## 文档导航
 
-- [引擎路线图](docs/ROADMAP.zh-CN.md)
 - [新手教程](docs/BEGINNER_TUTORIAL.zh-CN.md)
+- [路线图](docs/ROADMAP.zh-CN.md)
 - [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md)
 
-## 核心能力总览
+## 当前核心能力
 
-### 1) 项目与启动流程
+### 项目与启动器
 
-- 启动器界面（Launcher）：
-  - 历史项目列表（打开、重命名、删除）
-  - 示例项目列表（当前已提供 1 个可用示例）
-  - 新建项目弹窗（项目名、目标目录可选输入）
-- 新建项目逻辑：
-  - 如果填写项目名与目录，则创建到 `目标目录/项目名/`
-  - 如果留空，则使用默认项目名并在创建时选择目录
-- 主窗口尺寸策略：
-  - 启动器窗口较小
-  - 进入编辑器后自动切换为更大的编辑窗口
+- 启动后先进入 Launcher 初始界面。
+- 支持打开历史项目、本地项目、示例项目。
+- 支持新建项目，并在指定目录下创建同名项目文件夹。
+- 支持重命名、删除项目。
+- 示例项目列表已独立出来，当前 `2D Action Demo` 使用 `Sample-project-list/sample-2D-shooting`。
+- 打开项目时会自动扫描和修复场景列表、资源路径与缺失的项目运行时脚本。
+- 示例项目在打包版中会从 `resources/Sample-project-list` 复制到用户数据目录，避免直接修改安装目录内资源。
 
-### 2) 编辑器基础能力
+### 编辑器工作流
 
-- 场景编辑：新建、打开、保存、另存
-- 实体编辑：新建（类型化）、复制、删除、图层调整
-- 视图工具：选择、移动、缩放、平移
-- 资源管理：
-  - 资源树浏览与刷新
-  - 导入图片到 `assets/images`
-  - 导入音频到 `assets/audio`
-  - 右键在系统文件管理器中打开目录/定位文件
-- 文本资源编辑：脚本、动画、图集、JSON 等文本资源可打开与保存
+- 场景树：实体选择、复制、删除、重命名、修改 ID、新建实体。
+- 资源树：刷新、导入图片、导入音频、折叠、打开所在目录、打开文本文件、预览图片。
+- Inspector：编辑 Transform、Sprite、Collider、Animation、Script、Camera、Background、Interactable、Audio、UI、Tilemap 等组件。
+- 中央 Scene View：编辑视图、播放预览、暂停、继续、停止。
+- 顶部工具栏：按类别组织项目、场景、实体、工具、播放和导出操作。
+- 状态提示：右上角独立消息弹窗，可拖动、可关闭。
+- 非播放态支持视图平移工具，播放态禁用缩放/位移等编辑工具，避免误改场景。
 
-### 3) 运行时与预览
+### 运行时与游戏功能
 
-- 中央预览支持：播放、暂停、继续、停止
-- 播放态/编辑态分离：
-  - 播放态默认隐藏调试信息
-  - 可通过“调试播放”选项显示调试信息
-- 工程切换时自动刷新预览：
-  - 在编辑器内打开其他工程后，Scene View 会自动重载对应项目场景
+- 播放预览支持中途暂停和继续。
+- 播放态和编辑态选择逻辑分离。
+- 播放态默认隐藏碰撞箱、边界框、Tilemap 网格、实体名称、交互提示文本等调试信息。
+- 播放按钮旁提供调试播放开关，启用后显示调试信息。
+- 输入系统支持键盘、鼠标和动作映射。
+- 示例中 Player 支持：
+  - `W/A/S/D` 八方向移动，斜向移动会归一化速度。
+  - 按住 `Shift` 疾跑，速度切换为 `280`。
+  - 疾跑时行走动画以 2 倍速播放。
+  - 鼠标左键射击，子弹沿 Player 到鼠标点击位置的射线方向飞行。
+  - 子弹超过 Player 一定距离后自动销毁。
+- Enemy 示例逻辑已迁移到项目内脚本，不再写死在通用编辑器运行时里。
+- Enemy 可追踪 Player，碰到子弹后销毁并随机位置重生。
+- 碰撞检测支持 `isBlockedRect`，Enemy 和 Player 使用统一阻挡逻辑。
+- 交互系统支持右键点击可交互实体，并按交互距离判断是否触发。
+- Door 示例通过脚本切换场景。
+- Chest 示例通过脚本循环切换材质颜色。
 
-### 4) 组件系统（当前内置）
+### 项目内脚本运行时
 
-- `Transform`
-- `Sprite`
-- `Collider`
-- `Animation`（含状态机）
-- `Script`
-- `Camera`
-- `Background`
-- `Interactable`
-- `Audio`
-- `UI`
-- `Tilemap`
+UNU 当前已经从“编辑器内置固定玩法逻辑”转向“每个项目独立拥有运行时脚本”的模式：
 
-### 5) Tilemap / Prefab / 动画
+- 每个项目可以拥有自己的 `assets/scripts/ScriptRuntime.ts`。
+- 每个项目可以拥有自己的 `assets/scripts/InputState.ts`。
+- 每个项目可以拥有自己的 `assets/scripts/AudioRuntime.ts`。
+- 示例项目的 Player、Enemy、Bullet、Door、Chest、背景切换等玩法逻辑由项目资源树内脚本驱动。
+- 脚本编辑器支持打开、编辑和保存 `.ts`、`.js`、`.json`、`.anim.json` 等文本资源。
+- 脚本编辑器支持代码高亮与横向滚动。
 
-- Tilemap：
-  - 图块层 + 碰撞层
-  - 支持数值到材质映射
-  - 提供图形化编辑子窗口
-- Prefab：
-  - 保存实体为 Prefab
-  - 从磁盘实例化 Prefab
-  - 支持 Variant 工作流
-- 动画：
-  - 支持 `.anim.json` 与 `.atlas.json` 编辑
-  - 状态机支持 `Idle/Run/Attack` 等常见流转
+### 组件系统
 
-### 6) 交互与脚本化玩法（示例）
+当前内置组件包括：
 
-- Player：
-  - `W/A/S/D` 移动（斜向归一化）
-  - 鼠标左键射击
-  - `Shift` 冲刺（可配置速度）
-- Enemy：
-  - 追踪 Player
-  - 与子弹碰撞后销毁并随机重生
-- 可交互对象：
-  - 鼠标右键与可交互实体交互
-  - 可在脚本中定义交互逻辑（不限于切场景）
-- 场景切换：
-  - 示例含双场景门交互往返
-- 背景系统：
-  - 背景可跟随相机
-  - 支持脚本切换背景贴图
+- `Transform`：位置、旋转、缩放、尺寸等基础变换。
+- `Sprite`：图片、颜色、锚点、翻转、像素风采样。
+- `Collider`：碰撞箱，支持相对偏移和尺寸设置。
+- `Animation`：帧动画、状态机、状态切换条件、exit time。
+- `Script`：绑定项目内脚本逻辑。
+- `Camera`：跟随实体、缩放、边界。
+- `Background`：背景图片、跟随相机、脚本切换。
+- `Interactable`：交互距离、交互动作、提示框。
+- `Audio`：音频播放与运行时控制基础。
+- `UI`：文本、按钮、Markdown、HTML Overlay。
+- `Tilemap`：瓦片层、碰撞层、数值到材质映射。
+
+### Tilemap
+
+- 支持 Tiles CSV 与 Collision CSV。
+- 支持 Tile 值到贴图材质的绑定。
+- Inspector 中提供 Tile 值输入框和绑定选中图片功能。
+- 支持 Electron 子窗口图形化编辑 Tilemap。
+- 图形化编辑器支持：
+  - 正方形紧凑格子。
+  - 鼠标滚轮缩放。
+  - 鼠标中键拖动画面。
+  - 点击格子后直接键盘输入数字修改值。
+  - 长按框选多选。
+  - `Shift + 左键划过` 多选。
+  - 多选后统一修改数值。
+  - 右侧材质列表显示缩略图和快速绑定按钮。
+
+### 动画系统
+
+- 支持 `.anim.json` 动画资源。
+- 支持状态机式动画切换。
+- 支持 Idle、Run、Attack 等常见状态。
+- 支持攻击状态结束后回到移动或待机状态，避免快速输入导致卡死。
+- 支持移动方向驱动贴图翻转，例如 Player 向右移动时水平翻转。
+- 示例中使用不同颜色/贴图表现 Player 状态。
+- 像素风贴图使用 nearest sampling，减少模糊。
+
+### UI 系统
+
+- 支持 UI Text 实体创建。
+- 支持多行文本渲染。
+- Inspector 文本编辑框支持多行输入。
+- 支持基础 Markdown 渲染。
+- 支持 HTML-in-Canvas 的 DOM Overlay 实现，用于更复杂 UI 排版。
+
+### 资源与示例素材
+
+- 示例项目已整理像素风贴图资源到项目 assets 目录。
+- 支持图片资源双击或右键弹窗预览。
+- 图片预览弹窗支持滚轮缩放、左键拖拽、鼠标中键拖拽、边缘调整大小。
+- 背景图片支持完整覆盖视图、无拉伸跟随摄像机移动。
+- 示例中主场景使用 `background-img.png`，切换到设施场景后使用 `background-facility.png`。
+
+### 导出与打包
+
+- 支持从编辑器导出 Web 游戏。
+- 导出的 Web 游戏会复制项目资源、场景、Prefab 和前端运行时代码。
+- 导出目录会包含：
+  - `index.html`
+  - `assets/`
+  - `scenes/`
+  - `prefabs/`
+  - `project.json`
+  - `PLAY_GAME.bat`
+  - `PLAY_GAME.ps1`
+  - `EXPORT_README.md`
+  - `export-report.json`
+- 不能直接用 `file://` 打开导出的 `index.html`，请使用生成的 `PLAY_GAME.bat` 启动本地 HTTP 服务。
+- Windows 打包支持：
+  - NSIS 安装包。
+  - Portable 便携版。
+  - `win-unpacked` 解压目录。
+- 打包配置已处理：
+  - 应用图标写入主程序 exe。
+  - 安装器图标和卸载器图标。
+  - `dist` 额外释放到 `resources/dist`，供打包版 Web 导出复制使用。
+  - 示例项目和素材作为 `extraResources` 随应用分发。
 
 ## 快速开始
 
 ### 环境要求
 
-- Node.js `18+`（建议 20+）
+- Node.js `18+`，建议 `20+`
 - npm `9+`
+- Windows 桌面端开发建议使用 PowerShell
 
 ### 安装依赖
 
@@ -107,60 +162,78 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + Pixi.js + Electron` 的 2D �
 npm install
 ```
 
-### 开发模式（Vite + Electron）
+### 开发模式
 
 ```bash
 npm run dev
 ```
 
-### 构建
+### 构建前端与 Electron 主进程
 
 ```bash
 npm run build
 ```
 
-### 仅预览前端
+### 打包 Windows 解压版
 
 ```bash
-npm run preview
+npm run dist:win
 ```
+
+### 打包 Windows 安装包与便携版
+
+```bash
+npm run dist:win:installer
+```
+
+打包产物默认输出到 `release-fixed/`。
 
 ## 常用快捷键
 
-- `Ctrl/Cmd + S`：保存场景
-- `Ctrl/Cmd + Shift + S`：场景另存
-- `Ctrl/Cmd + Z`：撤销
-- `Ctrl/Cmd + Shift + Z` 或 `Ctrl/Cmd + Y`：重做
-- `Ctrl/Cmd + D`：复制实体
-- `Delete / Backspace`：删除实体
-- `Q / W / E`：选择/移动/缩放工具
-- `P`：播放态暂停/继续（未播放时开始播放）
-- `Ctrl/Cmd + Space`：停止播放
+- `Ctrl/Cmd + S`：保存当前场景。
+- `Ctrl/Cmd + Shift + S`：另存当前场景。
+- `Ctrl/Cmd + Z`：撤销。
+- `Ctrl/Cmd + Shift + Z` 或 `Ctrl/Cmd + Y`：重做。
+- `Ctrl/Cmd + D`：复制实体。
+- `Delete / Backspace`：删除实体。
+- `Q / W / E`：选择、移动、缩放工具。
+- `P`：播放、暂停或继续。
+- `Ctrl/Cmd + Space`：停止播放。
+- `W/A/S/D`：示例项目中控制 Player 移动。
+- `Shift`：示例项目中 Player 疾跑。
+- 鼠标左键：示例项目中射击。
+- 鼠标右键：示例项目中与可交互实体交互。
 
 ## 目录结构
 
 ```txt
 .
-├─ electron/
-│  ├─ main.ts
-│  └─ preload.ts
-├─ src/
-│  ├─ components/
-│  ├─ engine/
-│  ├─ stores/
-│  └─ main.ts
-├─ docs/
-│  ├─ ROADMAP.zh-CN.md
-│  ├─ BEGINNER_TUTORIAL.zh-CN.md
-│  └─ OPTIMIZATION_PLAN.zh-CN.md
-├─ vite.config.ts
-├─ vite.electron.config.ts
-└─ package.json
+|-- electron/
+|   |-- main.ts
+|   `-- preload.ts
+|-- src/
+|   |-- components/
+|   |-- engine/
+|   |-- stores/
+|   `-- main.ts
+|-- docs/
+|   |-- BEGINNER_TUTORIAL.zh-CN.md
+|   |-- OPTIMIZATION_PLAN.zh-CN.md
+|   `-- ROADMAP.zh-CN.md
+|-- Sample-project-list/
+|   `-- sample-2D-shooting/
+|-- sample-project/
+|-- assets-for-sample/
+|-- scripts/
+|   `-- afterPackIcon.cjs
+|-- vite.config.ts
+|-- vite.electron.config.ts
+`-- package.json
 ```
 
-## Electron 接口（`window.unu`）
+## Electron API
 
-类型定义见：`src/vite-env.d.ts`
+类型定义见 `src/vite-env.d.ts`，渲染进程通过 `window.unu` 调用：
 
 - `createProject(payload?)`
 - `pickDirectory(payload?)`
@@ -180,6 +253,7 @@ npm run preview
 - `renameProject(payload)`
 - `deleteProject(payload)`
 - `revealInFolder(payload)`
+- `exportGame(payload)`
 - `openTilemapEditor(payload)`
 - `submitTilemapEditorUpdate(payload)`
 - `closeTilemapEditor()`
@@ -187,7 +261,7 @@ npm run preview
 - `onTilemapEditorInit(callback)`
 - `onTilemapEditorApply(callback)`
 
-## IPC 通道（主进程）
+## 主要 IPC 通道
 
 - `unu:create-project`
 - `unu:create-project-v2`
@@ -208,6 +282,7 @@ npm run preview
 - `unu:rename-project`
 - `unu:delete-project`
 - `unu:reveal-in-folder`
+- `unu:export-game`
 - `unu:open-tilemap-editor`
 - `unu:tilemap-editor-update`
 - `unu:close-tilemap-editor`
@@ -215,6 +290,8 @@ npm run preview
 
 ## 当前已知限制
 
-- 主包体积仍偏大（构建会提示 `>500KB`），后续会继续做拆包与按需加载。
-- 仍有部分历史代码区域存在可继续整理的编码与注释问题（不影响主功能使用）。
-- Tilemap 图形化编辑与动画状态机编辑仍可继续提升可视化细节与交互效率。
+- 前端主 chunk 仍然偏大，构建会提示超过 500KB，后续需要继续拆包。
+- 脚本系统已支持项目内独立运行时，但还没有完整断点调试、脚本热重载和类型提示体验。
+- 动画状态机已有可视预览，但还不是完整节点连线式编辑器。
+- Tilemap 图形化编辑器已经可用，大地图性能仍可继续优化。
+- Web 导出当前面向静态资源和本地 HTTP 预览，后续可加入 itch.io、GitHub Pages 等目标模板。
