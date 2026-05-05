@@ -1,16 +1,18 @@
 ﻿# UNU Engine Starter
 
+中文 | [English](README.en-US.md)
+
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时示例工程。它的目标不是只做一个演示壳子，而是逐步形成一个可以真正支撑 2D 游戏开发的轻量引擎：项目管理、场景编辑、资源管理、组件系统、脚本运行时、动画状态机、Tilemap、UI、音频、打包与 Web 导出都在同一套工作流里闭环。
 
-- 文档更新时间：`2026-05-01`
+- 文档更新时间：`2026-05-05`
 - 项目版本：`0.1.0`
 - 当前定位：桌面端 2D 游戏编辑器 + 可导出 Web 游戏运行包
 
 ## 文档导航
 
-- [新手教程](docs/BEGINNER_TUTORIAL.zh-CN.md)
-- [路线图](docs/ROADMAP.zh-CN.md)
-- [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md)
+- [新手教程](docs/BEGINNER_TUTORIAL.zh-CN.md) / [English](docs/BEGINNER_TUTORIAL.en-US.md)
+- [路线图](docs/ROADMAP.zh-CN.md) / [English](docs/ROADMAP.en-US.md)
+- [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md) / [English](docs/OPTIMIZATION_PLAN.en-US.md)
 
 ## 当前核心能力
 
@@ -218,8 +220,11 @@ npm run dist:win:installer
 |   `-- main.ts
 |-- docs/
 |   |-- BEGINNER_TUTORIAL.zh-CN.md
+|   |-- BEGINNER_TUTORIAL.en-US.md
 |   |-- OPTIMIZATION_PLAN.zh-CN.md
-|   `-- ROADMAP.zh-CN.md
+|   |-- OPTIMIZATION_PLAN.en-US.md
+|   |-- ROADMAP.zh-CN.md
+|   `-- ROADMAP.en-US.md
 |-- Sample-project-list/
 |   `-- sample-2D-shooting/
 |-- sample-project/
@@ -295,3 +300,5 @@ npm run dist:win:installer
 - 动画状态机已有可视预览，但还不是完整节点连线式编辑器。
 - Tilemap 图形化编辑器已经可用，大地图性能仍可继续优化。
 - Web 导出当前面向静态资源和本地 HTTP 预览，后续可加入 itch.io、GitHub Pages 等目标模板。
+
+
