@@ -30,7 +30,7 @@
     <section class="browser-panel">
       <div class="scroll-inner">
         <div class="section-title">素材箱</div>
-        <div class="section-tip">拖动中间分隔线可调整素材箱高度</div>
+        <!--div class="section-tip">拖动中间分隔线可调整素材箱高度</div-->
         <AssetBrowserPanel />
       </div>
     </section>

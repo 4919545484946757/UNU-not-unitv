@@ -16,6 +16,8 @@ r.exposeInMainWorld("unu", {
   saveTextAsset: (e) => n.invoke("unu:save-text-asset", e),
   openTextAsset: (e) => n.invoke("unu:open-text-asset", e),
   readTextAsset: (e) => n.invoke("unu:read-text-asset", e),
+  createTextAssetInFolder: (e) => n.invoke("unu:create-text-asset-in-folder", e),
+  renameAsset: (e) => n.invoke("unu:rename-asset", e),
   renameProject: (e) => n.invoke("unu:rename-project", e),
   deleteProject: (e) => n.invoke("unu:delete-project", e),
   revealInFolder: (e) => n.invoke("unu:reveal-in-folder", e),
@@ -25,11 +27,11 @@ r.exposeInMainWorld("unu", {
   closeTilemapEditor: () => n.invoke("unu:close-tilemap-editor"),
   setMainWindowPreset: (e) => n.invoke("unu:set-main-window-preset", e),
   onTilemapEditorInit: (e) => {
-    const o = (i, t) => e(t);
-    return n.on("unu:tilemap-editor-init", o), () => n.removeListener("unu:tilemap-editor-init", o);
+    const t = (i, o) => e(o);
+    return n.on("unu:tilemap-editor-init", t), () => n.removeListener("unu:tilemap-editor-init", t);
   },
   onTilemapEditorApply: (e) => {
-    const o = (i, t) => e(t);
-    return n.on("unu:tilemap-editor-apply", o), () => n.removeListener("unu:tilemap-editor-apply", o);
+    const t = (i, o) => e(o);
+    return n.on("unu:tilemap-editor-apply", t), () => n.removeListener("unu:tilemap-editor-apply", t);
   }
 });

@@ -59,6 +59,8 @@ declare global {
       saveTextAsset?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string; subdir?: string; title?: string; filterName?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       openTextAsset?: (payload: { projectRoot?: string; defaultSubdir?: string; title?: string; extensions?: string[] }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       readTextAsset?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
+      createTextAssetInFolder?: (payload: { projectRoot: string; folderPath: string; fileName?: string; content?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
+      renameAsset?: (payload: { projectRoot: string; relativePath: string; nextName: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       renameProject?: (payload: { projectRoot: string; nextName: string }) => Promise<{ rootPath: string; name: string } | null>
       deleteProject?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
       revealInFolder?: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) => Promise<{ ok: boolean; error?: string }>

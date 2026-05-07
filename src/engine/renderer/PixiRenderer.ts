@@ -232,6 +232,7 @@ export class PixiRenderer {
   private readonly audioRuntime = new AudioRuntime()
   private sourceScene: Scene | null = null
   private playScene: Scene | null = null
+  private readonly playSceneCache = new Map<string, Scene>()
   private currentScene: Scene | null = null
   private gridVisible = true
   private isPlaying = false
@@ -252,6 +253,8 @@ export class PixiRenderer {
   private readonly worldNodeCache = new Map<string, { kind: CachedWorldNodeKind; signature: string; node: Container }>()
   private readonly uiNodeCache = new Map<string, { signature: string; node: Container }>()
   private readonly htmlUiNodeCache = new Map<string, { signature: string; node: HTMLDivElement }>()
+  private wheelHandler: ((event: WheelEvent) => void) | null = null
+  private auxClickHandler: ((event: MouseEvent) => void) | null = null
 
   constructor(private readonly options: PixiRendererOptions) {}
 
@@ -272,6 +275,7 @@ export class PixiRenderer {
     this.options.container.style.position = this.options.container.style.position || 'relative'
     this.options.container.appendChild(this.app.canvas)
     this.app.canvas.style.imageRendering = 'pixelated'
+    this.installViewportWheelInteractions()
     this.htmlUiLayer.className = 'unu-html-ui-layer'
     Object.assign(this.htmlUiLayer.style, {
       position: 'absolute',
@@ -362,18 +366,14 @@ export class PixiRenderer {
       return false
     }
 
-    if (this.playScene) {
-      this.scriptRuntime.destroyScene(this.playScene)
-    }
     this.audioRuntime.stopAll()
 
-    this.playScene = deserializeScene(serializeScene(nextSceneTemplate))
+    this.playScene = this.getOrCreatePlayScene(nextSceneTemplate)
     this.currentScene = this.playScene
     this.selectedEntityId = ''
     this.options.onEntitySelected?.('')
     this.scriptRuntime.setSelectedEntityId('')
 
-    this.resetAnimations(this.playScene)
     this.scriptRuntime.initScene(this.playScene)
     this.scriptRuntime.startScene(this.playScene)
     void this.audioRuntime.syncScene(this.playScene)
@@ -428,7 +428,12 @@ export class PixiRenderer {
     if (!scene) {
       this.isPlaying = false
       this.isPaused = false
+      for (const cachedScene of this.playSceneCache.values()) {
+        this.scriptRuntime.destroyScene(cachedScene)
+      }
       this.playScene = null
+      this.playSceneCache.clear()
+      this.scriptRuntime.resetAll()
       this.currentScene = null
       this.cachedSceneRef = null
       this.clearSceneNodeCaches()
@@ -443,11 +448,13 @@ export class PixiRenderer {
     if (!isPlaying) {
       this.isPlaying = false
       this.isPaused = false
-      if (this.playScene) {
-        this.scriptRuntime.destroyScene(this.playScene)
+      for (const cachedScene of this.playSceneCache.values()) {
+        this.scriptRuntime.destroyScene(cachedScene)
       }
       this.audioRuntime.stopAll()
       this.playScene = null
+      this.playSceneCache.clear()
+      this.scriptRuntime.resetAll()
       this.currentScene = scene
       this.resetAnimations(scene)
       this.resetCameraTransform()
@@ -460,12 +467,15 @@ export class PixiRenderer {
 
     if (!wasPlaying || refreshPlayingScene) {
       await this.refreshProjectRuntimeFiles()
-      if (this.playScene) {
-        this.scriptRuntime.destroyScene(this.playScene)
+      if (wasPlaying || refreshPlayingScene) {
+        for (const cachedScene of this.playSceneCache.values()) {
+          this.scriptRuntime.destroyScene(cachedScene)
+        }
+        this.playSceneCache.clear()
+        this.scriptRuntime.resetAll()
       }
-      this.playScene = deserializeScene(serializeScene(scene))
+      this.playScene = this.getOrCreatePlayScene(scene)
       this.currentScene = this.playScene
-      this.resetAnimations(this.playScene)
       this.scriptRuntime.initScene(this.playScene)
       this.scriptRuntime.startScene(this.playScene)
       void this.audioRuntime.syncScene(this.playScene)
@@ -483,6 +493,22 @@ export class PixiRenderer {
     }
     this.drawSelectionGizmo()
     this.options.onRuntimeSceneUpdated?.(this.currentScene)
+  }
+
+  private getOrCreatePlayScene(template: Scene) {
+    const key = this.getRuntimeSceneKey(template)
+    const cached = this.playSceneCache.get(key)
+    if (cached) return cached
+    const scene = deserializeScene(serializeScene(template))
+    this.resetAnimations(scene)
+    this.playSceneCache.set(key, scene)
+    return scene
+  }
+
+  private getRuntimeSceneKey(scene: Scene) {
+    const id = String(scene.id || '').trim()
+    if (id) return `id:${id}`
+    return `name:${String(scene.name || '').trim().toLowerCase()}`
   }
 
   private async refreshProjectRuntimeFiles() {
@@ -525,6 +551,65 @@ export class PixiRenderer {
     this.activeTool = tool
     this.app.stage.cursor = tool === 'pan' && !this.isPlaying ? 'grab' : 'default'
     this.drawSelectionGizmo()
+  }
+
+  private installViewportWheelInteractions() {
+    this.wheelHandler = (event: WheelEvent) => {
+      if (this.isPlaying) return
+      event.preventDefault()
+      this.zoomViewportAt(event.clientX, event.clientY, event.deltaY)
+    }
+    this.auxClickHandler = (event: MouseEvent) => {
+      if (event.button !== 1) return
+      event.preventDefault()
+    }
+    this.app.canvas.addEventListener('wheel', this.wheelHandler, { passive: false })
+    this.app.canvas.addEventListener('auxclick', this.auxClickHandler)
+  }
+
+  private shouldStartPan(event: { button?: number }) {
+    return !this.isPlaying && (this.activeTool === 'pan' || event.button === 1)
+  }
+
+  private startPan(globalX: number, globalY: number) {
+    this.gizmoMode = 'pan'
+    this.panState.lastX = globalX
+    this.panState.lastY = globalY
+    this.app.stage.cursor = 'grabbing'
+  }
+
+  private finishPointerGesture() {
+    this.gizmoMode = 'none'
+    this.app.stage.cursor = this.activeTool === 'pan' && !this.isPlaying ? 'grab' : 'default'
+  }
+
+  private panViewport(dx: number, dy: number) {
+    this.world.position.x += dx
+    this.world.position.y += dy
+    this.overlay.position.x += dx
+    this.overlay.position.y += dy
+  }
+
+  private zoomViewportAt(clientX: number, clientY: number, deltaY: number) {
+    const rect = this.options.container.getBoundingClientRect()
+    const pointerX = clientX - rect.left
+    const pointerY = clientY - rect.top
+    const previousScale = this.world.scale.x || 1
+    const factor = deltaY < 0 ? 1.12 : 1 / 1.12
+    const nextScale = Math.max(0.15, Math.min(8, previousScale * factor))
+    if (Math.abs(nextScale - previousScale) < 0.0001) return
+
+    const worldX = (pointerX - this.world.position.x) / previousScale
+    const worldY = (pointerY - this.world.position.y) / previousScale
+    const nextX = pointerX - worldX * nextScale
+    const nextY = pointerY - worldY * nextScale
+    this.world.scale.set(nextScale)
+    this.overlay.scale.set(nextScale)
+    this.world.position.set(nextX, nextY)
+    this.overlay.position.set(nextX, nextY)
+    this.drawGrid()
+    this.drawSelectionGizmo()
+    if (this.currentScene) void this.renderScene(this.currentScene)
   }
 
   async renderScene(scene: Scene) {
@@ -698,11 +783,8 @@ export class PixiRenderer {
 
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
-      if (!this.isPlaying && this.activeTool === 'pan') {
-        this.gizmoMode = 'pan'
-        this.panState.lastX = event.global.x
-        this.panState.lastY = event.global.y
-        this.app.stage.cursor = 'grabbing'
+      if (this.shouldStartPan(event)) {
+        this.startPan(event.global.x, event.global.y)
         event.stopPropagation()
         return
       }
@@ -872,11 +954,8 @@ export class PixiRenderer {
       node.dataset.entityId = entity.id
       node.addEventListener('pointerdown', (event) => {
         if (this.isPlaying) return
-        if (this.activeTool === 'pan') {
-          this.gizmoMode = 'pan'
-          this.panState.lastX = event.clientX
-          this.panState.lastY = event.clientY
-          this.app.stage.cursor = 'grabbing'
+        if (this.shouldStartPan(event)) {
+          this.startPan(event.clientX, event.clientY)
           event.stopPropagation()
           return
         }
@@ -950,11 +1029,8 @@ export class PixiRenderer {
     node.zIndex = transform.zIndex ?? 0
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
-      if (!this.isPlaying && this.activeTool === 'pan') {
-        this.gizmoMode = 'pan'
-        this.panState.lastX = event.global.x
-        this.panState.lastY = event.global.y
-        this.app.stage.cursor = 'grabbing'
+      if (this.shouldStartPan(event)) {
+        this.startPan(event.global.x, event.global.y)
         event.stopPropagation()
         return
       }
@@ -1064,11 +1140,8 @@ export class PixiRenderer {
     this.app.stage.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
 
-      if (this.activeTool === 'pan') {
-        this.gizmoMode = 'pan'
-        this.panState.lastX = event.global.x
-        this.panState.lastY = event.global.y
-        this.app.stage.cursor = 'grabbing'
+      if (this.shouldStartPan(event)) {
+        this.startPan(event.global.x, event.global.y)
         return
       }
 
@@ -1086,10 +1159,7 @@ export class PixiRenderer {
       if (this.gizmoMode === 'pan' && !this.isPlaying) {
         const dx = event.global.x - this.panState.lastX
         const dy = event.global.y - this.panState.lastY
-        this.world.position.x += dx
-        this.world.position.y += dy
-        this.overlay.position.x += dx
-        this.overlay.position.y += dy
+        this.panViewport(dx, dy)
         this.panState.lastX = event.global.x
         this.panState.lastY = event.global.y
         return
@@ -1131,12 +1201,10 @@ export class PixiRenderer {
       }
     })
     this.app.stage.on('pointerup', () => {
-      this.gizmoMode = 'none'
-      this.app.stage.cursor = this.activeTool === 'pan' && !this.isPlaying ? 'grab' : 'default'
+      this.finishPointerGesture()
     })
     this.app.stage.on('pointerupoutside', () => {
-      this.gizmoMode = 'none'
-      this.app.stage.cursor = this.activeTool === 'pan' && !this.isPlaying ? 'grab' : 'default'
+      this.finishPointerGesture()
     })
   }
 
@@ -1239,11 +1307,8 @@ export class PixiRenderer {
     node.cursor = 'pointer'
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
-      if (!this.isPlaying && this.activeTool === 'pan') {
-        this.gizmoMode = 'pan'
-        this.panState.lastX = event.global.x
-        this.panState.lastY = event.global.y
-        this.app.stage.cursor = 'grabbing'
+      if (this.shouldStartPan(event)) {
+        this.startPan(event.global.x, event.global.y)
         event.stopPropagation()
         return
       }
@@ -1653,8 +1718,20 @@ export class PixiRenderer {
   }
 
   destroy() {
-    if (this.playScene) {
-      this.scriptRuntime.destroyScene(this.playScene)
+    if (this.wheelHandler) {
+      this.app.canvas.removeEventListener('wheel', this.wheelHandler)
+      this.wheelHandler = null
+    }
+    if (this.auxClickHandler) {
+      this.app.canvas.removeEventListener('auxclick', this.auxClickHandler)
+      this.auxClickHandler = null
+    }
+    if (this.playSceneCache.size > 0) {
+      for (const cachedScene of this.playSceneCache.values()) {
+        this.scriptRuntime.destroyScene(cachedScene)
+      }
+      this.playSceneCache.clear()
+      this.scriptRuntime.resetAll()
     } else if (this.currentScene) {
       this.scriptRuntime.destroyScene(this.currentScene)
     }
@@ -1716,11 +1793,8 @@ export class PixiRenderer {
     node.cursor = 'pointer'
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
-      if (!this.isPlaying && this.activeTool === 'pan') {
-        this.gizmoMode = 'pan'
-        this.panState.lastX = event.global.x
-        this.panState.lastY = event.global.y
-        this.app.stage.cursor = 'grabbing'
+      if (this.shouldStartPan(event)) {
+        this.startPan(event.global.x, event.global.y)
         event.stopPropagation()
         return
       }

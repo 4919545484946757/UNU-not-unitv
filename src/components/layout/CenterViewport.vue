@@ -278,12 +278,15 @@ onBeforeUnmount(() => {
 }
 .preview-btn {
   border: 1px solid #3a465d;
-  background: #1a2333;
+  background: #468847;
   color: #dbe4ee;
   border-radius: 8px;
   padding: 4px 10px;
   cursor: pointer;
   font-size: 12px;
+}
+.preview-btn.debug {
+  background: #1a2333;
 }
 .preview-btn.stop {
   background: #3b2020;

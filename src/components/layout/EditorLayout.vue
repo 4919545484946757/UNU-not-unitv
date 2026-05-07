@@ -1,6 +1,6 @@
 ﻿<template>
   <div class="editor-shell">
-    <TopToolbar />
+    <TopToolbar @return-launcher="emit('return-launcher')" />
     <StatusPopup />
     <EntityCreateDialog />
     <SceneListDialog />
@@ -32,6 +32,9 @@ const editor = useEditorStore()
 const project = useProjectStore()
 const runtime = useRuntimeStore()
 const scene = useSceneStore()
+const emit = defineEmits<{
+  (event: 'return-launcher'): void
+}>()
 const RESIZER_WIDTH = 6
 const MIN_CENTER_WIDTH = 320
 const mainRef = ref<HTMLDivElement | null>(null)

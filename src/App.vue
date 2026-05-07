@@ -2,7 +2,7 @@
   <GamePlayer v-if="isGameExport" />
   <TilemapEditorWindow v-else-if="isTilemapEditorWindow" />
   <LauncherView v-else-if="showLauncher" @open-project="openProjectFromLauncher" />
-  <EditorLayout v-else />
+  <EditorLayout v-else @return-launcher="returnToLauncher" />
 </template>
 
 <script setup lang="ts">
@@ -89,6 +89,14 @@ async function openProjectFromLauncher(payload: { rootPath: string; name: string
     const message = error instanceof Error ? error.message : String(error)
     project.setStatus(`打开项目失败：${message}`)
   }
+}
+
+async function returnToLauncher() {
+  runtime.stop()
+  selection.clearSelection()
+  showLauncher.value = true
+  project.setStatus('已回到开始界面')
+  await window.unu?.setMainWindowPreset?.('launcher')
 }
 
 if (showLauncher.value) {

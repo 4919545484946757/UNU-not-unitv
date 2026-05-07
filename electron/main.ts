@@ -25,7 +25,7 @@ function inferAssetType(fileName: string) {
   if (fileName.endsWith('.scene.json')) return 'scene'
   if (fileName.endsWith('.prefab.json')) return 'prefab'
   if (['.json'].includes(ext)) return 'animation'
-  return 'folder'
+  return 'script'
 }
 
 async function ensureProjectStructure(projectRoot: string) {
@@ -492,6 +492,53 @@ function sanitizeProjectName(input?: string) {
     .replace(/[. ]+$/g, '')
     .trim()
   return cleaned || ''
+}
+
+function sanitizeAssetFileName(input?: string) {
+  const raw = String(input || '').trim()
+  const cleaned = raw
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/[. ]+$/g, '')
+    .trim()
+  return cleaned || ''
+}
+
+function normalizeSafeRelativePath(input?: string) {
+  const normalized = String(input || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
+  if (!normalized || path.isAbsolute(normalized)) return ''
+  const parts = normalized.split('/').filter(Boolean)
+  if (parts.some((part) => part === '..')) return ''
+  return parts.join('/')
+}
+
+function resolveProjectChildPath(projectRoot: string, relativePath: string) {
+  const root = path.resolve(projectRoot)
+  const normalized = normalizeSafeRelativePath(relativePath)
+  if (!normalized) return ''
+  const target = path.resolve(root, normalized)
+  const relative = path.relative(root, target)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return ''
+  return target
+}
+
+function splitKnownAssetExtension(fileName: string) {
+  const lower = fileName.toLowerCase()
+  const known = ['.anim.json', '.atlas.json', '.scene.json', '.prefab.json']
+  const matched = known.find((suffix) => lower.endsWith(suffix))
+  if (matched) return { base: fileName.slice(0, -matched.length), ext: fileName.slice(fileName.length - matched.length) }
+  const ext = path.extname(fileName)
+  return { base: ext ? fileName.slice(0, -ext.length) : fileName, ext }
+}
+
+async function makeUniquePathIfNeeded(targetPath: string) {
+  if (!(await exists(targetPath))) return targetPath
+  const dir = path.dirname(targetPath)
+  const parsed = splitKnownAssetExtension(path.basename(targetPath))
+  for (let index = 1; index < 1000; index += 1) {
+    const candidate = path.join(dir, `${parsed.base}-${index}${parsed.ext}`)
+    if (!(await exists(candidate))) return candidate
+  }
+  throw new Error('无法生成可用的默认文件名，请手动输入文件名。')
 }
 
 function sanitizeSceneFileName(input?: string) {
@@ -1888,6 +1935,69 @@ app.whenReady().then(() => {
 
   ipcMain.handle('unu:save-text-asset', async (_event, payload) => saveTextAsset(payload))
   ipcMain.handle('unu:open-text-asset', async (_event, payload) => openTextAsset(payload))
+
+  ipcMain.handle('unu:create-text-asset-in-folder', async (_event, payload: { projectRoot: string; folderPath: string; fileName?: string; content?: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('请先打开或另存为本地项目，再新建文件。')
+    }
+    const folderPath = normalizeSafeRelativePath(payload?.folderPath || 'assets')
+    const folderFullPath = resolveProjectChildPath(projectRoot, folderPath)
+    if (!folderFullPath) throw new Error('目标目录不在当前项目内。')
+    const stat = await fs.stat(folderFullPath).catch(() => null)
+    if (!stat || !stat.isDirectory()) throw new Error('目标目录不存在。')
+
+    const userProvidedName = !!String(payload?.fileName || '').trim()
+    const fileName = sanitizeAssetFileName(payload?.fileName) || 'NewFile.ts'
+    const targetPath = path.join(folderFullPath, fileName)
+    const root = path.resolve(projectRoot)
+    const relative = path.relative(root, path.resolve(targetPath))
+    if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('目标文件不在当前项目内。')
+    const finalPath = userProvidedName ? targetPath : await makeUniquePathIfNeeded(targetPath)
+    if (userProvidedName && await exists(finalPath)) throw new Error('同名文件已存在。')
+    await fs.writeFile(finalPath, payload?.content ?? '', 'utf-8')
+    return {
+      filePath: finalPath,
+      name: path.basename(finalPath),
+      relativePath: normalizePath(path.relative(projectRoot, finalPath))
+    }
+  })
+
+  ipcMain.handle('unu:rename-asset', async (_event, payload: { projectRoot: string; relativePath: string; nextName: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('请先打开或另存为本地项目，再重命名资源。')
+    }
+    const sourcePath = resolveProjectChildPath(projectRoot, payload?.relativePath || '')
+    if (!sourcePath) throw new Error('源资源不在当前项目内。')
+    const stat = await fs.stat(sourcePath).catch(() => null)
+    if (!stat) throw new Error('源资源不存在。')
+
+    const rawNextName = sanitizeAssetFileName(payload?.nextName)
+    if (!rawNextName) throw new Error('资源名称不能为空。')
+    const sourceName = path.basename(sourcePath)
+    const nextName = stat.isDirectory() || path.extname(rawNextName)
+      ? rawNextName
+      : `${rawNextName}${splitKnownAssetExtension(sourceName).ext}`
+    const targetPath = path.join(path.dirname(sourcePath), nextName)
+    const root = path.resolve(projectRoot)
+    const relative = path.relative(root, path.resolve(targetPath))
+    if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('目标资源不在当前项目内。')
+    if (path.resolve(targetPath) === path.resolve(sourcePath)) {
+      return {
+        filePath: sourcePath,
+        name: sourceName,
+        relativePath: normalizePath(path.relative(projectRoot, sourcePath))
+      }
+    }
+    if (await exists(targetPath)) throw new Error('同名资源已存在。')
+    await fs.rename(sourcePath, targetPath)
+    return {
+      filePath: targetPath,
+      name: path.basename(targetPath),
+      relativePath: normalizePath(path.relative(projectRoot, targetPath))
+    }
+  })
 
   ipcMain.handle('unu:read-text-asset', async (_event, payload: { projectRoot: string; relativePath: string }) => {
     if (!payload.projectRoot || !payload.relativePath) return null

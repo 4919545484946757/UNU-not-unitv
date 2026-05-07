@@ -12,6 +12,7 @@
           <option value="">项目操作</option>
           <option value="new">新建项目</option>
           <option value="open">打开工程</option>
+          <option value="launcher">回到开始界面</option>
           <option value="saveAs">项目另存</option>
           <option value="exportGame">导出 Web 游戏</option>
           <option value="refresh">刷新资源</option>
@@ -81,6 +82,10 @@ const project = useProjectStore()
 const scene = useSceneStore()
 const runtime = useRuntimeStore()
 
+const emit = defineEmits<{
+  (event: 'return-launcher'): void
+}>()
+
 async function runAction(label: string, action: () => void | Promise<void>) {
   try {
     await action()
@@ -100,6 +105,7 @@ async function handleProjectAction(event: Event) {
   const action = (event.target as HTMLSelectElement).value
   if (action === 'new') await runAction('新建项目', () => assets.createProject())
   else if (action === 'open') await runAction('打开工程', () => assets.openProjectFolder())
+  else if (action === 'launcher') emit('return-launcher')
   else if (action === 'saveAs') await runAction('项目另存', () => assets.saveProjectAs())
   else if (action === 'exportGame') await runAction('导出 Web 游戏', () => assets.exportGame())
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())

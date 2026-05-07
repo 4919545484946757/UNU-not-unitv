@@ -341,6 +341,72 @@ export const useAssetStore = defineStore('assets', {
         console.error('[UNU] importAudios failed', error)
       }
     },
+    async createTextAssetInFolder(folderPath: string, fileName?: string) {
+      const project = useProjectStore()
+      if (!window.unu?.createTextAssetInFolder) {
+        project.setStatus('当前环境未接入新建文件接口，请使用桌面版运行。')
+        return null
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再新建文件。')
+        return null
+      }
+      try {
+        const result = await window.unu.createTextAssetInFolder({
+          projectRoot: project.rootPath,
+          folderPath,
+          fileName,
+          content: ''
+        })
+        if (!result?.relativePath) {
+          project.setStatus('新建文件失败：未返回文件路径。')
+          return null
+        }
+        await this.refreshProject()
+        this.setFolderExpanded(folderPath, true)
+        await this.selectAsset(result.relativePath)
+        project.setStatus(`已新建文件：${result.relativePath}`)
+        return result
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`新建文件失败：${message}`)
+        return null
+      }
+    },
+    async renameAsset(relativePath: string, nextName: string) {
+      const project = useProjectStore()
+      if (!window.unu?.renameAsset) {
+        project.setStatus('当前环境未接入资源重命名接口，请使用桌面版运行。')
+        return null
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再重命名资源。')
+        return null
+      }
+      try {
+        const result = await window.unu.renameAsset({
+          projectRoot: project.rootPath,
+          relativePath,
+          nextName
+        })
+        if (!result?.relativePath) {
+          project.setStatus('重命名失败：未返回资源路径。')
+          return null
+        }
+        const parent = result.relativePath.split('/').slice(0, -1).join('/')
+        await this.refreshProject()
+        if (parent) this.setFolderExpanded(parent, true)
+        const target = this.flat.find((node) => node.path === result.relativePath)
+        if (target?.type === 'folder') this.selectPath(result.relativePath)
+        else await this.selectAsset(result.relativePath)
+        project.setStatus(`已重命名资源：${result.relativePath}`)
+        return result
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`重命名资源失败：${message}`)
+        return null
+      }
+    },
     async revealInFolder(path: string, isDirectory = false) {
       const project = useProjectStore()
       if (!window.unu?.revealInFolder) {

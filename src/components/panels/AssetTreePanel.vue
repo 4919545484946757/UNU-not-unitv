@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="asset-tree" @contextmenu.self.prevent="openPanelMenu">
     <div class="header-row">
       <div class="section-title">资源树</div>
@@ -16,6 +16,29 @@
     </ul>
 
     <ContextMenu :visible="menu.visible" :x="menu.x" :y="menu.y" :items="menu.items" @close="closeMenu" />
+
+    <div v-if="assetDialog.visible" class="asset-dialog-mask" @click.self="closeAssetDialog">
+      <form class="asset-dialog" @submit.prevent="submitAssetDialog">
+        <div class="asset-dialog-head">
+          <strong>{{ assetDialog.title }}</strong>
+          <button type="button" class="dialog-close" @click="closeAssetDialog">×</button>
+        </div>
+        <label class="dialog-field">
+          <span>{{ assetDialog.label }}</span>
+          <input
+            ref="assetDialogInputRef"
+            v-model="assetDialog.value"
+            :placeholder="assetDialog.placeholder"
+            autocomplete="off"
+          />
+        </label>
+        <div class="dialog-hint">{{ assetDialog.hint }}</div>
+        <div class="dialog-actions">
+          <button type="button" @click="closeAssetDialog">取消</button>
+          <button type="submit">确定</button>
+        </div>
+      </form>
+    </div>
 
     <div v-if="imagePreview.visible" class="preview-mask" @click.self="closeImagePreview">
       <div class="preview-dialog" :style="previewDialogStyle">
@@ -58,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 import { useAssetStore } from '../../stores/assets'
 import { useProjectStore } from '../../stores/project'
 import { useSceneStore } from '../../stores/scene'
@@ -74,6 +97,18 @@ const scene = useSceneStore()
 const editor = useEditorStore()
 
 const menu = reactive({ visible: false, x: 0, y: 0, items: [] as ContextMenuItem[] })
+const assetDialogInputRef = ref<HTMLInputElement | null>(null)
+const assetDialog = reactive({
+  visible: false,
+  mode: 'create' as 'create' | 'rename',
+  title: '',
+  label: '',
+  placeholder: '',
+  hint: '',
+  value: '',
+  targetPath: '',
+  targetType: '' as AssetNode['type'] | ''
+})
 const imagePreview = reactive({
   visible: false,
   loading: false,
@@ -143,6 +178,56 @@ function openPanelMenu(event: MouseEvent) {
   ])
 }
 
+function openCreateFileDialog(folderPath: string) {
+  closeMenu()
+  assetDialog.visible = true
+  assetDialog.mode = 'create'
+  assetDialog.title = '新建文件'
+  assetDialog.label = '文件名'
+  assetDialog.placeholder = '留空则使用 NewFile.ts'
+  assetDialog.hint = `目标目录：${folderPath}`
+  assetDialog.value = ''
+  assetDialog.targetPath = folderPath
+  assetDialog.targetType = 'folder'
+  void nextTick(() => assetDialogInputRef.value?.focus())
+}
+
+function openRenameDialog(node: AssetNode) {
+  closeMenu()
+  assetDialog.visible = true
+  assetDialog.mode = 'rename'
+  assetDialog.title = node.type === 'folder' ? '重命名文件夹' : '重命名文件'
+  assetDialog.label = '新名称'
+  assetDialog.placeholder = node.name
+  assetDialog.hint = node.type === 'folder'
+    ? '文件夹重命名会改变其下资源路径，请确认相关引用是否需要同步调整。'
+    : '如果不输入扩展名，将自动保留原文件扩展名。'
+  assetDialog.value = node.name
+  assetDialog.targetPath = node.path
+  assetDialog.targetType = node.type
+  void nextTick(() => {
+    assetDialogInputRef.value?.focus()
+    assetDialogInputRef.value?.select()
+  })
+}
+
+function closeAssetDialog() {
+  assetDialog.visible = false
+  assetDialog.value = ''
+  assetDialog.targetPath = ''
+  assetDialog.targetType = ''
+}
+
+async function submitAssetDialog() {
+  const value = assetDialog.value.trim()
+  if (assetDialog.mode === 'create') {
+    await assets.createTextAssetInFolder(assetDialog.targetPath, value || undefined)
+  } else if (assetDialog.mode === 'rename') {
+    await assets.renameAsset(assetDialog.targetPath, value)
+  }
+  closeAssetDialog()
+}
+
 function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
   const { event, node } = payload
   const items: ContextMenuItem[] = []
@@ -159,6 +244,8 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
       label: assets.isFolderExpanded(node.path) ? '折叠目录' : '展开目录',
       action: () => assets.toggleFolder(node.path)
     })
+    items.push({ label: '新建文件', action: () => openCreateFileDialog(node.path) })
+    items.push({ label: '重命名文件夹', action: () => openRenameDialog(node) })
     items.push({ label: '导入图片到工程', action: () => assets.importImages() })
     items.push({ label: '导入音频到工程', action: () => assets.importAudios() })
     items.push({ label: '刷新资源', action: () => assets.refreshProject() })
@@ -221,6 +308,10 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
 
   if (items.length === 0) {
     items.push({ label: '选中资源', action: () => assets.selectAsset(node.path) })
+  }
+
+  if (node.type !== 'folder') {
+    items.push({ label: '重命名文件', action: () => openRenameDialog(node) })
   }
 
   showMenu(event, items)
@@ -388,6 +479,82 @@ function clampNumber(value: number, min: number, max: number) {
   white-space: nowrap;
 }
 .tree { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.asset-dialog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 8, 13, 0.54);
+}
+.asset-dialog {
+  width: min(420px, calc(100vw - 48px));
+  display: grid;
+  gap: 12px;
+  border: 1px solid #354255;
+  border-radius: 8px;
+  background: #111821;
+  padding: 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.38);
+}
+.asset-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #edf5ff;
+}
+.dialog-close {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #303848;
+  border-radius: 6px;
+  background: #202632;
+  color: #ecf0f7;
+  cursor: pointer;
+}
+.dialog-field {
+  display: grid;
+  gap: 6px;
+  color: #a9b7ca;
+  font-size: 12px;
+}
+.dialog-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #303848;
+  border-radius: 6px;
+  background: #202632;
+  color: #ecf0f7;
+  padding: 8px 10px;
+  outline: none;
+}
+.dialog-field input:focus {
+  border-color: #56b6c2;
+}
+.dialog-hint {
+  color: #8ea0b8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dialog-actions button {
+  border: 1px solid #303848;
+  border-radius: 6px;
+  background: #202632;
+  color: #ecf0f7;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.dialog-actions button[type='submit'] {
+  border-color: #56b6c2;
+  background: #1e4d59;
+}
 .preview-mask {
   position: fixed;
   inset: 0;
@@ -546,3 +713,6 @@ function clampNumber(value: number, min: number, max: number) {
   cursor: nesw-resize;
 }
 </style>
+
+
+

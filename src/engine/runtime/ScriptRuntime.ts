@@ -419,9 +419,9 @@ const scriptRegistry: Record<string, ScriptHooks> = {
 
 export class ScriptRuntime {
   private readonly entityState = new Map<string, Record<string, unknown>>()
+  private readonly sceneElapsed = new Map<string, number>()
   private readonly pendingRemovals = new Set<string>()
   private readonly pendingSpawns: Entity[] = []
-  private elapsed = 0
   private activeScene: Scene | null = null
   private pendingSceneSwitch: string | null = null
   private selectedEntityId = ''
@@ -495,7 +495,7 @@ export class ScriptRuntime {
 
   updateScene(scene: Scene, delta: number, input?: RuntimeInput) {
     this.activeScene = scene
-    this.elapsed += delta
+    this.sceneElapsed.set(scene.id, this.getSceneElapsed(scene) + delta)
     if (input) this.input = input
     this.processInteractableSelection(scene)
     for (const entity of scene.entities) {
@@ -525,11 +525,22 @@ export class ScriptRuntime {
       script.initialized = false
       script.started = false
     }
-    this.entityState.clear()
+    for (const key of Array.from(this.entityState.keys())) {
+      if (key.startsWith(`${scene.id}::`)) this.entityState.delete(key)
+    }
+    this.sceneElapsed.delete(scene.id)
     this.pendingRemovals.clear()
     this.pendingSpawns.length = 0
     this.activeScene = null
-    this.elapsed = 0
+  }
+
+  resetAll() {
+    this.entityState.clear()
+    this.sceneElapsed.clear()
+    this.pendingRemovals.clear()
+    this.pendingSpawns.length = 0
+    this.pendingSceneSwitch = null
+    this.activeScene = null
   }
 
   private createContext(entity: Entity, delta: number): ScriptContext {
@@ -541,10 +552,11 @@ export class ScriptRuntime {
       scene: this.activeScene,
       api: {
         delta,
-        time: this.elapsed,
+        time: this.getSceneElapsed(this.activeScene),
         getState: <T extends Record<string, unknown>>(target: Entity) => {
-          if (!this.entityState.has(target.id)) this.entityState.set(target.id, {})
-          return this.entityState.get(target.id) as T
+          const key = this.getEntityStateKey(target)
+          if (!this.entityState.has(key)) this.entityState.set(key, {})
+          return this.entityState.get(key) as T
         },
         input: this.input,
         getSelectedEntity: () => this.activeScene?.getEntityById(this.selectedEntityId) ?? null,
@@ -685,7 +697,7 @@ export class ScriptRuntime {
       const removals = Array.from(this.pendingRemovals)
       for (const id of removals) {
         scene.removeEntityById(id)
-        this.entityState.delete(id)
+        this.entityState.delete(`${scene.id}::${id}`)
       }
       this.pendingRemovals.clear()
     }
@@ -1006,8 +1018,17 @@ export class ScriptRuntime {
   }
 
   private ensureEntityState(entity: Entity) {
-    if (!this.entityState.has(entity.id)) this.entityState.set(entity.id, {})
-    return this.entityState.get(entity.id) as Record<string, unknown>
+    const key = this.getEntityStateKey(entity)
+    if (!this.entityState.has(key)) this.entityState.set(key, {})
+    return this.entityState.get(key) as Record<string, unknown>
+  }
+
+  private getEntityStateKey(entity: Entity) {
+    return `${this.activeScene?.id || 'scene'}::${entity.id}`
+  }
+
+  private getSceneElapsed(scene: Scene) {
+    return Number(this.sceneElapsed.get(scene.id) ?? 0)
   }
 
   getInteractableHintEntityIds(scene: Scene) {

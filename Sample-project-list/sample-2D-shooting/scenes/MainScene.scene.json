@@ -957,6 +957,75 @@
         ]
       },
       {
+        "id": "interactable_akhldc",
+        "name": "Chest",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 600,
+              "y": -350,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 4
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 180,
+              "height": 100,
+              "visible": true,
+              "alpha": 1,
+              "tint": 10910802,
+              "preserveAspect": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 180,
+              "height": 100,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false
+            }
+          },
+          {
+            "type": "Interactable",
+            "data": {
+              "type": "Interactable",
+              "enabled": true,
+              "interactDistance": 180,
+              "actionType": "scripted",
+              "targetScene": "",
+              "textureCycle": [],
+              "tintCycle": []
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "custom://interaction",
+              "sourceCode": "{\n  \"onInteract\": [\n    { \"type\": \"cycleTint\", \"target\": \"self\", \"values\": [16777215, 16762880, 9293460, 7979007] }\n  ]\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
         "id": "player_001",
         "name": "Player",
         "components": [
@@ -971,7 +1040,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 4
+              "zIndex": 5
             }
           },
           {
@@ -1185,7 +1254,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 5
+              "zIndex": 6
             }
           },
           {
@@ -1282,7 +1351,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 6
+              "zIndex": 7
             }
           },
           {
@@ -1379,7 +1448,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 7
+              "zIndex": 8
             }
           },
           {
@@ -1476,7 +1545,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 8
+              "zIndex": 9
             }
           },
           {
@@ -1545,7 +1614,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 9
+              "zIndex": 10
             }
           },
           {
@@ -1628,7 +1697,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 10
+              "zIndex": 11
             }
           },
           {
@@ -1665,7 +1734,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 11
+              "zIndex": 12
             }
           },
           {
@@ -1704,7 +1773,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 12
+              "zIndex": 13
             }
           },
           {
@@ -1743,7 +1812,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 13
+              "zIndex": 14
             }
           },
           {
@@ -1781,75 +1850,6 @@
               "targetScene": "SecondScene",
               "textureCycle": [],
               "tintCycle": []
-            }
-          }
-        ]
-      },
-      {
-        "id": "interactable_akhldc",
-        "name": "Chest",
-        "components": [
-          {
-            "type": "Transform",
-            "data": {
-              "type": "Transform",
-              "x": 600,
-              "y": -350,
-              "scaleX": 1,
-              "scaleY": 1,
-              "rotation": 0,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
-              "zIndex": 14
-            }
-          },
-          {
-            "type": "Sprite",
-            "data": {
-              "type": "Sprite",
-              "texturePath": "",
-              "width": 180,
-              "height": 100,
-              "visible": true,
-              "alpha": 1,
-              "tint": 10910802,
-              "preserveAspect": true
-            }
-          },
-          {
-            "type": "Collider",
-            "data": {
-              "type": "Collider",
-              "shape": "rect",
-              "width": 180,
-              "height": 100,
-              "offsetX": 0,
-              "offsetY": 0,
-              "isTrigger": false
-            }
-          },
-          {
-            "type": "Interactable",
-            "data": {
-              "type": "Interactable",
-              "enabled": true,
-              "interactDistance": 180,
-              "actionType": "scripted",
-              "targetScene": "",
-              "textureCycle": [],
-              "tintCycle": []
-            }
-          },
-          {
-            "type": "Script",
-            "data": {
-              "type": "Script",
-              "scriptPath": "custom://interaction",
-              "sourceCode": "{\n  \"onInteract\": [\n    { \"type\": \"cycleTint\", \"target\": \"self\", \"values\": [16777215, 16762880, 9293460, 7979007] }\n  ]\n}",
-              "enabled": true,
-              "instance": null,
-              "initialized": false,
-              "started": false
             }
           }
         ]
