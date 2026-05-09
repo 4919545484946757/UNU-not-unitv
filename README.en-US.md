@@ -4,13 +4,14 @@
 
 UNU Engine Starter is a desktop 2D game editor and runtime sample project built with `Vue 3 + Pinia + PixiJS 8 + Electron`. It is designed to grow beyond a demo shell into a lightweight engine that can support real 2D game development workflows: project management, scene editing, asset management, components, project-level scripts, animation state machines, Tilemap editing, UI, audio, packaging, and Web export.
 
-- Documentation updated: `2026-05-05`
-- Project version: `0.1.0`
+- Documentation updated: `2026-05-10`
+- Project version: `0.1.1`
 - Current focus: desktop 2D game editor + exportable Web game runtime
 
 ## Documentation
 
 - [Beginner Tutorial](docs/BEGINNER_TUTORIAL.en-US.md) / [中文](docs/BEGINNER_TUTORIAL.zh-CN.md)
+- [Console Commands](docs/CONSOLE_COMMANDS.en-US.md) / [中文](docs/CONSOLE_COMMANDS.zh-CN.md)
 - [Roadmap](docs/ROADMAP.en-US.md) / [中文](docs/ROADMAP.zh-CN.md)
 - [Optimization Plan](docs/OPTIMIZATION_PLAN.en-US.md) / [中文](docs/OPTIMIZATION_PLAN.zh-CN.md)
 
@@ -30,10 +31,13 @@ UNU Engine Starter is a desktop 2D game editor and runtime sample project built 
 
 - Scene Tree: select, duplicate, delete, rename, edit IDs, and create entities.
 - Asset Tree: refresh, import images/audio, collapse, reveal in file manager, open text files, and preview images.
+- Asset Tree supports file/folder creation, rename, copy, delete, drag-move, and `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y` undo/redo for file operations.
+- Resource rename and move operations automatically synchronize JSON references in scenes, prefabs, animations, and atlases.
 - Inspector: edit `Transform`, `Sprite`, `Collider`, `Animation`, `Script`, `Camera`, `Background`, `Interactable`, `Audio`, `UI`, and `Tilemap` components.
 - Scene View: edit, play preview, pause, resume, and stop.
 - Top toolbar: grouped project, scene, entity, tool, play, and export actions.
-- Status messages: draggable and closable toast-style panel in the top-right corner.
+- Status messages are integrated into Console with category filtering.
+- Console provides `Log` and `Performance` tabs. The Performance tab supports detailed stage sampling, disabled by default.
 - Non-play mode supports a pan tool. Play mode disables transform/scale editing tools to avoid accidental scene changes.
 
 ### Runtime And Gameplay
@@ -66,6 +70,14 @@ UNU is moving from editor-hardcoded gameplay logic to project-owned runtime logi
 - Sample gameplay logic such as Player, Enemy, Bullet, Door, Chest, and background switching is driven by files in the project asset tree.
 - The script editor can open, edit, and save `.ts`, `.js`, `.json`, `.anim.json`, and other text resources.
 - The script editor supports syntax highlighting and horizontal scrolling.
+
+### Console And Performance Monitoring
+
+- Console `Log` tab supports logs, errors, status messages, and debug command input.
+- Common debug commands include `help`, `fps`, `play`, `pause`, `stop`, `debug`, `entities`, `select`, `inspect`, `get`, `set`, `tp`, and `remove`.
+- Console `Performance` tab shows FPS, entity count, and optional detailed performance metrics.
+- Detailed performance sampling is disabled by default. When enabled, it shows Frame Time, Render, Script, Collision, Animation, Audio Sync, and Camera timings.
+- Project scripts can write to Console with `ctx.api.log`, `ctx.api.warn`, and `ctx.api.error`.
 
 ### Components
 
@@ -108,6 +120,15 @@ Current built-in components:
 - Sprite flipping can be driven by movement direction, for example flipping Player when moving right.
 - Sample Player states use different colors/textures.
 - Pixel-art textures use nearest sampling to reduce blur.
+
+### Prefab
+
+- Supports saving entities as Prefabs.
+- Supports instantiating Prefabs from resource files.
+- Supports saving Prefab Variants.
+- Supports synchronizing source Prefab updates to the current instance or all same-source instances.
+- Supports visual Variant / instance diff inspection.
+- Preserves nested Prefab source paths so parent and child Prefabs can be synchronized independently.
 
 ### UI
 

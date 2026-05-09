@@ -4,13 +4,14 @@
 
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时示例工程。它的目标不是只做一个演示壳子，而是逐步形成一个可以真正支撑 2D 游戏开发的轻量引擎：项目管理、场景编辑、资源管理、组件系统、脚本运行时、动画状态机、Tilemap、UI、音频、打包与 Web 导出都在同一套工作流里闭环。
 
-- 文档更新时间：`2026-05-05`
-- 项目版本：`0.1.0`
+- 文档更新时间：`2026-05-10`
+- 项目版本：`0.1.1`
 - 当前定位：桌面端 2D 游戏编辑器 + 可导出 Web 游戏运行包
 
 ## 文档导航
 
 - [新手教程](docs/BEGINNER_TUTORIAL.zh-CN.md) / [English](docs/BEGINNER_TUTORIAL.en-US.md)
+- [Console 命令文档](docs/CONSOLE_COMMANDS.zh-CN.md) / [English](docs/CONSOLE_COMMANDS.en-US.md)
 - [路线图](docs/ROADMAP.zh-CN.md) / [English](docs/ROADMAP.en-US.md)
 - [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md) / [English](docs/OPTIMIZATION_PLAN.en-US.md)
 
@@ -30,10 +31,13 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 
 - 场景树：实体选择、复制、删除、重命名、修改 ID、新建实体。
 - 资源树：刷新、导入图片、导入音频、折叠、打开所在目录、打开文本文件、预览图片。
+- 资源树支持文件/文件夹新建、重命名、复制、删除、拖拽移动，并支持 `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y` 撤回和恢复文件操作。
+- 资源重命名或移动后会自动同步场景、Prefab、动画、图集等 JSON 资源引用。
 - Inspector：编辑 Transform、Sprite、Collider、Animation、Script、Camera、Background、Interactable、Audio、UI、Tilemap 等组件。
 - 中央 Scene View：编辑视图、播放预览、暂停、继续、停止。
 - 顶部工具栏：按类别组织项目、场景、实体、工具、播放和导出操作。
-- 状态提示：右上角独立消息弹窗，可拖动、可关闭。
+- 状态提示已集成到 Console，可通过日志过滤控制显示类别。
+- Console 提供 `Log` 和 `Performance` 两个页签，性能页支持默认关闭的详细阶段采样。
 - 非播放态支持视图平移工具，播放态禁用缩放/位移等编辑工具，避免误改场景。
 
 ### 运行时与游戏功能
@@ -66,6 +70,14 @@ UNU 当前已经从“编辑器内置固定玩法逻辑”转向“每个项目�
 - 示例项目的 Player、Enemy、Bullet、Door、Chest、背景切换等玩法逻辑由项目资源树内脚本驱动。
 - 脚本编辑器支持打开、编辑和保存 `.ts`、`.js`、`.json`、`.anim.json` 等文本资源。
 - 脚本编辑器支持代码高亮与横向滚动。
+
+### Console 与性能监测
+
+- Console `Log` 页签支持日志、错误、状态信息和调试命令输入。
+- 常用调试命令包括 `help`、`fps`、`play`、`pause`、`stop`、`debug`、`entities`、`select`、`inspect`、`get`、`set`、`tp`、`remove`。
+- Console `Performance` 页签显示 FPS、实体数量和可选详细性能指标。
+- 详细性能采样默认关闭，打开后显示 Frame Time、Render、Script、Collision、Animation、Audio Sync、Camera 等阶段耗时。
+- 项目脚本可以通过 `ctx.api.log`、`ctx.api.warn`、`ctx.api.error` 输出到 Console。
 
 ### 组件系统
 
@@ -108,6 +120,15 @@ UNU 当前已经从“编辑器内置固定玩法逻辑”转向“每个项目�
 - 支持移动方向驱动贴图翻转，例如 Player 向右移动时水平翻转。
 - 示例中使用不同颜色/贴图表现 Player 状态。
 - 像素风贴图使用 nearest sampling，减少模糊。
+
+### Prefab
+
+- 支持将实体保存为 Prefab。
+- 支持从资源文件实例化 Prefab。
+- 支持 Prefab Variant 保存。
+- 支持将源 Prefab 更新同步到当前实例或全部同源实例。
+- 支持 Variant / 实例差异可视化。
+- 支持嵌套 Prefab 的源路径保留，便于父子 Prefab 独立同步。
 
 ### UI 系统
 
