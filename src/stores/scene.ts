@@ -503,9 +503,9 @@ export const useSceneStore = defineStore('scene', {
       } else if (type === 'door' || type === 'interactable') {
         entity.name = type === 'door' ? 'Door' : 'Interactable'
         entity.addComponent(new SpriteComponent('', 120, 180, true, 0.95, 0xa67c52, true))
-        entity.addComponent(new ColliderComponent('rect', 120, 180))
+        entity.addComponent(new ColliderComponent('rect', 120, 180, 0, 0, true, type === 'door' ? 'Door' : 'Sensor', ['Player']))
         if (type === 'door') {
-          entity.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
+          entity.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene', [], [], '', 'preserve'))
         } else {
           entity.addComponent(new InteractableComponent(true, 180, 'scripted'))
           entity.addComponent(
@@ -522,12 +522,12 @@ export const useSceneStore = defineStore('scene', {
       } else if (type === 'player') {
         entity.name = 'Player'
         entity.addComponent(new SpriteComponent('assets/images/player.png', 90, 90, true, 1, 0xffffff, true))
-        entity.addComponent(new ColliderComponent('rect', 100, 50, 0, 20))
+        entity.addComponent(new ColliderComponent('rect', 100, 50, 0, 20, false, 'Player', ['Default', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Sensor']))
         entity.addComponent(new ScriptComponent('builtin://player-input', '', true))
       } else if (type === 'enemy') {
         entity.name = 'Enemy'
         entity.addComponent(new SpriteComponent('assets/images/enemy.png', 80, 80, true, 1, 0xffffff, true))
-        entity.addComponent(new ColliderComponent('rect', 80, 80))
+        entity.addComponent(new ColliderComponent('rect', 80, 80, 0, 0, false, 'Enemy', ['Default', 'Player', 'World', 'Attack', 'Trap', 'Sensor']))
         entity.addComponent(new ScriptComponent('builtin://enemy-chase-respawn', '', true))
       } else {
         entity.name = 'Sprite'
@@ -1038,28 +1038,81 @@ export const useSceneStore = defineStore('scene', {
           project.setStatus('读取 Prefab 源文件失败。')
           return
         }
-
-        const replacement = await instantiatePrefab(raw.content, current.id, current.prefabSourcePath)
-        const currentTransform = current.getTransform()
-        const replacementTransform = replacement.getTransform()
-        if (currentTransform && replacementTransform) {
-          replacementTransform.x = currentTransform.x
-          replacementTransform.y = currentTransform.y
-        }
-        replacement.name = current.name
-
-        const oldIndex = this.currentScene.entities.findIndex((entity) => entity.id === current.id)
-        removeEntityTreeFromScene(this.currentScene, current)
-        appendEntityTreeToScene(this.currentScene, replacement, oldIndex >= 0 ? oldIndex : undefined)
+        applyPrefabReplacementToScene(this.currentScene, current, await createPrefabInstanceReplacement(raw.content, current))
         this.markDirty()
-        selection.selectEntity(replacement.id)
+        selection.selectEntity(current.id)
         project.setStatus(`已应用 Prefab 源更新：${fileNameOfPath(current.prefabSourcePath)}`)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         project.setStatus(`应用 Prefab 源失败：${message}`)
       }
-    }
-    ,
+    },
+    async syncSelectedPrefabSourceInstances() {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const selectedId = selection.selectedEntityId
+      if (!this.currentScene || !selectedId) {
+        project.setStatus('请先选择一个 Prefab 实例实体。')
+        return
+      }
+      const selected = this.currentScene.getEntityById(selectedId)
+      if (!selected?.prefabSourcePath) {
+        project.setStatus('当前实体没有 Prefab 来源路径。')
+        return
+      }
+      await this.syncPrefabSourceInstances(selected.prefabSourcePath)
+    },
+    async syncPrefabSourceInstances(prefabSourcePath: string) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const normalizedPath = normalizeAssetPath(prefabSourcePath)
+      if (!this.currentScene || !normalizedPath) {
+        project.setStatus('没有可同步的 Prefab 来源路径。')
+        return 0
+      }
+      if (!window.unu?.readTextAsset || !project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('当前环境无法从磁盘读取 Prefab 源文件。')
+        return 0
+      }
+      try {
+        const raw = await window.unu.readTextAsset({
+          projectRoot: project.rootPath,
+          relativePath: normalizedPath
+        })
+        if (!raw?.content) {
+          project.setStatus('读取 Prefab 源文件失败。')
+          return 0
+        }
+
+        const roots = getPrefabInstanceRoots(this.currentScene, normalizedPath)
+        if (!roots.length) {
+          project.setStatus(`没有找到 Prefab 实例：${fileNameOfPath(normalizedPath)}`)
+          return 0
+        }
+
+        let synced = 0
+        const selectedBefore = selection.selectedEntityId
+        for (const root of roots) {
+          const current = this.currentScene.getEntityById(root.id)
+          if (!current) continue
+          const replacement = await createPrefabInstanceReplacement(raw.content, current)
+          applyPrefabReplacementToScene(this.currentScene, current, replacement)
+          synced += 1
+        }
+        this.markDirty()
+        if (selectedBefore && this.currentScene.getEntityById(selectedBefore)) {
+          selection.selectEntity(selectedBefore)
+        } else {
+          selection.clearSelection()
+        }
+        project.setStatus(`已同步 Prefab 源到 ${synced} 个实例：${fileNameOfPath(normalizedPath)}`)
+        return synced
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`同步 Prefab 实例失败：${message}`)
+        return 0
+      }
+    },
     setRuntimeScene(scene: Scene | null) {
       if (scene) repairSceneEntityComponents(scene)
       this.runtimeScene = scene
@@ -1108,6 +1161,12 @@ function appendEntityTreeToScene(scene: Scene, root: Entity, insertIndex?: numbe
   }
 }
 
+function applyPrefabReplacementToScene(scene: Scene, current: Entity, replacement: Entity) {
+  const oldIndex = scene.entities.findIndex((entity) => entity.id === current.id)
+  removeEntityTreeFromScene(scene, current)
+  appendEntityTreeToScene(scene, replacement, oldIndex >= 0 ? oldIndex : undefined)
+}
+
 function removeEntityTreeFromScene(scene: Scene, root: Entity) {
   const ids = new Set(flattenEntityTree(root).map((entity) => entity.id))
   scene.entities = scene.entities.filter((entity) => !ids.has(entity.id))
@@ -1115,6 +1174,43 @@ function removeEntityTreeFromScene(scene: Scene, root: Entity) {
     const transform = entity.getTransform()
     if (transform) transform.zIndex = idx
   })
+}
+
+function normalizeAssetPath(input: string) {
+  return String(input || '').trim().replace(/\\/g, '/')
+}
+
+function isSameAssetPath(left: string, right: string) {
+  return normalizeAssetPath(left).toLowerCase() === normalizeAssetPath(right).toLowerCase()
+}
+
+function getPrefabInstanceRoots(scene: Scene, prefabSourcePath: string) {
+  const normalized = normalizeAssetPath(prefabSourcePath)
+  return scene.entities.filter((entity) => {
+    if (!isSameAssetPath(entity.prefabSourcePath, normalized)) return false
+    return !entity.parent || !isSameAssetPath(entity.parent.prefabSourcePath, normalized)
+  })
+}
+
+async function createPrefabInstanceReplacement(rawPrefab: string, current: Entity) {
+  const replacement = await instantiatePrefab(rawPrefab, current.id, current.prefabSourcePath)
+  replacement.name = current.name
+  replacement.prefabSourcePath = current.prefabSourcePath
+  replacement.prefabVariantBasePath = current.prefabVariantBasePath
+  const currentTransform = current.getTransform()
+  const replacementTransform = replacement.getTransform()
+  if (currentTransform && replacementTransform) {
+    replacementTransform.x = currentTransform.x
+    replacementTransform.y = currentTransform.y
+    replacementTransform.scaleX = currentTransform.scaleX
+    replacementTransform.scaleY = currentTransform.scaleY
+    replacementTransform.rotation = currentTransform.rotation
+    replacementTransform.zIndex = currentTransform.zIndex
+    replacementTransform.positionMode = currentTransform.positionMode
+    replacementTransform.viewportHorizontal = currentTransform.viewportHorizontal
+    replacementTransform.viewportVertical = currentTransform.viewportVertical
+  }
+  return replacement
 }
 
 function normalizeScriptPath(input: string) {

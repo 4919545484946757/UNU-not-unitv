@@ -61,7 +61,7 @@ export function createDemoScene() {
   player.addComponent(new TransformComponent(180, 40, 1, 1))
   player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
   // 玩家碰撞箱：半高，并向下偏移 20（相对实体中心）。
-  player.addComponent(new ColliderComponent('rect', 60, 40, 0, 20, false))
+  player.addComponent(new ColliderComponent('rect', 60, 40, 0, 20, false, 'Player', ['Default', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Sensor']))
   player.addComponent(
     new AnimationComponent(
       true,
@@ -121,7 +121,7 @@ export function createDemoScene() {
   const enemy = new Entity('enemy_001', 'Enemy')
   enemy.addComponent(new TransformComponent(420, 320, 1, 1))
   enemy.addComponent(new SpriteComponent(enemyFrames[0], 80, 80, true, 1, 0xffffff))
-  enemy.addComponent(new ColliderComponent('rect', 40, 80))
+  enemy.addComponent(new ColliderComponent('rect', 40, 80, 0, 0, false, 'Enemy', ['Default', 'Player', 'World', 'Attack', 'Trap', 'Sensor']))
   enemy.addComponent(
     new AnimationComponent(true, true, 8, true, 0, 0, [...enemyFrames], [1, 1, 1, 1])
   )
@@ -144,7 +144,7 @@ export function createDemoScene() {
   const item = new Entity('item_001', 'Chest')
   item.addComponent(new TransformComponent(620, 180, 1, 1))
   item.addComponent(new SpriteComponent('assets/images/pixel/tilemap/texture_2.png', 72, 72, true, 1, 0xffffff))
-  item.addComponent(new ColliderComponent('rect', 72, 72))
+  item.addComponent(new ColliderComponent('rect', 72, 72, 0, 0, true, 'Pickup', ['Player']))
   item.addComponent(
     new ScriptComponent(
       'custom://interaction',
@@ -173,7 +173,7 @@ export function createDemoScene() {
   const fx = new Entity('fx_001', 'TorchFX')
   fx.addComponent(new TransformComponent(760, 320, 1, 1))
   fx.addComponent(new SpriteComponent('', 64, 64, true, 0.95, 0xffc857))
-  fx.addComponent(new ColliderComponent('rect', 64, 64))
+  fx.addComponent(new ColliderComponent('rect', 64, 64, 0, 0, true, 'Sensor', ['Player', 'Enemy']))
   fx.addComponent(new AnimationComponent(true, true, 6, true, 0, 0, [...torchFxFrames], [1, 1, 2], 'assets/animations/TorchFX.anim.json'))
 
   const camera = new Entity('camera_main', 'MainCamera')
@@ -229,8 +229,11 @@ export function createDemoScene() {
   const doorToSecond = new Entity('door_to_second_001', 'DoorToSecond')
   doorToSecond.addComponent(new TransformComponent(295, 68, 1, 1))
   doorToSecond.addComponent(new SpriteComponent('assets/images/pixel/props/door.png', 110, 180, true, 0.95, 0xffffff))
-  doorToSecond.addComponent(new ColliderComponent('rect', 110, 180))
-  doorToSecond.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene'))
+  doorToSecond.addComponent(new ColliderComponent('rect', 110, 180, 0, 0, true, 'Door', ['Player']))
+  doorToSecond.addComponent(new InteractableComponent(true, 180, 'switchScene', 'SecondScene', [], [], 'Spawn_From_Main', 'preserve'))
+
+  const spawnFromSecond = new Entity('spawn_from_second_001', 'Spawn_From_Second')
+  spawnFromSecond.addComponent(new TransformComponent(245, 68, 1, 1, 0, 0.5, 0.5, -10))
 
   scene.addEntity(background)
   scene.addEntity(tilemap)
@@ -242,6 +245,7 @@ export function createDemoScene() {
   scene.addEntity(hudTitle)
   scene.addEntity(hudButton)
   scene.addEntity(doorToSecond)
+  scene.addEntity(spawnFromSecond)
   return scene
 }
 
@@ -258,7 +262,7 @@ export function createSecondScene() {
   player.addComponent(new TransformComponent(-120, 20, 1, 1))
   player.addComponent(new SpriteComponent(playerIdleFrames[0], 96, 96, true, 1, 0xffffff))
   // 玩家碰撞箱：半高，并向下偏移 20（相对实体中心）。
-  player.addComponent(new ColliderComponent('rect', 100, 50, 0, 20, false))
+  player.addComponent(new ColliderComponent('rect', 100, 50, 0, 20, false, 'Player', ['Default', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Sensor']))
   player.addComponent(
     new ScriptComponent(
       'assets/scripts/player-input.js',
@@ -352,8 +356,11 @@ export function createSecondScene() {
   const doorBack = new Entity('door_to_main_001', 'DoorToMain')
   doorBack.addComponent(new TransformComponent(-220, 20, 1, 1))
   doorBack.addComponent(new SpriteComponent('assets/images/pixel/props/door.png', 110, 180, true, 0.95, 0xe8f3ff))
-  doorBack.addComponent(new ColliderComponent('rect', 110, 180))
-  doorBack.addComponent(new InteractableComponent(true, 180, 'switchScene', 'MainScene'))
+  doorBack.addComponent(new ColliderComponent('rect', 110, 180, 0, 0, true, 'Door', ['Player']))
+  doorBack.addComponent(new InteractableComponent(true, 180, 'switchScene', 'MainScene', [], [], 'Spawn_From_Second', 'preserve'))
+
+  const spawnFromMain = new Entity('spawn_from_main_001', 'Spawn_From_Main')
+  spawnFromMain.addComponent(new TransformComponent(-170, 20, 1, 1, 0, 0.5, 0.5, -10))
 
   const camera = new Entity('camera_second', 'MainCamera')
   camera.addComponent(new TransformComponent(-120, 20, 1, 1))
@@ -363,6 +370,7 @@ export function createSecondScene() {
   scene.addEntity(tilemap)
   scene.addEntity(player)
   scene.addEntity(doorBack)
+  scene.addEntity(spawnFromMain)
   scene.addEntity(camera)
   return scene
 }

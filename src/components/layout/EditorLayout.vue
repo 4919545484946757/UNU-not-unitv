@@ -26,12 +26,14 @@ import LeftPanel from './LeftPanel.vue'
 import CenterViewport from './CenterViewport.vue'
 import EditorConsole from './EditorConsole.vue'
 import RightPanel from './RightPanel.vue'
+import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 
 const editor = useEditorStore()
+const assets = useAssetStore()
 const project = useProjectStore()
 const runtime = useRuntimeStore()
 const scene = useSceneStore()
@@ -147,14 +149,20 @@ function handleGlobalShortcut(event: KeyboardEvent) {
 
   if (mod && key === 'z') {
     event.preventDefault()
-    if (event.shiftKey) scene.redo()
-    else scene.undo()
+    if (event.shiftKey) {
+      if (assets.canRedoFileOperation) void assets.redoFileOperation()
+      else scene.redo()
+    } else {
+      if (assets.canUndoFileOperation) void assets.undoFileOperation()
+      else scene.undo()
+    }
     return
   }
 
   if (mod && key === 'y') {
     event.preventDefault()
-    scene.redo()
+    if (assets.canRedoFileOperation) void assets.redoFileOperation()
+    else scene.redo()
     return
   }
 

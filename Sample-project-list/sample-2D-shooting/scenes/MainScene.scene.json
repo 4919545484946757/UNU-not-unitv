@@ -13,8 +13,8 @@
             "type": "Transform",
             "data": {
               "type": "Transform",
-              "x": 411,
-              "y": 19,
+              "x": -900.7227649570548,
+              "y": 6.336917369006585,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -1011,7 +1011,11 @@
               "height": 100,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": true,
+              "layer": "Pickup",
+              "collidesWith": [
+                "Player"
+              ]
             }
           },
           {
@@ -1023,7 +1027,9 @@
               "actionType": "scripted",
               "targetScene": "",
               "textureCycle": [],
-              "tintCycle": []
+              "tintCycle": [],
+              "targetSpawnId": "",
+              "sceneStateMode": "preserve"
             }
           },
           {
@@ -1083,7 +1089,17 @@
               "height": 50,
               "offsetX": 0,
               "offsetY": 15,
-              "isTrigger": false
+              "isTrigger": false,
+              "layer": "Player",
+              "collidesWith": [
+                "Default",
+                "Enemy",
+                "World",
+                "Door",
+                "Pickup",
+                "Trap",
+                "Sensor"
+              ]
             }
           },
           {
@@ -1300,7 +1316,16 @@
               "height": 80,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": false,
+              "layer": "Enemy",
+              "collidesWith": [
+                "Default",
+                "Player",
+                "World",
+                "Attack",
+                "Trap",
+                "Sensor"
+              ]
             }
           },
           {
@@ -1400,7 +1425,16 @@
               "height": 80,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": false,
+              "layer": "Enemy",
+              "collidesWith": [
+                "Default",
+                "Player",
+                "World",
+                "Attack",
+                "Trap",
+                "Sensor"
+              ]
             }
           },
           {
@@ -1500,7 +1534,16 @@
               "height": 80,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": false,
+              "layer": "Enemy",
+              "collidesWith": [
+                "Default",
+                "Player",
+                "World",
+                "Attack",
+                "Trap",
+                "Sensor"
+              ]
             }
           },
           {
@@ -1600,7 +1643,11 @@
               "height": 72,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": true,
+              "layer": "Pickup",
+              "collidesWith": [
+                "Player"
+              ]
             }
           },
           {
@@ -1624,7 +1671,9 @@
               "actionType": "scripted",
               "targetScene": "",
               "textureCycle": [],
-              "tintCycle": []
+              "tintCycle": [],
+              "targetSpawnId": "",
+              "sceneStateMode": "preserve"
             }
           }
         ]
@@ -1672,7 +1721,12 @@
               "height": 64,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": true,
+              "layer": "Sensor",
+              "collidesWith": [
+                "Player",
+                "Enemy"
+              ]
             }
           },
           {
@@ -1882,7 +1936,11 @@
               "height": 180,
               "offsetX": 0,
               "offsetY": 0,
-              "isTrigger": false
+              "isTrigger": true,
+              "layer": "Door",
+              "collidesWith": [
+                "Player"
+              ]
             }
           },
           {
@@ -1894,7 +1952,9 @@
               "actionType": "switchScene",
               "targetScene": "SecondScene",
               "textureCycle": [],
-              "tintCycle": []
+              "tintCycle": [],
+              "targetSpawnId": "Spawn_From_Main",
+              "sceneStateMode": "preserve"
             }
           }
         ]
@@ -1937,6 +1997,29 @@
               "interactable": false,
               "markdownEnabled": false,
               "renderMode": "pixi"
+            }
+          }
+        ]
+      },
+      {
+        "id": "spawn_from_second_001",
+        "name": "Spawn_From_Second",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 57,
+              "y": -12,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 16,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           }
         ]

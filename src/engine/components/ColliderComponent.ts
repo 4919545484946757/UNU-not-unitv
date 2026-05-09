@@ -1,5 +1,43 @@
 import { Component } from '../core/Component'
 
+export type CollisionLayer =
+  | 'Default'
+  | 'Player'
+  | 'Enemy'
+  | 'World'
+  | 'Door'
+  | 'Pickup'
+  | 'Trap'
+  | 'Attack'
+  | 'Sensor'
+  | 'UI'
+
+export const COLLISION_LAYERS: CollisionLayer[] = [
+  'Default',
+  'Player',
+  'Enemy',
+  'World',
+  'Door',
+  'Pickup',
+  'Trap',
+  'Attack',
+  'Sensor',
+  'UI'
+]
+
+export const DEFAULT_COLLISION_MASKS: Record<CollisionLayer, CollisionLayer[]> = {
+  Default: ['Default', 'Player', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Attack', 'Sensor'],
+  Player: ['Default', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Sensor'],
+  Enemy: ['Default', 'Player', 'World', 'Attack', 'Trap', 'Sensor'],
+  World: ['Default', 'Player', 'Enemy'],
+  Door: ['Player'],
+  Pickup: ['Player'],
+  Trap: ['Player', 'Enemy'],
+  Attack: ['Enemy', 'Default'],
+  Sensor: ['Player', 'Enemy', 'Default'],
+  UI: []
+}
+
 export class ColliderComponent extends Component {
   readonly type = 'Collider'
 
@@ -9,7 +47,9 @@ export class ColliderComponent extends Component {
     public height = 80,
     public offsetX = 0,
     public offsetY = 0,
-    public isTrigger = false
+    public isTrigger = false,
+    public layer: CollisionLayer = 'Default',
+    public collidesWith: CollisionLayer[] = [...DEFAULT_COLLISION_MASKS.Default]
   ) {
     super()
   }

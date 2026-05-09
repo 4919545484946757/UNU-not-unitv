@@ -1287,6 +1287,82 @@ async function relinkMissingAssetReferences(projectRoot: string, missingRefs: As
   return { relinkedAssets: replacements.size, relinkedFiles }
 }
 
+function rewriteMovedAssetReference(raw: string, fromPath: string, toPath: string, isDirectory: boolean) {
+  const normalized = normalizeRelativeAssetPath(raw)
+  const from = normalizeRelativeAssetPath(fromPath)
+  const to = normalizeRelativeAssetPath(toPath)
+  if (!normalized || !from || !to) return raw
+
+  const normalizedKey = normalized.toLowerCase()
+  const fromKey = from.toLowerCase()
+  if (normalizedKey === fromKey) return to
+  if (isDirectory && normalizedKey.startsWith(`${fromKey}/`)) {
+    return `${to}${normalized.slice(from.length)}`
+  }
+  return raw
+}
+
+function rewriteMovedAssetReferences(value: unknown, fromPath: string, toPath: string, isDirectory: boolean) {
+  let changed = false
+  const replaceString = (raw: string) => {
+    const next = rewriteMovedAssetReference(raw, fromPath, toPath, isDirectory)
+    if (next !== raw) changed = true
+    return next
+  }
+
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item)
+      return
+    }
+    const record = node as Record<string, unknown>
+    for (const [key, entry] of Object.entries(record)) {
+      if (typeof entry === 'string' && assetRefKeySet.has(key)) {
+        record[key] = replaceString(entry)
+        continue
+      }
+      if (Array.isArray(entry) && assetRefArrayKeySet.has(key)) {
+        record[key] = entry.map((item) => typeof item === 'string' ? replaceString(item) : item)
+        continue
+      }
+      if (entry && typeof entry === 'object' && key === 'tileTextureMap' && !Array.isArray(entry)) {
+        const map = entry as Record<string, unknown>
+        for (const [mapKey, mapValue] of Object.entries(map)) {
+          if (typeof mapValue === 'string') map[mapKey] = replaceString(mapValue)
+        }
+      }
+      walk(entry)
+    }
+  }
+
+  walk(value)
+  return changed
+}
+
+async function rewriteMovedAssetReferencesInProject(projectRoot: string, fromPath: string, toPath: string, isDirectory: boolean) {
+  const normalizedFrom = normalizeRelativeAssetPath(fromPath)
+  const normalizedTo = normalizeRelativeAssetPath(toPath)
+  if (!normalizedFrom || !normalizedTo || normalizedFrom === normalizedTo) return { relinkedFiles: 0 }
+
+  const dependencyFiles = await collectAssetDependencyFiles(projectRoot)
+  let relinkedFiles = 0
+  for (const file of dependencyFiles) {
+    const raw = await fs.readFile(file.fullPath, 'utf-8').catch(() => '')
+    if (!raw) continue
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(String(raw).replace(/^\uFEFF/, ''))
+    } catch {
+      continue
+    }
+    if (!rewriteMovedAssetReferences(parsed, normalizedFrom, normalizedTo, isDirectory)) continue
+    relinkedFiles += 1
+    await fs.writeFile(file.fullPath, JSON.stringify(parsed, null, 2), 'utf-8')
+  }
+  return { relinkedFiles }
+}
+
 async function repairMissingSampleAssets(projectRoot: string, missingRefs: string[]) {
   if (!missingRefs.length) return 0
   const sourceRoot = resolveSampleAssetsRoot()
@@ -1362,7 +1438,8 @@ function createSampleIconPng(kind: 'player' | 'enemy' | 'chest') {
 
 async function buildAssetNodes(currentPath: string, projectRoot: string) {
   const entries = await fs.readdir(currentPath, { withFileTypes: true })
-  const sorted = entries.sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name))
+  const visibleEntries = entries.filter((entry) => entry.name !== '.unu-trash')
+  const sorted = visibleEntries.sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name))
 
   return Promise.all(
     sorted.map(async (entry) => {
@@ -1385,6 +1462,16 @@ async function buildAssetNodes(currentPath: string, projectRoot: string) {
       return node
     })
   )
+}
+
+async function moveAssetToTrash(projectRoot: string, sourcePath: string) {
+  const trashRoot = path.join(projectRoot, '.unu-trash')
+  const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const targetDir = path.join(trashRoot, stamp)
+  await fs.mkdir(targetDir, { recursive: true })
+  const targetPath = path.join(targetDir, path.basename(sourcePath))
+  await fs.rename(sourcePath, targetPath)
+  return targetPath
 }
 
 async function readFileAsDataUrl(filePath: string) {
@@ -2291,6 +2378,33 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('unu:create-asset-folder', async (_event, payload: { projectRoot: string; folderPath: string; folderName?: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('Please open or save a local project before creating folders.')
+    }
+    const folderPath = normalizeSafeRelativePath(payload?.folderPath || 'assets')
+    const parentFullPath = resolveProjectChildPath(projectRoot, folderPath)
+    if (!parentFullPath) throw new Error('Target folder is outside the current project.')
+    const parentStat = await fs.stat(parentFullPath).catch(() => null)
+    if (!parentStat || !parentStat.isDirectory()) throw new Error('Target folder does not exist.')
+
+    const userProvidedName = !!String(payload?.folderName || '').trim()
+    const folderName = sanitizeAssetFileName(payload?.folderName) || 'NewFolder'
+    const targetPath = path.join(parentFullPath, folderName)
+    const root = path.resolve(projectRoot)
+    const relative = path.relative(root, path.resolve(targetPath))
+    if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Target folder is outside the current project.')
+    const finalPath = userProvidedName ? targetPath : await makeUniquePathIfNeeded(targetPath)
+    if (userProvidedName && await exists(finalPath)) throw new Error('A folder with the same name already exists.')
+    await fs.mkdir(finalPath, { recursive: false })
+    return {
+      filePath: finalPath,
+      name: path.basename(finalPath),
+      relativePath: normalizePath(path.relative(projectRoot, finalPath))
+    }
+  })
+
   ipcMain.handle('unu:rename-asset', async (_event, payload: { projectRoot: string; relativePath: string; nextName: string }) => {
     const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
     if (!projectRoot || projectRoot === 'sample-project') {
@@ -2320,10 +2434,133 @@ app.whenReady().then(() => {
     }
     if (await exists(targetPath)) throw new Error('同名资源已存在。')
     await fs.rename(sourcePath, targetPath)
+    const sourceRelative = normalizePath(path.relative(projectRoot, sourcePath))
+    const targetRelative = normalizePath(path.relative(projectRoot, targetPath))
+    const relink = await rewriteMovedAssetReferencesInProject(projectRoot, sourceRelative, targetRelative, stat.isDirectory())
+    return {
+      filePath: targetPath,
+      name: path.basename(targetPath),
+      relativePath: targetRelative,
+      relinkedFiles: relink.relinkedFiles
+    }
+  })
+
+  ipcMain.handle('unu:copy-asset', async (_event, payload: { projectRoot: string; relativePath: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('Please open or save a local project before copying assets.')
+    }
+    const sourceRelative = normalizeSafeRelativePath(payload?.relativePath || '')
+    if (!sourceRelative) throw new Error('Source asset path is invalid.')
+    const sourcePath = resolveProjectChildPath(projectRoot, sourceRelative)
+    if (!sourcePath) throw new Error('Source asset is outside the current project.')
+    const sourceStat = await fs.stat(sourcePath).catch(() => null)
+    if (!sourceStat) throw new Error('Source asset does not exist.')
+
+    const parsed = splitKnownAssetExtension(path.basename(sourcePath))
+    const targetBase = path.join(path.dirname(sourcePath), `${parsed.base}_Copy${parsed.ext}`)
+    const targetPath = await makeUniquePathIfNeeded(targetBase)
+    if (sourceStat.isDirectory()) await fs.cp(sourcePath, targetPath, { recursive: true, force: false })
+    else await fs.copyFile(sourcePath, targetPath)
     return {
       filePath: targetPath,
       name: path.basename(targetPath),
       relativePath: normalizePath(path.relative(projectRoot, targetPath))
+    }
+  })
+
+  ipcMain.handle('unu:delete-asset', async (_event, payload: { projectRoot: string; relativePath: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('Please open or save a local project before deleting assets.')
+    }
+    const sourceRelative = normalizeSafeRelativePath(payload?.relativePath || '')
+    if (!sourceRelative) throw new Error('Asset path is invalid.')
+    if (['assets', 'scenes', 'prefabs'].includes(sourceRelative)) {
+      throw new Error('Top-level project folders cannot be deleted from the asset tree.')
+    }
+    const sourcePath = resolveProjectChildPath(projectRoot, sourceRelative)
+    if (!sourcePath) throw new Error('Asset is outside the current project.')
+    const sourceStat = await fs.stat(sourcePath).catch(() => null)
+    if (!sourceStat) throw new Error('Asset does not exist.')
+    const trashPath = await moveAssetToTrash(projectRoot, sourcePath)
+    return {
+      ok: true,
+      relativePath: sourceRelative,
+      trashRelativePath: normalizePath(path.relative(projectRoot, trashPath))
+    }
+  })
+
+  ipcMain.handle('unu:restore-deleted-asset', async (_event, payload: { projectRoot: string; trashRelativePath: string; restoreRelativePath: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('Please open or save a local project before restoring assets.')
+    }
+    const trashRelative = normalizeSafeRelativePath(payload?.trashRelativePath || '')
+    const restoreRelative = normalizeSafeRelativePath(payload?.restoreRelativePath || '')
+    if (!trashRelative || !restoreRelative || !trashRelative.startsWith('.unu-trash/')) {
+      throw new Error('Restore path is invalid.')
+    }
+    const trashPath = resolveProjectChildPath(projectRoot, trashRelative)
+    const restorePath = resolveProjectChildPath(projectRoot, restoreRelative)
+    if (!trashPath || !restorePath) throw new Error('Restore target is outside the current project.')
+    const trashStat = await fs.stat(trashPath).catch(() => null)
+    if (!trashStat) throw new Error('Deleted asset is no longer available in the undo trash.')
+    if (await exists(restorePath)) throw new Error('Cannot restore because an asset already exists at the original path.')
+    await fs.mkdir(path.dirname(restorePath), { recursive: true })
+    await fs.rename(trashPath, restorePath)
+    await fs.rm(path.dirname(trashPath), { recursive: true, force: true }).catch(() => null)
+    return {
+      filePath: restorePath,
+      name: path.basename(restorePath),
+      relativePath: normalizePath(path.relative(projectRoot, restorePath))
+    }
+  })
+
+  ipcMain.handle('unu:move-asset', async (_event, payload: { projectRoot: string; relativePath: string; targetFolderPath: string }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!projectRoot || projectRoot === 'sample-project') {
+      throw new Error('Please open or save a local project before moving assets.')
+    }
+    const sourceRelative = normalizeSafeRelativePath(payload?.relativePath || '')
+    const targetFolderRelative = normalizeSafeRelativePath(payload?.targetFolderPath || '')
+    if (!sourceRelative || !targetFolderRelative) throw new Error('Asset path is invalid.')
+    if (['assets', 'scenes', 'prefabs'].includes(sourceRelative)) {
+      throw new Error('Top-level project folders cannot be moved from the asset tree.')
+    }
+    const sourcePath = resolveProjectChildPath(projectRoot, sourceRelative)
+    const targetFolderPath = resolveProjectChildPath(projectRoot, targetFolderRelative)
+    if (!sourcePath || !targetFolderPath) throw new Error('Move target is outside the current project.')
+    const sourceStat = await fs.stat(sourcePath).catch(() => null)
+    const targetStat = await fs.stat(targetFolderPath).catch(() => null)
+    if (!sourceStat) throw new Error('Source asset does not exist.')
+    if (!targetStat || !targetStat.isDirectory()) throw new Error('Target folder does not exist.')
+    const sourceResolved = path.resolve(sourcePath)
+    const targetFolderResolved = path.resolve(targetFolderPath)
+    if (sourceStat.isDirectory()) {
+      const relativeToSource = path.relative(sourceResolved, targetFolderResolved)
+      if (!relativeToSource || (!relativeToSource.startsWith('..') && !path.isAbsolute(relativeToSource))) {
+        throw new Error('A folder cannot be moved into itself or one of its children.')
+      }
+    }
+    if (path.dirname(sourceResolved) === targetFolderResolved) {
+      return {
+        filePath: sourcePath,
+        name: path.basename(sourcePath),
+        relativePath: normalizePath(path.relative(projectRoot, sourcePath))
+      }
+    }
+    const targetPath = path.join(targetFolderPath, path.basename(sourcePath))
+    if (await exists(targetPath)) throw new Error('An asset with the same name already exists in the target folder.')
+    await fs.rename(sourcePath, targetPath)
+    const movedSourceRelative = normalizePath(path.relative(projectRoot, sourcePath))
+    const movedTargetRelative = normalizePath(path.relative(projectRoot, targetPath))
+    const relink = await rewriteMovedAssetReferencesInProject(projectRoot, movedSourceRelative, movedTargetRelative, sourceStat.isDirectory())
+    return {
+      filePath: targetPath,
+      name: path.basename(targetPath),
+      relativePath: movedTargetRelative,
+      relinkedFiles: relink.relinkedFiles
     }
   })
 

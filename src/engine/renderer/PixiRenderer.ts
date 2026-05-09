@@ -38,8 +38,10 @@ interface CameraViewState {
   y: number
   zoom: number
 }
-type CachedWorldNodeKind = 'sprite' | 'tilemap'
+type CachedWorldNodeKind = 'sprite' | 'tilemap' | 'empty'
 type MarkdownLineKind = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'quote' | 'list' | 'code' | 'blank'
+
+const EMPTY_ENTITY_EDITOR_SIZE = 40
 
 type MarkdownLine = {
   kind: MarkdownLineKind
@@ -345,8 +347,11 @@ export class PixiRenderer {
     const projectStore = useProjectStore()
     this.app.ticker.add((ticker) => {
       if (!this.currentScene) return
+      const collectPerformance = runtimeStore.detailedPerformanceEnabled
+      const frameStart = collectPerformance ? performance.now() : 0
       const delta = ticker.deltaMS / 1000
       runtimeStore.setDeltaTime(delta)
+      runtimeStore.setPerformanceMetrics({ entityCount: this.currentScene.entities.length })
       const rect = this.options.container.getBoundingClientRect()
       this.inputState.setViewportTransform({
         viewportLeft: rect.left,
@@ -357,18 +362,51 @@ export class PixiRenderer {
       })
       if (this.isPlaying && !this.isPaused) {
         this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
-        this.scriptRuntime.updateScene(this.currentScene, delta, this.inputState)
+        const scriptMetrics = this.scriptRuntime.updateScene(this.currentScene, delta, this.inputState, collectPerformance)
         if (this.consumeSceneSwitchRequest()) {
           this.inputState.endFrame()
           return
         }
+        const animationStart = collectPerformance ? performance.now() : 0
         applySceneAnimation(this.currentScene, delta, (event) => {
           projectStore.setStatus(`动画事件：${event.name} @ frame ${event.frame}`)
         }, this.inputState)
-        void this.audioRuntime.syncScene(this.currentScene)
+        const animationEnd = collectPerformance ? performance.now() : 0
+        const audioStart = collectPerformance ? performance.now() : 0
+        const audioSync = this.audioRuntime.syncScene(this.currentScene)
+        if (collectPerformance) {
+          void audioSync.finally(() => {
+            runtimeStore.setPerformanceMetrics({ audioTimeMs: performance.now() - audioStart })
+          })
+        } else {
+          void audioSync
+        }
+        const cameraStart = collectPerformance ? performance.now() : 0
         this.updateCameraFromScene(this.currentScene)
-        void this.renderScene(this.currentScene)
+        const cameraEnd = collectPerformance ? performance.now() : 0
+        const renderStart = collectPerformance ? performance.now() : 0
+        const renderPromise = this.renderScene(this.currentScene)
+        if (collectPerformance) {
+          void renderPromise.finally(() => {
+            runtimeStore.setPerformanceMetrics({
+              frameTimeMs: performance.now() - frameStart,
+              renderTimeMs: performance.now() - renderStart,
+              scriptTimeMs: scriptMetrics.scriptTimeMs,
+              collisionTimeMs: scriptMetrics.collisionTimeMs,
+              animationTimeMs: animationEnd - animationStart,
+              cameraTimeMs: cameraEnd - cameraStart,
+              entityCount: this.currentScene?.entities.length ?? 0
+            })
+          })
+        } else {
+          void renderPromise
+        }
         this.options.onRuntimeSceneUpdated?.(this.currentScene)
+      } else if (collectPerformance) {
+        runtimeStore.setPerformanceMetrics({
+          frameTimeMs: performance.now() - frameStart,
+          entityCount: this.currentScene.entities.length
+        })
       }
       this.inputState.endFrame()
     })
@@ -397,14 +435,17 @@ export class PixiRenderer {
   }
 
   private consumeSceneSwitchRequest() {
-    const targetSceneName = this.scriptRuntime.consumeSceneSwitchRequest()
-    if (!targetSceneName) return false
+    const request = this.scriptRuntime.consumeSceneSwitchRequest()
+    if (!request) return false
     if (!this.isPlaying) return false
-    const normalized = String(targetSceneName).trim()
+    const normalized = String(request.sceneName).trim()
     if (!normalized) return false
 
+    const runtimeStore = useRuntimeStore()
+    runtimeStore.startLoading(`Loading ${normalized}...`)
     const nextSceneTemplate = this.resolveSceneTemplateByName(normalized)
     if (!nextSceneTemplate) {
+      runtimeStore.stopLoading()
       useProjectStore().setStatus(`场景切换失败：未找到场景 ${normalized}`)
       return false
     }
@@ -412,7 +453,11 @@ export class PixiRenderer {
     this.audioRuntime.stopAll()
     if (this.playScene) this.scriptRuntime.exitScene(this.playScene)
 
+    if (request.sceneStateMode === 'reset') {
+      this.playSceneCache.delete(this.getRuntimeSceneKey(nextSceneTemplate))
+    }
     this.playScene = this.getOrCreatePlayScene(nextSceneTemplate)
+    this.applyPlayerSpawnPoint(this.playScene, request.targetSpawnId)
     this.currentScene = this.playScene
     this.selectedEntityId = ''
     this.options.onEntitySelected?.('')
@@ -425,8 +470,26 @@ export class PixiRenderer {
     this.updateCameraFromScene(this.playScene)
     this.drawSelectionGizmo()
     void this.renderScene(this.playScene)
+    window.setTimeout(() => runtimeStore.stopLoading(), 180)
     useProjectStore().setStatus(`已切换场景：${this.playScene.name}`)
     return true
+  }
+
+  private applyPlayerSpawnPoint(scene: Scene, spawnId = '') {
+    const normalized = String(spawnId || '').trim()
+    if (!normalized) return
+    const spawn =
+      scene.getEntityById(normalized) ||
+      scene.entities.find((entity) => entity.name.trim().toLowerCase() === normalized.toLowerCase()) ||
+      null
+    const spawnTransform = spawn?.getComponent<TransformComponent>('Transform')
+    if (!spawnTransform) return
+    const player = scene.entities.find((entity) => entity.name === 'Player') || null
+    const playerTransform = player?.getComponent<TransformComponent>('Transform')
+    if (!playerTransform) return
+    playerTransform.x = spawnTransform.x
+    playerTransform.y = spawnTransform.y
+    playerTransform.rotation = spawnTransform.rotation
   }
 
   private resolveSceneTemplateByName(sceneName: string) {
@@ -750,7 +813,23 @@ export class PixiRenderer {
         else worldNodes.push(tilemapNode)
         continue
       }
-      if (!sprite) continue
+      if (!sprite) {
+        if (!this.isPlaying || this.playDebugEnabled) {
+          const emptyNode = this.getCachedEmptyEntityNode(entity, transform)
+          const viewportPosition = transform.positionMode === 'viewport'
+            ? this.resolveViewportPosition(transform, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
+            : null
+          emptyNode.x = viewportPosition?.x ?? transform.x
+          emptyNode.y = viewportPosition?.y ?? transform.y
+          emptyNode.rotation = transform.rotation
+          emptyNode.scale.set(transform.scaleX, transform.scaleY)
+          emptyNode.zIndex = transform.zIndex ?? 0
+          activeWorldIds.add(entity.id)
+          if (viewportPosition) uiNodes.push(emptyNode)
+          else worldNodes.push(emptyNode)
+        }
+        continue
+      }
 
       const isBackgroundEntity = Boolean(background?.enabled || entity.name === 'Background')
       const shouldFollowCamera = background ? !!background.followCamera : entity.name === 'Background'
@@ -1299,6 +1378,7 @@ export class PixiRenderer {
       const sprite = entity?.getComponent<SpriteComponent>('Sprite')
       const tilemap = entity?.getComponent<TilemapComponent>('Tilemap')
       if (!entity || !transform) return
+      const isEmptyEditorEntity = !ui?.enabled && !sprite && !tilemap
 
       if (this.gizmoMode === 'move') {
         if (ui?.enabled) {
@@ -1313,10 +1393,10 @@ export class PixiRenderer {
             transform.x = centerX - viewportWidth * ui.anchorX
             transform.y = centerY - viewportHeight * ui.anchorY
           }
-        } else if (transform.positionMode === 'viewport' && (sprite || tilemap)) {
+        } else if (transform.positionMode === 'viewport' && (sprite || tilemap || isEmptyEditorEntity)) {
           const global = event.global
-          const width = sprite ? sprite.width : tilemap ? tilemap.columns * tilemap.tileWidth : 0
-          const height = sprite ? sprite.height : tilemap ? tilemap.rows * tilemap.tileHeight : 0
+          const width = sprite ? sprite.width : tilemap ? tilemap.columns * tilemap.tileWidth : EMPTY_ENTITY_EDITOR_SIZE
+          const height = sprite ? sprite.height : tilemap ? tilemap.rows * tilemap.tileHeight : EMPTY_ENTITY_EDITOR_SIZE
           this.setTransformFromViewportPosition(
             transform,
             global.x - this.dragOffset.x,
@@ -1332,12 +1412,11 @@ export class PixiRenderer {
         if (this.isPlaying) void this.renderScene(this.currentScene)
         else this.options.onSceneMutated?.()
       } else if (this.gizmoMode === 'scale') {
-        if (!sprite && !tilemap) return
         const local = event.getLocalPosition(this.world)
         const dx = local.x - this.scaleState.startPointerX
         const dy = local.y - this.scaleState.startPointerY
-        const baseW = sprite ? sprite.width : (tilemap ? tilemap.columns * tilemap.tileWidth : 40)
-        const baseH = sprite ? sprite.height : (tilemap ? tilemap.rows * tilemap.tileHeight : 40)
+        const baseW = sprite ? sprite.width : (tilemap ? tilemap.columns * tilemap.tileWidth : EMPTY_ENTITY_EDITOR_SIZE)
+        const baseH = sprite ? sprite.height : (tilemap ? tilemap.rows * tilemap.tileHeight : EMPTY_ENTITY_EDITOR_SIZE)
         transform.scaleX = Math.max(0.1, this.scaleState.startScaleX + dx / Math.max(40, baseW))
         transform.scaleY = Math.max(0.1, this.scaleState.startScaleY + dy / Math.max(40, baseH))
         if (this.isPlaying) void this.renderScene(this.currentScene)
@@ -1370,6 +1449,12 @@ export class PixiRenderer {
         const width = tilemap.columns * tilemap.tileWidth * Math.abs(transform.scaleX)
         const height = tilemap.rows * tilemap.tileHeight * Math.abs(transform.scaleY)
         if (x >= transform.x && x <= transform.x + width && y >= transform.y && y <= transform.y + height) {
+          return { id: entity.id, transform }
+        }
+      } else {
+        const halfW = (EMPTY_ENTITY_EDITOR_SIZE * Math.abs(transform.scaleX)) / 2
+        const halfH = (EMPTY_ENTITY_EDITOR_SIZE * Math.abs(transform.scaleY)) / 2
+        if (x >= transform.x - halfW && x <= transform.x + halfW && y >= transform.y - halfH && y <= transform.y + halfH) {
           return { id: entity.id, transform }
         }
       }
@@ -1501,6 +1586,70 @@ export class PixiRenderer {
 
     if (cached) cached.node.destroy({ children: true })
     this.worldNodeCache.set(entity.id, { kind: 'sprite', signature, node })
+    return node
+  }
+
+  private getCachedEmptyEntityNode(entity: Scene['entities'][number], transform: TransformComponent) {
+    const showDebug = !this.isPlaying || this.playDebugEnabled
+    const signature = [entity.name, showDebug ? 1 : 0].join('|')
+    const cached = this.worldNodeCache.get(entity.id)
+    if (cached && cached.kind === 'empty' && cached.signature === signature) return cached.node
+
+    const node = new Container()
+    node.label = entity.id
+    node.eventMode = 'static'
+    node.cursor = 'pointer'
+    node.on('pointerdown', (event: FederatedPointerEvent) => {
+      if (this.isPlaying) return
+      if (this.shouldStartPan(event)) {
+        this.startPan(event.global.x, event.global.y)
+        event.stopPropagation()
+        return
+      }
+      this.options.onEntitySelected?.(entity.id)
+      this.selectedEntityId = entity.id
+      this.drawSelectionGizmo()
+      if (transform.positionMode === 'viewport') {
+        const position = this.resolveViewportPosition(transform, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
+        this.dragOffset.x = event.global.x - position.x
+        this.dragOffset.y = event.global.y - position.y
+      } else {
+        const local = event.getLocalPosition(this.world)
+        this.dragOffset.x = local.x - transform.x
+        this.dragOffset.y = local.y - transform.y
+      }
+      if (this.activeTool === 'move') {
+        this.gizmoMode = 'move'
+      }
+      event.stopPropagation()
+    })
+
+    const marker = new Graphics()
+    const half = EMPTY_ENTITY_EDITOR_SIZE / 2
+    const markerColor = /spawn/i.test(`${entity.id} ${entity.name}`) ? 0xffc857 : 0x56b6c2
+    marker.rect(-half, -half, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
+    marker.fill({ color: markerColor, alpha: 0.08 })
+    marker.stroke({ color: markerColor, alpha: 0.9, width: 2 })
+    marker.moveTo(-half, 0)
+    marker.lineTo(half, 0)
+    marker.moveTo(0, -half)
+    marker.lineTo(0, half)
+    marker.stroke({ color: markerColor, alpha: 0.75, width: 1 })
+    marker.hitArea = new Rectangle(-half, -half, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
+    node.addChild(marker)
+
+    if (showDebug) {
+      const label = new Text({
+        text: entity.name || entity.id,
+        style: { fill: '#ffffff', fontSize: 12 }
+      })
+      label.x = -half
+      label.y = -half - 18
+      node.addChild(label)
+    }
+
+    if (cached) cached.node.destroy({ children: true })
+    this.worldNodeCache.set(entity.id, { kind: 'empty', signature, node })
     return node
   }
 
@@ -1725,20 +1874,30 @@ export class PixiRenderer {
     const ui = entity?.getComponent<UIComponent>('UI')
     if (!entity || !transform) return
     if (ui?.enabled) return
-    if (!sprite && !tilemap) return
 
-    const boxX = sprite
-      ? transform.x - (sprite.width * transform.scaleX) / 2
-      : transform.x
-    const boxY = sprite
-      ? transform.y - (sprite.height * transform.scaleY) / 2
-      : transform.y
-    const boxWidth = sprite
-      ? sprite.width * transform.scaleX
-      : (tilemap ? tilemap.columns * tilemap.tileWidth * transform.scaleX : 0)
-    const boxHeight = sprite
-      ? sprite.height * transform.scaleY
-      : (tilemap ? tilemap.rows * tilemap.tileHeight * transform.scaleY : 0)
+    let boxX = transform.x
+    let boxY = transform.y
+    let boxWidth = EMPTY_ENTITY_EDITOR_SIZE * Math.abs(transform.scaleX)
+    let boxHeight = EMPTY_ENTITY_EDITOR_SIZE * Math.abs(transform.scaleY)
+
+    if (sprite) {
+      boxWidth = Math.max(1, sprite.width * Math.abs(transform.scaleX))
+      boxHeight = Math.max(1, sprite.height * Math.abs(transform.scaleY))
+      boxX = transform.x - boxWidth / 2
+      boxY = transform.y - boxHeight / 2
+    } else if (tilemap?.enabled) {
+      const scaledWidth = tilemap.columns * tilemap.tileWidth * transform.scaleX
+      const scaledHeight = tilemap.rows * tilemap.tileHeight * transform.scaleY
+      boxX = Math.min(transform.x, transform.x + scaledWidth)
+      boxY = Math.min(transform.y, transform.y + scaledHeight)
+      boxWidth = Math.max(1, Math.abs(scaledWidth))
+      boxHeight = Math.max(1, Math.abs(scaledHeight))
+    } else {
+      boxWidth = Math.max(1, boxWidth)
+      boxHeight = Math.max(1, boxHeight)
+      boxX = transform.x - boxWidth / 2
+      boxY = transform.y - boxHeight / 2
+    }
     const centerX = boxX + boxWidth / 2
     const centerY = boxY + boxHeight / 2
 

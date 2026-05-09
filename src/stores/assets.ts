@@ -8,6 +8,12 @@ import { useProjectStore } from './project'
 const fallbackProject = createFallbackProject()
 const fallbackDatabase = new AssetDatabase(fallbackProject.tree)
 
+type AssetFileHistoryEntry =
+  | { type: 'create' | 'copy'; path: string; trashPath?: string }
+  | { type: 'delete'; path: string; trashPath: string }
+  | { type: 'move'; from: string; to: string }
+  | { type: 'rename'; from: string; to: string }
+
 function buildProjectHealthMessage(
   result: {
     name?: string
@@ -59,7 +65,10 @@ export const useAssetStore = defineStore('assets', {
     flat: fallbackDatabase.flatten() as AssetNode[],
     previews: {} as Record<string, string>,
     imageSizes: {} as Record<string, { width: number; height: number }>,
-    expandedPaths: { assets: true, scenes: true, prefabs: true } as Record<string, boolean>
+    expandedPaths: { assets: true, scenes: true, prefabs: true } as Record<string, boolean>,
+    fileUndoStack: [] as AssetFileHistoryEntry[],
+    fileRedoStack: [] as AssetFileHistoryEntry[],
+    isRestoringFileHistory: false
   }),
   getters: {
     browserItems(state) {
@@ -67,6 +76,12 @@ export const useAssetStore = defineStore('assets', {
     },
     selectedAsset(state) {
       return state.flat.find((node) => node.path === state.selectedAssetPath) ?? null
+    },
+    canUndoFileOperation(state) {
+      return state.fileUndoStack.length > 0
+    },
+    canRedoFileOperation(state) {
+      return state.fileRedoStack.length > 0
     }
   },
   actions: {
@@ -143,6 +158,133 @@ export const useAssetStore = defineStore('assets', {
       if (size) this.imageSizes[path] = size
       return size
     },
+    pushFileHistory(entry: AssetFileHistoryEntry) {
+      if (this.isRestoringFileHistory) return
+      this.fileUndoStack.push(entry)
+      if (this.fileUndoStack.length > 80) this.fileUndoStack.shift()
+      this.fileRedoStack = []
+    },
+    clearFileHistory() {
+      this.fileUndoStack = []
+      this.fileRedoStack = []
+      this.isRestoringFileHistory = false
+    },
+    async refreshAfterFileHistory(pathHint = '') {
+      await this.refreshProject()
+      const target = pathHint ? this.flat.find((node) => node.path === pathHint) : null
+      if (target?.type === 'folder') this.selectPath(target.path)
+      else if (target) await this.selectAsset(target.path)
+      else {
+        const parent = pathHint.split('/').slice(0, -1).join('/')
+        if (parent && this.flat.some((node) => node.path === parent && node.type === 'folder')) this.selectPath(parent)
+      }
+    },
+    async deleteAssetForHistory(relativePath: string) {
+      const project = useProjectStore()
+      if (!window.unu?.deleteAsset || !project.rootPath || project.rootPath === 'sample-project') return null
+      const result = await window.unu.deleteAsset({ projectRoot: project.rootPath, relativePath })
+      if (!result?.ok || !result.trashRelativePath) {
+        throw new Error(result?.error || '删除资源失败：未返回可恢复路径。')
+      }
+      delete this.previews[relativePath]
+      delete this.imageSizes[relativePath]
+      return result.trashRelativePath
+    },
+    async restoreAssetForHistory(trashPath: string, restorePath: string) {
+      const project = useProjectStore()
+      if (!window.unu?.restoreDeletedAsset || !project.rootPath || project.rootPath === 'sample-project') return null
+      return window.unu.restoreDeletedAsset({
+        projectRoot: project.rootPath,
+        trashRelativePath: trashPath,
+        restoreRelativePath: restorePath
+      })
+    },
+    async undoFileOperation() {
+      const project = useProjectStore()
+      const entry = this.fileUndoStack.pop()
+      if (!entry) {
+        project.setStatus('没有可撤回的文件操作')
+        return false
+      }
+      this.isRestoringFileHistory = true
+      try {
+        if (entry.type === 'create' || entry.type === 'copy') {
+          entry.trashPath = await this.deleteAssetForHistory(entry.path) || entry.trashPath
+          await this.refreshAfterFileHistory(entry.path)
+          project.setStatus(`已撤回文件${entry.type === 'create' ? '新建' : '复制'}：${entry.path}`)
+        } else if (entry.type === 'delete') {
+          await this.restoreAssetForHistory(entry.trashPath, entry.path)
+          await this.refreshAfterFileHistory(entry.path)
+          project.setStatus(`已撤回文件删除：${entry.path}`)
+        } else if (entry.type === 'move') {
+          const parent = entry.from.split('/').slice(0, -1).join('/')
+          await window.unu?.moveAsset?.({ projectRoot: project.rootPath, relativePath: entry.to, targetFolderPath: parent })
+          await this.refreshAfterFileHistory(entry.from)
+          project.setStatus(`已撤回文件移动：${entry.to} -> ${entry.from}`)
+        } else if (entry.type === 'rename') {
+          await window.unu?.renameAsset?.({
+            projectRoot: project.rootPath,
+            relativePath: entry.to,
+            nextName: entry.from.split('/').pop() || entry.from
+          })
+          await this.refreshAfterFileHistory(entry.from)
+          project.setStatus(`已撤回文件重命名：${entry.to} -> ${entry.from}`)
+        }
+        this.fileRedoStack.push(entry)
+        return true
+      } catch (error) {
+        this.fileUndoStack.push(entry)
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`撤回文件操作失败：${message}`)
+        return false
+      } finally {
+        this.isRestoringFileHistory = false
+      }
+    },
+    async redoFileOperation() {
+      const project = useProjectStore()
+      const entry = this.fileRedoStack.pop()
+      if (!entry) {
+        project.setStatus('没有可恢复的文件操作')
+        return false
+      }
+      this.isRestoringFileHistory = true
+      try {
+        if (entry.type === 'create' || entry.type === 'copy') {
+          if (!entry.trashPath) throw new Error('缺少可恢复的临时文件。')
+          await this.restoreAssetForHistory(entry.trashPath, entry.path)
+          entry.trashPath = undefined
+          await this.refreshAfterFileHistory(entry.path)
+          project.setStatus(`已恢复文件${entry.type === 'create' ? '新建' : '复制'}：${entry.path}`)
+        } else if (entry.type === 'delete') {
+          entry.trashPath = await this.deleteAssetForHistory(entry.path) || entry.trashPath
+          await this.refreshAfterFileHistory(entry.path)
+          project.setStatus(`已恢复文件删除：${entry.path}`)
+        } else if (entry.type === 'move') {
+          const parent = entry.to.split('/').slice(0, -1).join('/')
+          await window.unu?.moveAsset?.({ projectRoot: project.rootPath, relativePath: entry.from, targetFolderPath: parent })
+          await this.refreshAfterFileHistory(entry.to)
+          project.setStatus(`已恢复文件移动：${entry.from} -> ${entry.to}`)
+        } else if (entry.type === 'rename') {
+          await window.unu?.renameAsset?.({
+            projectRoot: project.rootPath,
+            relativePath: entry.from,
+            nextName: entry.to.split('/').pop() || entry.to
+          })
+          await this.refreshAfterFileHistory(entry.to)
+          project.setStatus(`已恢复文件重命名：${entry.from} -> ${entry.to}`)
+        }
+        this.fileUndoStack.push(entry)
+        return true
+      } catch (error) {
+        this.fileRedoStack.push(entry)
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`恢复文件操作失败：${message}`)
+        return false
+      } finally {
+        this.isRestoringFileHistory = false
+      }
+    },
     async createProject() {
       const project = useProjectStore()
       const { useSceneStore } = await import('./scene')
@@ -163,6 +305,7 @@ export const useAssetStore = defineStore('assets', {
       const result = await window.unu.scanProject(created.rootPath)
       project.setProject({ rootPath: result.rootPath, name: result.name })
       this.hydrateTree(result.tree)
+      this.clearFileHistory()
       this.selectedPath = 'assets'
       scene.createNewScene('MainScene', true)
       project.setStatus(buildProjectHealthMessage(result, `已新建工程：${result.name}`))
@@ -189,6 +332,7 @@ export const useAssetStore = defineStore('assets', {
       }
       const result = await window.unu.scanProject(picked.rootPath)
       this.hydrateTree(result.tree)
+      this.clearFileHistory()
       project.setProject({ rootPath: result.rootPath, name: result.name })
       project.setStatus(buildProjectHealthMessage(result, `已打开工程：${result.name}`))
     },
@@ -224,6 +368,7 @@ export const useAssetStore = defineStore('assets', {
 
       const scanned = await window.unu.scanProject(saved.rootPath)
       this.hydrateTree(scanned.tree)
+      this.clearFileHistory()
       this.selectedPath = 'assets'
       project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
       if (saved.sceneFilePath) project.setSceneFile(saved.sceneFilePath)
@@ -394,11 +539,44 @@ export const useAssetStore = defineStore('assets', {
         await this.refreshProject()
         this.setFolderExpanded(folderPath, true)
         await this.selectAsset(result.relativePath)
+        this.pushFileHistory({ type: 'create', path: result.relativePath })
         project.setStatus(`已新建文件：${result.relativePath}`)
         return result
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         project.setStatus(`新建文件失败：${message}`)
+        return null
+      }
+    },
+    async createFolderInFolder(folderPath: string, folderName?: string) {
+      const project = useProjectStore()
+      if (!window.unu?.createAssetFolder) {
+        project.setStatus('当前环境未接入新建文件夹接口，请使用桌面版运行。')
+        return null
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再新建文件夹。')
+        return null
+      }
+      try {
+        const result = await window.unu.createAssetFolder({
+          projectRoot: project.rootPath,
+          folderPath,
+          folderName
+        })
+        if (!result?.relativePath) {
+          project.setStatus('新建文件夹失败：未返回文件夹路径。')
+          return null
+        }
+        await this.refreshProject()
+        this.setFolderExpanded(folderPath, true)
+        this.selectPath(result.relativePath)
+        this.pushFileHistory({ type: 'create', path: result.relativePath })
+        project.setStatus(`已新建文件夹：${result.relativePath}`)
+        return result
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`新建文件夹失败：${message}`)
         return null
       }
     },
@@ -428,11 +606,118 @@ export const useAssetStore = defineStore('assets', {
         const target = this.flat.find((node) => node.path === result.relativePath)
         if (target?.type === 'folder') this.selectPath(result.relativePath)
         else await this.selectAsset(result.relativePath)
-        project.setStatus(`已重命名资源：${result.relativePath}`)
+        if (relativePath !== result.relativePath) {
+          this.pushFileHistory({ type: 'rename', from: relativePath, to: result.relativePath })
+        }
+        project.setStatus(`已重命名资源：${result.relativePath}${Number(result.relinkedFiles || 0) > 0 ? `（已同步引用 ${result.relinkedFiles} 个文件）` : ''}`)
         return result
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         project.setStatus(`重命名资源失败：${message}`)
+        return null
+      }
+    },
+    async copyAsset(relativePath: string) {
+      const project = useProjectStore()
+      if (!window.unu?.copyAsset) {
+        project.setStatus('当前环境未接入资源复制接口，请使用桌面版运行。')
+        return null
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再复制资源。')
+        return null
+      }
+      try {
+        const result = await window.unu.copyAsset({ projectRoot: project.rootPath, relativePath })
+        if (!result?.relativePath) {
+          project.setStatus('复制资源失败：未返回资源路径。')
+          return null
+        }
+        const parent = result.relativePath.split('/').slice(0, -1).join('/')
+        await this.refreshProject()
+        if (parent) this.setFolderExpanded(parent, true)
+        const target = this.flat.find((node) => node.path === result.relativePath)
+        if (target?.type === 'folder') this.selectPath(result.relativePath)
+        else await this.selectAsset(result.relativePath)
+        this.pushFileHistory({ type: 'copy', path: result.relativePath })
+        project.setStatus(`已复制资源：${result.relativePath}`)
+        return result
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`复制资源失败：${message}`)
+        return null
+      }
+    },
+    async deleteAsset(relativePath: string) {
+      const project = useProjectStore()
+      if (!window.unu?.deleteAsset) {
+        project.setStatus('当前环境未接入资源删除接口，请使用桌面版运行。')
+        return null
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再删除资源。')
+        return null
+      }
+      try {
+        const parent = relativePath.split('/').slice(0, -1).join('/') || 'assets'
+        const result = await window.unu.deleteAsset({ projectRoot: project.rootPath, relativePath })
+        if (!result?.ok || !result.trashRelativePath) {
+          project.setStatus(`删除资源失败：${result?.error || '未知错误'}`)
+          return null
+        }
+        delete this.previews[relativePath]
+        delete this.imageSizes[relativePath]
+        await this.refreshProject()
+        if (this.flat.some((node) => node.path === parent && node.type === 'folder')) this.selectPath(parent)
+        this.pushFileHistory({ type: 'delete', path: relativePath, trashPath: result.trashRelativePath })
+        project.setStatus(`已删除资源：${relativePath}`)
+        return result
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`删除资源失败：${message}`)
+        return null
+      }
+    },
+    async moveAsset(relativePath: string, targetFolderPath: string) {
+      const project = useProjectStore()
+      if (!window.unu?.moveAsset) {
+        project.setStatus('当前环境未接入资源移动接口，请使用桌面版运行。')
+        return null
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再移动资源。')
+        return null
+      }
+      if (!relativePath || !targetFolderPath || relativePath === targetFolderPath) return null
+      try {
+        const result = await window.unu.moveAsset({
+          projectRoot: project.rootPath,
+          relativePath,
+          targetFolderPath
+        })
+        if (!result?.relativePath) {
+          project.setStatus('移动资源失败：未返回资源路径。')
+          return null
+        }
+        const oldPreview = this.previews[relativePath]
+        const oldSize = this.imageSizes[relativePath]
+        delete this.previews[relativePath]
+        delete this.imageSizes[relativePath]
+        if (oldPreview) this.previews[result.relativePath] = oldPreview
+        if (oldSize) this.imageSizes[result.relativePath] = oldSize
+        await this.refreshProject()
+        this.setFolderExpanded(targetFolderPath, true)
+        const target = this.flat.find((node) => node.path === result.relativePath)
+        if (target?.type === 'folder') this.selectPath(result.relativePath)
+        else await this.selectAsset(result.relativePath)
+        if (relativePath !== result.relativePath) {
+          this.pushFileHistory({ type: 'move', from: relativePath, to: result.relativePath })
+        }
+        project.setStatus(`已移动资源：${relativePath} -> ${targetFolderPath}${Number(result.relinkedFiles || 0) > 0 ? `（已同步引用 ${result.relinkedFiles} 个文件）` : ''}`)
+        return result
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`移动资源失败：${message}`)
         return null
       }
     },

@@ -68,6 +68,7 @@ async function openProjectFromLauncher(payload: { rootPath: string; name: string
     if (payload.rootPath === 'sample-project') {
       const fallback = createFallbackProject(payload.sampleProjectId || 'action-2d', payload.name || 'sample-project')
       assets.hydrateTree(fallback.tree)
+      assets.clearFileHistory()
       project.setProject({ rootPath: fallback.rootPath, name: fallback.name, sampleProjectId: fallback.sampleProjectId })
       project.resetSceneFile()
       showLauncher.value = false
@@ -80,6 +81,7 @@ async function openProjectFromLauncher(payload: { rootPath: string; name: string
     }
     const scanned = await window.unu.scanProject(payload.rootPath)
     assets.hydrateTree(scanned.tree)
+    assets.clearFileHistory()
     project.setProject({ rootPath: scanned.rootPath, name: scanned.name || payload.name, sampleProjectId: '' })
     project.resetSceneFile()
     project.setStatus(buildProjectHealthMessage(scanned, `已打开工程：${scanned.name}`))

@@ -33,14 +33,19 @@ function deserializePrefabNode(node: SerializedPrefabNode) {
 
 function cloneTreeWithIds(source: Entity, newRootId: string, prefabSourcePath = '') {
   let sequence = 0
-  const cloneDeep = (entity: Entity, forcedId?: string) => {
+  const cloneDeep = (entity: Entity, forcedId?: string, inheritedPrefabSourcePath = prefabSourcePath) => {
     const cloned = deserializeEntity(serializeEntity(entity))
     cloned.id = forcedId || `${newRootId}_n${sequence++}`
-    cloned.prefabSourcePath = prefabSourcePath
+    cloned.prefabSourcePath = forcedId
+      ? prefabSourcePath
+      : (entity.prefabSourcePath && entity.prefabSourcePath !== prefabSourcePath ? entity.prefabSourcePath : inheritedPrefabSourcePath)
     cloned.children = []
     cloned.parent = null
     for (const child of entity.children) {
-      const childClone = cloneDeep(child)
+      const childSourcePath = child.prefabSourcePath && child.prefabSourcePath !== inheritedPrefabSourcePath
+        ? child.prefabSourcePath
+        : cloned.prefabSourcePath
+      const childClone = cloneDeep(child, undefined, childSourcePath)
       cloned.addChild(childClone)
     }
     return cloned

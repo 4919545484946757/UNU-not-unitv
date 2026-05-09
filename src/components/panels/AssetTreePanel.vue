@@ -12,6 +12,7 @@
         :node="node"
         @open-context="openNodeMenu"
         @preview-image="openImagePreview"
+        @asset-drop="handleAssetDrop"
       />
     </ul>
 
@@ -23,7 +24,7 @@
           <strong>{{ assetDialog.title }}</strong>
           <button type="button" class="dialog-close" @click="closeAssetDialog">×</button>
         </div>
-        <label class="dialog-field">
+        <label v-if="assetDialog.mode !== 'delete'" class="dialog-field">
           <span>{{ assetDialog.label }}</span>
           <input
             ref="assetDialogInputRef"
@@ -100,7 +101,7 @@ const menu = reactive({ visible: false, x: 0, y: 0, items: [] as ContextMenuItem
 const assetDialogInputRef = ref<HTMLInputElement | null>(null)
 const assetDialog = reactive({
   visible: false,
-  mode: 'create' as 'create' | 'rename',
+  mode: 'create-file' as 'create-file' | 'create-folder' | 'rename' | 'delete',
   title: '',
   label: '',
   placeholder: '',
@@ -172,6 +173,8 @@ function toggleAll() {
 function openPanelMenu(event: MouseEvent) {
   showMenu(event, [
     { label: '刷新资源', action: () => assets.refreshProject() },
+    { label: '新建文件', action: () => openCreateFileDialog(assets.selectedPath || 'assets') },
+    { label: '新建文件夹', action: () => openCreateFolderDialog(assets.selectedPath || 'assets') },
     { label: '导入图片', action: () => assets.importImages() },
     { label: '导入音频', action: () => assets.importAudios() },
     { label: allExpanded.value ? '全部折叠' : '全部展开', action: () => toggleAll() }
@@ -181,10 +184,24 @@ function openPanelMenu(event: MouseEvent) {
 function openCreateFileDialog(folderPath: string) {
   closeMenu()
   assetDialog.visible = true
-  assetDialog.mode = 'create'
+  assetDialog.mode = 'create-file'
   assetDialog.title = '新建文件'
   assetDialog.label = '文件名'
   assetDialog.placeholder = '留空则使用 NewFile.ts'
+  assetDialog.hint = `目标目录：${folderPath}`
+  assetDialog.value = ''
+  assetDialog.targetPath = folderPath
+  assetDialog.targetType = 'folder'
+  void nextTick(() => assetDialogInputRef.value?.focus())
+}
+
+function openCreateFolderDialog(folderPath: string) {
+  closeMenu()
+  assetDialog.visible = true
+  assetDialog.mode = 'create-folder'
+  assetDialog.title = '新建文件夹'
+  assetDialog.label = '文件夹名'
+  assetDialog.placeholder = '留空则使用 NewFolder'
   assetDialog.hint = `目标目录：${folderPath}`
   assetDialog.value = ''
   assetDialog.targetPath = folderPath
@@ -211,6 +228,19 @@ function openRenameDialog(node: AssetNode) {
   })
 }
 
+function openDeleteDialog(node: AssetNode) {
+  closeMenu()
+  assetDialog.visible = true
+  assetDialog.mode = 'delete'
+  assetDialog.title = node.type === 'folder' ? '删除文件夹' : '删除文件'
+  assetDialog.label = '确认删除'
+  assetDialog.placeholder = node.name
+  assetDialog.hint = `将删除：${node.path}。此操作会从磁盘移除文件${node.type === 'folder' ? '夹及其所有内容' : ''}。如需继续，请直接点击确定。`
+  assetDialog.value = node.name
+  assetDialog.targetPath = node.path
+  assetDialog.targetType = node.type
+}
+
 function closeAssetDialog() {
   assetDialog.visible = false
   assetDialog.value = ''
@@ -220,10 +250,14 @@ function closeAssetDialog() {
 
 async function submitAssetDialog() {
   const value = assetDialog.value.trim()
-  if (assetDialog.mode === 'create') {
+  if (assetDialog.mode === 'create-file') {
     await assets.createTextAssetInFolder(assetDialog.targetPath, value || undefined)
+  } else if (assetDialog.mode === 'create-folder') {
+    await assets.createFolderInFolder(assetDialog.targetPath, value || undefined)
   } else if (assetDialog.mode === 'rename') {
     await assets.renameAsset(assetDialog.targetPath, value)
+  } else if (assetDialog.mode === 'delete') {
+    await assets.deleteAsset(assetDialog.targetPath)
   }
   closeAssetDialog()
 }
@@ -245,7 +279,12 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
       action: () => assets.toggleFolder(node.path)
     })
     items.push({ label: '新建文件', action: () => openCreateFileDialog(node.path) })
+    items.push({ label: '新建文件夹', action: () => openCreateFolderDialog(node.path) })
+    items.push({ label: '复制文件夹', action: () => assets.copyAsset(node.path) })
     items.push({ label: '重命名文件夹', action: () => openRenameDialog(node) })
+    if (!['assets', 'scenes', 'prefabs'].includes(node.path)) {
+      items.push({ label: '删除文件夹', action: () => openDeleteDialog(node) })
+    }
     items.push({ label: '导入图片到工程', action: () => assets.importImages() })
     items.push({ label: '导入音频到工程', action: () => assets.importAudios() })
     items.push({ label: '刷新资源', action: () => assets.refreshProject() })
@@ -311,10 +350,33 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
   }
 
   if (node.type !== 'folder') {
+    items.push({ label: '复制文件', action: () => assets.copyAsset(node.path) })
     items.push({ label: '重命名文件', action: () => openRenameDialog(node) })
+    items.push({ label: '删除文件', action: () => openDeleteDialog(node) })
   }
 
   showMenu(event, items)
+}
+
+async function handleAssetDrop(payload: { sourcePath: string; targetNode: AssetNode }) {
+  const source = assets.flat.find((node) => node.path === payload.sourcePath)
+  if (!source) {
+    project.setStatus(`移动资源失败：未找到源资源 ${payload.sourcePath}`)
+    return
+  }
+  if (['assets', 'scenes', 'prefabs'].includes(source.path)) {
+    project.setStatus('顶层项目目录不能被拖拽移动。')
+    return
+  }
+  const targetFolder = payload.targetNode.type === 'folder'
+    ? payload.targetNode.path
+    : payload.targetNode.path.split('/').slice(0, -1).join('/')
+  if (!targetFolder || targetFolder === source.path) return
+  if (source.type === 'folder' && targetFolder.startsWith(`${source.path}/`)) {
+    project.setStatus('不能把文件夹移动到它自己的子目录中。')
+    return
+  }
+  await assets.moveAsset(source.path, targetFolder)
 }
 
 function closeImagePreview() {

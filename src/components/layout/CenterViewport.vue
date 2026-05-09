@@ -31,7 +31,15 @@
       @dragenter.prevent="isDragOver = true"
       @dragleave.prevent="isDragOver = false"
       @drop.prevent="handleDrop"
-    ></div>
+    >
+      <div v-if="runtime.isLoading" class="loading-layer">
+        <div class="loading-card">
+          <div class="loading-spinner"></div>
+          <div class="loading-title">{{ runtime.loadingMessage || 'Loading...' }}</div>
+          <div class="loading-subtitle">正在准备场景状态与出生点</div>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -383,6 +391,57 @@ onBeforeUnmount(() => {
   display: block;
   width: 100% !important;
   height: 100% !important;
+}
+
+.loading-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(86, 182, 194, 0.18), transparent 34%),
+    rgba(8, 12, 18, 0.72);
+  backdrop-filter: blur(2px);
+  pointer-events: all;
+}
+
+.loading-card {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-width: 220px;
+  padding: 22px 28px;
+  border: 1px solid rgba(137, 176, 205, 0.35);
+  border-radius: 18px;
+  background: rgba(18, 24, 36, 0.92);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(154, 185, 216, 0.24);
+  border-top-color: #66d9ef;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+.loading-title {
+  color: #f3f8ff;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.loading-subtitle {
+  color: #9fb0c7;
+  font-size: 12px;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .viewport-canvas.panning {
   cursor: grab;

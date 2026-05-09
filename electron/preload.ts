@@ -31,8 +31,18 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.invoke('unu:read-text-asset', payload),
   createTextAssetInFolder: (payload: { projectRoot: string; folderPath: string; fileName?: string; content?: string }) =>
     ipcRenderer.invoke('unu:create-text-asset-in-folder', payload),
+  createAssetFolder: (payload: { projectRoot: string; folderPath: string; folderName?: string }) =>
+    ipcRenderer.invoke('unu:create-asset-folder', payload),
   renameAsset: (payload: { projectRoot: string; relativePath: string; nextName: string }) =>
     ipcRenderer.invoke('unu:rename-asset', payload),
+  copyAsset: (payload: { projectRoot: string; relativePath: string }) =>
+    ipcRenderer.invoke('unu:copy-asset', payload),
+  deleteAsset: (payload: { projectRoot: string; relativePath: string }) =>
+    ipcRenderer.invoke('unu:delete-asset', payload),
+  restoreDeletedAsset: (payload: { projectRoot: string; trashRelativePath: string; restoreRelativePath: string }) =>
+    ipcRenderer.invoke('unu:restore-deleted-asset', payload),
+  moveAsset: (payload: { projectRoot: string; relativePath: string; targetFolderPath: string }) =>
+    ipcRenderer.invoke('unu:move-asset', payload),
   renameProject: (payload: { projectRoot: string; nextName: string }) =>
     ipcRenderer.invoke('unu:rename-project', payload),
   deleteProject: (payload: { projectRoot: string }) =>

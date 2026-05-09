@@ -2,7 +2,7 @@ import { AnimationComponent } from '../components/AnimationComponent'
 import { AudioComponent } from '../components/AudioComponent'
 import { BackgroundComponent } from '../components/BackgroundComponent'
 import { CameraComponent } from '../components/CameraComponent'
-import { ColliderComponent } from '../components/ColliderComponent'
+import { COLLISION_LAYERS, ColliderComponent, DEFAULT_COLLISION_MASKS, type CollisionLayer } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
 import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
@@ -106,7 +106,9 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.height ?? 80),
             Number(data.offsetX ?? 0),
             Number(data.offsetY ?? 0),
-            Boolean(data.isTrigger ?? false)
+            Boolean(data.isTrigger ?? false),
+            normalizeCollisionLayer(data.layer),
+            normalizeCollisionMask(data.collidesWith, normalizeCollisionLayer(data.layer))
           )
         )
         break
@@ -298,7 +300,9 @@ export function deserializeEntity(entityData: SerializedEntity) {
               : 'none',
             String(data.targetScene ?? ''),
             Array.isArray(data.textureCycle) ? data.textureCycle.map((item) => String(item || '').trim()).filter(Boolean) : [],
-            Array.isArray(data.tintCycle) ? data.tintCycle.map((item) => Number(item)).filter((value) => Number.isFinite(value)).map((value) => Math.round(value)) : []
+            Array.isArray(data.tintCycle) ? data.tintCycle.map((item) => Number(item)).filter((value) => Number.isFinite(value)).map((value) => Math.round(value)) : [],
+            String(data.targetSpawnId ?? ''),
+            data.sceneStateMode === 'reset' ? 'reset' : 'preserve'
           )
         )
         break
@@ -337,4 +341,18 @@ export function deserializeScene(raw: string) {
   }
 
   return scene
+}
+
+function normalizeCollisionLayer(value: unknown): CollisionLayer {
+  const text = String(value || 'Default').trim()
+  return (COLLISION_LAYERS as string[]).includes(text) ? (text as CollisionLayer) : 'Default'
+}
+
+function normalizeCollisionMask(value: unknown, layer: CollisionLayer): CollisionLayer[] {
+  const fallback = DEFAULT_COLLISION_MASKS[layer] || DEFAULT_COLLISION_MASKS.Default
+  if (!Array.isArray(value)) return [...fallback]
+  const normalized = value
+    .map((item) => normalizeCollisionLayer(item))
+    .filter((item, index, list) => list.indexOf(item) === index)
+  return normalized
 }

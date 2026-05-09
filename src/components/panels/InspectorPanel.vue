@@ -243,6 +243,23 @@
         <label>Height <input type="number" :value="collider.height" @input="setNumber('collider', 'height', $event)" /></label>
         <label>Offset X <input type="number" :value="collider.offsetX" @input="setNumber('collider', 'offsetX', $event)" /></label>
         <label>Offset Y <input type="number" :value="collider.offsetY" @input="setNumber('collider', 'offsetY', $event)" /></label>
+        <label>
+          Collision Layer
+          <select :value="collider.layer || 'Default'" @change="setColliderLayer">
+            <option v-for="layer in collisionLayers" :key="layer" :value="layer">{{ layer }}</option>
+          </select>
+        </label>
+        <div class="collision-mask">
+          <div class="mini-title">Collides With</div>
+          <label v-for="layer in collisionLayers" :key="`mask_${layer}`" class="checkbox-row">
+            <input
+              type="checkbox"
+              :checked="collider.collidesWith?.includes(layer) ?? true"
+              @change="setColliderMaskLayer(layer, $event)"
+            />
+            {{ layer }}
+          </label>
+        </div>
         <label class="checkbox-row">
           <input type="checkbox" :checked="collider.isTrigger" @change="setChecked('collider', 'isTrigger', $event)" />
           Trigger
@@ -271,6 +288,19 @@
             Target Scene
             <input :value="interactable.targetScene" @input="setText('interactable', 'targetScene', $event)" />
           </label>
+          <template v-if="interactable.actionType === 'switchScene'">
+            <label>
+              Target Spawn ID / Name
+              <input :value="interactable.targetSpawnId || ''" placeholder="例如 Spawn_From_Main" @input="setText('interactable', 'targetSpawnId', $event)" />
+            </label>
+            <label>
+              Target Scene State
+              <select :value="interactable.sceneStateMode || 'preserve'" @change="setInteractableSceneStateMode">
+                <option value="preserve">Preserve runtime state</option>
+                <option value="reset">Reset scene state</option>
+              </select>
+            </label>
+          </template>
           <label v-if="interactable.actionType === 'cycleTexture'">
             Texture Cycle Paths (one per line)
             <textarea :value="interactableTextureCycleBuffer" @input="setInteractableTextureCycle($event)"></textarea>
@@ -454,7 +484,7 @@ import { AnimationComponent } from '../../engine/components/AnimationComponent'
 import { AudioComponent } from '../../engine/components/AudioComponent'
 import { BackgroundComponent } from '../../engine/components/BackgroundComponent'
 import { CameraComponent } from '../../engine/components/CameraComponent'
-import type { ColliderComponent } from '../../engine/components/ColliderComponent'
+import { COLLISION_LAYERS, DEFAULT_COLLISION_MASKS, type ColliderComponent, type CollisionLayer } from '../../engine/components/ColliderComponent'
 import { InteractableComponent } from '../../engine/components/InteractableComponent'
 import { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { SpriteComponent } from '../../engine/components/SpriteComponent'
@@ -503,6 +533,7 @@ const tileTextureMapBuffer = ref('')
 const tileTextureBindValueInput = ref('1')
 const interactableTextureCycleBuffer = ref('')
 const interactableTintCycleBuffer = ref('')
+const collisionLayers = COLLISION_LAYERS
 
 interface TilemapEditorApplyPayload {
   entityId: string
@@ -676,6 +707,34 @@ function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 
   if (group === 'ui' && ui.value) (ui.value as Record<string, boolean>)[key] = value
   if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, boolean>)[key] = value
   if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, boolean>)[key] = value
+  sceneStore.markDirty()
+}
+
+function setInteractableSceneStateMode(event: Event) {
+  if (runtime.isPlaying) return
+  if (!interactable.value) return
+  interactable.value.sceneStateMode = (event.target as HTMLSelectElement).value === 'reset' ? 'reset' : 'preserve'
+  sceneStore.markDirty()
+}
+
+function setColliderLayer(event: Event) {
+  if (runtime.isPlaying) return
+  if (!collider.value) return
+  const value = (event.target as HTMLSelectElement).value as CollisionLayer
+  if (!COLLISION_LAYERS.includes(value)) return
+  collider.value.layer = value
+  collider.value.collidesWith = [...(DEFAULT_COLLISION_MASKS[value] || DEFAULT_COLLISION_MASKS.Default)]
+  sceneStore.markDirty()
+}
+
+function setColliderMaskLayer(layer: CollisionLayer, event: Event) {
+  if (runtime.isPlaying) return
+  if (!collider.value) return
+  const enabled = (event.target as HTMLInputElement).checked
+  const current = new Set(collider.value.collidesWith || [])
+  if (enabled) current.add(layer)
+  else current.delete(layer)
+  collider.value.collidesWith = Array.from(current).filter((item): item is CollisionLayer => COLLISION_LAYERS.includes(item as CollisionLayer))
   sceneStore.markDirty()
 }
 
@@ -1333,6 +1392,23 @@ input:not([type='checkbox']), textarea, select {
 }
 textarea { min-height: 96px; resize: vertical; }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
+.collision-mask {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  padding: 8px;
+  border: 1px solid #2a3446;
+  border-radius: 8px;
+  background: #131b28;
+}
+.collision-mask .mini-title {
+  grid-column: 1 / -1;
+  color: #8fa3bf;
+  font-size: 12px;
+}
+.collision-mask .checkbox-row {
+  font-size: 12px;
+}
 .readonly, .empty, .tips { color: #a8b5c7; }
 .asset-picker {
   display: flex;

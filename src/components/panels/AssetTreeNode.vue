@@ -1,6 +1,16 @@
 <template>
   <li>
-    <div class="row" :class="{ active: isActive }" @contextmenu.stop.prevent="emitContextMenu">
+    <div
+      class="row"
+      :class="{ active: isActive, 'drag-over': dragOver }"
+      draggable="true"
+      @contextmenu.stop.prevent="emitContextMenu"
+      @dragstart.stop="handleDragStart"
+      @dragend="dragOver = false"
+      @dragover.prevent.stop="handleDragOver"
+      @dragleave.stop="dragOver = false"
+      @drop.prevent.stop="handleDrop"
+    >
       <button
         v-if="hasChildren"
         class="toggle"
@@ -24,13 +34,14 @@
         :node="child"
         @open-context="$emit('open-context', $event)"
         @preview-image="$emit('preview-image', $event)"
+        @asset-drop="$emit('asset-drop', $event)"
       />
     </ul>
   </li>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { AssetNode } from '../../engine/assets/types'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
@@ -39,10 +50,12 @@ const props = withDefaults(defineProps<{ node: AssetNode }>(), {})
 const emit = defineEmits<{
   (e: 'open-context', payload: { event: MouseEvent; node: AssetNode }): void
   (e: 'preview-image', node: AssetNode): void
+  (e: 'asset-drop', payload: { sourcePath: string; targetNode: AssetNode }): void
 }>()
 
 const assets = useAssetStore()
 const editor = useEditorStore()
+const dragOver = ref(false)
 
 const isActive = computed(() => assets.selectedPath === props.node.path || assets.selectedAssetPath === props.node.path)
 const hasChildren = computed(() => !!props.node.children?.length)
@@ -83,6 +96,27 @@ async function handleDoubleClick() {
 function emitContextMenu(event: MouseEvent) {
   emit('open-context', { event, node: props.node })
 }
+
+function handleDragStart(event: DragEvent) {
+  if (!event.dataTransfer) return
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('application/x-unu-asset-path', props.node.path)
+  event.dataTransfer.setData('text/plain', props.node.path)
+}
+
+function handleDragOver(event: DragEvent) {
+  const sourcePath = event.dataTransfer?.getData('application/x-unu-asset-path') || event.dataTransfer?.getData('text/plain') || ''
+  if (sourcePath && sourcePath === props.node.path) return
+  dragOver.value = true
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+}
+
+function handleDrop(event: DragEvent) {
+  dragOver.value = false
+  const sourcePath = event.dataTransfer?.getData('application/x-unu-asset-path') || event.dataTransfer?.getData('text/plain') || ''
+  if (!sourcePath || sourcePath === props.node.path) return
+  emit('asset-drop', { sourcePath, targetNode: props.node })
+}
 </script>
 
 <style scoped>
@@ -95,6 +129,10 @@ li { list-style: none; }
   border-radius: 0px;
 }
 .row.active { background: rgba(86, 182, 194, 0.12); }
+.row.drag-over {
+  background: rgba(242, 201, 76, 0.16);
+  outline: 1px dashed rgba(242, 201, 76, 0.75);
+}
 .toggle {
   width: 22px;
   height: 22px;

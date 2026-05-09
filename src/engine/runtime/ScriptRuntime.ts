@@ -33,6 +33,12 @@ interface RuntimeAudio {
   getGroupVolume: (group: AudioGroup) => number
 }
 
+export interface SceneSwitchRequest {
+  sceneName: string
+  targetSpawnId?: string
+  sceneStateMode?: 'preserve' | 'reset'
+}
+
 interface EntityMatchQuery {
   id?: string
   ids?: string[]
@@ -62,7 +68,7 @@ export interface ScriptContext {
     findEntityByName: (name: string) => Entity | null
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
-    switchScene: (sceneName: string) => void
+    switchScene: (sceneName: string, options?: { targetSpawnId?: string; sceneStateMode?: 'preserve' | 'reset' }) => void
     setBackgroundTexture: (texturePath: string) => void
     cycleBackgroundTexture: (texturePaths: string[]) => void
     isBlockedAt: (x: number, y: number) => boolean
@@ -140,6 +146,8 @@ interface InteractionScriptAction {
   type?: string
   target?: 'self' | string
   scene?: string
+  targetSpawnId?: string
+  sceneStateMode?: 'preserve' | 'reset'
   path?: string
   value?: number | string
   values?: Array<number | string>
@@ -479,7 +487,7 @@ export class ScriptRuntime {
   private readonly pendingRemovals = new Set<string>()
   private readonly pendingSpawns: Entity[] = []
   private activeScene: Scene | null = null
-  private pendingSceneSwitch: string | null = null
+  private pendingSceneSwitch: SceneSwitchRequest | null = null
   private selectedEntityId = ''
   private input: RuntimeInput = {
     isKeyDown: () => false,
@@ -609,7 +617,8 @@ export class ScriptRuntime {
     }
   }
 
-  updateScene(scene: Scene, delta: number, input?: RuntimeInput) {
+  updateScene(scene: Scene, delta: number, input?: RuntimeInput, collectPerformance = false) {
+    const updateStart = collectPerformance ? performance.now() : 0
     this.activeScene = scene
     this.sceneElapsed.set(scene.id, this.getSceneElapsed(scene) + delta)
     if (input) this.input = input
@@ -622,7 +631,14 @@ export class ScriptRuntime {
       this.invokeHook(hooks, 'onUpdate', entity, delta)
     }
     this.flushPendingMutations(scene)
+    const collisionStart = collectPerformance ? performance.now() : 0
     this.processCollisionEvents(scene, delta)
+    if (!collectPerformance) return { scriptTimeMs: 0, collisionTimeMs: 0 }
+    const end = performance.now()
+    return {
+      scriptTimeMs: collisionStart - updateStart,
+      collisionTimeMs: end - collisionStart
+    }
   }
 
   consumeSceneSwitchRequest() {
@@ -692,10 +708,14 @@ export class ScriptRuntime {
         spawnEntity: (newEntity: Entity) => {
           this.pendingSpawns.push(newEntity)
         },
-        switchScene: (sceneName: string) => {
+        switchScene: (sceneName: string, options?: { targetSpawnId?: string; sceneStateMode?: 'preserve' | 'reset' }) => {
           const name = String(sceneName || '').trim()
           if (!name) return
-          this.pendingSceneSwitch = name
+          this.pendingSceneSwitch = {
+            sceneName: name,
+            targetSpawnId: String(options?.targetSpawnId || '').trim(),
+            sceneStateMode: options?.sceneStateMode === 'reset' ? 'reset' : 'preserve'
+          }
         },
         setBackgroundTexture: (texturePath: string) => {
           this.setSceneBackgroundTexture(this.activeScene, texturePath)
@@ -930,6 +950,7 @@ export class ScriptRuntime {
         const left = collidable[i]
         const right = collidable[j]
         if (!left || !right) continue
+        if (!canCollidersInteract(left.collider, right.collider)) continue
         if (!isRectColliderOverlap(left.transform, left.collider, right.transform, right.collider)) continue
         const key = this.getCollisionPairKey(left.entity.id, right.entity.id)
         const kind = this.getCollisionPairKind(left.collider, right.collider)
@@ -1105,7 +1126,13 @@ export class ScriptRuntime {
 
     if (interactable.actionType === 'switchScene') {
       const target = String(interactable.targetScene || '').trim()
-      if (target) this.pendingSceneSwitch = target
+      if (target) {
+        this.pendingSceneSwitch = {
+          sceneName: target,
+          targetSpawnId: String(interactable.targetSpawnId || '').trim(),
+          sceneStateMode: interactable.sceneStateMode === 'reset' ? 'reset' : 'preserve'
+        }
+      }
       return
     }
 
@@ -1214,7 +1241,13 @@ export class ScriptRuntime {
 
     if (type === 'switchScene') {
       const targetScene = String(action.scene || '').trim()
-      if (targetScene) this.pendingSceneSwitch = targetScene
+      if (targetScene) {
+        this.pendingSceneSwitch = {
+          sceneName: targetScene,
+          targetSpawnId: String((action as Record<string, unknown>).targetSpawnId || '').trim(),
+          sceneStateMode: (action as Record<string, unknown>).sceneStateMode === 'reset' ? 'reset' : 'preserve'
+        }
+      }
       return
     }
 
@@ -1694,6 +1727,36 @@ function isRectColliderOverlap(
   )
 }
 
+function canCollidersInteract(left: ColliderComponent, right: ColliderComponent) {
+  const leftLayer = normalizeRuntimeCollisionLayer(left.layer)
+  const rightLayer = normalizeRuntimeCollisionLayer(right.layer)
+  return normalizeRuntimeCollisionMask(left, leftLayer).includes(rightLayer) &&
+    normalizeRuntimeCollisionMask(right, rightLayer).includes(leftLayer)
+}
+
+function normalizeRuntimeCollisionLayer(layer: unknown) {
+  const text = String(layer || 'Default').trim()
+  const known = ['Default', 'Player', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Attack', 'Sensor', 'UI']
+  return known.includes(text) ? text : 'Default'
+}
+
+function normalizeRuntimeCollisionMask(collider: ColliderComponent, layer: string) {
+  const defaults: Record<string, string[]> = {
+    Default: ['Default', 'Player', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Attack', 'Sensor'],
+    Player: ['Default', 'Enemy', 'World', 'Door', 'Pickup', 'Trap', 'Sensor'],
+    Enemy: ['Default', 'Player', 'World', 'Attack', 'Trap', 'Sensor'],
+    World: ['Default', 'Player', 'Enemy'],
+    Door: ['Player'],
+    Pickup: ['Player'],
+    Trap: ['Player', 'Enemy'],
+    Attack: ['Enemy', 'Default'],
+    Sensor: ['Player', 'Enemy', 'Default'],
+    UI: []
+  }
+  const raw = Array.isArray(collider.collidesWith) ? collider.collidesWith : defaults[layer] || defaults.Default
+  return raw.map(normalizeRuntimeCollisionLayer)
+}
+
 function findFirstEntityOverlap(
   scene: Scene,
   selfId: string,
@@ -1707,6 +1770,7 @@ function findFirstEntityOverlap(
     const candidateTransform = candidate.getComponent<TransformComponent>('Transform')
     const candidateCollider = candidate.getComponent<ColliderComponent>('Collider')
     if (!candidateTransform || !candidateCollider) continue
+    if (!canCollidersInteract(collider, candidateCollider)) continue
     if (!isRectColliderOverlap(transform, collider, candidateTransform, candidateCollider)) continue
     return candidate
   }
@@ -1830,7 +1894,7 @@ function createBulletEntity(
   const bullet = new Entity(`bullet_${Math.random().toString(36).slice(2, 8)}`, 'Bullet')
   bullet.addComponent(new TransformComponent(x, y, 1, 1, angle, 0.5, 0.5))
   bullet.addComponent(new SpriteComponent('', width, height, true, 1, tint))
-  bullet.addComponent(new ColliderComponent('rect', width, height))
+  bullet.addComponent(new ColliderComponent('rect', width, height, 0, 0, true, 'Attack', ['Enemy', 'Default']))
   bullet.addComponent(
     new ScriptComponent(
       'assets/scripts/bullet-projectile.js',
@@ -1868,7 +1932,9 @@ function createEnemyEntityAt(
       colliderTemplate.height,
       colliderTemplate.offsetX,
       colliderTemplate.offsetY,
-      colliderTemplate.isTrigger
+      colliderTemplate.isTrigger,
+      colliderTemplate.layer,
+      [...(colliderTemplate.collidesWith || [])]
     )
   )
   if (animationTemplate) {
