@@ -16,8 +16,14 @@ function buildProjectHealthMessage(
     sceneCreatedByReference?: number
     assetIntegrityRepaired?: boolean
     normalizedSceneFiles?: number
+    normalizedFiles?: number
     copiedAssets?: number
+    relinkedAssets?: number
+    relinkedFiles?: number
+    checkedAssetRefs?: number
+    resolvedAssets?: number
     unresolvedAssets?: number
+    unresolvedRefs?: Array<{ sourceFile: string; keyPath: string; ref: string }>
   },
   base: string
 ) {
@@ -28,12 +34,20 @@ function buildProjectHealthMessage(
     suffixes.push(created > 0 ? `${sceneBase}，补全场景 ${created} 个` : sceneBase)
   }
   if (result.assetIntegrityRepaired) {
-    const normalized = Number(result.normalizedSceneFiles || 0)
+    const normalized = Number(result.normalizedFiles ?? result.normalizedSceneFiles ?? 0)
     const copied = Number(result.copiedAssets || 0)
-    suffixes.push(`资源引用已修复（路径规范 ${normalized}，补齐素材 ${copied}）`)
+    const relinked = Number(result.relinkedAssets || 0)
+    suffixes.push(`资源引用已修复（路径规范 ${normalized}，补齐素材 ${copied}，重定向 ${relinked}）`)
   }
+  const checked = Number(result.checkedAssetRefs || 0)
+  const resolved = Number(result.resolvedAssets || 0)
+  if (checked > 0 && !result.assetIntegrityRepaired) suffixes.push(`资源依赖检查 ${resolved}/${checked}`)
   const unresolved = Number(result.unresolvedAssets || 0)
-  if (unresolved > 0) suffixes.push(`仍有 ${unresolved} 个资源引用未解析`)
+  if (unresolved > 0) {
+    const first = result.unresolvedRefs?.[0]
+    const hint = first ? `，例如 ${first.ref}` : ''
+    suffixes.push(`仍有 ${unresolved} 个资源引用未解析${hint}`)
+  }
   return suffixes.length ? `${base}（${suffixes.join('；')}）` : base
 }
 
@@ -226,6 +240,21 @@ export const useAssetStore = defineStore('assets', {
       const result = await window.unu.scanProject(project.rootPath)
       this.hydrateTree(result.tree)
       project.setStatus(buildProjectHealthMessage(result, `工程已刷新：${result.name}`))
+    },
+    async checkAssetIntegrity() {
+      const project = useProjectStore()
+      if (!window.unu?.checkAssetIntegrity) {
+        project.setStatus('当前环境未接入资源依赖检查接口，请使用桌面版运行。')
+        return
+      }
+      if (!project.rootPath || project.rootPath === 'sample-project') {
+        project.setStatus('请先打开或另存为本地项目，再检查资源依赖。')
+        return
+      }
+      project.setStatus('正在检查并修复资源依赖...')
+      const result = await window.unu.checkAssetIntegrity({ projectRoot: project.rootPath })
+      this.hydrateTree(result.tree)
+      project.setStatus(buildProjectHealthMessage(result, `资源依赖检查完成：${result.name}`))
     },
     async exportGame() {
       const project = useProjectStore()

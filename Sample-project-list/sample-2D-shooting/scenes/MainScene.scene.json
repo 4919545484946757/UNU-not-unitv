@@ -14,13 +14,16 @@
             "data": {
               "type": "Transform",
               "x": 411,
-              "y": 19.000030517578125,
+              "y": 19,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 0
+              "zIndex": 0,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -79,7 +82,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 1
+              "zIndex": 1,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -312,7 +318,10 @@
               "rotation": 0,
               "anchorX": 0,
               "anchorY": 0,
-              "zIndex": 2
+              "zIndex": 2,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -738,7 +747,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 3
+              "zIndex": 3,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -971,7 +983,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 4
+              "zIndex": 4,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1040,7 +1055,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 5
+              "zIndex": 5,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1254,7 +1272,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 6
+              "zIndex": 6,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1351,7 +1372,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 7
+              "zIndex": 7,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1448,7 +1472,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 8
+              "zIndex": 8,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1545,7 +1572,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 9
+              "zIndex": 9,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1614,7 +1644,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 10
+              "zIndex": 10,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1697,7 +1730,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 11
+              "zIndex": 11,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1734,7 +1770,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 12
+              "zIndex": 12,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1773,7 +1812,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 13
+              "zIndex": 13,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1812,7 +1854,10 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 14
+              "zIndex": 14,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
             }
           },
           {
@@ -1862,14 +1907,17 @@
             "type": "Transform",
             "data": {
               "type": "Transform",
-              "x": -400,
-              "y": 300,
+              "x": 0.008646060632571562,
+              "y": 17.600006103515625,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 15
+              "zIndex": 15,
+              "positionMode": "viewport",
+              "viewportHorizontal": "left",
+              "viewportVertical": "bottom"
             }
           },
           {
@@ -1878,16 +1926,16 @@
               "type": "UI",
               "enabled": true,
               "mode": "text",
-              "text": "左键：射击\n右键：交互\nWASD：移动\nshift：疾跑",
+              "text": "左键：射击\n右键：交互\nWASD：移动\nShift：疾跑",
               "fontSize": 20,
               "textColor": 16777215,
-              "width": 180,
-              "height": 48,
+              "width": 220,
+              "height": 112,
               "backgroundColor": 2830914,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
+              "anchorX": 0,
+              "anchorY": 0,
               "interactable": false,
-              "markdownEnabled": true,
+              "markdownEnabled": false,
               "renderMode": "pixi"
             }
           }

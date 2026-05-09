@@ -52,6 +52,7 @@ const scriptConfigCache = new WeakMap<ScriptComponent, { raw: string; parsed: Re
 export interface ScriptContext {
   entity: Entity
   scene: Scene
+  event?: ScriptEvent
   api: {
     delta: number
     time: number
@@ -77,16 +78,62 @@ export interface ScriptContext {
       source?: Entity,
       options?: { angle?: number; targetX?: number; targetY?: number; speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number }
     ) => Entity | null
+    log: (...values: unknown[]) => void
+    warn: (...values: unknown[]) => void
+    error: (...values: unknown[]) => void
     audio: RuntimeAudio
   }
 }
 
+export interface ScriptColliderEvent {
+  type: 'collisionEnter' | 'collisionStay' | 'collisionExit' | 'triggerEnter' | 'triggerStay' | 'triggerExit'
+  other: Entity
+  selfCollider: ColliderComponent
+  otherCollider: ColliderComponent
+}
+
+export interface ScriptSceneEvent {
+  type: 'enterScene' | 'exitScene'
+  scene: Scene
+}
+
+export type ScriptEvent = ScriptColliderEvent | ScriptSceneEvent
+
 export interface ScriptHooks {
   onInit?: (ctx: ScriptContext) => void
   onStart?: (ctx: ScriptContext) => void
+  onEnterScene?: (ctx: ScriptContext) => void
+  onExitScene?: (ctx: ScriptContext) => void
   onUpdate?: (ctx: ScriptContext) => void
   onInteract?: (ctx: ScriptContext) => void
+  onCollisionEnter?: (ctx: ScriptContext) => void
+  onCollisionStay?: (ctx: ScriptContext) => void
+  onCollisionExit?: (ctx: ScriptContext) => void
+  onTriggerEnter?: (ctx: ScriptContext) => void
+  onTriggerStay?: (ctx: ScriptContext) => void
+  onTriggerExit?: (ctx: ScriptContext) => void
   onDestroy?: (ctx: ScriptContext) => void
+}
+
+export interface ScriptRuntimeError {
+  message: string
+  scriptPath: string
+  line: number
+  column?: number
+  phase: string
+  entityId?: string
+  entityName?: string
+  stack?: string
+}
+
+export interface ScriptConsoleMessage {
+  level: 'log' | 'warn' | 'error'
+  message: string
+  scriptPath?: string
+  line?: number
+  column?: number
+  entityId?: string
+  entityName?: string
 }
 
 interface InteractionScriptAction {
@@ -108,6 +155,15 @@ interface ProjectRuntimeModule {
   scripts?: Record<string, ScriptHooks>
   [key: string]: unknown
 }
+
+type CollisionPairKind = 'collision' | 'trigger'
+type CollisionHookName =
+  | 'onCollisionEnter'
+  | 'onCollisionStay'
+  | 'onCollisionExit'
+  | 'onTriggerEnter'
+  | 'onTriggerStay'
+  | 'onTriggerExit'
 
 const scriptRegistry: Record<string, ScriptHooks> = {
   'builtin://patrol': {
@@ -447,10 +503,23 @@ export class ScriptRuntime {
   }
   private projectRuntimePath = ''
   private projectScriptRegistry: Record<string, ScriptHooks> = {}
+  private errorReporter: ((error: ScriptRuntimeError) => void) | null = null
+  private consoleReporter: ((message: ScriptConsoleMessage) => void) | null = null
+  private collisionPairsByScene = new Map<string, Set<string>>()
+  private collisionPairKindsByScene = new Map<string, Map<string, CollisionPairKind>>()
+  private enteredSceneIds = new Set<string>()
 
   setProjectRuntimeSource(sourceCode: string | null, scriptPath = 'assets/scripts/ScriptRuntime.ts') {
     this.projectRuntimePath = normalizeScriptPath(scriptPath)
-    this.projectScriptRegistry = parseProjectRuntimeRegistry(sourceCode, this.projectRuntimePath)
+    this.projectScriptRegistry = parseProjectRuntimeRegistry(sourceCode, this.projectRuntimePath, (error) => this.reportScriptError(error))
+  }
+
+  setErrorReporter(reporter: ((error: ScriptRuntimeError) => void) | null) {
+    this.errorReporter = reporter
+  }
+
+  setConsoleReporter(reporter: ((message: ScriptConsoleMessage) => void) | null) {
+    this.consoleReporter = reporter
   }
 
   setAudioAdapter(adapter: {
@@ -477,7 +546,7 @@ export class ScriptRuntime {
       const hooks = this.resolveScriptHooks(script)
       script.instance = hooks ?? null
       if (!hooks || script.initialized) continue
-      hooks.onInit?.(this.createContext(entity, 0))
+      this.invokeHook(hooks, 'onInit', entity, 0)
       script.initialized = true
     }
   }
@@ -488,8 +557,55 @@ export class ScriptRuntime {
       const script = entity.getComponent<ScriptComponent>('Script')
       const hooks = script?.instance as ScriptHooks | null
       if (!script || !hooks || !script.enabled || script.started) continue
-      hooks.onStart?.(this.createContext(entity, 0))
+      this.invokeHook(hooks, 'onStart', entity, 0)
       script.started = true
+    }
+  }
+
+  enterScene(scene: Scene) {
+    this.activeScene = scene
+    this.enteredSceneIds.add(scene.id)
+    for (const entity of scene.entities) {
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const hooks = script?.instance as ScriptHooks | null
+      if (!script || !hooks || !script.enabled) continue
+      this.invokeHook(hooks, 'onEnterScene', entity, 0, { type: 'enterScene', scene })
+    }
+  }
+
+  exitScene(scene: Scene) {
+    this.activeScene = scene
+    if (!this.enteredSceneIds.has(scene.id)) {
+      this.processCollisionExitsForScene(scene)
+      return
+    }
+    this.enteredSceneIds.delete(scene.id)
+    this.processCollisionExitsForScene(scene)
+    for (const entity of scene.entities) {
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const hooks = script?.instance as ScriptHooks | null
+      if (!script || !hooks || !script.enabled) continue
+      this.invokeHook(hooks, 'onExitScene', entity, 0, { type: 'exitScene', scene })
+    }
+  }
+
+  reloadSceneScripts(scene: Scene) {
+    this.activeScene = scene
+    for (const entity of scene.entities) {
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const oldHooks = script?.instance as ScriptHooks | null
+      if (!script || !script.enabled) continue
+      if (oldHooks) this.invokeHook(oldHooks, 'onDestroy', entity, 0)
+      const hooks = this.resolveScriptHooks(script)
+      script.instance = hooks ?? null
+      script.initialized = false
+      script.started = false
+      if (!hooks) continue
+      this.invokeHook(hooks, 'onInit', entity, 0)
+      script.initialized = true
+      this.invokeHook(hooks, 'onStart', entity, 0)
+      script.started = true
+      this.invokeHook(hooks, 'onEnterScene', entity, 0, { type: 'enterScene', scene })
     }
   }
 
@@ -503,9 +619,10 @@ export class ScriptRuntime {
       const script = entity.getComponent<ScriptComponent>('Script')
       const hooks = script?.instance as ScriptHooks | null
       if (!script || !hooks || !script.enabled) continue
-      hooks.onUpdate?.(this.createContext(entity, delta))
+      this.invokeHook(hooks, 'onUpdate', entity, delta)
     }
     this.flushPendingMutations(scene)
+    this.processCollisionEvents(scene, delta)
   }
 
   consumeSceneSwitchRequest() {
@@ -516,11 +633,12 @@ export class ScriptRuntime {
 
   destroyScene(scene: Scene) {
     this.activeScene = scene
+    this.exitScene(scene)
     for (const entity of scene.entities) {
       const script = entity.getComponent<ScriptComponent>('Script')
       const hooks = script?.instance as ScriptHooks | null
       if (!script || !hooks) continue
-      hooks.onDestroy?.(this.createContext(entity, 0))
+      this.invokeHook(hooks, 'onDestroy', entity, 0)
       script.instance = null
       script.initialized = false
       script.started = false
@@ -529,6 +647,9 @@ export class ScriptRuntime {
       if (key.startsWith(`${scene.id}::`)) this.entityState.delete(key)
     }
     this.sceneElapsed.delete(scene.id)
+    this.collisionPairsByScene.delete(scene.id)
+    this.collisionPairKindsByScene.delete(scene.id)
+    this.enteredSceneIds.delete(scene.id)
     this.pendingRemovals.clear()
     this.pendingSpawns.length = 0
     this.activeScene = null
@@ -537,19 +658,23 @@ export class ScriptRuntime {
   resetAll() {
     this.entityState.clear()
     this.sceneElapsed.clear()
+    this.collisionPairsByScene.clear()
+    this.collisionPairKindsByScene.clear()
+    this.enteredSceneIds.clear()
     this.pendingRemovals.clear()
     this.pendingSpawns.length = 0
     this.pendingSceneSwitch = null
     this.activeScene = null
   }
 
-  private createContext(entity: Entity, delta: number): ScriptContext {
+  private createContext(entity: Entity, delta: number, event?: ScriptEvent): ScriptContext {
     if (!this.activeScene) {
       throw new Error('ScriptRuntime context requested without active scene')
     }
     return {
       entity,
       scene: this.activeScene,
+      event,
       api: {
         delta,
         time: this.getSceneElapsed(this.activeScene),
@@ -667,6 +792,9 @@ export class ScriptRuntime {
           this.pendingSpawns.push(spawned)
           return spawned
         },
+        log: (...values: unknown[]) => this.reportConsoleMessage('log', formatConsoleValues(values), entity),
+        warn: (...values: unknown[]) => this.reportConsoleMessage('warn', formatConsoleValues(values), entity),
+        error: (...values: unknown[]) => this.reportConsoleMessage('error', formatConsoleValues(values), entity),
         audio: {
           playOneShot: async (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => {
             await this.audioAdapter.playOneShot(clipPath, options)
@@ -690,12 +818,65 @@ export class ScriptRuntime {
     }
   }
 
+  private invokeHook(hooks: ScriptHooks, hookName: keyof ScriptHooks, entity: Entity, delta: number, event?: ScriptEvent) {
+    const hook = hooks[hookName]
+    if (typeof hook !== 'function') return
+    try {
+      hook(this.createContext(entity, delta, event))
+    } catch (error) {
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const fallbackPath = this.resolveErrorScriptPath(script)
+      this.reportScriptError(normalizeRuntimeError(error, {
+        scriptPath: fallbackPath,
+        phase: String(hookName),
+        entityId: entity.id,
+        entityName: entity.name
+      }))
+    }
+  }
+
+  private resolveErrorScriptPath(script?: ScriptComponent | null) {
+    const normalized = normalizeScriptPath(script?.scriptPath || '')
+    const canonical = resolveCanonicalScriptPath(normalized)
+    if (this.resolveProjectScriptHooks(normalized)) return this.projectRuntimePath || canonical || normalized
+    if (canonical && canonical.startsWith('assets/')) return canonical
+    return this.projectRuntimePath || canonical || normalized || 'assets/scripts/ScriptRuntime.ts'
+  }
+
+  private reportScriptError(error: ScriptRuntimeError) {
+    this.errorReporter?.(error)
+    this.consoleReporter?.({
+      level: 'error',
+      message: error.message,
+      scriptPath: error.scriptPath,
+      line: error.line,
+      column: error.column,
+      entityId: error.entityId,
+      entityName: error.entityName
+    })
+    if (!this.errorReporter) {
+      console.warn(`[UNU][runtime] ${error.scriptPath}:${error.line}:${error.column ?? 1} ${error.message}`, error.stack)
+    }
+  }
+
+  private reportConsoleMessage(level: 'log' | 'warn' | 'error', message: string, entity?: Entity | null) {
+    const script = entity?.getComponent<ScriptComponent>('Script')
+    this.consoleReporter?.({
+      level,
+      message,
+      scriptPath: this.resolveErrorScriptPath(script),
+      entityId: entity?.id,
+      entityName: entity?.name
+    })
+  }
+
   private flushPendingMutations(scene: Scene) {
     const MAX_SPAWNS_PER_FRAME = 48
 
     if (this.pendingRemovals.size > 0) {
       const removals = Array.from(this.pendingRemovals)
       for (const id of removals) {
+        this.processCollisionExitsForEntity(scene, id)
         scene.removeEntityById(id)
         this.entityState.delete(`${scene.id}::${id}`)
       }
@@ -714,16 +895,190 @@ export class ScriptRuntime {
           const hooks = this.resolveScriptHooks(script)
           script.instance = hooks ?? null
           if (hooks && !script.initialized) {
-            hooks.onInit?.(this.createContext(spawned, 0))
+            this.invokeHook(hooks, 'onInit', spawned, 0)
             script.initialized = true
           }
           if (hooks && !script.started) {
-            hooks.onStart?.(this.createContext(spawned, 0))
+            this.invokeHook(hooks, 'onStart', spawned, 0)
             script.started = true
+          }
+          if (hooks && this.enteredSceneIds.has(scene.id)) {
+            this.invokeHook(hooks, 'onEnterScene', spawned, 0, { type: 'enterScene', scene })
           }
         }
       }
     }
+  }
+
+  private processCollisionEvents(scene: Scene, delta: number) {
+    const previousPairs = this.collisionPairsByScene.get(scene.id) ?? new Set<string>()
+    const previousKinds = this.collisionPairKindsByScene.get(scene.id) ?? new Map<string, CollisionPairKind>()
+    const nextPairs = new Set<string>()
+    const nextKinds = new Map<string, CollisionPairKind>()
+    const collidable = scene.entities
+      .map((entity) => ({
+        entity,
+        transform: entity.getComponent<TransformComponent>('Transform'),
+        collider: entity.getComponent<ColliderComponent>('Collider')
+      }))
+      .filter((item): item is { entity: Entity; transform: TransformComponent; collider: ColliderComponent } =>
+        !!item.transform && !!item.collider && item.collider.width > 0 && item.collider.height > 0
+      )
+
+    for (let i = 0; i < collidable.length; i += 1) {
+      for (let j = i + 1; j < collidable.length; j += 1) {
+        const left = collidable[i]
+        const right = collidable[j]
+        if (!left || !right) continue
+        if (!isRectColliderOverlap(left.transform, left.collider, right.transform, right.collider)) continue
+        const key = this.getCollisionPairKey(left.entity.id, right.entity.id)
+        const kind = this.getCollisionPairKind(left.collider, right.collider)
+        nextPairs.add(key)
+        nextKinds.set(key, kind)
+        const entering = !previousPairs.has(key)
+        const previousKind = previousKinds.get(key)
+        if (!entering && previousKind && previousKind !== kind) {
+          this.dispatchColliderPair(scene, left.entity, left.collider, right.entity, right.collider, this.getExitHookName(previousKind), delta)
+          this.dispatchColliderPair(scene, left.entity, left.collider, right.entity, right.collider, this.getEnterHookName(kind), delta)
+          continue
+        }
+        this.dispatchColliderPair(
+          scene,
+          left.entity,
+          left.collider,
+          right.entity,
+          right.collider,
+          entering ? this.getEnterHookName(kind) : this.getStayHookName(kind),
+          delta
+        )
+      }
+    }
+
+    for (const key of previousPairs) {
+      if (nextPairs.has(key)) continue
+      const [leftId, rightId] = this.readCollisionPairKey(key)
+      const left = scene.getEntityById(leftId)
+      const right = scene.getEntityById(rightId)
+      const leftCollider = left?.getComponent<ColliderComponent>('Collider')
+      const rightCollider = right?.getComponent<ColliderComponent>('Collider')
+      if (left && right && leftCollider && rightCollider) {
+        this.dispatchColliderPair(scene, left, leftCollider, right, rightCollider, this.getExitHookName(previousKinds.get(key) ?? 'collision'), delta)
+      }
+    }
+
+    this.collisionPairsByScene.set(scene.id, nextPairs)
+    this.collisionPairKindsByScene.set(scene.id, nextKinds)
+  }
+
+  private processCollisionExitsForScene(scene: Scene) {
+    const previousPairs = this.collisionPairsByScene.get(scene.id)
+    if (!previousPairs?.size) return
+    for (const key of previousPairs) {
+      const [leftId, rightId] = this.readCollisionPairKey(key)
+      const left = scene.getEntityById(leftId)
+      const right = scene.getEntityById(rightId)
+      const leftCollider = left?.getComponent<ColliderComponent>('Collider')
+      const rightCollider = right?.getComponent<ColliderComponent>('Collider')
+      const kind = this.collisionPairKindsByScene.get(scene.id)?.get(key) ?? 'collision'
+      if (left && right && leftCollider && rightCollider) {
+        this.dispatchColliderPair(scene, left, leftCollider, right, rightCollider, this.getExitHookName(kind))
+      }
+    }
+    this.collisionPairsByScene.delete(scene.id)
+    this.collisionPairKindsByScene.delete(scene.id)
+  }
+
+  private processCollisionExitsForEntity(scene: Scene, entityId: string) {
+    const previousPairs = this.collisionPairsByScene.get(scene.id)
+    if (!previousPairs?.size) return
+    const target = scene.getEntityById(entityId)
+    const targetCollider = target?.getComponent<ColliderComponent>('Collider')
+    if (!target) return
+    for (const key of Array.from(previousPairs)) {
+      const [leftId, rightId] = this.readCollisionPairKey(key)
+      if (leftId !== entityId && rightId !== entityId) continue
+      const otherId = leftId === entityId ? rightId : leftId
+      const other = scene.getEntityById(otherId)
+      const otherCollider = other?.getComponent<ColliderComponent>('Collider')
+      const kind = this.collisionPairKindsByScene.get(scene.id)?.get(key) ?? 'collision'
+      if (other && targetCollider && otherCollider) {
+        this.dispatchColliderHook(target, this.getExitHookName(kind), other, targetCollider, otherCollider)
+        this.dispatchColliderHook(other, this.getExitHookName(kind), target, otherCollider, targetCollider)
+      }
+      previousPairs.delete(key)
+      this.collisionPairKindsByScene.get(scene.id)?.delete(key)
+    }
+    if (!previousPairs.size) this.collisionPairsByScene.delete(scene.id)
+    const kinds = this.collisionPairKindsByScene.get(scene.id)
+    if (kinds && !kinds.size) this.collisionPairKindsByScene.delete(scene.id)
+  }
+
+  private dispatchColliderPair(
+    scene: Scene,
+    left: Entity,
+    leftCollider: ColliderComponent,
+    right: Entity,
+    rightCollider: ColliderComponent,
+    hookName: CollisionHookName,
+    delta = 0
+  ) {
+    this.activeScene = scene
+    this.dispatchColliderHook(left, hookName, right, leftCollider, rightCollider, delta)
+    this.dispatchColliderHook(right, hookName, left, rightCollider, leftCollider, delta)
+  }
+
+  private dispatchColliderHook(
+    entity: Entity,
+    hookName: CollisionHookName,
+    other: Entity,
+    selfCollider: ColliderComponent,
+    otherCollider: ColliderComponent,
+    delta = 0
+  ) {
+    const script = entity.getComponent<ScriptComponent>('Script')
+    const hooks = script?.instance as ScriptHooks | null
+    if (!script || !hooks || !script.enabled) return
+    this.invokeHook(hooks, hookName, entity, delta, {
+      type: this.getColliderEventType(hookName),
+      other,
+      selfCollider,
+      otherCollider
+    })
+  }
+
+  private getCollisionPairKind(left: ColliderComponent, right: ColliderComponent): CollisionPairKind {
+    return left.isTrigger || right.isTrigger ? 'trigger' : 'collision'
+  }
+
+  private getEnterHookName(kind: CollisionPairKind): CollisionHookName {
+    return kind === 'trigger' ? 'onTriggerEnter' : 'onCollisionEnter'
+  }
+
+  private getStayHookName(kind: CollisionPairKind): CollisionHookName {
+    return kind === 'trigger' ? 'onTriggerStay' : 'onCollisionStay'
+  }
+
+  private getExitHookName(kind: CollisionPairKind): CollisionHookName {
+    return kind === 'trigger' ? 'onTriggerExit' : 'onCollisionExit'
+  }
+
+  private getColliderEventType(hookName: CollisionHookName): ScriptColliderEvent['type'] {
+    if (hookName === 'onCollisionEnter') return 'collisionEnter'
+    if (hookName === 'onCollisionStay') return 'collisionStay'
+    if (hookName === 'onCollisionExit') return 'collisionExit'
+    if (hookName === 'onTriggerEnter') return 'triggerEnter'
+    if (hookName === 'onTriggerStay') return 'triggerStay'
+    return 'triggerExit'
+  }
+
+  private getCollisionPairKey(leftId: string, rightId: string) {
+    const [left, right] = [String(leftId), String(rightId)].sort()
+    return `${left}\u0000${right}`
+  }
+
+  private readCollisionPairKey(key: string) {
+    const [left = '', right = ''] = key.split('\u0000')
+    return [left, right] as const
   }
 
   private processInteractableSelection(scene: Scene) {
@@ -739,7 +1094,7 @@ export class ScriptRuntime {
     const script = target.entity.getComponent<ScriptComponent>('Script')
     const hooks = script?.instance as ScriptHooks | null
     if (script?.enabled && hooks?.onInteract) {
-      hooks.onInteract(this.createContext(target.entity, 0))
+      this.invokeHook(hooks, 'onInteract', target.entity, 0)
     }
   }
 
@@ -792,8 +1147,16 @@ export class ScriptRuntime {
     return {
       onInit: customHooks.onInit ?? baseHooks.onInit,
       onStart: customHooks.onStart ?? baseHooks.onStart,
+      onEnterScene: customHooks.onEnterScene ?? baseHooks.onEnterScene,
+      onExitScene: customHooks.onExitScene ?? baseHooks.onExitScene,
       onUpdate: customHooks.onUpdate ?? baseHooks.onUpdate,
       onInteract: customHooks.onInteract ?? baseHooks.onInteract,
+      onCollisionEnter: customHooks.onCollisionEnter ?? baseHooks.onCollisionEnter,
+      onCollisionStay: customHooks.onCollisionStay ?? baseHooks.onCollisionStay,
+      onCollisionExit: customHooks.onCollisionExit ?? baseHooks.onCollisionExit,
+      onTriggerEnter: customHooks.onTriggerEnter ?? baseHooks.onTriggerEnter,
+      onTriggerStay: customHooks.onTriggerStay ?? baseHooks.onTriggerStay,
+      onTriggerExit: customHooks.onTriggerExit ?? baseHooks.onTriggerExit,
       onDestroy: customHooks.onDestroy ?? baseHooks.onDestroy
     }
   }
@@ -1212,7 +1575,11 @@ function resolveCanonicalScriptPath(scriptPath: string) {
   return aliases[normalized] || normalized
 }
 
-function parseProjectRuntimeRegistry(sourceCode: string | null, scriptPath: string) {
+function parseProjectRuntimeRegistry(
+  sourceCode: string | null,
+  scriptPath: string,
+  onError?: (error: ScriptRuntimeError) => void
+) {
   const raw = String(sourceCode || '').trim()
   if (!raw) return {}
   try {
@@ -1222,11 +1589,26 @@ function parseProjectRuntimeRegistry(sourceCode: string | null, scriptPath: stri
         target: ts.ScriptTarget.ES2020,
         jsx: ts.JsxEmit.Preserve
       },
-      fileName: scriptPath || 'ScriptRuntime.ts'
+      fileName: scriptPath || 'ScriptRuntime.ts',
+      reportDiagnostics: true
     })
+    const diagnostic = transpiled.diagnostics?.find((item) => item.category === ts.DiagnosticCategory.Error)
+    if (diagnostic) {
+      const position = typeof diagnostic.start === 'number'
+        ? ts.getLineAndCharacterOfPosition(ts.createSourceFile(scriptPath || 'ScriptRuntime.ts', raw, ts.ScriptTarget.ES2020), diagnostic.start)
+        : { line: 0, character: 0 }
+      onError?.({
+        message: ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'),
+        scriptPath,
+        line: position.line + 1,
+        column: position.character + 1,
+        phase: 'compile'
+      })
+      return {}
+    }
     const exportsBag: Record<string, unknown> = {}
     const moduleBag: { exports: Record<string, unknown> } = { exports: exportsBag }
-    const evaluator = new Function('module', 'exports', transpiled.outputText)
+    const evaluator = new Function('module', 'exports', `${transpiled.outputText}\n//# sourceURL=${scriptPath}`)
     evaluator(moduleBag, exportsBag)
     const loaded = ((moduleBag.exports && (moduleBag.exports.default as unknown)) || moduleBag.exports) as ProjectRuntimeModule | null
     const scripts = loaded && typeof loaded === 'object'
@@ -1243,9 +1625,57 @@ function parseProjectRuntimeRegistry(sourceCode: string | null, scriptPath: stri
     }
     return result
   } catch (error) {
-    console.warn('[UNU][runtime] failed to parse project ScriptRuntime.ts:', error)
+    onError?.(normalizeRuntimeError(error, { scriptPath, phase: 'compile' }))
+    if (!onError) console.warn('[UNU][runtime] failed to parse project ScriptRuntime.ts:', error)
     return {}
   }
+}
+
+function normalizeRuntimeError(
+  error: unknown,
+  fallback: { scriptPath: string; phase: string; entityId?: string; entityName?: string }
+): ScriptRuntimeError {
+  const message = error instanceof Error ? error.message : String(error)
+  const stack = error instanceof Error ? error.stack : ''
+  const position = extractErrorPosition(stack, fallback.scriptPath)
+  return {
+    message,
+    scriptPath: fallback.scriptPath,
+    line: position.line,
+    column: position.column,
+    phase: fallback.phase,
+    entityId: fallback.entityId,
+    entityName: fallback.entityName,
+    stack
+  }
+}
+
+function extractErrorPosition(stack: string | undefined, scriptPath: string) {
+  const fallback = { line: 1, column: 1 }
+  if (!stack) return fallback
+  const escaped = scriptPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const direct = new RegExp(`${escaped}:(\\d+):(\\d+)`).exec(stack)
+  if (direct) return { line: Math.max(1, Number(direct[1]) - 2), column: Math.max(1, Number(direct[2])) }
+  const anonymous = /<anonymous>:(\d+):(\d+)/.exec(stack)
+  if (anonymous) return { line: Math.max(1, Number(anonymous[1]) - 2), column: Math.max(1, Number(anonymous[2])) }
+  const any = /:(\d+):(\d+)\)?(?:\n|$)/.exec(stack)
+  if (any) return { line: Math.max(1, Number(any[1]) - 2), column: Math.max(1, Number(any[2])) }
+  return fallback
+}
+
+function formatConsoleValues(values: unknown[]) {
+  return values.map((value) => {
+    if (typeof value === 'string') return value
+    if (value instanceof Error) return value.message
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return String(value)
+    }
+  }).join(' ')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
 }
 
 function randomInRange(min: number, max: number) {

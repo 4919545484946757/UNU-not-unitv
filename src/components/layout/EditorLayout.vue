@@ -1,13 +1,16 @@
 ﻿<template>
   <div class="editor-shell">
     <TopToolbar @return-launcher="emit('return-launcher')" />
-    <StatusPopup />
     <EntityCreateDialog />
     <SceneListDialog />
     <div ref="mainRef" class="editor-main" :style="mainStyle">
       <LeftPanel />
       <div class="resizer left-resizer" @mousedown.prevent="startResize('left', $event)"></div>
-      <CenterViewport />
+      <div ref="centerStackRef" class="center-stack" :style="centerStackStyle">
+        <CenterViewport />
+        <div class="console-resizer" @mousedown.prevent="startConsoleResize"></div>
+        <EditorConsole />
+      </div>
       <div class="resizer right-resizer" @mousedown.prevent="startResize('right', $event)"></div>
       <RightPanel />
     </div>
@@ -17,11 +20,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import TopToolbar from './TopToolbarCompact.vue'
-import StatusPopup from '../common/StatusPopup.vue'
 import EntityCreateDialog from '../common/EntityCreateDialog.vue'
 import SceneListDialog from '../common/SceneListDialog.vue'
 import LeftPanel from './LeftPanel.vue'
 import CenterViewport from './CenterViewport.vue'
+import EditorConsole from './EditorConsole.vue'
 import RightPanel from './RightPanel.vue'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
@@ -37,11 +40,25 @@ const emit = defineEmits<{
 }>()
 const RESIZER_WIDTH = 6
 const MIN_CENTER_WIDTH = 320
+const MIN_SCENE_VIEW_HEIGHT = 180
 const mainRef = ref<HTMLDivElement | null>(null)
+const centerStackRef = ref<HTMLDivElement | null>(null)
+const centerStackHeight = ref(0)
 let cleanup: (() => void) | null = null
+let centerStackObserver: ResizeObserver | null = null
 
 const mainStyle = computed(() => ({
   gridTemplateColumns: `${editor.leftPanelWidth}px ${RESIZER_WIDTH}px minmax(0, 1fr) ${RESIZER_WIDTH}px ${editor.rightPanelWidth}px`
+}))
+
+const effectiveConsoleHeight = computed(() => {
+  const available = centerStackHeight.value || window.innerHeight
+  const maxByLayout = Math.max(96, available - MIN_SCENE_VIEW_HEIGHT - 6)
+  return Math.min(editor.consoleHeight, maxByLayout)
+})
+
+const centerStackStyle = computed(() => ({
+  gridTemplateRows: `minmax(${MIN_SCENE_VIEW_HEIGHT}px, 1fr) 6px ${effectiveConsoleHeight.value}px`
 }))
 
 function clampPanelWidths(nextLeft: number, nextRight: number) {
@@ -75,6 +92,31 @@ function startResize(side: 'left' | 'right', event: MouseEvent) {
     window.removeEventListener('mousemove', onMove)
     window.removeEventListener('mouseup', onUp)
     document.body.classList.remove('is-resizing-panels')
+    window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
+    cleanup = null
+  }
+
+  cleanup?.()
+  cleanup = onUp
+  document.body.classList.add('is-resizing-panels')
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
+
+function startConsoleResize(event: MouseEvent) {
+  const startY = event.clientY
+  const startHeight = editor.consoleHeight
+
+  const onMove = (moveEvent: MouseEvent) => {
+    const delta = moveEvent.clientY - startY
+    editor.setConsoleHeight(startHeight - delta)
+  }
+
+  const onUp = () => {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+    document.body.classList.remove('is-resizing-panels')
+    window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
     cleanup = null
   }
 
@@ -177,10 +219,20 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalShortcut)
   window.addEventListener('beforeunload', handleBeforeUnload)
+  centerStackObserver = new ResizeObserver((entries) => {
+    const height = entries[0]?.contentRect.height || centerStackRef.value?.clientHeight || 0
+    centerStackHeight.value = Math.max(0, Math.round(height))
+  })
+  if (centerStackRef.value) {
+    centerStackHeight.value = centerStackRef.value.clientHeight
+    centerStackObserver.observe(centerStackRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
   cleanup?.()
+  centerStackObserver?.disconnect()
+  centerStackObserver = null
   window.removeEventListener('keydown', handleGlobalShortcut)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
@@ -210,6 +262,36 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
+.center-stack {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.console-resizer {
+  position: relative;
+  background: #151a22;
+  cursor: row-resize;
+  min-height: 0;
+  z-index: 6;
+}
+
+.console-resizer::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2px;
+  background: #2a3444;
+}
+
+.console-resizer:hover::after {
+  background: #56b6c2;
+}
+
 .resizer {
   position: relative;
   background: #151a22;
@@ -233,3 +315,4 @@ onBeforeUnmount(() => {
   background: #56b6c2;
 }
 </style>
+

@@ -15,6 +15,7 @@
           <option value="launcher">回到开始界面</option>
           <option value="saveAs">项目另存</option>
           <option value="exportGame">导出 Web 游戏</option>
+          <option value="checkAssets">检查并修复资源依赖</option>
           <option value="refresh">刷新资源</option>
           <option value="import">导入图片</option>
           <option value="importAudio">导入音频</option>
@@ -62,17 +63,48 @@
     </div>
 
     <div class="status-slot">
-      <button class="status-toggle" @click="project.toggleStatusPopup()">
-        {{ project.statusPopupVisible ? '隐藏消息' : '显示消息' }}
+      <button
+        class="status-toggle"
+        title="右键编辑信息白名单"
+        @click="project.toggleStatusPopup()"
+        @contextmenu.prevent.stop="openStatusFilterMenu"
+      >
+        {{ project.statusConsoleVisible ? '隐藏状态日志' : '显示状态日志' }}
       </button>
+      <div
+        v-if="statusFilterMenuOpen"
+        class="status-filter-menu"
+        @click.stop
+        @contextmenu.prevent.stop
+      >
+        <div class="menu-title">状态日志白名单</div>
+        <div class="menu-tip">勾选后，对应类型的状态信息会显示在控制台。</div>
+        <label
+          v-for="category in statusCategories"
+          :key="category"
+          class="filter-row"
+        >
+          <input
+            type="checkbox"
+            :checked="project.statusConsoleFilters[category]"
+            @change="project.setStatusConsoleFilter(category, ($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ statusCategoryLabels[category] }}</span>
+        </label>
+        <div class="menu-actions">
+          <button type="button" @click="project.setAllStatusConsoleFilters(true)">全选</button>
+          <button type="button" @click="project.setAllStatusConsoleFilters(false)">全不选</button>
+        </div>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
-import { useProjectStore } from '../../stores/project'
+import { STATUS_LOG_CATEGORIES, STATUS_LOG_CATEGORY_LABELS, useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 
@@ -81,6 +113,9 @@ const editor = useEditorStore()
 const project = useProjectStore()
 const scene = useSceneStore()
 const runtime = useRuntimeStore()
+const statusFilterMenuOpen = ref(false)
+const statusCategories = STATUS_LOG_CATEGORIES
+const statusCategoryLabels = STATUS_LOG_CATEGORY_LABELS
 
 const emit = defineEmits<{
   (event: 'return-launcher'): void
@@ -101,6 +136,22 @@ function resetSelect(event: Event) {
   target.value = ''
 }
 
+function openStatusFilterMenu() {
+  statusFilterMenuOpen.value = true
+}
+
+function closeStatusFilterMenu() {
+  statusFilterMenuOpen.value = false
+}
+
+onMounted(() => {
+  window.addEventListener('click', closeStatusFilterMenu)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('click', closeStatusFilterMenu)
+})
+
 async function handleProjectAction(event: Event) {
   const action = (event.target as HTMLSelectElement).value
   if (action === 'new') await runAction('新建项目', () => assets.createProject())
@@ -108,6 +159,7 @@ async function handleProjectAction(event: Event) {
   else if (action === 'launcher') emit('return-launcher')
   else if (action === 'saveAs') await runAction('项目另存', () => assets.saveProjectAs())
   else if (action === 'exportGame') await runAction('导出 Web 游戏', () => assets.exportGame())
+  else if (action === 'checkAssets') await runAction('资源依赖检查', () => assets.checkAssetIntegrity())
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())
   else if (action === 'importAudio') await runAction('导入音频', () => assets.importAudios())
@@ -211,6 +263,7 @@ button:hover {
 }
 
 .status-slot {
+  position: relative;
   display: flex;
   justify-content: flex-end;
 }
@@ -219,5 +272,68 @@ button:hover {
   width: 100%;
   min-width: 100px;
   white-space: nowrap;
+}
+
+.status-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 2600;
+  width: 220px;
+  max-height: min(70vh, 420px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #364155;
+  border-radius: 10px;
+  background: #171d28;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38);
+}
+
+.menu-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #eef4ff;
+}
+
+.menu-tip {
+  margin: 5px 0 8px;
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  color: #dbe7f8;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.filter-row:hover {
+  background: #263143;
+}
+
+.filter-row input {
+  width: 14px;
+  height: 14px;
+  accent-color: #66d9ef;
+}
+
+.menu-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.menu-actions button {
+  flex: 1;
+  padding: 5px 6px;
+  font-size: 12px;
+  border-bottom-width: 2px;
+  background: #222b3b;
 }
 </style>

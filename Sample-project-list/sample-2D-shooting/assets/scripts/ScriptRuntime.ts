@@ -100,11 +100,12 @@ export default {
         ctx.api.removeEntity(hitEnemy)
         const player = ctx.api.findEntityByName('Player')
         const playerTransform = player?.getTransform()
-        ctx.api.spawnEnemyLike(hitEnemy, {
+        const spawnedEnemy = ctx.api.spawnEnemyLike(hitEnemy, {
           avoidX: playerTransform?.x ?? 0,
           avoidY: playerTransform?.y ?? 0,
           minDistance: Number(cfg.respawnMinDistance ?? 160)
         })
+        if (spawnedEnemy) ctx.api.log(`[${spawnedEnemy.id}] respawn`)
       }
     },
     'assets/scripts/enemy-chase-respawn.js': {
@@ -114,9 +115,13 @@ export default {
         const cfg = parseConfig(ctx)
         const chaseSpeed = Number(cfg.chaseSpeed ?? 120)
         ctx.api.moveTowards(ctx.entity, player, chaseSpeed, true)
-        if (!ctx.api.isTouching(ctx.entity, player)) return
+      },
+      onCollisionEnter(ctx) {
+        const other = ctx.event?.other
+        if (!other || other.name !== 'Player') return
+        const cfg = parseConfig(ctx)
         ctx.api.removeEntity(ctx.entity)
-        const playerTransform = player.getTransform()
+        const playerTransform = other.getTransform()
         //ctx.api.spawnEnemyLike(ctx.entity, {
         //  avoidX: playerTransform?.x ?? 0,
         //  avoidY: playerTransform?.y ?? 0,

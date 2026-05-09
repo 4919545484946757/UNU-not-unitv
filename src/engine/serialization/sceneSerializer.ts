@@ -65,7 +65,14 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.rotation ?? 0),
             Number(data.anchorX ?? 0.5),
             Number(data.anchorY ?? 0.5),
-            Number(data.zIndex ?? 0)
+            Number(data.zIndex ?? 0),
+            data.positionMode === 'viewport' ? 'viewport' : 'world',
+            data.viewportHorizontal === 'left' || data.viewportHorizontal === 'right' || data.viewportHorizontal === 'center'
+              ? data.viewportHorizontal
+              : 'center',
+            data.viewportVertical === 'top' || data.viewportVertical === 'bottom' || data.viewportVertical === 'middle'
+              ? data.viewportVertical
+              : 'middle'
           )
         )
         break

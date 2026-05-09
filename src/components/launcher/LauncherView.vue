@@ -451,6 +451,10 @@ button.danger {
   gap: 10px;
 }
 
+.sample-card:hover {
+  background: #19273d;
+}
+
 .sample-card.unavailable {
   opacity: 0.8;
 }

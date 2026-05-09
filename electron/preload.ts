@@ -39,6 +39,16 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.invoke('unu:delete-project', payload),
   revealInFolder: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) =>
     ipcRenderer.invoke('unu:reveal-in-folder', payload),
+  checkAssetIntegrity: (payload: { projectRoot: string }) =>
+    ipcRenderer.invoke('unu:check-asset-integrity', payload),
+  watchProjectScripts: (payload: { projectRoot: string }) =>
+    ipcRenderer.invoke('unu:watch-project-scripts', payload),
+  unwatchProjectScripts: () => ipcRenderer.invoke('unu:unwatch-project-scripts'),
+  onProjectScriptChanged: (callback: (payload: { projectRoot: string; relativePath: string; changedAt: number }) => void) => {
+    const listener = (_event: unknown, payload: { projectRoot: string; relativePath: string; changedAt: number }) => callback(payload)
+    ipcRenderer.on('unu:project-script-changed', listener)
+    return () => ipcRenderer.removeListener('unu:project-script-changed', listener)
+  },
   exportGame: (payload: { projectRoot: string; projectName?: string }) =>
     ipcRenderer.invoke('unu:export-game', payload),
   openTilemapEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-tilemap-editor', payload),

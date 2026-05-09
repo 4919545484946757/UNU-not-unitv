@@ -41,6 +41,7 @@ import { createDemoScene } from '../../engine/sampleScene'
 import { PixiRenderer } from '../../engine/renderer/PixiRenderer'
 import { deserializeScene } from '../../engine/serialization/sceneSerializer'
 import { useAssetStore } from '../../stores/assets'
+import { useConsoleStore } from '../../stores/console'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
@@ -50,6 +51,7 @@ import { useSelectionStore } from '../../stores/selection'
 const containerRef = ref<HTMLDivElement | null>(null)
 const isDragOver = ref(false)
 const assets = useAssetStore()
+const consoleStore = useConsoleStore()
 const editor = useEditorStore()
 const project = useProjectStore()
 const runtime = useRuntimeStore()
@@ -57,6 +59,9 @@ const sceneStore = useSceneStore()
 const selection = useSelectionStore()
 let renderer: PixiRenderer | null = null
 let lastRuntimeSyncAt = 0
+let disposeProjectScriptChanged: (() => void) | null = null
+let scriptHotReloadTimer = 0
+let scriptHotReloading = false
 
 const scenePathTitle = computed(() => project.currentScenePath || '内存场景')
 const scenePathDisplay = computed(() => {
@@ -135,6 +140,55 @@ async function reloadCurrentProjectScene() {
   renderer?.setRuntimeState(false, false, sceneStore.currentScene, true)
 }
 
+async function startProjectScriptWatcher() {
+  disposeProjectScriptChanged?.()
+  disposeProjectScriptChanged = null
+  if (scriptHotReloadTimer) {
+    window.clearTimeout(scriptHotReloadTimer)
+    scriptHotReloadTimer = 0
+  }
+  if (!window.unu?.watchProjectScripts || !window.unu?.onProjectScriptChanged) return
+  if (!project.rootPath || project.rootPath === 'sample-project') return
+
+  await window.unu.watchProjectScripts({ projectRoot: project.rootPath }).catch(() => null)
+  disposeProjectScriptChanged = window.unu.onProjectScriptChanged((payload) => {
+    const currentRoot = String(project.rootPath || '').replace(/\\/g, '/').toLowerCase()
+    const changedRoot = String(payload.projectRoot || '').replace(/\\/g, '/').toLowerCase()
+    if (!currentRoot || changedRoot !== currentRoot) return
+    if (scriptHotReloadTimer) window.clearTimeout(scriptHotReloadTimer)
+    scriptHotReloadTimer = window.setTimeout(() => {
+      void hotReloadProjectScripts(payload.relativePath)
+    }, 80)
+  })
+}
+
+async function hotReloadProjectScripts(relativePath: string) {
+  if (scriptHotReloading) return
+  scriptHotReloading = true
+  try {
+    await renderer?.hotReloadProjectRuntimeFiles(relativePath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    project.setStatus(`脚本热重载失败：${message}`)
+  } finally {
+    scriptHotReloading = false
+  }
+}
+
+async function locateScriptError(error: { scriptPath: string; line: number; column?: number; message: string; phase: string; entityName?: string }) {
+  const scriptPath = String(error.scriptPath || '').replace(/\\/g, '/').trim()
+  if (!scriptPath || scriptPath.startsWith('builtin://')) {
+    project.setStatus(`脚本错误：${error.message}`)
+    return
+  }
+  const assetExists = assets.flat.some((node) => node.path === scriptPath)
+  if (assetExists) await assets.selectAsset(scriptPath)
+  editor.revealScriptError(scriptPath, error.line || 1, error.column, error.message)
+  const where = `${scriptPath}:${error.line || 1}${error.column ? `:${error.column}` : ''}`
+  const entityHint = error.entityName ? `（实体：${error.entityName}）` : ''
+  project.setStatus(`脚本${error.phase}错误 ${where}${entityHint}：${error.message}`)
+}
+
 onMounted(async () => {
   if (!containerRef.value) return
 
@@ -155,6 +209,17 @@ onMounted(async () => {
         if (now - lastRuntimeSyncAt < 120) return
         lastRuntimeSyncAt = now
         sceneStore.setRuntimeScene(scene)
+      },
+      onScriptError: (error) => {
+        void locateScriptError(error)
+      },
+      onConsoleMessage: (message) => {
+        const prefix = message.entityName ? `[${message.entityName}] ` : ''
+        consoleStore.push(message.level, `${prefix}${message.message}`, {
+          source: message.scriptPath,
+          line: message.line,
+          column: message.column
+        })
       }
     })
     await renderer.init(sceneStore.currentScene)
@@ -162,6 +227,7 @@ onMounted(async () => {
     renderer.setPlayDebugEnabled(runtime.playDebugEnabled)
     renderer.setSelection(selection.selectedEntityId)
     renderer.setTool(editor.tool)
+    await startProjectScriptWatcher()
   } catch (error) {
     console.error('Viewport 初始化失败', error)
     const message = error instanceof Error ? error.message : '未知错误'
@@ -217,6 +283,7 @@ watch(
   () => `${project.rootPath}::${project.sampleProjectId}`,
   (nextKey, prevKey) => {
     if (!prevKey || nextKey === prevKey) return
+    void startProjectScriptWatcher()
     void reloadCurrentProjectScene()
   }
 )
@@ -246,6 +313,10 @@ async function handleDrop(event: DragEvent) {
 }
 
 onBeforeUnmount(() => {
+  disposeProjectScriptChanged?.()
+  disposeProjectScriptChanged = null
+  if (scriptHotReloadTimer) window.clearTimeout(scriptHotReloadTimer)
+  void window.unu?.unwatchProjectScripts?.()
   runtime.stop()
   renderer?.destroy()
 })
@@ -255,6 +326,8 @@ onBeforeUnmount(() => {
 .viewport-shell {
   display: grid;
   grid-template-rows: 40px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
   background: #0f131b;
   min-width: 0;
   min-height: 0;
@@ -302,6 +375,14 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.viewport-canvas :deep(canvas) {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 .viewport-canvas.panning {
   cursor: grab;

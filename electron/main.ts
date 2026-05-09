@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename)
 let mainWindow: BrowserWindow | null = null
 let tilemapEditorWindow: BrowserWindow | null = null
 let tilemapEditorSession: any = null
+const projectScriptWatchers = new Map<number, { watcher: fsSync.FSWatcher; timer: NodeJS.Timeout | null; projectRoot: string }>()
 
 function normalizePath(inputPath: string) {
   return inputPath.split(path.sep).join('/')
@@ -823,11 +824,12 @@ export default {
         ctx.api.removeEntity(hitEnemy)
         const player = ctx.api.findEntityByName('Player')
         const playerTransform = player?.getTransform()
-        ctx.api.spawnEnemyLike(hitEnemy, {
+        const spawnedEnemy = ctx.api.spawnEnemyLike(hitEnemy, {
           avoidX: playerTransform?.x ?? 0,
           avoidY: playerTransform?.y ?? 0,
           minDistance: Number(cfg.respawnMinDistance ?? 160)
         })
+        if (spawnedEnemy) ctx.api.log('[' + spawnedEnemy.id + '] respawn')
       }
     },
     'assets/scripts/enemy-chase-respawn.js': {
@@ -837,9 +839,13 @@ export default {
         const cfg = parseConfig(ctx)
         const chaseSpeed = Number(cfg.chaseSpeed ?? 120)
         ctx.api.moveTowards(ctx.entity, player, chaseSpeed, true)
-        if (!ctx.api.isTouching(ctx.entity, player)) return
+      },
+      onCollisionEnter(ctx) {
+        const other = ctx.event?.other
+        if (!other || other.name !== 'Player') return
+        const cfg = parseConfig(ctx)
         ctx.api.removeEntity(ctx.entity)
-        const playerTransform = player.getTransform()
+        const playerTransform = other.getTransform()
         ctx.api.spawnEnemyLike(ctx.entity, {
           avoidX: playerTransform?.x ?? 0,
           avoidY: playerTransform?.y ?? 0,
@@ -979,16 +985,74 @@ function normalizeAssetRef(raw: string, projectRoot: string) {
   return next
 }
 
-function normalizeSceneAssetReferences(value: unknown, projectRoot: string, refs: Set<string>) {
-  let changed = false
-  const refKeySet = new Set([
-    'texturePath', 'animationAssetPath', 'sourceAtlasPath', 'scriptPath', 'clipPath', 'imagePath', 'path', 'relativePath'
-  ])
+type AssetReferenceRecord = {
+  sourceFile: string
+  sourceKind: string
+  keyPath: string
+  ref: string
+}
 
-  const normalizeAndTrack = (container: Record<string, unknown>, key: string, raw: string) => {
+type AssetDependencyFile = {
+  fullPath: string
+  relativePath: string
+  kind: string
+}
+
+const assetRefKeySet = new Set([
+  'texturePath',
+  'animationAssetPath',
+  'sourceAtlasPath',
+  'scriptPath',
+  'clipPath',
+  'imagePath',
+  'path',
+  'relativePath'
+])
+
+const assetRefArrayKeySet = new Set(['framePaths', 'textureCycle'])
+
+function shouldTrackAssetRef(raw: string) {
+  const normalized = normalizeAssetRef(raw, '')
+  if (!normalized) return false
+  const lower = normalized.toLowerCase()
+  return !(
+    lower.startsWith('data:') ||
+    lower.startsWith('http://') ||
+    lower.startsWith('https://') ||
+    lower.startsWith('builtin://') ||
+    lower.startsWith('custom://') ||
+    lower.startsWith('javascript:') ||
+    lower.startsWith('mailto:') ||
+    lower.startsWith('about:')
+  )
+}
+
+function assetRefLookupKey(raw: string) {
+  return normalizeRelativeAssetPath(raw).toLowerCase()
+}
+
+function getDependencyKind(fileName: string) {
+  const lower = fileName.toLowerCase()
+  if (lower.endsWith('.scene.json')) return 'scene'
+  if (lower.endsWith('.prefab.json')) return 'prefab'
+  if (lower.endsWith('.anim.json')) return 'animation'
+  if (lower.endsWith('.atlas.json')) return 'atlas'
+  return 'json'
+}
+
+function normalizeSceneAssetReferences(
+  value: unknown,
+  projectRoot: string,
+  refs: AssetReferenceRecord[],
+  sourceFile: string,
+  sourceKind: string
+) {
+  let changed = false
+
+  const normalizeAndTrack = (container: Record<string, unknown>, key: string, raw: string, keyPath: string) => {
     const normalized = normalizeAssetRef(raw, projectRoot)
-    if (normalized && !normalized.startsWith('data:') && !normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-      refs.add(normalized)
+    if (shouldTrackAssetRef(normalized)) {
+      refs.push({ sourceFile, sourceKind, keyPath, ref: normalized })
     }
     if (normalized !== raw) {
       container[key] = normalized
@@ -996,24 +1060,25 @@ function normalizeSceneAssetReferences(value: unknown, projectRoot: string, refs
     }
   }
 
-  const walk = (node: unknown) => {
+  const walk = (node: unknown, keyPath = '$') => {
     if (!node || typeof node !== 'object') return
     if (Array.isArray(node)) {
-      for (const item of node) walk(item)
+      node.forEach((item, index) => walk(item, `${keyPath}[${index}]`))
       return
     }
     const record = node as Record<string, unknown>
     for (const [key, entry] of Object.entries(record)) {
-      if (typeof entry === 'string' && refKeySet.has(key)) {
-        normalizeAndTrack(record, key, entry)
+      const nextPath = `${keyPath}.${key}`
+      if (typeof entry === 'string' && assetRefKeySet.has(key)) {
+        normalizeAndTrack(record, key, entry, nextPath)
         continue
       }
-      if (Array.isArray(entry) && (key === 'framePaths' || key === 'textureCycle')) {
+      if (Array.isArray(entry) && assetRefArrayKeySet.has(key)) {
         const nextList = entry.map((item) => {
           if (typeof item !== 'string') return item
           const normalized = normalizeAssetRef(item, projectRoot)
-          if (normalized && !normalized.startsWith('data:') && !normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-            refs.add(normalized)
+          if (shouldTrackAssetRef(normalized)) {
+            refs.push({ sourceFile, sourceKind, keyPath: nextPath, ref: normalized })
           }
           if (normalized !== item) changed = true
           return normalized
@@ -1026,8 +1091,8 @@ function normalizeSceneAssetReferences(value: unknown, projectRoot: string, refs
         for (const [mapKey, mapValue] of Object.entries(map)) {
           if (typeof mapValue !== 'string') continue
           const normalized = normalizeAssetRef(mapValue, projectRoot)
-          if (normalized && !normalized.startsWith('data:') && !normalized.startsWith('http://') && !normalized.startsWith('https://')) {
-            refs.add(normalized)
+          if (shouldTrackAssetRef(normalized)) {
+            refs.push({ sourceFile, sourceKind, keyPath: `${nextPath}.${mapKey}`, ref: normalized })
           }
           if (normalized !== mapValue) {
             map[mapKey] = normalized
@@ -1035,11 +1100,191 @@ function normalizeSceneAssetReferences(value: unknown, projectRoot: string, refs
           }
         }
       }
-      walk(entry)
+      walk(entry, nextPath)
     }
   }
   walk(value)
   return changed
+}
+
+function rewriteAssetReferences(value: unknown, replacements: Map<string, string>) {
+  let changed = false
+
+  const replaceString = (raw: string) => {
+    const normalized = normalizeRelativeAssetPath(raw)
+    const next = replacements.get(assetRefLookupKey(normalized))
+    return next || raw
+  }
+
+  const walk = (node: unknown) => {
+    if (!node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item)
+      return
+    }
+    const record = node as Record<string, unknown>
+    for (const [key, entry] of Object.entries(record)) {
+      if (typeof entry === 'string' && assetRefKeySet.has(key)) {
+        const next = replaceString(entry)
+        if (next !== entry) {
+          record[key] = next
+          changed = true
+        }
+        continue
+      }
+      if (Array.isArray(entry) && assetRefArrayKeySet.has(key)) {
+        const nextList = entry.map((item) => {
+          if (typeof item !== 'string') return item
+          const next = replaceString(item)
+          if (next !== item) changed = true
+          return next
+        })
+        record[key] = nextList
+        continue
+      }
+      if (entry && typeof entry === 'object' && key === 'tileTextureMap' && !Array.isArray(entry)) {
+        const map = entry as Record<string, unknown>
+        for (const [mapKey, mapValue] of Object.entries(map)) {
+          if (typeof mapValue !== 'string') continue
+          const next = replaceString(mapValue)
+          if (next !== mapValue) {
+            map[mapKey] = next
+            changed = true
+          }
+        }
+      }
+      walk(entry)
+    }
+  }
+
+  walk(value)
+  return changed
+}
+
+async function collectAssetDependencyFiles(projectRoot: string) {
+  const files: AssetDependencyFile[] = []
+  const roots = ['scenes', 'prefabs', 'assets']
+
+  const visit = async (dir: string) => {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await visit(fullPath)
+        continue
+      }
+      if (!entry.isFile()) continue
+      const lower = entry.name.toLowerCase()
+      if (!lower.endsWith('.json')) continue
+      const relativePath = normalizePath(path.relative(projectRoot, fullPath))
+      if (relativePath.toLowerCase() === 'project.json') continue
+      files.push({ fullPath, relativePath, kind: getDependencyKind(entry.name) })
+    }
+  }
+
+  for (const root of roots) {
+    await visit(path.join(projectRoot, root))
+  }
+  return files
+}
+
+async function scanAndNormalizeAssetDependencies(projectRoot: string) {
+  const dependencyFiles = await collectAssetDependencyFiles(projectRoot)
+  const refs: AssetReferenceRecord[] = []
+  let normalizedFiles = 0
+  let normalizedSceneFiles = 0
+
+  for (const file of dependencyFiles) {
+    const raw = await fs.readFile(file.fullPath, 'utf-8').catch(() => '')
+    if (!raw) continue
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(String(raw).replace(/^\uFEFF/, ''))
+    } catch {
+      continue
+    }
+    const changed = normalizeSceneAssetReferences(parsed, projectRoot, refs, file.relativePath, file.kind)
+    if (changed) {
+      normalizedFiles += 1
+      if (file.kind === 'scene') normalizedSceneFiles += 1
+      await fs.writeFile(file.fullPath, JSON.stringify(parsed, null, 2), 'utf-8')
+    }
+  }
+
+  return { refs, normalizedFiles, normalizedSceneFiles, dependencyFiles }
+}
+
+async function buildProjectAssetIndex(projectRoot: string) {
+  const byBasename = new Map<string, string[]>()
+  const assetsRoot = path.join(projectRoot, 'assets')
+
+  const visit = async (dir: string) => {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await visit(fullPath)
+        continue
+      }
+      if (!entry.isFile()) continue
+      const relativePath = normalizePath(path.relative(projectRoot, fullPath))
+      const key = path.basename(entry.name).toLowerCase()
+      const list = byBasename.get(key) || []
+      list.push(relativePath)
+      byBasename.set(key, list)
+    }
+  }
+
+  await visit(assetsRoot)
+  return { byBasename }
+}
+
+async function findUnresolvedAssetRefs(projectRoot: string, refs: AssetReferenceRecord[]) {
+  const unresolved: AssetReferenceRecord[] = []
+  const cache = new Map<string, boolean>()
+  for (const ref of refs) {
+    const key = assetRefLookupKey(ref.ref)
+    if (!cache.has(key)) {
+      const resolved = await resolveAssetPathWithFallback(projectRoot, ref.ref)
+      cache.set(key, Boolean(resolved))
+    }
+    if (!cache.get(key)) unresolved.push(ref)
+  }
+  return unresolved
+}
+
+async function relinkMissingAssetReferences(projectRoot: string, missingRefs: AssetReferenceRecord[], dependencyFiles: AssetDependencyFile[]) {
+  if (!missingRefs.length) return { relinkedAssets: 0, relinkedFiles: 0 }
+  const index = await buildProjectAssetIndex(projectRoot)
+  const replacements = new Map<string, string>()
+
+  const uniqueMissing = Array.from(new Map(missingRefs.map((item) => [assetRefLookupKey(item.ref), item.ref])).values())
+  for (const ref of uniqueMissing) {
+    const basename = path.basename(ref).toLowerCase()
+    const candidates = (index.byBasename.get(basename) || []).filter((candidate) => assetRefLookupKey(candidate) !== assetRefLookupKey(ref))
+    if (candidates.length === 1) {
+      replacements.set(assetRefLookupKey(ref), candidates[0])
+    }
+  }
+
+  if (!replacements.size) return { relinkedAssets: 0, relinkedFiles: 0 }
+
+  let relinkedFiles = 0
+  for (const file of dependencyFiles) {
+    const raw = await fs.readFile(file.fullPath, 'utf-8').catch(() => '')
+    if (!raw) continue
+    let parsed: unknown = null
+    try {
+      parsed = JSON.parse(String(raw).replace(/^\uFEFF/, ''))
+    } catch {
+      continue
+    }
+    if (!rewriteAssetReferences(parsed, replacements)) continue
+    relinkedFiles += 1
+    await fs.writeFile(file.fullPath, JSON.stringify(parsed, null, 2), 'utf-8')
+  }
+
+  return { relinkedAssets: replacements.size, relinkedFiles }
 }
 
 async function repairMissingSampleAssets(projectRoot: string, missingRefs: string[]) {
@@ -1058,48 +1303,35 @@ async function repairMissingSampleAssets(projectRoot: string, missingRefs: strin
 }
 
 async function ensureProjectAssetIntegrity(projectRoot: string) {
-  const sceneFiles = await collectSceneFileNames(projectRoot)
-  if (!sceneFiles.length) {
-    return { repaired: false, normalizedSceneFiles: 0, copiedAssets: 0, unresolvedAssets: 0 }
-  }
-
-  let normalizedSceneFiles = 0
-  const allRefs = new Set<string>()
-  for (const fileName of sceneFiles) {
-    const fullPath = path.join(projectRoot, 'scenes', fileName)
-    const raw = await fs.readFile(fullPath, 'utf-8').catch(() => '')
-    if (!raw) continue
-    let parsed: unknown = null
-    try {
-      parsed = JSON.parse(String(raw).replace(/^\uFEFF/, ''))
-    } catch {
-      continue
-    }
-    const changed = normalizeSceneAssetReferences(parsed, projectRoot, allRefs)
-    if (changed) {
-      normalizedSceneFiles += 1
-      await fs.writeFile(fullPath, JSON.stringify(parsed, null, 2), 'utf-8')
+  let firstScan = await scanAndNormalizeAssetDependencies(projectRoot)
+  const missingBefore = await findUnresolvedAssetRefs(projectRoot, firstScan.refs)
+  const missingRefList = Array.from(new Set(missingBefore.map((item) => item.ref)))
+  const copiedAssets = await repairMissingSampleAssets(projectRoot, missingRefList)
+  const missingAfterCopy = copiedAssets > 0 ? await findUnresolvedAssetRefs(projectRoot, firstScan.refs) : missingBefore
+  const relink = await relinkMissingAssetReferences(projectRoot, missingAfterCopy, firstScan.dependencyFiles)
+  if (copiedAssets > 0 || relink.relinkedAssets > 0) {
+    const secondScan = await scanAndNormalizeAssetDependencies(projectRoot)
+    firstScan = {
+      ...secondScan,
+      normalizedFiles: firstScan.normalizedFiles + secondScan.normalizedFiles,
+      normalizedSceneFiles: firstScan.normalizedSceneFiles + secondScan.normalizedSceneFiles
     }
   }
 
-  const missingBefore: string[] = []
-  for (const ref of allRefs) {
-    const resolved = await resolveAssetPathWithFallback(projectRoot, ref)
-    if (!resolved) missingBefore.push(ref)
-  }
-  const copiedAssets = await repairMissingSampleAssets(projectRoot, missingBefore)
-
-  let unresolvedAssets = 0
-  for (const ref of allRefs) {
-    const resolved = await resolveAssetPathWithFallback(projectRoot, ref)
-    if (!resolved) unresolvedAssets += 1
-  }
-
+  const unresolvedRefs = await findUnresolvedAssetRefs(projectRoot, firstScan.refs)
+  const checkedAssetRefs = new Set(firstScan.refs.map((item) => assetRefLookupKey(item.ref))).size
+  const unresolvedAssets = new Set(unresolvedRefs.map((item) => assetRefLookupKey(item.ref))).size
   return {
-    repaired: normalizedSceneFiles > 0 || copiedAssets > 0,
-    normalizedSceneFiles,
+    repaired: firstScan.normalizedFiles > 0 || copiedAssets > 0 || relink.relinkedAssets > 0,
+    normalizedSceneFiles: firstScan.normalizedSceneFiles,
+    normalizedFiles: firstScan.normalizedFiles,
     copiedAssets,
-    unresolvedAssets
+    relinkedAssets: relink.relinkedAssets,
+    relinkedFiles: relink.relinkedFiles,
+    checkedAssetRefs,
+    resolvedAssets: Math.max(0, checkedAssetRefs - unresolvedAssets),
+    unresolvedAssets,
+    unresolvedRefs: unresolvedRefs.slice(0, 100)
   }
 }
 
@@ -1273,6 +1505,54 @@ async function openTextAsset(payload: { projectRoot?: string; defaultSubdir?: st
     relativePath: payload.projectRoot ? normalizePath(path.relative(payload.projectRoot, filePath)) : undefined,
     content
   }
+}
+
+function closeProjectScriptWatcher(webContentsId: number) {
+  const existing = projectScriptWatchers.get(webContentsId)
+  if (!existing) return
+  if (existing.timer) clearTimeout(existing.timer)
+  existing.watcher.close()
+  projectScriptWatchers.delete(webContentsId)
+}
+
+function isRuntimeScriptFile(fileName: string) {
+  const lower = normalizePath(String(fileName || '')).toLowerCase()
+  return lower.endsWith('.ts') || lower.endsWith('.js') || lower.endsWith('.mjs') || lower.endsWith('.json')
+}
+
+async function watchProjectScripts(webContents: Electron.WebContents, projectRoot: string) {
+  closeProjectScriptWatcher(webContents.id)
+  const resolvedProjectRoot = await resolveProjectRootPath(projectRoot)
+  if (!resolvedProjectRoot || resolvedProjectRoot === 'sample-project') return { ok: false, error: 'sample-project cannot be watched' }
+  const scriptsDir = path.join(resolvedProjectRoot, 'assets', 'scripts')
+  await fs.mkdir(scriptsDir, { recursive: true })
+  const handleChange = (_eventType: string, fileName: string | Buffer | null) => {
+    if (!fileName || !isRuntimeScriptFile(String(fileName))) return
+    const current = projectScriptWatchers.get(webContents.id)
+    if (!current) return
+    if (current.timer) clearTimeout(current.timer)
+    const normalizedFile = normalizePath(String(fileName))
+    current.timer = setTimeout(() => {
+      if (webContents.isDestroyed()) {
+        closeProjectScriptWatcher(webContents.id)
+        return
+      }
+      webContents.send('unu:project-script-changed', {
+        projectRoot: current.projectRoot,
+        relativePath: normalizePath(path.join('assets', 'scripts', normalizedFile)),
+        changedAt: Date.now()
+      })
+    }, 120)
+  }
+  let watcher: fsSync.FSWatcher
+  try {
+    watcher = fsSync.watch(scriptsDir, { recursive: true }, handleChange)
+  } catch {
+    watcher = fsSync.watch(scriptsDir, handleChange)
+  }
+  projectScriptWatchers.set(webContents.id, { watcher, timer: null, projectRoot: resolvedProjectRoot })
+  webContents.once('destroyed', () => closeProjectScriptWatcher(webContents.id))
+  return { ok: true }
 }
 
 function createWindow() {
@@ -1770,7 +2050,15 @@ app.whenReady().then(() => {
       startupScene: reconcile.startupScene,
       assetCount,
       assetIntegrityRepaired: integrity.repaired,
-      unresolvedAssets: integrity.unresolvedAssets
+      normalizedSceneFiles: integrity.normalizedSceneFiles,
+      normalizedFiles: integrity.normalizedFiles,
+      copiedAssets: integrity.copiedAssets,
+      relinkedAssets: integrity.relinkedAssets,
+      relinkedFiles: integrity.relinkedFiles,
+      checkedAssetRefs: integrity.checkedAssetRefs,
+      resolvedAssets: integrity.resolvedAssets,
+      unresolvedAssets: integrity.unresolvedAssets,
+      unresolvedRefs: integrity.unresolvedRefs
     }
     await fs.writeFile(path.join(outputDir, 'export-report.json'), JSON.stringify(report, null, 2), 'utf-8')
 
@@ -1801,9 +2089,49 @@ app.whenReady().then(() => {
       sceneCreatedByReference: reconcile.createdByReference,
       assetIntegrityRepaired: integrity.repaired,
       normalizedSceneFiles: integrity.normalizedSceneFiles,
+      normalizedFiles: integrity.normalizedFiles,
       copiedAssets: integrity.copiedAssets,
-      unresolvedAssets: integrity.unresolvedAssets
+      relinkedAssets: integrity.relinkedAssets,
+      relinkedFiles: integrity.relinkedFiles,
+      checkedAssetRefs: integrity.checkedAssetRefs,
+      resolvedAssets: integrity.resolvedAssets,
+      unresolvedAssets: integrity.unresolvedAssets,
+      unresolvedRefs: integrity.unresolvedRefs
     }
+  })
+
+  ipcMain.handle('unu:check-asset-integrity', async (_event, payload: { projectRoot: string }) => {
+    const resolvedProjectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
+    if (!resolvedProjectRoot || resolvedProjectRoot === 'sample-project') {
+      throw new Error('请先打开或另存为本地项目，再检查资源依赖。')
+    }
+    await ensureProjectStructure(resolvedProjectRoot)
+    const integrity = await ensureProjectAssetIntegrity(resolvedProjectRoot)
+    const tree = await buildAssetNodes(resolvedProjectRoot, resolvedProjectRoot)
+    return {
+      rootPath: resolvedProjectRoot,
+      name: path.basename(resolvedProjectRoot),
+      tree,
+      assetIntegrityRepaired: integrity.repaired,
+      normalizedSceneFiles: integrity.normalizedSceneFiles,
+      normalizedFiles: integrity.normalizedFiles,
+      copiedAssets: integrity.copiedAssets,
+      relinkedAssets: integrity.relinkedAssets,
+      relinkedFiles: integrity.relinkedFiles,
+      checkedAssetRefs: integrity.checkedAssetRefs,
+      resolvedAssets: integrity.resolvedAssets,
+      unresolvedAssets: integrity.unresolvedAssets,
+      unresolvedRefs: integrity.unresolvedRefs
+    }
+  })
+
+  ipcMain.handle('unu:watch-project-scripts', async (event, payload: { projectRoot: string }) => {
+    return watchProjectScripts(event.sender, String(payload?.projectRoot || '').trim())
+  })
+
+  ipcMain.handle('unu:unwatch-project-scripts', async (event) => {
+    closeProjectScriptWatcher(event.sender.id)
+    return { ok: true }
   })
 
   ipcMain.handle('unu:save-scene', async (_event, payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => {

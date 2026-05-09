@@ -1,5 +1,5 @@
-import { contextBridge as r, ipcRenderer as n } from "electron";
-r.exposeInMainWorld("unu", {
+import { contextBridge as i, ipcRenderer as n } from "electron";
+i.exposeInMainWorld("unu", {
   version: "0.9.0",
   createProject: (e) => n.invoke("unu:create-project-v2", e),
   pickDirectory: (e) => n.invoke("unu:pick-directory", e),
@@ -21,17 +21,24 @@ r.exposeInMainWorld("unu", {
   renameProject: (e) => n.invoke("unu:rename-project", e),
   deleteProject: (e) => n.invoke("unu:delete-project", e),
   revealInFolder: (e) => n.invoke("unu:reveal-in-folder", e),
+  checkAssetIntegrity: (e) => n.invoke("unu:check-asset-integrity", e),
+  watchProjectScripts: (e) => n.invoke("unu:watch-project-scripts", e),
+  unwatchProjectScripts: () => n.invoke("unu:unwatch-project-scripts"),
+  onProjectScriptChanged: (e) => {
+    const t = (r, o) => e(o);
+    return n.on("unu:project-script-changed", t), () => n.removeListener("unu:project-script-changed", t);
+  },
   exportGame: (e) => n.invoke("unu:export-game", e),
   openTilemapEditor: (e) => n.invoke("unu:open-tilemap-editor", e),
   submitTilemapEditorUpdate: (e) => n.invoke("unu:tilemap-editor-update", e),
   closeTilemapEditor: () => n.invoke("unu:close-tilemap-editor"),
   setMainWindowPreset: (e) => n.invoke("unu:set-main-window-preset", e),
   onTilemapEditorInit: (e) => {
-    const t = (i, o) => e(o);
+    const t = (r, o) => e(o);
     return n.on("unu:tilemap-editor-init", t), () => n.removeListener("unu:tilemap-editor-init", t);
   },
   onTilemapEditorApply: (e) => {
-    const t = (i, o) => e(o);
+    const t = (r, o) => e(o);
     return n.on("unu:tilemap-editor-apply", t), () => n.removeListener("unu:tilemap-editor-apply", t);
   }
 });

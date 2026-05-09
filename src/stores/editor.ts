@@ -6,6 +6,8 @@ const MIN_RIGHT_PANEL_WIDTH = 240
 const MAX_RIGHT_PANEL_WIDTH = 720
 const MIN_BROWSER_PANEL_HEIGHT = 140
 const MAX_BROWSER_PANEL_HEIGHT = 420
+const MIN_CONSOLE_HEIGHT = 96
+const MAX_CONSOLE_HEIGHT = 420
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -13,6 +15,7 @@ export const useEditorStore = defineStore('editor', {
     leftTab: 'Scene',
     rightTab: 'Inspector' as 'Inspector' | 'Script' | 'Timeline',
     entityJsonEditorEntityId: '',
+    scriptErrorTarget: null as null | { path: string; line: number; column?: number; message?: string; nonce: number },
     showGrid: true,
     timelineFrameIndex: 0,
     timelinePreviewPlaying: false,
@@ -21,7 +24,8 @@ export const useEditorStore = defineStore('editor', {
     sceneListDialogVisible: false,
     leftPanelWidth: 300,
     rightPanelWidth: 340,
-    assetBrowserHeight: 220
+    assetBrowserHeight: 220,
+    consoleHeight: 170
   }),
   actions: {
     setTool(tool: 'select' | 'move' | 'scale' | 'pan') {
@@ -29,6 +33,19 @@ export const useEditorStore = defineStore('editor', {
     },
     setRightTab(tab: 'Inspector' | 'Script' | 'Timeline') {
       this.rightTab = tab
+    },
+    revealScriptError(path: string, line = 1, column?: number, message?: string) {
+      const normalized = String(path || '').replace(/\\/g, '/').trim()
+      if (!normalized) return
+      this.leftTab = 'Assets'
+      this.rightTab = 'Script'
+      this.scriptErrorTarget = {
+        path: normalized,
+        line: Math.max(1, Math.round(Number(line) || 1)),
+        column: Number.isFinite(column) ? Math.max(1, Math.round(Number(column))) : undefined,
+        message,
+        nonce: Date.now() + Math.random()
+      }
     },
     openEntityJsonEditor(entityId: string) {
       this.entityJsonEditorEntityId = entityId
@@ -70,6 +87,9 @@ export const useEditorStore = defineStore('editor', {
     },
     setAssetBrowserHeight(height: number) {
       this.assetBrowserHeight = Math.min(MAX_BROWSER_PANEL_HEIGHT, Math.max(MIN_BROWSER_PANEL_HEIGHT, Math.round(height)))
+    },
+    setConsoleHeight(height: number) {
+      this.consoleHeight = Math.min(MAX_CONSOLE_HEIGHT, Math.max(MIN_CONSOLE_HEIGHT, Math.round(height)))
     }
   }
 })

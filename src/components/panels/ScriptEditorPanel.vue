@@ -27,10 +27,10 @@
     <div v-else class="empty-state">请在场景中选择带 Script 组件的实体，或在资源树中选择一个脚本文件。</div>
 
     <div class="tips">
-      项目级运行时覆盖文件：`assets/scripts/ScriptRuntime.ts`、`assets/scripts/InputState.ts`、`assets/scripts/AudioRuntime.ts`。保存后重新进入播放态即可生效。
+      项目级运行时覆盖文件：`assets/scripts/ScriptRuntime.ts`、`assets/scripts/InputState.ts`、`assets/scripts/AudioRuntime.ts`。保存后会自动热重载；播放中会尽量立即生效。
       运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
       `builtin://player-input` 与 `builtin://bullet-projectile` 支持直接填写 JSON 配置（如移动速度、疾跑速度、疾跑动画倍速、子弹速度/寿命/射程）。
-      脚本可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
+      脚本可使用 `ctx.api.log/warn/error` 输出到下方 Console；也可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
       交互物体支持 JSON 交互脚本（`custom://interaction`）：`switchScene`、`setBackgroundTexture`、`cycleBackgroundTexture`、`setTexture`、`cycleTexture`、`setTint`、`cycleTint`、`toggleVisible`、`setInteractDistance`、`removeEntity`、`sequence`、`randomOne`。
       <span v-if="mode === 'asset' && !canSaveAsset">当前为示例工程（内存资源）或非桌面环境，脚本文件不可直接保存。</span>
     </div>
@@ -38,14 +38,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { useAssetStore } from '../../stores/assets'
+import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
 
 const assets = useAssetStore()
+const editor = useEditorStore()
 const project = useProjectStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
@@ -194,7 +196,15 @@ const builtinScriptTemplates: Record<string, string> = {
     const player = ctx.api.findEntityByName('Player')
     if (!player) return
     // Enemy 持续追踪 Player
-    // 与 Player 接触后删除自身，并在随机位置生成新的 Enemy
+  },
+  onCollisionEnter(ctx) {
+    const other = ctx.event?.other
+    if (!other || other.name !== 'Player') return
+    // 与 Player 接触后触发生命周期事件，可在这里删除自身或生成新 Enemy
+  },
+  onTriggerEnter(ctx) {
+    const other = ctx.event?.other
+    // 当当前实体或 other 的 Collider 勾选 Trigger 时触发
   }
 }`,
   'assets/scripts/InputState.ts': `export default {
@@ -284,6 +294,18 @@ watch(
   }
 )
 
+watch(
+  () => editor.scriptErrorTarget?.nonce,
+  async () => {
+    const target = editor.scriptErrorTarget
+    if (!target || !target.path) return
+    if (target.path !== selectedTextAssetPath.value) return
+    await loadAssetScript(target.path)
+    await nextTick()
+    revealLine(target.line, target.column)
+  }
+)
+
 async function loadAssetScript(relativePath: string) {
   if (!relativePath || loadingAsset.value) return
   if (assetLoadedPath.value === relativePath && assetScriptText.value) return
@@ -326,6 +348,24 @@ function syncScroll() {
   if (!textareaRef.value || !highlightRef.value) return
   highlightRef.value.scrollTop = textareaRef.value.scrollTop
   highlightRef.value.scrollLeft = textareaRef.value.scrollLeft
+}
+
+function revealLine(line: number, column?: number) {
+  const textarea = textareaRef.value
+  if (!textarea) return
+  const text = editorText.value || ''
+  const lines = text.split('\n')
+  const targetLine = Math.max(1, Math.min(lines.length || 1, Math.round(Number(line) || 1)))
+  const targetColumn = Math.max(1, Math.round(Number(column) || 1))
+  let offset = 0
+  for (let index = 0; index < targetLine - 1; index += 1) offset += lines[index].length + 1
+  offset += Math.min(Math.max(0, targetColumn - 1), lines[targetLine - 1]?.length ?? 0)
+  textarea.focus()
+  textarea.setSelectionRange(offset, offset)
+  const computedStyle = window.getComputedStyle(textarea)
+  const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 18
+  textarea.scrollTop = Math.max(0, (targetLine - 1) * lineHeight - textarea.clientHeight * 0.35)
+  syncScroll()
 }
 
 async function saveAssetScript() {

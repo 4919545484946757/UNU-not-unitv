@@ -1,5 +1,9 @@
 import { Component } from '../core/Component'
 
+export type TransformPositionMode = 'world' | 'viewport'
+export type ViewportHorizontalEdge = 'left' | 'center' | 'right'
+export type ViewportVerticalEdge = 'top' | 'middle' | 'bottom'
+
 export class TransformComponent extends Component {
   readonly type = 'Transform'
 
@@ -11,7 +15,10 @@ export class TransformComponent extends Component {
     public rotation = 0,
     public anchorX = 0.5,
     public anchorY = 0.5,
-    public zIndex = 0
+    public zIndex = 0,
+    public positionMode: TransformPositionMode = 'world',
+    public viewportHorizontal: ViewportHorizontalEdge = 'center',
+    public viewportVertical: ViewportVerticalEdge = 'middle'
   ) {
     super()
   }

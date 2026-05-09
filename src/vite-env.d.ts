@@ -1,6 +1,26 @@
 /// <reference types="vite/client" />
 
 declare global {
+  type UnuAssetIntegrityRef = {
+    sourceFile: string
+    sourceKind: string
+    keyPath: string
+    ref: string
+  }
+
+  type UnuAssetIntegrityResult = {
+    repaired: boolean
+    normalizedSceneFiles: number
+    normalizedFiles?: number
+    copiedAssets: number
+    relinkedAssets?: number
+    relinkedFiles?: number
+    checkedAssetRefs?: number
+    resolvedAssets?: number
+    unresolvedAssets: number
+    unresolvedRefs?: UnuAssetIntegrityRef[]
+  }
+
   interface Window {
     __UNU_GAME_EXPORT__?: boolean
     unu?: {
@@ -10,12 +30,7 @@ declare global {
         name: string
         parentDir?: string
         created: boolean
-        integrity?: {
-          repaired: boolean
-          normalizedSceneFiles: number
-          copiedAssets: number
-          unresolvedAssets: number
-        }
+        integrity?: UnuAssetIntegrityResult
       } | null>
       pickDirectory?: (payload?: { title?: string; defaultPath?: string }) => Promise<{ dirPath: string; name: string } | null>
       saveProjectAs?: (payload: {
@@ -29,12 +44,7 @@ declare global {
         name: string
         sceneFilePath?: string
         fromSample: boolean
-        integrity?: {
-          repaired: boolean
-          normalizedSceneFiles: number
-          copiedAssets: number
-          unresolvedAssets: number
-        }
+        integrity?: UnuAssetIntegrityResult
       } | null>
       pickProjectFolder?: () => Promise<{ rootPath: string; name: string } | null>
       scanProject?: (projectRoot: string) => Promise<{
@@ -46,8 +56,14 @@ declare global {
         sceneCreatedByReference?: number
         assetIntegrityRepaired?: boolean
         normalizedSceneFiles?: number
+        normalizedFiles?: number
         copiedAssets?: number
+        relinkedAssets?: number
+        relinkedFiles?: number
+        checkedAssetRefs?: number
+        resolvedAssets?: number
         unresolvedAssets?: number
+        unresolvedRefs?: UnuAssetIntegrityRef[]
       }>
       saveScene?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => Promise<{ filePath: string; name: string } | null>
       openScene?: (payload: { projectRoot?: string }) => Promise<{ filePath: string; name: string; content: string } | null>
@@ -64,6 +80,24 @@ declare global {
       renameProject?: (payload: { projectRoot: string; nextName: string }) => Promise<{ rootPath: string; name: string } | null>
       deleteProject?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
       revealInFolder?: (payload: { projectRoot: string; relativePath: string; isDirectory?: boolean }) => Promise<{ ok: boolean; error?: string }>
+      checkAssetIntegrity?: (payload: { projectRoot: string }) => Promise<{
+        rootPath: string
+        name: string
+        tree: import('./engine/assets/types').AssetNode[]
+        assetIntegrityRepaired?: boolean
+        normalizedSceneFiles?: number
+        normalizedFiles?: number
+        copiedAssets?: number
+        relinkedAssets?: number
+        relinkedFiles?: number
+        checkedAssetRefs?: number
+        resolvedAssets?: number
+        unresolvedAssets?: number
+        unresolvedRefs?: UnuAssetIntegrityRef[]
+      }>
+      watchProjectScripts?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
+      unwatchProjectScripts?: () => Promise<{ ok: boolean; error?: string }>
+      onProjectScriptChanged?: (callback: (payload: { projectRoot: string; relativePath: string; changedAt: number }) => void) => (() => void)
       exportGame?: (payload: { projectRoot: string; projectName?: string }) => Promise<{
         ok: boolean
         outputDir?: string

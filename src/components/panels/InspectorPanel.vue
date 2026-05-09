@@ -20,6 +20,32 @@
         <label>Scale X <input type="number" step="0.1" :value="transform.scaleX" @input="setNumber('transform', 'scaleX', $event)" /></label>
         <label>Scale Y <input type="number" step="0.1" :value="transform.scaleY" @input="setNumber('transform', 'scaleY', $event)" /></label>
         <label>Rotation <input type="number" step="0.01" :value="transform.rotation" @input="setNumber('transform', 'rotation', $event)" /></label>
+        <label>
+          Position Mode
+          <select :value="transform.positionMode || 'world'" @change="setTransformPositionMode">
+            <option value="world">World Space</option>
+            <option value="viewport">Viewport Edges</option>
+          </select>
+        </label>
+        <template v-if="(transform.positionMode || 'world') === 'viewport'">
+          <div class="tips">Viewport Edges 模式下，X/Y 表示到所选横向/纵向边缘的像素距离；Center/Middle 表示相对视窗中心偏移。</div>
+          <label>
+            Horizontal Edge
+            <select :value="transform.viewportHorizontal || 'center'" @change="setTransformViewportHorizontal">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+          <label>
+            Vertical Edge
+            <select :value="transform.viewportVertical || 'middle'" @change="setTransformViewportVertical">
+              <option value="top">Top</option>
+              <option value="middle">Middle</option>
+              <option value="bottom">Bottom</option>
+            </select>
+          </label>
+        </template>
       </div>
 
       <div class="group" v-if="sprite">
@@ -585,6 +611,36 @@ function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'c
   if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, number>)[key] = Math.round(value)
   if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, number>)[key] = Math.max(0, value)
   sceneStore.markDirty()
+}
+
+function setTransformPositionMode(event: Event) {
+  if (runtime.isPlaying) return
+  if (!transform.value) return
+  const value = (event.target as HTMLSelectElement).value
+  transform.value.positionMode = value === 'viewport' ? 'viewport' : 'world'
+  if (!transform.value.viewportHorizontal) transform.value.viewportHorizontal = 'center'
+  if (!transform.value.viewportVertical) transform.value.viewportVertical = 'middle'
+  sceneStore.markDirty()
+}
+
+function setTransformViewportHorizontal(event: Event) {
+  if (runtime.isPlaying) return
+  if (!transform.value) return
+  const value = (event.target as HTMLSelectElement).value
+  if (value === 'left' || value === 'center' || value === 'right') {
+    transform.value.viewportHorizontal = value
+    sceneStore.markDirty()
+  }
+}
+
+function setTransformViewportVertical(event: Event) {
+  if (runtime.isPlaying) return
+  if (!transform.value) return
+  const value = (event.target as HTMLSelectElement).value
+  if (value === 'top' || value === 'middle' || value === 'bottom') {
+    transform.value.viewportVertical = value
+    sceneStore.markDirty()
+  }
 }
 
 function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', key: string, event: Event) {

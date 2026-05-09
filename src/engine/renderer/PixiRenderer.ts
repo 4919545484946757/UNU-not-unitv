@@ -13,7 +13,7 @@ import { UIComponent } from '../components/UIComponent'
 import { Scene } from '../core/Scene'
 import { createSampleSceneByName } from '../sampleScene'
 import { deserializeScene, serializeScene } from '../serialization/sceneSerializer'
-import { ScriptRuntime } from '../runtime/ScriptRuntime'
+import { ScriptRuntime, type ScriptConsoleMessage, type ScriptRuntimeError } from '../runtime/ScriptRuntime'
 import { InputState } from '../runtime/InputState'
 import { AudioRuntime } from '../runtime/AudioRuntime'
 import { applySceneAnimation } from '../animation/applyAnimation'
@@ -28,6 +28,8 @@ interface PixiRendererOptions {
   onEntitySelected?: (entityId: string) => void
   onSceneMutated?: () => void
   onRuntimeSceneUpdated?: (scene: Scene | null) => void
+  onScriptError?: (error: ScriptRuntimeError) => void
+  onConsoleMessage?: (message: ScriptConsoleMessage) => void
 }
 
 type GizmoMode = 'none' | 'move' | 'scale' | 'pan'
@@ -255,6 +257,14 @@ export class PixiRenderer {
   private readonly htmlUiNodeCache = new Map<string, { signature: string; node: HTMLDivElement }>()
   private wheelHandler: ((event: WheelEvent) => void) | null = null
   private auxClickHandler: ((event: MouseEvent) => void) | null = null
+  private lastViewportWidth = 0
+  private lastViewportHeight = 0
+  private resizePendingDuringPanelDrag = false
+  private readonly layoutResizeEndHandler = () => {
+    if (!this.resizePendingDuringPanelDrag) return
+    this.resizePendingDuringPanelDrag = false
+    this.resizeAndRedraw()
+  }
 
   constructor(private readonly options: PixiRendererOptions) {}
 
@@ -274,6 +284,13 @@ export class PixiRenderer {
     this.app.stage.addChild(this.root)
     this.options.container.style.position = this.options.container.style.position || 'relative'
     this.options.container.appendChild(this.app.canvas)
+    Object.assign(this.app.canvas.style, {
+      position: 'absolute',
+      inset: '0',
+      width: '100%',
+      height: '100%',
+      display: 'block'
+    })
     this.app.canvas.style.imageRendering = 'pixelated'
     this.installViewportWheelInteractions()
     this.htmlUiLayer.className = 'unu-html-ui-layer'
@@ -304,21 +321,25 @@ export class PixiRenderer {
       getGroupVolume: (group) => this.audioRuntime.getGroupVolume(group)
     })
     this.audioRuntime.setProjectRoot(useProjectStore().rootPath)
+    this.scriptRuntime.setErrorReporter((error) => this.options.onScriptError?.(error))
+    this.scriptRuntime.setConsoleReporter((message) => this.options.onConsoleMessage?.(message))
     await this.refreshProjectRuntimeFiles()
     this.inputState.attach()
+    this.resizeToContainer(true)
     this.resetCameraTransform()
     this.installStageInteractions()
     this.drawGrid()
     if (scene) await this.renderScene(scene)
 
     this.resizeObserver = new ResizeObserver(() => {
-      this.drawGrid()
-      this.drawSelectionGizmo()
-      if (this.currentScene) {
-        void this.renderScene(this.currentScene)
+      if (document.body.classList.contains('is-resizing-panels')) {
+        this.resizePendingDuringPanelDrag = true
+        return
       }
+      this.resizeAndRedraw()
     })
     this.resizeObserver.observe(this.options.container)
+    window.addEventListener('unu:layout-resize-end', this.layoutResizeEndHandler)
 
     const runtimeStore = useRuntimeStore()
     const projectStore = useProjectStore()
@@ -353,6 +374,28 @@ export class PixiRenderer {
     })
   }
 
+  private resizeToContainer(force = false) {
+    const width = Math.max(1, Math.floor(this.options.container.clientWidth || 1))
+    const height = Math.max(1, Math.floor(this.options.container.clientHeight || 1))
+    if (!force && width === this.lastViewportWidth && height === this.lastViewportHeight) return
+    this.lastViewportWidth = width
+    this.lastViewportHeight = height
+    this.app.renderer.resize(width, height)
+    this.app.stage.hitArea = this.app.screen
+  }
+
+  private resizeAndRedraw() {
+    this.resizeToContainer()
+    if (this.currentScene && this.isPlaying) {
+      this.updateCameraFromScene(this.currentScene, true)
+    }
+    this.drawGrid()
+    this.drawSelectionGizmo()
+    if (this.currentScene) {
+      void this.renderScene(this.currentScene)
+    }
+  }
+
   private consumeSceneSwitchRequest() {
     const targetSceneName = this.scriptRuntime.consumeSceneSwitchRequest()
     if (!targetSceneName) return false
@@ -367,6 +410,7 @@ export class PixiRenderer {
     }
 
     this.audioRuntime.stopAll()
+    if (this.playScene) this.scriptRuntime.exitScene(this.playScene)
 
     this.playScene = this.getOrCreatePlayScene(nextSceneTemplate)
     this.currentScene = this.playScene
@@ -376,6 +420,7 @@ export class PixiRenderer {
 
     this.scriptRuntime.initScene(this.playScene)
     this.scriptRuntime.startScene(this.playScene)
+    this.scriptRuntime.enterScene(this.playScene)
     void this.audioRuntime.syncScene(this.playScene)
     this.updateCameraFromScene(this.playScene)
     this.drawSelectionGizmo()
@@ -478,6 +523,7 @@ export class PixiRenderer {
       this.currentScene = this.playScene
       this.scriptRuntime.initScene(this.playScene)
       this.scriptRuntime.startScene(this.playScene)
+      this.scriptRuntime.enterScene(this.playScene)
       void this.audioRuntime.syncScene(this.playScene)
       this.updateCameraFromScene(this.playScene)
       void this.renderScene(this.playScene)
@@ -539,6 +585,19 @@ export class PixiRenderer {
     this.scriptRuntime.setProjectRuntimeSource(scriptLoaded?.content || '', scriptRuntimePath)
     this.inputState.setProjectRuntimeSource(inputLoaded?.content || '', inputRuntimePath)
     this.audioRuntime.setProjectRuntimeSource(audioLoaded?.content || '', audioRuntimePath)
+  }
+
+  async hotReloadProjectRuntimeFiles(changedPath = '') {
+    await this.refreshProjectRuntimeFiles()
+    const projectStore = useProjectStore()
+    const label = changedPath ? changedPath.replace(/\\/g, '/') : '项目脚本'
+    if (this.currentScene && this.isPlaying) {
+      this.scriptRuntime.reloadSceneScripts(this.currentScene)
+      void this.audioRuntime.syncScene(this.currentScene)
+      projectStore.setStatus(`脚本热重载完成：${label}`)
+      return
+    }
+    projectStore.setStatus(`脚本已重新载入：${label}，下次播放生效`)
   }
 
   setSelection(entityId: string) {
@@ -665,8 +724,9 @@ export class PixiRenderer {
           continue
         }
         const uiNode = this.getCachedUiNode(entity, transform, ui)
-        uiNode.x = this.options.container.clientWidth * ui.anchorX + transform.x
-        uiNode.y = this.options.container.clientHeight * ui.anchorY + transform.y
+        const uiPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+        uiNode.x = uiPosition.x
+        uiNode.y = uiPosition.y
         uiNode.rotation = transform.rotation
         uiNode.scale.set(transform.scaleX, transform.scaleY)
         uiNode.zIndex = transform.zIndex ?? 0
@@ -677,13 +737,17 @@ export class PixiRenderer {
       if (tilemap?.enabled) {
         const tilemapNode = await this.getCachedTilemapNode(entity.id, entity.name, transform, tilemap)
         if (version !== this.renderVersion) return
-        tilemapNode.x = transform.x
-        tilemapNode.y = transform.y
+        const viewportPosition = transform.positionMode === 'viewport'
+          ? this.resolveViewportPosition(transform, tilemap.columns * tilemap.tileWidth, tilemap.rows * tilemap.tileHeight, 0, 0)
+          : null
+        tilemapNode.x = viewportPosition?.x ?? transform.x
+        tilemapNode.y = viewportPosition?.y ?? transform.y
         tilemapNode.rotation = transform.rotation
         tilemapNode.scale.set(transform.scaleX, transform.scaleY)
         tilemapNode.zIndex = transform.zIndex ?? 0
         activeWorldIds.add(entity.id)
-        worldNodes.push(tilemapNode)
+        if (viewportPosition) uiNodes.push(tilemapNode)
+        else worldNodes.push(tilemapNode)
         continue
       }
       if (!sprite) continue
@@ -707,14 +771,17 @@ export class PixiRenderer {
       if (version !== this.renderVersion) return
 
       node.label = entity.id
+      const viewportPosition = !isCameraBoundBackground && transform.positionMode === 'viewport'
+        ? this.resolveViewportPosition(transform, sprite.width, sprite.height)
+        : null
       if (isCameraBoundBackground) {
         // Follow-camera backgrounds are rendered in a dedicated screen-space backdrop layer.
         node.x = this.options.container.clientWidth / 2
         node.y = this.options.container.clientHeight / 2
         activeBackdropIds.add(entity.id)
       } else {
-        node.x = transform.x
-        node.y = transform.y
+        node.x = viewportPosition?.x ?? transform.x
+        node.y = viewportPosition?.y ?? transform.y
       }
       node.rotation = transform.rotation
       node.scale.set(transform.scaleX, transform.scaleY)
@@ -728,7 +795,8 @@ export class PixiRenderer {
         backdropNodes.push(node)
       } else {
         activeWorldIds.add(entity.id)
-        worldNodes.push(node)
+        if (viewportPosition) uiNodes.push(node)
+        else worldNodes.push(node)
       }
     }
 
@@ -768,14 +836,62 @@ export class PixiRenderer {
     this.drawSelectionGizmo()
   }
 
+  private resolveViewportPosition(
+    transform: TransformComponent,
+    width = 0,
+    height = 0,
+    fallbackAnchorX = 0.5,
+    fallbackAnchorY = 0.5
+  ) {
+    const viewportWidth = this.options.container.clientWidth
+    const viewportHeight = this.options.container.clientHeight
+    if (transform.positionMode !== 'viewport') {
+      return {
+        x: viewportWidth * fallbackAnchorX + transform.x,
+        y: viewportHeight * fallbackAnchorY + transform.y
+      }
+    }
+
+    const halfWidth = Math.max(0, width * Math.abs(transform.scaleX)) / 2
+    const halfHeight = Math.max(0, height * Math.abs(transform.scaleY)) / 2
+    const x = transform.viewportHorizontal === 'left'
+      ? transform.x + halfWidth
+      : transform.viewportHorizontal === 'right'
+        ? viewportWidth - transform.x - halfWidth
+        : viewportWidth / 2 + transform.x
+    const y = transform.viewportVertical === 'top'
+      ? transform.y + halfHeight
+      : transform.viewportVertical === 'bottom'
+        ? viewportHeight - transform.y - halfHeight
+        : viewportHeight / 2 + transform.y
+
+    return { x, y }
+  }
+
+  private setTransformFromViewportPosition(transform: TransformComponent, centerX: number, centerY: number, width = 0, height = 0) {
+    const viewportWidth = this.options.container.clientWidth
+    const viewportHeight = this.options.container.clientHeight
+    const halfWidth = Math.max(0, width * Math.abs(transform.scaleX)) / 2
+    const halfHeight = Math.max(0, height * Math.abs(transform.scaleY)) / 2
+    transform.x = transform.viewportHorizontal === 'left'
+      ? centerX - halfWidth
+      : transform.viewportHorizontal === 'right'
+        ? viewportWidth - centerX - halfWidth
+        : centerX - viewportWidth / 2
+    transform.y = transform.viewportVertical === 'top'
+      ? centerY - halfHeight
+      : transform.viewportVertical === 'bottom'
+        ? viewportHeight - centerY - halfHeight
+        : centerY - viewportHeight / 2
+  }
+
   private createUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
     const node = new Container()
     node.label = entity.id
     node.zIndex = transform.zIndex ?? 0
-    const viewportWidth = this.options.container.clientWidth
-    const viewportHeight = this.options.container.clientHeight
-    node.x = viewportWidth * ui.anchorX + transform.x
-    node.y = viewportHeight * ui.anchorY + transform.y
+    const uiPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+    node.x = uiPosition.x
+    node.y = uiPosition.y
     node.rotation = transform.rotation
     node.scale.set(transform.scaleX, transform.scaleY)
     node.eventMode = 'static'
@@ -792,8 +908,9 @@ export class PixiRenderer {
       this.selectedEntityId = entity.id
       this.drawSelectionGizmo()
       const global = event.global
-      this.dragOffset.x = global.x - (viewportWidth * ui.anchorX + transform.x)
-      this.dragOffset.y = global.y - (viewportHeight * ui.anchorY + transform.y)
+      const dragPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+      this.dragOffset.x = global.x - dragPosition.x
+      this.dragOffset.y = global.y - dragPosition.y
       if (this.activeTool === 'move') {
         this.gizmoMode = 'move'
       }
@@ -923,7 +1040,10 @@ export class PixiRenderer {
       ui.interactable,
       ui.markdownEnabled,
       ui.enabled,
-      transform.zIndex ?? 0
+      transform.zIndex ?? 0,
+      transform.positionMode,
+      transform.viewportHorizontal,
+      transform.viewportVertical
     ].join('|')
     const cached = this.uiNodeCache.get(entity.id)
     if (cached && cached.signature === signature) return cached.node
@@ -945,7 +1065,11 @@ export class PixiRenderer {
       ui.backgroundColor,
       ui.interactable,
       ui.markdownEnabled,
-      ui.renderMode
+      ui.renderMode,
+      transform.positionMode,
+      transform.viewportHorizontal,
+      transform.viewportVertical,
+      transform.zIndex ?? 0
     ].join('|')
     let cached = this.htmlUiNodeCache.get(entity.id)
     if (!cached) {
@@ -989,10 +1113,7 @@ export class PixiRenderer {
       cached.signature = signature
     }
 
-    const viewportWidth = this.options.container.clientWidth
-    const viewportHeight = this.options.container.clientHeight
-    const x = viewportWidth * ui.anchorX + transform.x
-    const y = viewportHeight * ui.anchorY + transform.y
+    const { x, y } = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
     Object.assign(node.style, {
       position: 'absolute',
       left: `${x}px`,
@@ -1037,9 +1158,15 @@ export class PixiRenderer {
       this.options.onEntitySelected?.(entityId)
       this.selectedEntityId = entityId
       this.drawSelectionGizmo()
-      const local = event.getLocalPosition(this.world)
-      this.dragOffset.x = local.x - transform.x
-      this.dragOffset.y = local.y - transform.y
+      if (transform.positionMode === 'viewport') {
+        const position = this.resolveViewportPosition(transform, tilemap.columns * tilemap.tileWidth, tilemap.rows * tilemap.tileHeight, 0, 0)
+        this.dragOffset.x = event.global.x - position.x
+        this.dragOffset.y = event.global.y - position.y
+      } else {
+        const local = event.getLocalPosition(this.world)
+        this.dragOffset.x = local.x - transform.x
+        this.dragOffset.y = local.y - transform.y
+      }
       if (this.activeTool === 'move') {
         this.gizmoMode = 'move'
       }
@@ -1176,10 +1303,27 @@ export class PixiRenderer {
       if (this.gizmoMode === 'move') {
         if (ui?.enabled) {
           const global = event.global
-          const viewportWidth = this.options.container.clientWidth
-          const viewportHeight = this.options.container.clientHeight
-          transform.x = global.x - viewportWidth * ui.anchorX - this.dragOffset.x
-          transform.y = global.y - viewportHeight * ui.anchorY - this.dragOffset.y
+          const centerX = global.x - this.dragOffset.x
+          const centerY = global.y - this.dragOffset.y
+          if (transform.positionMode === 'viewport') {
+            this.setTransformFromViewportPosition(transform, centerX, centerY, ui.width, ui.height)
+          } else {
+            const viewportWidth = this.options.container.clientWidth
+            const viewportHeight = this.options.container.clientHeight
+            transform.x = centerX - viewportWidth * ui.anchorX
+            transform.y = centerY - viewportHeight * ui.anchorY
+          }
+        } else if (transform.positionMode === 'viewport' && (sprite || tilemap)) {
+          const global = event.global
+          const width = sprite ? sprite.width : tilemap ? tilemap.columns * tilemap.tileWidth : 0
+          const height = sprite ? sprite.height : tilemap ? tilemap.rows * tilemap.tileHeight : 0
+          this.setTransformFromViewportPosition(
+            transform,
+            global.x - this.dragOffset.x,
+            global.y - this.dragOffset.y,
+            width,
+            height
+          )
         } else {
           const local = event.getLocalPosition(this.world)
           transform.x = local.x - this.dragOffset.x
@@ -1315,9 +1459,15 @@ export class PixiRenderer {
       this.options.onEntitySelected?.(entity.id)
       this.selectedEntityId = entity.id
       this.drawSelectionGizmo()
-      const local = event.getLocalPosition(this.world)
-      this.dragOffset.x = local.x - transform.x
-      this.dragOffset.y = local.y - transform.y
+      if (transform.positionMode === 'viewport') {
+        const position = this.resolveViewportPosition(transform, sprite.width, sprite.height)
+        this.dragOffset.x = event.global.x - position.x
+        this.dragOffset.y = event.global.y - position.y
+      } else {
+        const local = event.getLocalPosition(this.world)
+        this.dragOffset.x = local.x - transform.x
+        this.dragOffset.y = local.y - transform.y
+      }
       if (this.activeTool === 'move') {
         this.gizmoMode = 'move'
       }
@@ -1489,7 +1639,7 @@ export class PixiRenderer {
     }
   }
 
-  private updateCameraFromScene(scene: Scene) {
+  private updateCameraFromScene(scene: Scene, snapFollow = false) {
     const cameraEntity = this.findActiveCameraEntity(scene)
     if (!cameraEntity) {
       this.resetCameraTransform()
@@ -1510,7 +1660,7 @@ export class PixiRenderer {
         const desiredX = targetTransform.x + camera.offsetX
         const desiredY = targetTransform.y + camera.offsetY
         const smoothing = Math.max(0, Math.min(1, camera.followSmoothing))
-        if (smoothing <= 0) {
+        if (smoothing <= 0 || snapFollow) {
           cameraTransform.x = desiredX
           cameraTransform.y = desiredY
         } else {
@@ -1738,6 +1888,7 @@ export class PixiRenderer {
     this.audioRuntime.stopAll()
     this.inputState.detach()
     this.resizeObserver?.disconnect()
+    window.removeEventListener('unu:layout-resize-end', this.layoutResizeEndHandler)
     this.cachedSceneRef = null
     this.clearSceneNodeCaches()
     this.htmlUiLayer.remove()
