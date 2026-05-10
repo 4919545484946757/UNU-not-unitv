@@ -13,7 +13,7 @@ import { UIComponent } from '../components/UIComponent'
 import { Scene } from '../core/Scene'
 import { createSampleSceneByName } from '../sampleScene'
 import { deserializeScene, serializeScene } from '../serialization/sceneSerializer'
-import { ScriptRuntime, type ScriptConsoleMessage, type ScriptRuntimeError } from '../runtime/ScriptRuntime'
+import { ScriptRuntime, type ProjectRuntimeSourceFile, type ScriptConsoleMessage, type ScriptRuntimeError } from '../runtime/ScriptRuntime'
 import { InputState } from '../runtime/InputState'
 import { AudioRuntime } from '../runtime/AudioRuntime'
 import { applySceneAnimation } from '../animation/applyAnimation'
@@ -622,6 +622,7 @@ export class PixiRenderer {
 
   private async refreshProjectRuntimeFiles() {
     const projectStore = useProjectStore()
+    const assetStore = useAssetStore()
     const scriptRuntimePath = 'assets/scripts/ScriptRuntime.ts'
     const inputRuntimePath = 'assets/scripts/InputState.ts'
     const audioRuntimePath = 'assets/scripts/AudioRuntime.ts'
@@ -631,11 +632,32 @@ export class PixiRenderer {
       this.audioRuntime.setProjectRuntimeSource('', audioRuntimePath)
       return
     }
+    const discoveredProjectScriptPaths = assetStore.flat
+      .filter((node) => node.type === 'script')
+      .map((node) => node.path.replace(/\\/g, '/'))
+      .filter((path) => /\.(js|ts)$/i.test(path))
+      .filter((path) => (
+        path === scriptRuntimePath ||
+        path.startsWith('assets/scripts/shared/') ||
+        path.startsWith('assets/scripts/scenes/')
+      ))
+    const projectScriptPaths = [scriptRuntimePath, ...discoveredProjectScriptPaths]
+      .filter((path, index, list) => list.indexOf(path) === index)
+      .sort((left, right) => {
+        if (left === scriptRuntimePath) return -1
+        if (right === scriptRuntimePath) return 1
+        return left.localeCompare(right)
+      })
     const [scriptLoaded, inputLoaded, audioLoaded] = await Promise.all([
-      window.unu.readTextAsset({
-        projectRoot: projectStore.rootPath,
-        relativePath: scriptRuntimePath
-      }).catch(() => null),
+      Promise.all(
+        projectScriptPaths.map((relativePath) => window.unu!.readTextAsset!({
+          projectRoot: projectStore.rootPath,
+          relativePath
+        }).then((result) => result ? {
+          path: result.relativePath || relativePath,
+          content: result.content || ''
+        } : null).catch(() => null))
+      ),
       window.unu.readTextAsset({
         projectRoot: projectStore.rootPath,
         relativePath: inputRuntimePath
@@ -645,7 +667,8 @@ export class PixiRenderer {
         relativePath: audioRuntimePath
       }).catch(() => null)
     ])
-    this.scriptRuntime.setProjectRuntimeSource(scriptLoaded?.content || '', scriptRuntimePath)
+    const scriptFiles = (scriptLoaded.filter(Boolean) as ProjectRuntimeSourceFile[])
+    this.scriptRuntime.setProjectRuntimeSources(scriptFiles.length ? scriptFiles : [{ path: scriptRuntimePath, content: '' }])
     this.inputState.setProjectRuntimeSource(inputLoaded?.content || '', inputRuntimePath)
     this.audioRuntime.setProjectRuntimeSource(audioLoaded?.content || '', audioRuntimePath)
   }

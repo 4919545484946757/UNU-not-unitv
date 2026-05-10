@@ -3,17 +3,23 @@
   "version": 1,
   "name": "sample-2D-shooting",
   "createdAt": "2026-04-24T03:20:39.708Z",
-  "updatedAt": "2026-04-24T04:29:08.326Z",
+  "updatedAt": "2026-05-10T07:29:09.593Z",
   "sceneCatalogVersion": 1,
   "sceneCatalog": [
     {
       "file": "MainScene.scene.json",
-      "name": "MainScene"
+      "name": "MainScene",
+      "scriptRoot": "assets/scripts/scenes/MainScene"
     },
     {
       "file": "SecondScene.scene.json",
-      "name": "SecondScene"
+      "name": "SecondScene",
+      "scriptRoot": "assets/scripts/scenes/SecondScene"
     }
   ],
-  "startupScene": "MainScene.scene.json"
+  "startupScene": "MainScene.scene.json",
+  "scriptRoots": {
+    "shared": "assets/scripts/shared",
+    "scenes": "assets/scripts/scenes"
+  }
 }

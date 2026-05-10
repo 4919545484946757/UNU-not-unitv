@@ -14,6 +14,16 @@ assets/scripts/ScriptRuntime.ts
 
 An entity `Script` component binds to a script with `scriptPath`. At runtime, UNU looks up the same path in the exported `scripts` table and calls the matching hooks.
 
+UNU also supports a "project-level shared scripts + optional scene-level scripts" convention:
+
+```text
+assets/scripts/shared/              # Reusable by any scene
+assets/scripts/scenes/MainScene/    # MainScene-only scripts
+assets/scripts/scenes/SecondScene/  # SecondScene-only scripts
+```
+
+Scripts in these folders can directly export a Hook object. The file path becomes the entity `Script.scriptPath`.
+
 ```ts
 export const scripts = {
   'assets/scripts/player.js': {
@@ -26,6 +36,15 @@ export const scripts = {
       transform.x += move.x * speed * ctx.api.delta
       transform.y += move.y * speed * ctx.api.delta
     }
+  }
+}
+```
+
+```ts
+// assets/scripts/scenes/SecondScene/player-platformer.js
+export default {
+  onUpdate(ctx) {
+    ctx.api.log('SecondScene only')
   }
 }
 ```

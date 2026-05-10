@@ -164,6 +164,11 @@ interface ProjectRuntimeModule {
   [key: string]: unknown
 }
 
+export interface ProjectRuntimeSourceFile {
+  path: string
+  content: string
+}
+
 type CollisionPairKind = 'collision' | 'trigger'
 type CollisionHookName =
   | 'onCollisionEnter'
@@ -511,6 +516,7 @@ export class ScriptRuntime {
   }
   private projectRuntimePath = ''
   private projectScriptRegistry: Record<string, ScriptHooks> = {}
+  private projectScriptSourcePaths: Record<string, string> = {}
   private errorReporter: ((error: ScriptRuntimeError) => void) | null = null
   private consoleReporter: ((message: ScriptConsoleMessage) => void) | null = null
   private collisionPairsByScene = new Map<string, Set<string>>()
@@ -520,6 +526,27 @@ export class ScriptRuntime {
   setProjectRuntimeSource(sourceCode: string | null, scriptPath = 'assets/scripts/ScriptRuntime.ts') {
     this.projectRuntimePath = normalizeScriptPath(scriptPath)
     this.projectScriptRegistry = parseProjectRuntimeRegistry(sourceCode, this.projectRuntimePath, (error) => this.reportScriptError(error))
+    this.projectScriptSourcePaths = {}
+    for (const key of Object.keys(this.projectScriptRegistry)) this.projectScriptSourcePaths[key] = this.projectRuntimePath
+  }
+
+  setProjectRuntimeSources(files: ProjectRuntimeSourceFile[]) {
+    const normalizedFiles = files
+      .map((file) => ({
+        path: normalizeScriptPath(file.path),
+        content: String(file.content || '')
+      }))
+      .filter((file) => file.path)
+    this.projectRuntimePath = normalizedFiles[0]?.path || 'assets/scripts/ScriptRuntime.ts'
+    const merged: Record<string, ScriptHooks> = {}
+    const sourcePaths: Record<string, string> = {}
+    for (const file of normalizedFiles) {
+      const parsed = parseProjectRuntimeRegistry(file.content, file.path, (error) => this.reportScriptError(error))
+      Object.assign(merged, parsed)
+      for (const key of Object.keys(parsed)) sourcePaths[key] = file.path
+    }
+    this.projectScriptRegistry = merged
+    this.projectScriptSourcePaths = sourcePaths
   }
 
   setErrorReporter(reporter: ((error: ScriptRuntimeError) => void) | null) {
@@ -858,7 +885,9 @@ export class ScriptRuntime {
   private resolveErrorScriptPath(script?: ScriptComponent | null) {
     const normalized = normalizeScriptPath(script?.scriptPath || '')
     const canonical = resolveCanonicalScriptPath(normalized)
-    if (this.resolveProjectScriptHooks(normalized)) return this.projectRuntimePath || canonical || normalized
+    if (this.resolveProjectScriptHooks(normalized)) {
+      return this.projectScriptSourcePaths[normalized] || this.projectScriptSourcePaths[canonical] || this.projectRuntimePath || canonical || normalized
+    }
     if (canonical && canonical.startsWith('assets/')) return canonical
     return this.projectRuntimePath || canonical || normalized || 'assets/scripts/ScriptRuntime.ts'
   }
@@ -1644,6 +1673,11 @@ function parseProjectRuntimeRegistry(
     const evaluator = new Function('module', 'exports', `${transpiled.outputText}\n//# sourceURL=${scriptPath}`)
     evaluator(moduleBag, exportsBag)
     const loaded = ((moduleBag.exports && (moduleBag.exports.default as unknown)) || moduleBag.exports) as ProjectRuntimeModule | null
+    if (isScriptHooksLike(loaded)) {
+      return {
+        [resolveCanonicalScriptPath(scriptPath)]: loaded as ScriptHooks
+      }
+    }
     const scripts = loaded && typeof loaded === 'object'
       ? (loaded.scripts && typeof loaded.scripts === 'object' ? loaded.scripts : loaded)
       : null
@@ -1662,6 +1696,26 @@ function parseProjectRuntimeRegistry(
     if (!onError) console.warn('[UNU][runtime] failed to parse project ScriptRuntime.ts:', error)
     return {}
   }
+}
+
+function isScriptHooksLike(value: unknown) {
+  if (!value || typeof value !== 'object') return false
+  const hooks = value as Record<string, unknown>
+  return (
+    typeof hooks.onInit === 'function' ||
+    typeof hooks.onStart === 'function' ||
+    typeof hooks.onEnterScene === 'function' ||
+    typeof hooks.onExitScene === 'function' ||
+    typeof hooks.onUpdate === 'function' ||
+    typeof hooks.onInteract === 'function' ||
+    typeof hooks.onCollisionEnter === 'function' ||
+    typeof hooks.onCollisionStay === 'function' ||
+    typeof hooks.onCollisionExit === 'function' ||
+    typeof hooks.onTriggerEnter === 'function' ||
+    typeof hooks.onTriggerStay === 'function' ||
+    typeof hooks.onTriggerExit === 'function' ||
+    typeof hooks.onDestroy === 'function'
+  )
 }
 
 function normalizeRuntimeError(

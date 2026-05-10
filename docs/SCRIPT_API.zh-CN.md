@@ -14,6 +14,16 @@ assets/scripts/ScriptRuntime.ts
 
 实体的 `Script` 组件通过 `scriptPath` 绑定脚本。运行时会在导出的 `scripts` 表中查找同名脚本，并调用对应生命周期函数。
 
+UNU 也支持“项目级共享脚本 + 场景级可选脚本”目录约定：
+
+```text
+assets/scripts/shared/              # 任意场景都可复用
+assets/scripts/scenes/MainScene/    # MainScene 专属脚本
+assets/scripts/scenes/SecondScene/  # SecondScene 专属脚本
+```
+
+这些目录中的脚本文件可以直接导出 Hook 对象，文件路径就是实体 `Script.scriptPath`。
+
 ```ts
 export const scripts = {
   'assets/scripts/player.js': {
@@ -26,6 +36,15 @@ export const scripts = {
       transform.x += move.x * speed * ctx.api.delta
       transform.y += move.y * speed * ctx.api.delta
     }
+  }
+}
+```
+
+```ts
+// assets/scripts/scenes/SecondScene/player-platformer.js
+export default {
+  onUpdate(ctx) {
+    ctx.api.log('SecondScene only')
   }
 }
 ```
