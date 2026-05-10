@@ -2453,7 +2453,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:copy-asset', async (_event, payload: { projectRoot: string; relativePath: string }) => {
+  ipcMain.handle('unu:copy-asset', async (_event, payload: { projectRoot: string; relativePath: string; targetFolderPath?: string }) => {
     const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
     if (!projectRoot || projectRoot === 'sample-project') {
       throw new Error('Please open or save a local project before copying assets.')
@@ -2465,8 +2465,21 @@ app.whenReady().then(() => {
     const sourceStat = await fs.stat(sourcePath).catch(() => null)
     if (!sourceStat) throw new Error('Source asset does not exist.')
 
+    const targetFolderRelative = normalizeSafeRelativePath(payload?.targetFolderPath || '') || normalizePath(path.relative(projectRoot, path.dirname(sourcePath)))
+    const targetFolderPath = resolveProjectChildPath(projectRoot, targetFolderRelative)
+    if (!targetFolderPath) throw new Error('Target folder is outside the current project.')
+    const targetFolderStat = await fs.stat(targetFolderPath).catch(() => null)
+    if (!targetFolderStat?.isDirectory()) throw new Error('Target folder does not exist.')
+    if (sourceStat.isDirectory()) {
+      const normalizedSource = normalizePath(sourcePath)
+      const normalizedTargetFolder = normalizePath(targetFolderPath)
+      if (normalizedTargetFolder === normalizedSource || normalizedTargetFolder.startsWith(`${normalizedSource}/`)) {
+        throw new Error('Cannot paste a folder into itself or one of its children.')
+      }
+    }
+
     const parsed = splitKnownAssetExtension(path.basename(sourcePath))
-    const targetBase = path.join(path.dirname(sourcePath), `${parsed.base}_Copy${parsed.ext}`)
+    const targetBase = path.join(targetFolderPath, `${parsed.base}_Copy${parsed.ext}`)
     const targetPath = await makeUniquePathIfNeeded(targetBase)
     if (sourceStat.isDirectory()) await fs.cp(sourcePath, targetPath, { recursive: true, force: false })
     else await fs.copyFile(sourcePath, targetPath)

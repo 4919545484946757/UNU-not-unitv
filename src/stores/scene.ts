@@ -43,7 +43,8 @@ export const useSceneStore = defineStore('scene', {
     autoSaveEnabled: true,
     autoSaveIntervalSec: 20,
     autoSaveTimer: 0 as number,
-    isAutoSaving: false
+    isAutoSaving: false,
+    entityClipboard: null as ReturnType<typeof serializeEntity> | null
   }),
   getters: {
     entities(state): Entity[] {
@@ -727,9 +728,25 @@ export const useSceneStore = defineStore('scene', {
         project.setStatus('请先选择一个实体再复制。')
         return
       }
-      const copy = deserializeEntity(serializeEntity(entity))
+      this.entityClipboard = serializeEntity(entity)
+      project.setStatus(`已复制实体到剪贴板：${entity.name}`)
+    },
+
+    pasteCopiedEntity() {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene) {
+        project.setStatus('当前没有可粘贴实体的场景。')
+        return
+      }
+      if (!this.entityClipboard) {
+        project.setStatus('没有可粘贴的实体，请先复制实体。')
+        return
+      }
+      const copy = deserializeEntity(JSON.parse(JSON.stringify(this.entityClipboard)))
+      const sourceName = copy.name
       copy.id = createEntityId('copy')
-      copy.name = `${entity.name}_Copy`
+      copy.name = `${copy.name}_Copy`
       const transform = copy.getTransform()
       if (transform) {
         transform.x += 32
@@ -739,7 +756,7 @@ export const useSceneStore = defineStore('scene', {
       this.currentScene.addEntity(copy)
       this.markDirty()
       selection.selectEntity(copy.id)
-      project.setStatus(`已复制实体：${entity.name}`)
+      project.setStatus(`已粘贴实体：${sourceName}`)
     },
 
     removeSelectedEntity(force = false) {

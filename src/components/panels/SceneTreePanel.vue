@@ -5,6 +5,7 @@
       <div class="mini-actions">
         <button @click="editor.openEntityCreateDialog()">新建实体</button>
         <button @click="scene.duplicateSelectedEntity">复制</button>
+        <button :disabled="!scene.entityClipboard" @click="scene.pasteCopiedEntity">粘贴</button>
         <button @click="scene.removeSelectedEntity">删除</button>
       </div>
     </div>
@@ -109,6 +110,7 @@ function openPanelMenu(event: MouseEvent) {
   showMenu(event, [
     { label: '新建实体', action: () => editor.openEntityCreateDialog() },
     { label: '复制当前实体', disabled: !selection.selectedEntityId, action: () => scene.duplicateSelectedEntity() },
+    { label: '粘贴实体', disabled: !scene.entityClipboard || runtime.isPlaying, action: () => scene.pasteCopiedEntity() },
     { label: '删除当前实体', disabled: !selection.selectedEntityId, action: () => scene.removeSelectedEntity() }
   ])
 }
@@ -122,6 +124,7 @@ function openEntityMenu(event: MouseEvent, entityId: string) {
     { label: '修改实体 ID', disabled: runtime.isPlaying, action: () => openEntityDialog(entityId, 'id') },
     { label: '新建实体', action: () => editor.openEntityCreateDialog() },
     { label: '复制实体', action: () => scene.duplicateSelectedEntity() },
+    { label: '粘贴实体', disabled: !scene.entityClipboard || runtime.isPlaying, action: () => scene.pasteCopiedEntity() },
     { label: '删除实体', action: () => scene.removeSelectedEntity() },
     { label: '图层上移', action: () => scene.moveSelectedEntityLayer(1) },
     { label: '图层下移', action: () => scene.moveSelectedEntityLayer(-1) }
@@ -343,4 +346,3 @@ small { color: #8ea0b8; }
   gap: 8px;
 }
 </style>
-

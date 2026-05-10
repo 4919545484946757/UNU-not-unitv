@@ -175,6 +175,7 @@ function openPanelMenu(event: MouseEvent) {
     { label: '刷新资源', action: () => assets.refreshProject() },
     { label: '新建文件', action: () => openCreateFileDialog(assets.selectedPath || 'assets') },
     { label: '新建文件夹', action: () => openCreateFolderDialog(assets.selectedPath || 'assets') },
+    { label: '粘贴文件/文件夹', disabled: !assets.assetClipboard, action: () => assets.pasteCopiedAsset(assets.selectedPath || 'assets') },
     { label: '导入图片', action: () => assets.importImages() },
     { label: '导入音频', action: () => assets.importAudios() },
     { label: allExpanded.value ? '全部折叠' : '全部展开', action: () => toggleAll() }
@@ -281,6 +282,7 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
     items.push({ label: '新建文件', action: () => openCreateFileDialog(node.path) })
     items.push({ label: '新建文件夹', action: () => openCreateFolderDialog(node.path) })
     items.push({ label: '复制文件夹', action: () => assets.copyAsset(node.path) })
+    items.push({ label: '粘贴文件/文件夹', disabled: !assets.assetClipboard, action: () => assets.pasteCopiedAsset(node.path) })
     items.push({ label: '重命名文件夹', action: () => openRenameDialog(node) })
     if (!['assets', 'scenes', 'prefabs'].includes(node.path)) {
       items.push({ label: '删除文件夹', action: () => openDeleteDialog(node) })
@@ -351,6 +353,11 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
 
   if (node.type !== 'folder') {
     items.push({ label: '复制文件', action: () => assets.copyAsset(node.path) })
+    items.push({
+      label: '粘贴到所在目录',
+      disabled: !assets.assetClipboard,
+      action: () => assets.pasteCopiedAsset(node.path.split('/').slice(0, -1).join('/') || 'assets')
+    })
     items.push({ label: '重命名文件', action: () => openRenameDialog(node) })
     items.push({ label: '删除文件', action: () => openDeleteDialog(node) })
   }

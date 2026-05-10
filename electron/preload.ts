@@ -35,7 +35,7 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.invoke('unu:create-asset-folder', payload),
   renameAsset: (payload: { projectRoot: string; relativePath: string; nextName: string }) =>
     ipcRenderer.invoke('unu:rename-asset', payload),
-  copyAsset: (payload: { projectRoot: string; relativePath: string }) =>
+  copyAsset: (payload: { projectRoot: string; relativePath: string; targetFolderPath?: string }) =>
     ipcRenderer.invoke('unu:copy-asset', payload),
   deleteAsset: (payload: { projectRoot: string; relativePath: string }) =>
     ipcRenderer.invoke('unu:delete-asset', payload),

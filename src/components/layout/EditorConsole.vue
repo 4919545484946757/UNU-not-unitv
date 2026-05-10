@@ -3,8 +3,8 @@
     <div class="console-header">
       <div class="title">Console</div>
       <div class="tabs">
-        <button :class="{ active: activeTab === 'log' }" @click="activeTab = 'log'">Log</button>
-        <button :class="{ active: activeTab === 'performance' }" @click="activeTab = 'performance'">Performance</button>
+        <button :class="{ active: activeTab === 'log' }" @click="activeTab = 'log'">命令日志</button>
+        <button :class="{ active: activeTab === 'performance' }" @click="activeTab = 'performance'">性能检测</button>
       </div>
       <div class="meta">{{ activeTab === 'log' ? `${consoleStore.messages.length} messages` : `${runtime.fps} FPS` }}</div>
       <button v-if="activeTab === 'log'" @click="consoleStore.clear()">Clear</button>
@@ -22,7 +22,7 @@
           <div class="perf-label">{{ item.label }}</div>
           <div class="perf-value">{{ item.value }}</div>
           <div class="perf-bar">
-            <span :style="{ width: item.percent }"></span>
+            <span :style="{ width: item.percent,backgroundSize: `${(100 / parseFloat(item.percent)) * 100}% 100%` }"></span>
           </div>
         </article>
       </div>
@@ -352,13 +352,17 @@ function browseHistory(direction: number) {
 .tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  height: 100%;
+  gap: 0px;
 }
 
 .tabs button {
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 0px;
+  height: 100%;
   background: transparent;
+  border-top: 1px solid #111827;
+  border-bottom: 1px solid #111827;
 }
 
 .tabs button.active {
@@ -466,8 +470,11 @@ button:hover {
 .perf-bar span {
   display: block;
   height: 100%;
+  
   border-radius: inherit;
-  background: linear-gradient(90deg, #56b6c2, #f2c94c);
+  background: linear-gradient(90deg, #4dd15f, #f2b54c);
+  background-repeat: no-repeat;
+  
 }
 
 .perf-note,

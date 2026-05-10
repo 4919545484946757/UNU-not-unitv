@@ -9,8 +9,36 @@
       </div>
     </div>
 
-    <template v-if="mode !== 'none'">
+    <div v-if="mode !== 'none'" class="editor-body">
       <div class="code-shell">
+        <div v-if="findPanel.visible" class="find-popover">
+          <input
+            ref="findInputRef"
+            v-model="findPanel.query"
+            class="find-input"
+            placeholder="查找"
+            @keydown.enter.prevent="findNext(1)"
+            @keydown.shift.enter.prevent="findNext(-1)"
+            @keydown.esc.prevent="closeFindPanel"
+          />
+          <input
+            v-model="findPanel.replace"
+            class="find-input replace-input"
+            placeholder="替换为"
+            @keydown.enter.prevent="replaceCurrent"
+            @keydown.esc.prevent="closeFindPanel"
+          />
+          <span class="find-count">{{ findMatchLabel }}</span>
+          <label class="find-toggle">
+            <input v-model="findPanel.caseSensitive" type="checkbox" />
+            Aa
+          </label>
+          <button @click="findNext(-1)">上一个</button>
+          <button @click="findNext(1)">下一个</button>
+          <button @click="replaceCurrent">替换</button>
+          <button @click="replaceAll">全部替换</button>
+          <button class="find-close" title="关闭" @click="closeFindPanel">×</button>
+        </div>
         <pre ref="highlightRef" class="highlight-layer" v-html="highlightedHtml"></pre>
         <textarea
           ref="textareaRef"
@@ -21,9 +49,10 @@
           @scroll="syncScroll"
           @keydown.ctrl.s.prevent="saveAssetScript"
           @keydown.meta.s.prevent="saveAssetScript"
+          @keydown="handleEditorKeydown"
         ></textarea>
       </div>
-    </template>
+    </div>
     <div v-else class="empty-state">请在场景中选择带 Script 组件的实体，或在资源树中选择一个脚本文件。</div>
 
     <div class="tips">
@@ -38,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import type { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
@@ -236,6 +265,14 @@ const assetDirty = ref(false)
 const loadingAsset = ref(false)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const highlightRef = ref<HTMLElement | null>(null)
+const findInputRef = ref<HTMLInputElement | null>(null)
+const findPanel = reactive({
+  visible: false,
+  query: '',
+  replace: '',
+  caseSensitive: false,
+  currentIndex: -1
+})
 
 const canSaveAsset = computed(() => {
   return mode.value === 'asset' && !!window.unu?.saveTextAsset && project.rootPath !== 'sample-project'
@@ -276,6 +313,13 @@ const highlightedHtml = computed(() => {
   return `${highlightJsLike(code)}\n`
 })
 
+const findMatches = computed(() => collectFindMatches(editorText.value, findPanel.query, findPanel.caseSensitive))
+const findMatchLabel = computed(() => {
+  if (!findPanel.query) return '输入关键词'
+  if (!findMatches.value.length) return '0 / 0'
+  return `${Math.max(1, findPanel.currentIndex + 1)} / ${findMatches.value.length}`
+})
+
 watch(
   () => selectedTextAssetPath.value,
   async (path) => {
@@ -304,6 +348,11 @@ watch(
     await nextTick()
     revealLine(target.line, target.column)
   }
+)
+
+watch(
+  () => [editorText.value, findPanel.query, findPanel.caseSensitive],
+  () => updateFindIndexFromSelection()
 )
 
 async function loadAssetScript(relativePath: string) {
@@ -341,7 +390,20 @@ function onEditorInput() {
   if (mode.value === 'entity') {
     sceneStore.markDirty()
   }
+  updateFindIndexFromSelection()
   syncScroll()
+}
+
+function handleEditorKeydown(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+    event.preventDefault()
+    openFindPanel()
+    return
+  }
+  if (findPanel.visible && event.key === 'F3') {
+    event.preventDefault()
+    findNext(event.shiftKey ? -1 : 1)
+  }
 }
 
 function syncScroll() {
@@ -366,6 +428,165 @@ function revealLine(line: number, column?: number) {
   const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 18
   textarea.scrollTop = Math.max(0, (targetLine - 1) * lineHeight - textarea.clientHeight * 0.35)
   syncScroll()
+}
+
+function openFindPanel() {
+  const textarea = textareaRef.value
+  const selected = textarea && textarea.selectionEnd > textarea.selectionStart
+    ? editorText.value.slice(textarea.selectionStart, textarea.selectionEnd)
+    : ''
+  if (selected && !selected.includes('\n') && selected.length <= 120) {
+    findPanel.query = selected
+  }
+  findPanel.visible = true
+  updateFindIndexFromSelection()
+  void nextTick(() => {
+    findInputRef.value?.focus()
+    findInputRef.value?.select()
+  })
+}
+
+function closeFindPanel() {
+  findPanel.visible = false
+  textareaRef.value?.focus()
+}
+
+function collectFindMatches(text: string, query: string, caseSensitive: boolean) {
+  if (!query) return [] as Array<{ start: number; end: number }>
+  const haystack = caseSensitive ? text : text.toLowerCase()
+  const needle = caseSensitive ? query : query.toLowerCase()
+  const matches: Array<{ start: number; end: number }> = []
+  let cursor = 0
+  while (cursor <= haystack.length) {
+    const index = haystack.indexOf(needle, cursor)
+    if (index < 0) break
+    matches.push({ start: index, end: index + query.length })
+    cursor = index + Math.max(1, query.length)
+  }
+  return matches
+}
+
+function updateFindIndexFromSelection() {
+  const textarea = textareaRef.value
+  if (!textarea || !findMatches.value.length) {
+    findPanel.currentIndex = -1
+    return
+  }
+  const index = findMatches.value.findIndex((match) => (
+    match.start === textarea.selectionStart && match.end === textarea.selectionEnd
+  ))
+  findPanel.currentIndex = index
+}
+
+function findNext(direction: 1 | -1 = 1) {
+  if (!findPanel.query) {
+    openFindPanel()
+    return
+  }
+  const textarea = textareaRef.value
+  const matches = findMatches.value
+  if (!textarea || !matches.length) {
+    findPanel.currentIndex = -1
+    project.setStatus(`未找到：${findPanel.query}`)
+    return
+  }
+  const cursor = direction > 0 ? textarea.selectionEnd : Math.max(0, textarea.selectionStart - 1)
+  let nextIndex = direction > 0
+    ? matches.findIndex((match) => match.start >= cursor)
+    : findLastMatchBefore(matches, cursor)
+  if (nextIndex < 0) nextIndex = direction > 0 ? 0 : matches.length - 1
+  selectFindMatch(nextIndex)
+}
+
+function findLastMatchBefore(matches: Array<{ start: number; end: number }>, cursor: number) {
+  for (let index = matches.length - 1; index >= 0; index -= 1) {
+    if (matches[index].start <= cursor) return index
+  }
+  return -1
+}
+
+function selectFindMatch(index: number) {
+  const textarea = textareaRef.value
+  const match = findMatches.value[index]
+  if (!textarea || !match) return
+  textarea.focus()
+  textarea.setSelectionRange(match.start, match.end)
+  findPanel.currentIndex = index
+  scrollSelectionIntoView()
+  syncScroll()
+}
+
+function selectedTextMatchesQuery() {
+  const textarea = textareaRef.value
+  if (!textarea || !findPanel.query) return false
+  const selected = editorText.value.slice(textarea.selectionStart, textarea.selectionEnd)
+  return findPanel.caseSensitive
+    ? selected === findPanel.query
+    : selected.toLowerCase() === findPanel.query.toLowerCase()
+}
+
+function replaceCurrent() {
+  const textarea = textareaRef.value
+  if (!textarea || !findPanel.query) return
+  if (!selectedTextMatchesQuery()) {
+    findNext(1)
+    return
+  }
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const nextText = `${editorText.value.slice(0, start)}${findPanel.replace}${editorText.value.slice(end)}`
+  applyEditorText(nextText, start, start + findPanel.replace.length)
+  void nextTick(() => {
+    findNext(1)
+  })
+}
+
+function replaceAll() {
+  if (!findPanel.query) return
+  const matches = findMatches.value
+  if (!matches.length) {
+    project.setStatus(`未找到：${findPanel.query}`)
+    return
+  }
+  let nextText = ''
+  let cursor = 0
+  for (const match of matches) {
+    nextText += editorText.value.slice(cursor, match.start)
+    nextText += findPanel.replace
+    cursor = match.end
+  }
+  nextText += editorText.value.slice(cursor)
+  applyEditorText(nextText, 0, 0)
+  project.setStatus(`已替换 ${matches.length} 处：${findPanel.query}`)
+}
+
+function applyEditorText(value: string, selectionStart: number, selectionEnd: number) {
+  editorText.value = value
+  if (mode.value === 'entity') sceneStore.markDirty()
+  if (mode.value === 'asset') assetDirty.value = true
+  void nextTick(() => {
+    const textarea = textareaRef.value
+    if (!textarea) return
+    textarea.focus()
+    textarea.setSelectionRange(selectionStart, selectionEnd)
+    updateFindIndexFromSelection()
+    syncScroll()
+  })
+}
+
+function scrollSelectionIntoView() {
+  const textarea = textareaRef.value
+  if (!textarea) return
+  const textBefore = editorText.value.slice(0, textarea.selectionStart)
+  const line = textBefore.split('\n').length
+  const column = textBefore.length - textBefore.lastIndexOf('\n') - 1
+  const computedStyle = window.getComputedStyle(textarea)
+  const lineHeight = Number.parseFloat(computedStyle.lineHeight) || 18
+  const charWidth = Math.max(7, Number.parseFloat(computedStyle.fontSize || '13') * 0.62)
+  const targetTop = Math.max(0, (line - 1) * lineHeight - textarea.clientHeight * 0.42)
+  const targetLeft = Math.max(0, column * charWidth - textarea.clientWidth * 0.45)
+  textarea.scrollTop = targetTop
+  textarea.scrollLeft = targetLeft
 }
 
 async function saveAssetScript() {
@@ -550,6 +771,85 @@ function highlightJsLike(code: string) {
   grid-template-rows: auto minmax(180px, 1fr) auto;
   gap: 10px;
 }
+.editor-body {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(180px, 1fr);
+}
+.find-popover {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  max-width: calc(100% - 28px);
+  padding: 7px;
+  border: 1px solid #2a3140;
+  border-radius: 10px;
+  background: rgba(17, 24, 33, 0.98);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(8px);
+}
+.find-input {
+  min-width: 0;
+  width: 150px;
+  border: 1px solid #303848;
+  border-radius: 7px;
+  background: #202632;
+  color: #ecf0f7;
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+}
+.replace-input {
+  width: 150px;
+}
+.find-input:focus {
+  border-color: #56b6c2;
+}
+.find-count {
+  flex: 0 0 auto;
+  min-width: 58px;
+  color: #8ea0b8;
+  font-size: 12px;
+  text-align: center;
+}
+.find-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #9fb1c6;
+  font-size: 12px;
+  user-select: none;
+}
+.find-popover button {
+  flex: 0 0 auto;
+  border: 1px solid #303848;
+  background: #202632;
+  color: #ecf0f7;
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.find-popover button:hover {
+  background: #2d3443;
+}
+.find-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  margin-top: auto;
+  margin-left: auto;
+}
 .title-row {
   display: flex;
   justify-content: space-between;
@@ -626,7 +926,7 @@ textarea {
 .code-shell {
   position: relative;
   min-width: 0;
-  min-height: 0;
+  min-height: 180px;
   height: 100%;
   border: 1px solid #2a3140;
   border-radius: 10px;

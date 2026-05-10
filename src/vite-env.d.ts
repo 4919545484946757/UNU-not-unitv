@@ -78,7 +78,7 @@ declare global {
       createTextAssetInFolder?: (payload: { projectRoot: string; folderPath: string; fileName?: string; content?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       createAssetFolder?: (payload: { projectRoot: string; folderPath: string; folderName?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       renameAsset?: (payload: { projectRoot: string; relativePath: string; nextName: string }) => Promise<{ filePath: string; name: string; relativePath?: string; relinkedFiles?: number } | null>
-      copyAsset?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
+      copyAsset?: (payload: { projectRoot: string; relativePath: string; targetFolderPath?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       deleteAsset?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ ok: boolean; relativePath?: string; trashRelativePath?: string; error?: string }>
       restoreDeletedAsset?: (payload: { projectRoot: string; trashRelativePath: string; restoreRelativePath: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       moveAsset?: (payload: { projectRoot: string; relativePath: string; targetFolderPath: string }) => Promise<{ filePath: string; name: string; relativePath?: string; relinkedFiles?: number } | null>

@@ -68,7 +68,8 @@ export const useAssetStore = defineStore('assets', {
     expandedPaths: { assets: true, scenes: true, prefabs: true } as Record<string, boolean>,
     fileUndoStack: [] as AssetFileHistoryEntry[],
     fileRedoStack: [] as AssetFileHistoryEntry[],
-    isRestoringFileHistory: false
+    isRestoringFileHistory: false,
+    assetClipboard: null as { path: string; type: AssetNode['type']; name: string } | null
   }),
   getters: {
     browserItems(state) {
@@ -619,18 +620,39 @@ export const useAssetStore = defineStore('assets', {
     },
     async copyAsset(relativePath: string) {
       const project = useProjectStore()
+      const node = this.flat.find((item) => item.path === relativePath)
+      if (!node) {
+        project.setStatus(`复制资源失败：未找到资源 ${relativePath}`)
+        return null
+      }
+      this.assetClipboard = { path: node.path, type: node.type, name: node.name }
+      project.setStatus(`已复制${node.type === 'folder' ? '文件夹' : '文件'}到剪贴板：${node.path}`)
+      return this.assetClipboard
+    },
+    async pasteCopiedAsset(targetFolderPath?: string) {
+      const project = useProjectStore()
       if (!window.unu?.copyAsset) {
         project.setStatus('当前环境未接入资源复制接口，请使用桌面版运行。')
         return null
       }
+      if (!this.assetClipboard) {
+        project.setStatus('没有可粘贴的资源，请先复制文件或文件夹。')
+        return null
+      }
       if (!project.rootPath || project.rootPath === 'sample-project') {
-        project.setStatus('请先打开或另存为本地项目，再复制资源。')
+        project.setStatus('请先打开或另存为本地项目，再粘贴资源。')
         return null
       }
       try {
-        const result = await window.unu.copyAsset({ projectRoot: project.rootPath, relativePath })
+        const fallbackParent = this.assetClipboard.path.split('/').slice(0, -1).join('/') || 'assets'
+        const targetFolder = targetFolderPath || this.selectedPath || fallbackParent
+        const result = await window.unu.copyAsset({
+          projectRoot: project.rootPath,
+          relativePath: this.assetClipboard.path,
+          targetFolderPath: targetFolder
+        })
         if (!result?.relativePath) {
-          project.setStatus('复制资源失败：未返回资源路径。')
+          project.setStatus('粘贴资源失败：未返回资源路径。')
           return null
         }
         const parent = result.relativePath.split('/').slice(0, -1).join('/')
@@ -640,11 +662,11 @@ export const useAssetStore = defineStore('assets', {
         if (target?.type === 'folder') this.selectPath(result.relativePath)
         else await this.selectAsset(result.relativePath)
         this.pushFileHistory({ type: 'copy', path: result.relativePath })
-        project.setStatus(`已复制资源：${result.relativePath}`)
+        project.setStatus(`已粘贴资源：${result.relativePath}`)
         return result
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
-        project.setStatus(`复制资源失败：${message}`)
+        project.setStatus(`粘贴资源失败：${message}`)
         return null
       }
     },
