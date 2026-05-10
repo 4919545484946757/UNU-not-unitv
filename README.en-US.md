@@ -12,6 +12,7 @@ UNU Engine Starter is a desktop 2D game editor and runtime sample project built 
 
 - [Beginner Tutorial](docs/BEGINNER_TUTORIAL.en-US.md) / [中文](docs/BEGINNER_TUTORIAL.zh-CN.md)
 - [Console Commands](docs/CONSOLE_COMMANDS.en-US.md) / [中文](docs/CONSOLE_COMMANDS.zh-CN.md)
+- [Script API Cheat Sheet](docs/SCRIPT_API.en-US.md) / [中文](docs/SCRIPT_API.zh-CN.md)
 - [Roadmap](docs/ROADMAP.en-US.md) / [中文](docs/ROADMAP.zh-CN.md)
 - [Optimization Plan](docs/OPTIMIZATION_PLAN.en-US.md) / [中文](docs/OPTIMIZATION_PLAN.zh-CN.md)
 
