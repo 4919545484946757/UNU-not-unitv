@@ -1465,8 +1465,8 @@
             "type": "Script",
             "data": {
               "type": "Script",
-              "scriptPath": "custom://interaction",
-              "sourceCode": "{\n  \"onInteract\": [\n    { \"type\": \"cycleTint\", \"target\": \"self\", \"values\": [16777215, 16762880, 9293460, 7979007] }\n  ]\n}",
+              "scriptPath": "assets/scripts/interactions/chest-cycle-tint.js",
+              "sourceCode": "{\n  \"colors\": [\n    16777215,\n    16762880,\n    9293460,\n    7979007\n  ]\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
@@ -2083,8 +2083,8 @@
             "type": "Script",
             "data": {
               "type": "Script",
-              "scriptPath": "custom://interaction",
-              "sourceCode": "{\n  \"onInteract\": [\n    {\n      \"type\": \"cycleTint\",\n      \"target\": \"self\",\n      \"values\": [16777215, 16763072, 9293460, 7979007, 16748431]\n    }\n  ]\n}",
+              "scriptPath": "assets/scripts/interactions/chest-cycle-tint.js",
+              "sourceCode": "{\n  \"colors\": [\n    16777215,\n    16763072,\n    9293460,\n    7979007,\n    16748431\n  ]\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
@@ -2385,6 +2385,18 @@
               "targetSpawnId": "Spawn_From_Main",
               "sceneStateMode": "preserve"
             }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
+              "sourceCode": "{\n  \"scene\": \"SecondScene\",\n  \"targetSpawnId\": \"Spawn_From_Main\",\n  \"sceneStateMode\": \"preserve\"\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
           }
         ]
       },
@@ -2521,8 +2533,8 @@
             "type": "Script",
             "data": {
               "type": "Script",
-              "scriptPath": "custom://interaction",
-              "sourceCode": "{\n  \"onInteract\": [\n    { \"type\": \"cycleTint\", \"target\": \"self\", \"values\": [16777215, 16762880, 9293460, 7979007] }\n  ]\n}",
+              "scriptPath": "assets/scripts/interactions/chest-cycle-tint.js",
+              "sourceCode": "{\n  \"colors\": [\n    16777215,\n    16762880,\n    9293460,\n    7979007\n  ]\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,

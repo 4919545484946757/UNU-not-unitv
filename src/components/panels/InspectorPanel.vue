@@ -53,6 +53,16 @@
         <label>Width <input type="number" :value="sprite.width" @input="setNumber('sprite', 'width', $event)" /></label>
         <label>Height <input type="number" :value="sprite.height" @input="setNumber('sprite', 'height', $event)" /></label>
         <label>Alpha <input type="number" step="0.1" min="0" max="1" :value="sprite.alpha" @input="setNumber('sprite', 'alpha', $event)" /></label>
+        <div class="color-field">
+          <label>
+            Color
+            <input type="color" :value="formatColorInput(sprite.tint)" @input="setHexNumber('sprite', 'tint', $event)" />
+          </label>
+          <label>
+            Tint Hex
+            <input :value="formatHexNumber(sprite.tint)" placeholder="0xffffff" @input="setHexNumber('sprite', 'tint', $event)" />
+          </label>
+        </div>
         <label>Texture Path <input :value="sprite.texturePath" @input="setText('sprite', 'texturePath', $event)" /></label>
         <div class="asset-picker">
           <button @click="void applySelectedImage()">Use Selected Image</button>
@@ -313,6 +323,13 @@
             <div class="tips">Use Script component + JSON actions to define interaction behavior.</div>
             <button class="small" @click="ensureInteractionScript">Create/Reset Interaction Script Template</button>
           </template>
+          <div class="script-link-card">
+            <div>
+              <strong>Interaction Code</strong>
+              <span>{{ interactionCodeDescription }}</span>
+            </div>
+            <button class="small" @click="openInteractionCodeEditor">{{ interactionEditorButtonLabel }}</button>
+          </div>
         </template>
         <template v-else>
           <div class="tips">Current entity does not have Interactable component.</div>
@@ -543,7 +560,36 @@ interface TilemapEditorApplyPayload {
   tileTextureMap?: Record<number, string>
 }
 
+interface CodeEditorApplyPayload {
+  id?: string
+  mode?: string
+  path?: string
+  content?: string
+  saveRequested?: boolean
+  live?: boolean
+}
+
 let removeTilemapEditorListener: (() => void) | null = null
+let removeCodeEditorListener: (() => void) | null = null
+let removeCodeEditorClosedListener: (() => void) | null = null
+let interactionCodeEditorSessionId = ''
+let interactionCodeEditorEntityId = ''
+let interactionCodeEditorFilePath = ''
+let interactionCodeEditorRelativePath = ''
+let interactionCodeEditorContent = ''
+
+const interactionCodeDescription = computed(() => {
+  const path = script.value?.scriptPath?.trim() || ''
+  if (!path) return '当前实体尚未绑定 Script 组件，可一键创建交互模板。'
+  if (isProjectAssetScriptPath(path)) return path
+  if (path.startsWith('custom://interaction')) return '实体内联 JSON 交互脚本'
+  return path
+})
+
+const interactionEditorButtonLabel = computed(() => {
+  if (!script.value) return '创建并编辑'
+  return '编辑交互代码'
+})
 
 function applyTilemapEditorPayload(raw: unknown) {
   const payload = (raw || {}) as Partial<TilemapEditorApplyPayload>
@@ -565,11 +611,17 @@ function applyTilemapEditorPayload(raw: unknown) {
 
 onMounted(() => {
   removeTilemapEditorListener = window.unu?.onTilemapEditorApply?.((payload) => applyTilemapEditorPayload(payload)) || null
+  removeCodeEditorListener = window.unu?.onCodeEditorApply?.((payload) => applyInteractionCodeEditorPayload(payload)) || null
+  removeCodeEditorClosedListener = window.unu?.onCodeEditorClosed?.((payload) => handleInteractionCodeEditorClosed(payload)) || null
 })
 
 onBeforeUnmount(() => {
   removeTilemapEditorListener?.()
   removeTilemapEditorListener = null
+  removeCodeEditorListener?.()
+  removeCodeEditorListener = null
+  removeCodeEditorClosedListener?.()
+  removeCodeEditorClosedListener = null
 })
 
 watch(
@@ -685,14 +737,25 @@ function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', k
   sceneStore.markDirty()
 }
 
-function setHexNumber(group: 'ui', key: string, event: Event) {
+function setHexNumber(group: 'sprite' | 'ui', key: string, event: Event) {
   if (runtime.isPlaying) return
   const raw = (event.target as HTMLInputElement).value.trim()
   const normalized = raw.startsWith('0x') || raw.startsWith('0X') ? raw.slice(2) : raw.replace('#', '')
   const parsed = Number.parseInt(normalized, 16)
   if (!Number.isFinite(parsed)) return
-  if (group === 'ui' && ui.value) (ui.value as Record<string, number>)[key] = parsed
+  const color = Math.max(0, Math.min(0xffffff, Math.round(parsed)))
+  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, number>)[key] = color
+  if (group === 'ui' && ui.value) (ui.value as Record<string, number>)[key] = color
   sceneStore.markDirty()
+}
+
+function formatHexNumber(value: number) {
+  const color = Math.max(0, Math.min(0xffffff, Math.round(Number(value) || 0)))
+  return `0x${color.toString(16).padStart(6, '0')}`
+}
+
+function formatColorInput(value: number) {
+  return formatHexNumber(value).replace(/^0x/, '#')
 }
 
 function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
@@ -808,6 +871,155 @@ function ensureInteractionScript() {
     component.started = false
   }
   sceneStore.markDirty()
+}
+
+function isProjectAssetScriptPath(path: string) {
+  const normalized = path.replace(/\\/g, '/').trim()
+  return normalized.startsWith('assets/') && !normalized.startsWith('custom://') && !normalized.startsWith('builtin://')
+}
+
+function fileNameOf(path: string) {
+  if (!path) return 'script.js'
+  const normalized = path.replace(/\\/g, '/')
+  const index = normalized.lastIndexOf('/')
+  return index >= 0 ? normalized.slice(index + 1) : normalized
+}
+
+function directoryOf(path: string) {
+  const normalized = path.replace(/\\/g, '/')
+  const index = normalized.lastIndexOf('/')
+  return index >= 0 ? normalized.slice(0, index) : 'assets/scripts'
+}
+
+function guessInteractionEditorLanguage(path: string) {
+  const lower = path.toLowerCase()
+  if (lower.startsWith('custom://interaction')) return 'json'
+  if (lower.endsWith('.json') || lower.endsWith('.anim') || lower.endsWith('.atlas')) return 'json'
+  if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.includes('builtin://')) return 'js'
+  return 'plain'
+}
+
+async function openInteractionCodeEditor() {
+  if (runtime.isPlaying) return
+  if (!entity.value || !interactable.value) return
+  if (!window.unu?.openCodeEditor) {
+    project.setStatus('当前环境未接入代码编辑器窗口，请使用桌面版运行。')
+    return
+  }
+  if (!script.value) ensureInteractionScript()
+  const targetScript = entity.value.getComponent<ScriptComponent>('Script')
+  if (!targetScript) {
+    project.setStatus('创建交互脚本失败：当前实体没有 Script 组件。')
+    return
+  }
+
+  interactionCodeEditorSessionId = `interaction_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  interactionCodeEditorEntityId = entity.value.id
+  interactionCodeEditorFilePath = ''
+  interactionCodeEditorRelativePath = targetScript.scriptPath || 'custom://interaction'
+  let content = targetScript.sourceCode || ''
+  let mode = 'interaction-entity'
+
+  if (isProjectAssetScriptPath(interactionCodeEditorRelativePath)) {
+    mode = 'interaction-asset'
+    if (!window.unu?.readTextAsset || !project.rootPath) {
+      project.setStatus('当前环境无法读取项目脚本文件。')
+      return
+    }
+    try {
+      const result = await window.unu.readTextAsset({
+        projectRoot: project.rootPath,
+        relativePath: interactionCodeEditorRelativePath
+      })
+      if (!result) {
+        project.setStatus(`读取交互代码失败：${interactionCodeEditorRelativePath}`)
+        return
+      }
+      interactionCodeEditorFilePath = result.filePath
+      interactionCodeEditorRelativePath = result.relativePath || interactionCodeEditorRelativePath
+      content = result.content
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      project.setStatus(`读取交互代码失败：${message}`)
+      return
+    }
+  }
+
+  interactionCodeEditorContent = content
+  const result = await window.unu.openCodeEditor({
+    id: interactionCodeEditorSessionId,
+    mode,
+    title: `${entity.value.name || entity.value.id} Interaction`,
+    path: interactionCodeEditorRelativePath,
+    language: guessInteractionEditorLanguage(interactionCodeEditorRelativePath),
+    content
+  })
+  if (!result?.ok) {
+    project.setStatus(`打开交互代码窗口失败：${result?.error || '未知错误'}`)
+    return
+  }
+  project.setStatus('已打开交互代码独立窗口')
+}
+
+function applyInteractionCodeEditorPayload(raw: unknown) {
+  const payload = (raw || {}) as CodeEditorApplyPayload
+  if (!payload.mode?.startsWith('interaction-')) return
+  if (payload.id && interactionCodeEditorSessionId && payload.id !== interactionCodeEditorSessionId) return
+  interactionCodeEditorContent = String(payload.content ?? '')
+
+  if (payload.mode === 'interaction-entity') {
+    const targetEntity = sceneStore.currentScene?.getEntityById(interactionCodeEditorEntityId)
+    const targetScript = targetEntity?.getComponent<ScriptComponent>('Script')
+    if (targetScript) {
+      targetScript.sourceCode = interactionCodeEditorContent
+      sceneStore.markDirty()
+    }
+    if (payload.saveRequested) project.setStatus('交互脚本已保存到当前场景状态，请保存场景/项目以写入文件。')
+    return
+  }
+
+  if (payload.mode === 'interaction-asset' && payload.saveRequested) {
+    void saveInteractionAssetFromEditor()
+  }
+}
+
+async function saveInteractionAssetFromEditor() {
+  if (!window.unu?.saveTextAsset || !project.rootPath || !interactionCodeEditorRelativePath) {
+    project.setStatus('当前环境无法保存交互代码文件。')
+    return
+  }
+  try {
+    const saved = await window.unu.saveTextAsset({
+      filePath: interactionCodeEditorFilePath || undefined,
+      content: interactionCodeEditorContent,
+      suggestedName: fileNameOf(interactionCodeEditorRelativePath),
+      projectRoot: project.rootPath,
+      subdir: directoryOf(interactionCodeEditorRelativePath),
+      title: '保存交互代码',
+      filterName: 'Script'
+    })
+    if (!saved) {
+      project.setStatus('已取消保存交互代码。')
+      return
+    }
+    interactionCodeEditorFilePath = saved.filePath
+    interactionCodeEditorRelativePath = saved.relativePath || interactionCodeEditorRelativePath
+    project.setStatus(`交互代码已保存：${saved.name}`)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    project.setStatus(`保存交互代码失败：${message}`)
+  }
+}
+
+function handleInteractionCodeEditorClosed(raw: unknown) {
+  const payload = (raw || {}) as CodeEditorApplyPayload
+  if (!payload.mode?.startsWith('interaction-')) return
+  if (payload.id && interactionCodeEditorSessionId && payload.id !== interactionCodeEditorSessionId) return
+  interactionCodeEditorSessionId = ''
+  interactionCodeEditorEntityId = ''
+  interactionCodeEditorFilePath = ''
+  interactionCodeEditorRelativePath = ''
+  interactionCodeEditorContent = ''
 }
 
 function setAnimationFrames(event: Event) {
@@ -1391,6 +1603,17 @@ input:not([type='checkbox']), textarea, select {
   box-sizing: border-box;
 }
 textarea { min-height: 96px; resize: vertical; }
+.color-field {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.65fr) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+.color-field input[type='color'] {
+  height: 36px;
+  padding: 3px;
+  cursor: pointer;
+}
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
 .collision-mask {
   display: grid;
@@ -1430,6 +1653,32 @@ textarea { min-height: 96px; resize: vertical; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.script-link-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #2a3446;
+  border-radius: 8px;
+  background: #131b28;
+}
+.script-link-card strong {
+  display: block;
+  color: #dbe7f5;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+.script-link-card span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8fa3bf;
+  font-size: 12px;
 }
 .asset-picker button, .small {
   border: 1px solid #303848;

@@ -125,7 +125,7 @@ function openEntityMenu(event: MouseEvent, entityId: string) {
     { label: '新建实体', action: () => editor.openEntityCreateDialog() },
     { label: '复制实体', action: () => scene.duplicateSelectedEntity() },
     { label: '粘贴实体', disabled: !scene.entityClipboard || runtime.isPlaying, action: () => scene.pasteCopiedEntity() },
-    { label: '删除实体', action: () => scene.removeSelectedEntity() },
+    { label: '删除实体', disabled: runtime.isPlaying, action: () => scene.removeEntityById(entityId) },
     { label: '图层上移', action: () => scene.moveSelectedEntityLayer(1) },
     { label: '图层下移', action: () => scene.moveSelectedEntityLayer(-1) }
   ])

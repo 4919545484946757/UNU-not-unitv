@@ -64,6 +64,9 @@ contextBridge.exposeInMainWorld('unu', {
   openTilemapEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-tilemap-editor', payload),
   submitTilemapEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:tilemap-editor-update', payload),
   closeTilemapEditor: () => ipcRenderer.invoke('unu:close-tilemap-editor'),
+  openCodeEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-code-editor', payload),
+  submitCodeEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:code-editor-update', payload),
+  closeCodeEditor: () => ipcRenderer.invoke('unu:close-code-editor'),
   setMainWindowPreset: (preset: 'launcher' | 'editor') => ipcRenderer.invoke('unu:set-main-window-preset', preset),
   onTilemapEditorInit: (callback: (payload: unknown) => void) => {
     const listener = (_event: unknown, payload: unknown) => callback(payload)
@@ -74,5 +77,20 @@ contextBridge.exposeInMainWorld('unu', {
     const listener = (_event: unknown, payload: unknown) => callback(payload)
     ipcRenderer.on('unu:tilemap-editor-apply', listener)
     return () => ipcRenderer.removeListener('unu:tilemap-editor-apply', listener)
+  },
+  onCodeEditorInit: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:code-editor-init', listener)
+    return () => ipcRenderer.removeListener('unu:code-editor-init', listener)
+  },
+  onCodeEditorApply: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:code-editor-apply', listener)
+    return () => ipcRenderer.removeListener('unu:code-editor-apply', listener)
+  },
+  onCodeEditorClosed: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:code-editor-closed', listener)
+    return () => ipcRenderer.removeListener('unu:code-editor-closed', listener)
   }
 })

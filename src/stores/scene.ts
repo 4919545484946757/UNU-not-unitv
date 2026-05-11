@@ -785,6 +785,34 @@ export const useSceneStore = defineStore('scene', {
       project.setStatus(`已删除实体：${entity.name}`)
     },
 
+    removeEntityById(entityId: string, force = false) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene || !entityId) {
+        project.setStatus('当前没有可删除的实体。')
+        return false
+      }
+      const entity = this.currentScene.getEntityById(entityId)
+      if (!entity) {
+        if (selection.selectedEntityId === entityId) selection.clearSelection()
+        project.setStatus('未找到要删除的实体。')
+        return false
+      }
+      if (!force && !window.confirm(`确认删除实体“${entity.name}”吗？`)) {
+        project.setStatus('已取消删除实体。')
+        return false
+      }
+      const removed = this.currentScene.removeEntityById(entity.id)
+      if (!removed) {
+        project.setStatus('删除实体失败。')
+        return false
+      }
+      if (selection.selectedEntityId === entity.id) selection.clearSelection()
+      this.markDirty()
+      project.setStatus(`已删除实体：${entity.name}`)
+      return true
+    },
+
     moveSelectedEntityLayer(delta: number) {
       const project = useProjectStore()
       const selection = useSelectionStore()

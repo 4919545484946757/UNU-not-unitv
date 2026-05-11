@@ -5,7 +5,8 @@
       <div class="actions">
         <div class="badge" v-if="mode === 'entity'">{{ script?.scriptPath || '未挂载脚本' }}</div>
         <div class="badge" v-else-if="mode === 'asset'">{{ selectedTextAssetPath }}</div>
-        <button v-if="mode === 'asset'" class="save-btn" :disabled="!assetDirty || !canSaveAsset" @click="saveAssetScript">保存脚本</button>
+        <button v-if="mode !== 'none'" class="save-btn secondary" :disabled="externalCodeEditorLocked" @click="openExternalCodeEditor">独立窗口编辑</button>
+        <button v-if="mode === 'asset'" class="save-btn" :disabled="externalCodeEditorLocked || !assetDirty || !canSaveAsset" @click="saveAssetScript">保存脚本</button>
       </div>
     </div>
 
@@ -45,12 +46,17 @@
           v-model="editorText"
           wrap="off"
           spellcheck="false"
+          :disabled="externalCodeEditorLocked"
           @input="onEditorInput"
           @scroll="syncScroll"
           @keydown.ctrl.s.prevent="saveAssetScript"
           @keydown.meta.s.prevent="saveAssetScript"
           @keydown="handleEditorKeydown"
         ></textarea>
+        <div v-if="externalCodeEditorLocked" class="editor-lock">
+          <strong>已交由独立窗口编辑</strong>
+          <span>请在独立代码编辑器中完成修改、保存或关闭窗口后再回到这里编辑。</span>
+        </div>
       </div>
     </div>
     <div v-else class="empty-state">请在场景中选择带 Script 组件的实体，或在资源树中选择一个脚本文件。</div>
@@ -60,14 +66,14 @@
       运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
       `builtin://player-input` 与 `builtin://bullet-projectile` 支持直接填写 JSON 配置（如移动速度、疾跑速度、疾跑动画倍速、子弹速度/寿命/射程）。
       脚本可使用 `ctx.api.log/warn/error` 输出到下方 Console；也可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
-      交互物体支持 JSON 交互脚本（`custom://interaction`）：`switchScene`、`setBackgroundTexture`、`cycleBackgroundTexture`、`setTexture`、`cycleTexture`、`setTint`、`cycleTint`、`toggleVisible`、`setInteractDistance`、`removeEntity`、`sequence`、`randomOne`。
+      示例项目在 `assets/scripts/ScriptRuntime.ts` 中提供 `custom://interaction` JSON 交互脚本：`switchScene`、`setBackgroundTexture`、`cycleBackgroundTexture`、`setTexture`、`cycleTexture`、`setTint`、`cycleTint`、`toggleVisible`、`setInteractDistance`、`removeEntity`、`sequence`、`randomOne`。
       <span v-if="mode === 'asset' && !canSaveAsset">当前为示例工程（内存资源）或非桌面环境，脚本文件不可直接保存。</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import type { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
@@ -273,6 +279,10 @@ const findPanel = reactive({
   caseSensitive: false,
   currentIndex: -1
 })
+let codeEditorSessionId = ''
+let removeCodeEditorListener: (() => void) | null = null
+let removeCodeEditorClosedListener: (() => void) | null = null
+const externalCodeEditorLocked = ref(false)
 
 const canSaveAsset = computed(() => {
   return mode.value === 'asset' && !!window.unu?.saveTextAsset && project.rootPath !== 'sample-project'
@@ -624,6 +634,59 @@ async function saveAssetScript() {
   }
 }
 
+async function openExternalCodeEditor() {
+  if (mode.value === 'none') return
+  if (!window.unu?.openCodeEditor) {
+    project.setStatus('当前环境未接入代码编辑器窗口，请使用桌面版运行。')
+    return
+  }
+  codeEditorSessionId = `code_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const path = mode.value === 'asset' ? selectedTextAssetPath.value : script.value?.scriptPath || ''
+  const result = await window.unu.openCodeEditor({
+    id: codeEditorSessionId,
+    mode: mode.value,
+    title: mode.value === 'asset' ? fileNameOf(path) : `${entity.value?.name || 'Entity'} Script`,
+    path,
+    language: currentLanguage.value,
+    content: editorText.value
+  })
+  if (!result?.ok) {
+    project.setStatus(`打开代码编辑窗口失败：${result?.error || '未知错误'}`)
+    return
+  }
+  externalCodeEditorLocked.value = true
+  project.setStatus('已打开独立代码编辑窗口')
+}
+
+function applyExternalCodeEditorPayload(raw: unknown) {
+  const payload = (raw || {}) as { id?: string; mode?: string; path?: string; content?: string; saveRequested?: boolean; live?: boolean }
+  if (payload.mode !== 'asset' && payload.mode !== 'entity') return
+  if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
+  const nextContent = String(payload.content ?? '')
+  if (payload.mode === 'asset' && selectedTextAssetPath.value && payload.path && payload.path !== selectedTextAssetPath.value) {
+    project.setStatus(`代码窗口内容未应用：当前选中文件不是 ${payload.path}`)
+    return
+  }
+  editorText.value = nextContent
+  if (mode.value === 'entity') sceneStore.markDirty()
+  if (mode.value === 'asset') assetDirty.value = true
+  if (!payload.live) project.setStatus('已从独立代码编辑窗口接收内容')
+  if (payload.saveRequested && mode.value === 'asset') {
+    void nextTick(() => saveAssetScript())
+  } else if (payload.saveRequested && mode.value === 'entity') {
+    project.setStatus('实体脚本已保存到当前场景状态，请保存场景/项目以写入文件')
+  }
+}
+
+function handleExternalCodeEditorClosed(raw: unknown) {
+  const payload = (raw || {}) as { id?: string; mode?: string }
+  if (payload.mode && payload.mode !== 'asset' && payload.mode !== 'entity') return
+  if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
+  externalCodeEditorLocked.value = false
+  codeEditorSessionId = ''
+  project.setStatus('独立代码编辑窗口已关闭，右侧编辑器已解锁')
+}
+
 function fileNameOf(path: string) {
   if (!path) return 'script.js'
   const normalized = path.replace(/\\/g, '/')
@@ -641,10 +704,52 @@ function escapeHtml(input: string) {
 const JS_KEYWORDS = new Set([
   'const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while',
   'switch', 'case', 'break', 'continue', 'export', 'default', 'import', 'from',
-  'new', 'class', 'extends', 'try', 'catch', 'finally', 'throw', 'async', 'await'
+  'new', 'class', 'extends', 'try', 'catch', 'finally', 'throw', 'async', 'await',
+  'typeof', 'instanceof', 'in', 'of', 'static', 'get', 'set', 'do', 'yield',
+  'this', 'super', 'void', 'delete'
 ])
 
-const JS_CONSTANTS = new Set(['true', 'false', 'null', 'undefined'])
+const JS_CONSTANTS = new Set(['true', 'false', 'null', 'undefined', 'NaN', 'Infinity'])
+const JS_TYPES = new Set([
+  'Array', 'Object', 'String', 'Number', 'Boolean', 'Map', 'Set', 'Promise',
+  'Math', 'Date', 'JSON', 'Error', 'RegExp', 'console'
+])
+const UNU_API_WORDS = new Set([
+  'api', 'world', 'entity', 'scene', 'input', 'audio', 'camera', 'ui', 'physics',
+  'collision', 'trigger', 'prefab', 'asset', 'assets', 'runtime', 'debug', 'logger'
+])
+const UNU_LIFECYCLE_WORDS = new Set([
+  'onInit', 'onStart', 'onUpdate', 'onFixedUpdate', 'onDestroy',
+  'onEnterScene', 'onExitScene', 'onInteract',
+  'onCollisionEnter', 'onCollisionStay', 'onCollisionExit',
+  'onTriggerEnter', 'onTriggerStay', 'onTriggerExit'
+])
+const JS_OPERATORS = new Set([
+  '+', '-', '*', '/', '%', '=', '!', '<', '>', '&', '|', '^', '?', ':', '~'
+])
+
+function nextNonWhitespaceIndex(text: string, index: number) {
+  let cursor = index
+  while (cursor < text.length && /\s/.test(text[cursor])) cursor += 1
+  return cursor
+}
+
+function previousNonWhitespaceIndex(text: string, index: number) {
+  let cursor = index
+  while (cursor >= 0 && /\s/.test(text[cursor])) cursor -= 1
+  return cursor
+}
+
+function previousWord(text: string, index: number) {
+  let cursor = previousNonWhitespaceIndex(text, index)
+  while (cursor >= 0 && /[A-Za-z0-9_$]/.test(text[cursor])) cursor -= 1
+  const word = text.slice(cursor + 1, previousNonWhitespaceIndex(text, index) + 1)
+  return word || ''
+}
+
+function wrapToken(cls: string, value: string) {
+  return `<span class="${cls}">${escapeHtml(value)}</span>`
+}
 
 function highlightPlainJsSegment(segment: string) {
   let out = ''
@@ -656,8 +761,19 @@ function highlightPlainJsSegment(segment: string) {
       i += 1
       while (i < segment.length && /[A-Za-z0-9_$]/.test(segment[i])) i += 1
       const word = segment.slice(start, i)
-      if (JS_KEYWORDS.has(word)) out += `<span class="tok-keyword">${escapeHtml(word)}</span>`
-      else if (JS_CONSTANTS.has(word)) out += `<span class="tok-constant">${escapeHtml(word)}</span>`
+      const prevIndex = previousNonWhitespaceIndex(segment, start - 1)
+      const nextIndex = nextNonWhitespaceIndex(segment, i)
+      const prevChar = prevIndex >= 0 ? segment[prevIndex] : ''
+      const nextChar = nextIndex < segment.length ? segment[nextIndex] : ''
+      const prevWord = previousWord(segment, start - 1)
+      if (UNU_LIFECYCLE_WORDS.has(word)) out += wrapToken('tok-lifecycle', word)
+      else if (JS_KEYWORDS.has(word)) out += wrapToken('tok-keyword', word)
+      else if (JS_CONSTANTS.has(word)) out += wrapToken('tok-constant', word)
+      else if (UNU_API_WORDS.has(word)) out += wrapToken('tok-api', word)
+      else if (JS_TYPES.has(word)) out += wrapToken('tok-type', word)
+      else if (nextChar === ':' && prevChar !== '?') out += wrapToken('tok-key', word)
+      else if (prevChar === '.') out += wrapToken('tok-property', word)
+      else if (nextChar === '(' || prevWord === 'function' || prevWord === 'class') out += wrapToken('tok-function', word)
       else out += escapeHtml(word)
       continue
     }
@@ -665,9 +781,16 @@ function highlightPlainJsSegment(segment: string) {
     if (/\d/.test(ch) || ((ch === '-' || ch === '+') && i + 1 < segment.length && /\d/.test(segment[i + 1]))) {
       const start = i
       i += 1
-      while (i < segment.length && /[0-9._eE+-]/.test(segment[i])) i += 1
-      const num = segment.slice(start, i)
-      out += `<span class="tok-number">${escapeHtml(num)}</span>`
+      while (i < segment.length && /[0-9a-fA-FxXbBoO._eE+-]/.test(segment[i])) i += 1
+      out += wrapToken('tok-number', segment.slice(start, i))
+      continue
+    }
+
+    if (JS_OPERATORS.has(ch)) {
+      const start = i
+      i += 1
+      while (i < segment.length && JS_OPERATORS.has(segment[i])) i += 1
+      out += wrapToken('tok-operator', segment.slice(start, i))
       continue
     }
 
@@ -698,21 +821,34 @@ function highlightJson(code: string) {
       const str = code.slice(start, i)
       let j = i
       while (j < code.length && /\s/.test(code[j])) j += 1
-      const cls = code[j] === ':' ? 'tok-key' : 'tok-string'
-      out += `<span class="${cls}">${escapeHtml(str)}</span>`
+      const rawKey = str.slice(1, -1)
+      let cls = code[j] === ':' ? 'tok-key' : 'tok-string'
+      if (code[j] === ':' && UNU_LIFECYCLE_WORDS.has(rawKey)) cls = 'tok-lifecycle'
+      out += wrapToken(cls, str)
       continue
     }
     if (/\d/.test(code[i]) || ((code[i] === '-' || code[i] === '+') && i + 1 < code.length && /\d/.test(code[i + 1]))) {
       const start = i
       i += 1
       while (i < code.length && /[0-9.eE+-]/.test(code[i])) i += 1
-      out += `<span class="tok-number">${escapeHtml(code.slice(start, i))}</span>`
+      out += wrapToken('tok-number', code.slice(start, i))
       continue
     }
-    if (code.startsWith('true', i) || code.startsWith('false', i) || code.startsWith('null', i)) {
+    if (
+      (code.startsWith('true', i) || code.startsWith('false', i) || code.startsWith('null', i)) &&
+      !/[A-Za-z0-9_$]/.test(code[i - 1] || '') &&
+      !/[A-Za-z0-9_$]/.test(code[i + (code.startsWith('true', i) ? 4 : code.startsWith('false', i) ? 5 : 4)] || '')
+    ) {
       const lit = code.startsWith('true', i) ? 'true' : code.startsWith('false', i) ? 'false' : 'null'
-      out += `<span class="tok-keyword">${lit}</span>`
+      out += wrapToken('tok-constant', lit)
       i += lit.length
+      continue
+    }
+    if (JS_OPERATORS.has(code[i])) {
+      const start = i
+      i += 1
+      while (i < code.length && JS_OPERATORS.has(code[i])) i += 1
+      out += wrapToken('tok-operator', code.slice(start, i))
       continue
     }
     out += escapeHtml(code[i])
@@ -729,7 +865,15 @@ function highlightJsLike(code: string) {
       const start = i
       i += 2
       while (i < code.length && code[i] !== '\n') i += 1
-      out += `<span class="tok-comment">${escapeHtml(code.slice(start, i))}</span>`
+      out += wrapToken('tok-comment', code.slice(start, i))
+      continue
+    }
+    if (code[i] === '/' && code[i + 1] === '*') {
+      const start = i
+      i += 2
+      while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i += 1
+      i = Math.min(code.length, i + 2)
+      out += wrapToken('tok-comment', code.slice(start, i))
       continue
     }
     if (code[i] === '"' || code[i] === "'" || code[i] === '`') {
@@ -747,19 +891,36 @@ function highlightJsLike(code: string) {
         }
         i += 1
       }
-      out += `<span class="tok-string">${escapeHtml(code.slice(start, i))}</span>`
+      out += wrapToken('tok-string', code.slice(start, i))
       continue
     }
 
     const segStart = i
     while (i < code.length) {
-      if ((code[i] === '/' && code[i + 1] === '/') || code[i] === '"' || code[i] === "'" || code[i] === '`') break
+      if (
+        (code[i] === '/' && (code[i + 1] === '/' || code[i + 1] === '*')) ||
+        code[i] === '"' ||
+        code[i] === "'" ||
+        code[i] === '`'
+      ) break
       i += 1
     }
     out += highlightPlainJsSegment(code.slice(segStart, i))
   }
   return out
 }
+
+onMounted(() => {
+  removeCodeEditorListener = window.unu?.onCodeEditorApply?.((payload) => applyExternalCodeEditorPayload(payload)) || null
+  removeCodeEditorClosedListener = window.unu?.onCodeEditorClosed?.((payload) => handleExternalCodeEditorClosed(payload)) || null
+})
+
+onBeforeUnmount(() => {
+  removeCodeEditorListener?.()
+  removeCodeEditorListener = null
+  removeCodeEditorClosedListener?.()
+  removeCodeEditorClosedListener = null
+})
 </script>
 
 <style scoped>
@@ -895,6 +1056,10 @@ function highlightJsLike(code: string) {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.save-btn.secondary {
+  border-color: #39465a;
+  background: #202632;
+}
 textarea {
   position: absolute;
   inset: 0;
@@ -922,6 +1087,31 @@ textarea {
   box-sizing: border-box;
   scrollbar-gutter: stable both-edges;
   z-index: 2;
+}
+textarea:disabled {
+  cursor: not-allowed;
+}
+.editor-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-content: center;
+  gap: 8px;
+  padding: 18px;
+  text-align: center;
+  color: #dbe8f7;
+  background: rgba(10, 15, 23, 0.72);
+  backdrop-filter: blur(3px);
+}
+.editor-lock strong {
+  font-size: 14px;
+}
+.editor-lock span {
+  max-width: 360px;
+  color: #9fb0c5;
+  font-size: 12px;
+  line-height: 1.6;
 }
 .code-shell {
   position: relative;
@@ -967,9 +1157,21 @@ textarea {
 .highlight-layer :deep(.tok-comment) { color: #6f839f; }
 .highlight-layer :deep(.tok-keyword) { color: #7cc3ff; }
 .highlight-layer :deep(.tok-constant) { color: #d7a6ff; }
+.highlight-layer :deep(.tok-api) {
+  color: #61d6a3;
+  font-weight: 600;
+}
+.highlight-layer :deep(.tok-lifecycle) {
+  color: #ff9ecb;
+  font-weight: 700;
+}
+.highlight-layer :deep(.tok-type) { color: #82d2ff; }
+.highlight-layer :deep(.tok-function) { color: #f5d76e; }
+.highlight-layer :deep(.tok-property) { color: #b8c7da; }
 .highlight-layer :deep(.tok-key) { color: #8bd8c7; }
 .highlight-layer :deep(.tok-string) { color: #d9c88b; }
 .highlight-layer :deep(.tok-number) { color: #f0a86e; }
+.highlight-layer :deep(.tok-operator) { color: #f08fa3; }
 .empty-state {
   border: 1px dashed #3a4357;
   border-radius: 10px;

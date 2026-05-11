@@ -1,25 +1,26 @@
-import { app as j, ipcMain as h, dialog as S, shell as se, BrowserWindow as te, screen as we, nativeImage as xe } from "electron";
+import { app as y, ipcMain as h, dialog as b, shell as ae, BrowserWindow as G, screen as ye, nativeImage as ve } from "electron";
 import * as u from "node:fs/promises";
-import * as V from "node:fs";
+import * as ee from "node:fs";
 import s from "node:path";
-import { fileURLToPath as ve } from "node:url";
-const ye = ve(import.meta.url), $ = s.dirname(ye);
-let k = null, P = null, z = null;
-const X = /* @__PURE__ */ new Map();
+import { fileURLToPath as Pe } from "node:url";
+const je = Pe(import.meta.url), N = s.dirname(je);
+let A = null, j = null, S = null, W = null, _ = null;
+const B = /* @__PURE__ */ new Map();
 function w(r) {
   return r.split(s.sep).join("/");
 }
-function Pe(r) {
+function Se(r) {
   const e = s.extname(r).toLowerCase();
   return r.endsWith(".anim.json") ? "animation" : r.endsWith(".atlas.json") ? "atlas" : [".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(e) ? "image" : [".mp3", ".wav", ".ogg", ".m4a"].includes(e) ? "audio" : [".js", ".ts", ".mjs"].includes(e) ? "script" : r.endsWith(".scene.json") ? "scene" : r.endsWith(".prefab.json") ? "prefab" : [".json"].includes(e) ? "animation" : "script";
 }
-async function _(r) {
+async function D(r) {
   const e = [
     "assets",
     "assets/images",
     "assets/audio",
     "assets/scripts",
     "assets/scripts/shared",
+    "assets/scripts/interactions",
     "assets/scripts/scenes",
     "assets/animations",
     "scenes",
@@ -27,7 +28,7 @@ async function _(r) {
   ];
   await Promise.all(e.map((t) => u.mkdir(s.join(r, t), { recursive: !0 })));
 }
-async function Y(r, e) {
+async function J(r, e) {
   const t = s.join(r, "project.json"), i = {
     format: "unu-project",
     version: 1,
@@ -36,7 +37,7 @@ async function Y(r, e) {
   };
   return await u.writeFile(t, JSON.stringify(i, null, 2), "utf-8"), i;
 }
-function je() {
+function Ae() {
   return `export default {
   scripts: {
     // 'assets/scripts/player-input.js': {
@@ -47,12 +48,13 @@ function je() {
 
 // You can also create directly editable scripts under:
 // - assets/scripts/shared/
+// - assets/scripts/interactions/
 // - assets/scripts/scenes/<SceneName>/
 // Files in those folders may export hooks directly:
 // export default { onUpdate(ctx) {} }
 `;
 }
-function Se() {
+function be() {
   return `export default {
   // 项目输入映射覆盖。键位字符串兼容 KeyboardEvent.code 与 MouseN（例如 Mouse0/Mouse2）。
   actionMap: {
@@ -68,7 +70,7 @@ function Se() {
 }
 `;
 }
-function Ae() {
+function Fe() {
   return `export default {
   // 项目音频运行时覆盖。可按项目需要调默认音量，或在播放前重写请求。
   initialMasterVolume: 1,
@@ -80,11 +82,11 @@ function Ae() {
 }
 `;
 }
-async function I(r) {
+async function L(r) {
   const e = [
-    { fileName: "ScriptRuntime.ts", content: je() },
-    { fileName: "InputState.ts", content: Se() },
-    { fileName: "AudioRuntime.ts", content: Ae() }
+    { fileName: "ScriptRuntime.ts", content: Ae() },
+    { fileName: "InputState.ts", content: be() },
+    { fileName: "AudioRuntime.ts", content: Fe() }
   ];
   let t = 0;
   for (const n of e) {
@@ -93,17 +95,17 @@ async function I(r) {
   }
   return t;
 }
-function be(r) {
+function ke(r) {
   return r.replace(/\.scene\.json$/i, "");
 }
-function ue(r) {
+function me(r) {
   return String(r || "").trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").trim();
 }
-function Fe(r) {
-  return `${ue(r) || "MainScene"}.scene.json`;
+function Re(r) {
+  return `${me(r) || "MainScene"}.scene.json`;
 }
-function ke(r) {
-  const e = ue(r) || "MainScene", t = `scene_${e.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "main"}`;
+function Ee(r) {
+  const e = me(r) || "MainScene", t = `scene_${e.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "main"}`;
   return JSON.stringify(e === "SecondScene" ? {
     format: "unu-scene",
     version: 1,
@@ -469,10 +471,10 @@ function ke(r) {
     }
   }, null, 2);
 }
-function Q(r, e) {
+function te(r, e) {
   if (!r || typeof r != "object") return;
   if (Array.isArray(r)) {
-    for (const n of r) Q(n, e);
+    for (const n of r) te(n, e);
     return;
   }
   const t = r;
@@ -481,48 +483,48 @@ function Q(r, e) {
     n && e.add(n);
   }
   for (const n of Object.keys(t))
-    Q(t[n], e);
+    te(t[n], e);
 }
-async function Re(r, e) {
+async function Ce(r, e) {
   const t = s.join(r, "scenes"), n = new Set(e.map((c) => c.toLowerCase())), i = /* @__PURE__ */ new Set();
   for (const c of e) {
     const o = s.join(t, c);
     try {
       const l = await u.readFile(o, "utf-8"), f = JSON.parse(l);
-      Q(f, i);
+      te(f, i);
     } catch {
     }
   }
   let a = 0;
   for (const c of i) {
-    const o = Fe(c), l = o.toLowerCase();
+    const o = Re(c), l = o.toLowerCase();
     if (n.has(l)) continue;
-    const f = s.join(t, o), m = ke(c);
+    const f = s.join(t, o), m = Ee(c);
     await u.writeFile(f, m, "utf-8"), n.add(l), a += 1;
   }
   return a;
 }
-async function ie(r) {
+async function oe(r) {
   const e = s.join(r, "scenes");
   return (await u.readdir(e, { withFileTypes: !0 }).catch(() => [])).filter((n) => n.isFile() && n.name.toLowerCase().endsWith(".scene.json")).map((n) => n.name).sort((n, i) => n.localeCompare(i));
 }
-async function W(r, e) {
+async function O(r, e) {
   const t = s.join(r, "project.json");
-  let n = await ie(r);
-  const i = await Re(r, n);
-  i > 0 && (n = await ie(r));
+  let n = await oe(r);
+  const i = await Ce(r, n);
+  i > 0 && (n = await oe(r));
   const a = (e == null ? void 0 : e.trim()) || s.basename(r), c = (/* @__PURE__ */ new Date()).toISOString();
   let o = {};
   try {
-    const v = await u.readFile(t, "utf-8"), D = JSON.parse(v);
-    D && typeof D == "object" && (o = D);
+    const v = await u.readFile(t, "utf-8"), z = JSON.parse(v);
+    z && typeof z == "object" && (o = z);
   } catch {
     o = {};
   }
   const l = n.map((v) => ({
     file: v,
-    name: be(v)
-  })), f = Array.isArray(o.sceneCatalog) ? o.sceneCatalog.map((v) => String((v == null ? void 0 : v.file) || (v == null ? void 0 : v.fileName) || "")).filter(Boolean) : [], m = l.map((v) => v.file), p = f.length !== m.length || f.some((v, D) => v !== m[D]), d = String(o.startupScene || "").trim(), g = n.length ? n.includes(d) ? d : n[0] : "", F = d !== g, y = {
+    name: ke(v)
+  })), f = Array.isArray(o.sceneCatalog) ? o.sceneCatalog.map((v) => String((v == null ? void 0 : v.file) || (v == null ? void 0 : v.fileName) || "")).filter(Boolean) : [], m = l.map((v) => v.file), p = f.length !== m.length || f.some((v, z) => v !== m[z]), d = String(o.startupScene || "").trim(), g = n.length ? n.includes(d) ? d : n[0] : "", R = d !== g, P = {
     ...o,
     format: "unu-project",
     version: 1,
@@ -532,9 +534,9 @@ async function W(r, e) {
     sceneCatalogVersion: 1,
     sceneCatalog: l,
     startupScene: g
-  }, A = !o.format || !o.version || !Array.isArray(o.sceneCatalog) || p || F || String(o.name || "").trim() !== y.name || i > 0;
-  return A && await u.writeFile(t, JSON.stringify(y, null, 2), "utf-8"), {
-    repaired: A,
+  }, F = !o.format || !o.version || !Array.isArray(o.sceneCatalog) || p || R || String(o.name || "").trim() !== P.name || i > 0;
+  return F && await u.writeFile(t, JSON.stringify(P, null, 2), "utf-8"), {
+    repaired: F,
     sceneCount: n.length,
     startupScene: g,
     createdByReference: i
@@ -547,80 +549,80 @@ async function x(r) {
     return !1;
   }
 }
-async function b(r) {
+async function k(r) {
   const e = String(r || "").trim();
   if (!e || e === "sample-project" || s.isAbsolute(e)) return e;
   const t = e.replace(/\\/g, "/").replace(/^\/+/, "");
-  if (j.isPackaged && t.toLowerCase().startsWith("sample-project-list/")) {
+  if (y.isPackaged && t.toLowerCase().startsWith("sample-project-list/")) {
     const i = [
       s.join(process.resourcesPath, t),
-      s.join(j.getAppPath(), t)
-    ], a = s.join(j.getPath("userData"), "bundled-samples", s.basename(t));
+      s.join(y.getAppPath(), t)
+    ], a = s.join(y.getPath("userData"), "bundled-samples", s.basename(t));
     if (!(await x(s.join(a, "project.json")) && await x(s.join(a, "scenes")) && await x(s.join(a, "assets")))) {
-      const o = await Ee(i);
+      const o = await _e(i);
       o && (await u.mkdir(s.dirname(a), { recursive: !0 }), await u.rm(a, { recursive: !0, force: !0 }), await u.cp(o, a, { recursive: !0, force: !0 }));
     }
     if (await x(a)) return a;
   }
   const n = [
-    s.join(j.getAppPath(), t),
+    s.join(y.getAppPath(), t),
     s.join(process.cwd(), t),
-    s.resolve($, "..", t),
+    s.resolve(N, "..", t),
     s.resolve(t)
   ];
   for (const i of n)
     if (await x(i)) return i;
   return s.resolve(e);
 }
-async function Ee(r) {
+async function _e(r) {
   for (const e of r)
     if (await x(e)) return e;
   return "";
 }
-function Ce() {
+function Ne() {
   const r = /* @__PURE__ */ new Date(), e = (i) => String(i).padStart(2, "0"), t = `${r.getFullYear()}${e(r.getMonth() + 1)}${e(r.getDate())}`, n = `${e(r.getHours())}${e(r.getMinutes())}`;
   return `UNUProject_${t}_${n}`;
 }
-function L(r) {
+function U(r) {
   return String(r || "").trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").trim() || "";
 }
-function B(r) {
+function K(r) {
   return String(r || "").trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").trim() || "";
 }
-function E(r) {
+function C(r) {
   const e = String(r || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
   if (!e || s.isAbsolute(e)) return "";
   const t = e.split("/").filter(Boolean);
   return t.some((n) => n === "..") ? "" : t.join("/");
 }
-function R(r, e) {
-  const t = s.resolve(r), n = E(e);
+function E(r, e) {
+  const t = s.resolve(r), n = C(e);
   if (!n) return "";
   const i = s.resolve(t, n), a = s.relative(t, i);
   return a.startsWith("..") || s.isAbsolute(a) ? "" : i;
 }
-function Z(r) {
+function re(r) {
   const e = r.toLowerCase(), n = [".anim.json", ".atlas.json", ".scene.json", ".prefab.json"].find((a) => e.endsWith(a));
   if (n) return { base: r.slice(0, -n.length), ext: r.slice(r.length - n.length) };
   const i = s.extname(r);
   return { base: i ? r.slice(0, -i.length) : r, ext: i };
 }
-async function G(r) {
+async function H(r) {
   if (!await x(r)) return r;
-  const e = s.dirname(r), t = Z(s.basename(r));
+  const e = s.dirname(r), t = re(s.basename(r));
   for (let n = 1; n < 1e3; n += 1) {
     const i = s.join(e, `${t.base}-${n}${t.ext}`);
     if (!await x(i)) return i;
   }
   throw new Error("无法生成可用的默认文件名，请手动输入文件名。");
 }
-function J(r) {
+function q(r) {
   return `${String(r || "").trim().replace(/\.scene\.json$/i, "").trim().replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_").replace(/[. ]+$/g, "").trim() || "MainScene"}.scene.json`;
 }
-async function C(r, e) {
+async function T(r, e) {
   await x(r) && (await u.mkdir(s.dirname(e), { recursive: !0 }), await u.cp(r, e, { recursive: !0, force: !0 }));
 }
-async function _e(r, e) {
+async function Te(r, e) {
   try {
     await u.rename(r, e);
     return;
@@ -646,16 +648,16 @@ async function _e(r, e) {
     throw new Error(`Project files are busy. Please close occupying programs and retry. (${n})`);
   }
 }
-async function fe(r, e) {
+async function pe(r, e) {
   return await x(r) ? (await u.mkdir(s.dirname(e), { recursive: !0 }), await u.copyFile(r, e), !0) : !1;
 }
-function me() {
+function de() {
   return [
-    s.resolve($, "..", "assets-for-sample"),
+    s.resolve(N, "..", "assets-for-sample"),
     s.resolve(process.cwd(), "assets-for-sample")
-  ].find((e) => V.existsSync(e)) || "";
+  ].find((e) => ee.existsSync(e)) || "";
 }
-const pe = [
+const he = [
   { from: "background-img.png", to: "assets/images/pixel/background/background-img.png" },
   { from: "background-facility.png", to: "assets/images/pixel/background/background-facility.png" },
   { from: "door.png", to: "assets/images/pixel/props/door.png" },
@@ -683,7 +685,7 @@ const pe = [
   { from: "tilemap-sorted-by-value/texture-for-2.png", to: "assets/images/pixel/tilemap/texture_2.png" },
   { from: "tilemap-sorted-by-value/texture-for-4.png", to: "assets/images/pixel/tilemap/texture_4.png" }
 ];
-async function Te(r) {
+async function De(r) {
   const e = s.join(r, "assets", "scripts");
   await u.mkdir(e, { recursive: !0 });
   const t = {
@@ -934,25 +936,25 @@ export default {
     Object.entries(t).map(([n, i]) => u.writeFile(s.join(e, n), i, "utf-8"))
   );
 }
-async function Ne(r) {
+async function $e(r) {
   const e = s.join(r, "assets", "images");
   await u.mkdir(e, { recursive: !0 });
-  const t = q("player"), n = q("enemy"), i = q("chest");
+  const t = Z("player"), n = Z("enemy"), i = Z("chest");
   await Promise.all([
     u.writeFile(s.join(e, "player.png"), t),
     u.writeFile(s.join(e, "enemy.png"), n),
     u.writeFile(s.join(e, "chest.png"), i)
   ]);
 }
-async function $e(r) {
-  const e = me();
+async function Me(r) {
+  const e = de();
   if (!e) return !1;
   let t = 0;
-  for (const n of pe)
-    await fe(s.join(e, n.from), s.join(r, n.to)) && (t += 1);
+  for (const n of he)
+    await pe(s.join(e, n.from), s.join(r, n.to)) && (t += 1);
   return t > 0;
 }
-async function De(r) {
+async function ze(r) {
   const e = s.join(r, "assets", "animations");
   await u.mkdir(e, { recursive: !0 });
   const t = {
@@ -985,20 +987,20 @@ async function De(r) {
     u.writeFile(s.join(e, "TorchSheet.atlas.json"), JSON.stringify(n, null, 2), "utf-8")
   ]);
 }
-async function Me(r) {
+async function Ie(r) {
   const e = s.join(r, "assets", "audio");
   await u.mkdir(e, { recursive: !0 }), await u.writeFile(s.join(e, "bgm.mp3"), Buffer.alloc(0));
 }
-async function ze(r) {
-  const e = await $e(r);
+async function We(r) {
+  const e = await Me(r);
   await Promise.all([
-    Te(r),
-    ...e ? [] : [Ne(r)],
     De(r),
-    Me(r)
+    ...e ? [] : [$e(r)],
+    ze(r),
+    Ie(r)
   ]);
 }
-function O(r, e) {
+function X(r, e) {
   const t = String(r || "").trim();
   if (!t) return "";
   if (t.startsWith("data:") || t.startsWith("http://") || t.startsWith("https://")) return t;
@@ -1008,7 +1010,7 @@ function O(r, e) {
   const l = c.lastIndexOf("/assets/");
   return l >= 0 && (n = n.slice(l + 1)), n = n.replace(/^\/+/, ""), n.toLowerCase().startsWith("dist/assets/") && (n = n.slice(5)), n.toLowerCase().startsWith("dist-electron/assets/") && (n = n.slice(14)), n;
 }
-const re = /* @__PURE__ */ new Set([
+const se = /* @__PURE__ */ new Set([
   "texturePath",
   "animationAssetPath",
   "sourceAtlasPath",
@@ -1017,25 +1019,25 @@ const re = /* @__PURE__ */ new Set([
   "imagePath",
   "path",
   "relativePath"
-]), ne = /* @__PURE__ */ new Set(["framePaths", "textureCycle"]);
-function K(r) {
-  const e = O(r, "");
+]), ie = /* @__PURE__ */ new Set(["framePaths", "textureCycle"]);
+function V(r) {
+  const e = X(r, "");
   if (!e) return !1;
   const t = e.toLowerCase();
   return !(t.startsWith("data:") || t.startsWith("http://") || t.startsWith("https://") || t.startsWith("builtin://") || t.startsWith("custom://") || t.startsWith("javascript:") || t.startsWith("mailto:") || t.startsWith("about:"));
 }
-function T(r) {
-  return N(r).toLowerCase();
+function $(r) {
+  return M(r).toLowerCase();
 }
-function Ie(r) {
+function Le(r) {
   const e = r.toLowerCase();
   return e.endsWith(".scene.json") ? "scene" : e.endsWith(".prefab.json") ? "prefab" : e.endsWith(".anim.json") ? "animation" : e.endsWith(".atlas.json") ? "atlas" : "json";
 }
-function We(r, e, t, n, i) {
+function Oe(r, e, t, n, i) {
   let a = !1;
   const c = (l, f, m, p) => {
-    const d = O(m, e);
-    K(d) && t.push({ sourceFile: n, sourceKind: i, keyPath: p, ref: d }), d !== m && (l[f] = d, a = !0);
+    const d = X(m, e);
+    V(d) && t.push({ sourceFile: n, sourceKind: i, keyPath: p, ref: d }), d !== m && (l[f] = d, a = !0);
   }, o = (l, f = "$") => {
     if (!l || typeof l != "object") return;
     if (Array.isArray(l)) {
@@ -1045,25 +1047,25 @@ function We(r, e, t, n, i) {
     const m = l;
     for (const [p, d] of Object.entries(m)) {
       const g = `${f}.${p}`;
-      if (typeof d == "string" && re.has(p)) {
+      if (typeof d == "string" && se.has(p)) {
         c(m, p, d, g);
         continue;
       }
-      if (Array.isArray(d) && ne.has(p)) {
-        const F = d.map((y) => {
-          if (typeof y != "string") return y;
-          const A = O(y, e);
-          return K(A) && t.push({ sourceFile: n, sourceKind: i, keyPath: g, ref: A }), A !== y && (a = !0), A;
+      if (Array.isArray(d) && ie.has(p)) {
+        const R = d.map((P) => {
+          if (typeof P != "string") return P;
+          const F = X(P, e);
+          return V(F) && t.push({ sourceFile: n, sourceKind: i, keyPath: g, ref: F }), F !== P && (a = !0), F;
         });
-        m[p] = F;
+        m[p] = R;
         continue;
       }
       if (d && typeof d == "object" && p === "tileTextureMap" && !Array.isArray(d)) {
-        const F = d;
-        for (const [y, A] of Object.entries(F)) {
-          if (typeof A != "string") continue;
-          const v = O(A, e);
-          K(v) && t.push({ sourceFile: n, sourceKind: i, keyPath: `${g}.${y}`, ref: v }), v !== A && (F[y] = v, a = !0);
+        const R = d;
+        for (const [P, F] of Object.entries(R)) {
+          if (typeof F != "string") continue;
+          const v = X(F, e);
+          V(v) && t.push({ sourceFile: n, sourceKind: i, keyPath: `${g}.${P}`, ref: v }), v !== F && (R[P] = v, a = !0);
         }
       }
       o(d, g);
@@ -1071,11 +1073,11 @@ function We(r, e, t, n, i) {
   };
   return o(r), a;
 }
-function Le(r, e) {
+function Ue(r, e) {
   let t = !1;
   const n = (a) => {
-    const c = N(a);
-    return e.get(T(c)) || a;
+    const c = M(a);
+    return e.get($(c)) || a;
   }, i = (a) => {
     if (!a || typeof a != "object") return;
     if (Array.isArray(a)) {
@@ -1084,12 +1086,12 @@ function Le(r, e) {
     }
     const c = a;
     for (const [o, l] of Object.entries(c)) {
-      if (typeof l == "string" && re.has(o)) {
+      if (typeof l == "string" && se.has(o)) {
         const f = n(l);
         f !== l && (c[o] = f, t = !0);
         continue;
       }
-      if (Array.isArray(l) && ne.has(o)) {
+      if (Array.isArray(l) && ie.has(o)) {
         const f = l.map((m) => {
           if (typeof m != "string") return m;
           const p = n(m);
@@ -1111,7 +1113,7 @@ function Le(r, e) {
   };
   return i(r), t;
 }
-async function de(r) {
+async function ge(r) {
   const e = [], t = ["scenes", "prefabs", "assets"], n = async (i) => {
     const a = await u.readdir(i, { withFileTypes: !0 }).catch(() => []);
     for (const c of a) {
@@ -1122,15 +1124,15 @@ async function de(r) {
       }
       if (!c.isFile() || !c.name.toLowerCase().endsWith(".json")) continue;
       const f = w(s.relative(r, o));
-      f.toLowerCase() !== "project.json" && e.push({ fullPath: o, relativePath: f, kind: Ie(c.name) });
+      f.toLowerCase() !== "project.json" && e.push({ fullPath: o, relativePath: f, kind: Le(c.name) });
     }
   };
   for (const i of t)
     await n(s.join(r, i));
   return e;
 }
-async function ae(r) {
-  const e = await de(r), t = [];
+async function ce(r) {
+  const e = await ge(r), t = [];
   let n = 0, i = 0;
   for (const a of e) {
     const c = await u.readFile(a.fullPath, "utf-8").catch(() => "");
@@ -1141,11 +1143,11 @@ async function ae(r) {
     } catch {
       continue;
     }
-    We(o, r, t, a.relativePath, a.kind) && (n += 1, a.kind === "scene" && (i += 1), await u.writeFile(a.fullPath, JSON.stringify(o, null, 2), "utf-8"));
+    Oe(o, r, t, a.relativePath, a.kind) && (n += 1, a.kind === "scene" && (i += 1), await u.writeFile(a.fullPath, JSON.stringify(o, null, 2), "utf-8"));
   }
   return { refs: t, normalizedFiles: n, normalizedSceneFiles: i, dependencyFiles: e };
 }
-async function Oe(r) {
+async function Xe(r) {
   const e = /* @__PURE__ */ new Map(), t = s.join(r, "assets"), n = async (i) => {
     const a = await u.readdir(i, { withFileTypes: !0 }).catch(() => []);
     for (const c of a) {
@@ -1161,24 +1163,24 @@ async function Oe(r) {
   };
   return await n(t), { byBasename: e };
 }
-async function H(r, e) {
+async function Q(r, e) {
   const t = [], n = /* @__PURE__ */ new Map();
   for (const i of e) {
-    const a = T(i.ref);
+    const a = $(i.ref);
     if (!n.has(a)) {
-      const c = await he(r, i.ref);
+      const c = await we(r, i.ref);
       n.set(a, !!c);
     }
     n.get(a) || t.push(i);
   }
   return t;
 }
-async function Ue(r, e, t) {
+async function Ye(r, e, t) {
   if (!e.length) return { relinkedAssets: 0, relinkedFiles: 0 };
-  const n = await Oe(r), i = /* @__PURE__ */ new Map(), a = Array.from(new Map(e.map((o) => [T(o.ref), o.ref])).values());
+  const n = await Xe(r), i = /* @__PURE__ */ new Map(), a = Array.from(new Map(e.map((o) => [$(o.ref), o.ref])).values());
   for (const o of a) {
-    const l = s.basename(o).toLowerCase(), f = (n.byBasename.get(l) || []).filter((m) => T(m) !== T(o));
-    f.length === 1 && i.set(T(o), f[0]);
+    const l = s.basename(o).toLowerCase(), f = (n.byBasename.get(l) || []).filter((m) => $(m) !== $(o));
+    f.length === 1 && i.set($(o), f[0]);
   }
   if (!i.size) return { relinkedAssets: 0, relinkedFiles: 0 };
   let c = 0;
@@ -1191,20 +1193,20 @@ async function Ue(r, e, t) {
     } catch {
       continue;
     }
-    Le(f, i) && (c += 1, await u.writeFile(o.fullPath, JSON.stringify(f, null, 2), "utf-8"));
+    Ue(f, i) && (c += 1, await u.writeFile(o.fullPath, JSON.stringify(f, null, 2), "utf-8"));
   }
   return { relinkedAssets: i.size, relinkedFiles: c };
 }
-function Xe(r, e, t, n) {
-  const i = N(r), a = N(e), c = N(t);
+function Be(r, e, t, n) {
+  const i = M(r), a = M(e), c = M(t);
   if (!i || !a || !c) return r;
   const o = i.toLowerCase(), l = a.toLowerCase();
   return o === l ? c : n && o.startsWith(`${l}/`) ? `${c}${i.slice(a.length)}` : r;
 }
-function Ye(r, e, t, n) {
+function Ge(r, e, t, n) {
   let i = !1;
   const a = (o) => {
-    const l = Xe(o, e, t, n);
+    const l = Be(o, e, t, n);
     return l !== o && (i = !0), l;
   }, c = (o) => {
     if (!o || typeof o != "object") return;
@@ -1214,11 +1216,11 @@ function Ye(r, e, t, n) {
     }
     const l = o;
     for (const [f, m] of Object.entries(l)) {
-      if (typeof m == "string" && re.has(f)) {
+      if (typeof m == "string" && se.has(f)) {
         l[f] = a(m);
         continue;
       }
-      if (Array.isArray(m) && ne.has(f)) {
+      if (Array.isArray(m) && ie.has(f)) {
         l[f] = m.map((p) => typeof p == "string" ? a(p) : p);
         continue;
       }
@@ -1232,10 +1234,10 @@ function Ye(r, e, t, n) {
   };
   return c(r), i;
 }
-async function oe(r, e, t, n) {
-  const i = N(e), a = N(t);
+async function le(r, e, t, n) {
+  const i = M(e), a = M(t);
   if (!i || !a || i === a) return { relinkedFiles: 0 };
-  const c = await de(r);
+  const c = await ge(r);
   let o = 0;
   for (const l of c) {
     const f = await u.readFile(l.fullPath, "utf-8").catch(() => "");
@@ -1246,35 +1248,35 @@ async function oe(r, e, t, n) {
     } catch {
       continue;
     }
-    Ye(m, i, a, n) && (o += 1, await u.writeFile(l.fullPath, JSON.stringify(m, null, 2), "utf-8"));
+    Ge(m, i, a, n) && (o += 1, await u.writeFile(l.fullPath, JSON.stringify(m, null, 2), "utf-8"));
   }
   return { relinkedFiles: o };
 }
-async function Be(r, e) {
+async function Je(r, e) {
   if (!e.length) return 0;
-  const t = me();
+  const t = de();
   if (!t) return 0;
-  const n = new Map(pe.map((a) => [a.to.toLowerCase(), a.from]));
+  const n = new Map(he.map((a) => [a.to.toLowerCase(), a.from]));
   let i = 0;
   for (const a of e) {
     const c = n.get(a.toLowerCase());
     if (!c) continue;
-    await fe(s.join(t, c), s.join(r, a)) && (i += 1);
+    await pe(s.join(t, c), s.join(r, a)) && (i += 1);
   }
   return i;
 }
-async function M(r) {
-  let e = await ae(r);
-  const t = await H(r, e.refs), n = Array.from(new Set(t.map((m) => m.ref))), i = await Be(r, n), a = i > 0 ? await H(r, e.refs) : t, c = await Ue(r, a, e.dependencyFiles);
+async function I(r) {
+  let e = await ce(r);
+  const t = await Q(r, e.refs), n = Array.from(new Set(t.map((m) => m.ref))), i = await Je(r, n), a = i > 0 ? await Q(r, e.refs) : t, c = await Ye(r, a, e.dependencyFiles);
   if (i > 0 || c.relinkedAssets > 0) {
-    const m = await ae(r);
+    const m = await ce(r);
     e = {
       ...m,
       normalizedFiles: e.normalizedFiles + m.normalizedFiles,
       normalizedSceneFiles: e.normalizedSceneFiles + m.normalizedSceneFiles
     };
   }
-  const o = await H(r, e.refs), l = new Set(e.refs.map((m) => T(m.ref))).size, f = new Set(o.map((m) => T(m.ref))).size;
+  const o = await Q(r, e.refs), l = new Set(e.refs.map((m) => $(m.ref))).size, f = new Set(o.map((m) => $(m.ref))).size;
   return {
     repaired: e.normalizedFiles > 0 || i > 0 || c.relinkedAssets > 0,
     normalizedSceneFiles: e.normalizedSceneFiles,
@@ -1288,7 +1290,7 @@ async function M(r) {
     unresolvedRefs: o.slice(0, 100)
   };
 }
-function q(r) {
+function Z(r) {
   const t = r === "player" ? { bg: "#0E2A47", accent: "#56CCF2", stroke: "#BDEBFF", symbol: "P" } : r === "enemy" ? { bg: "#3A1518", accent: "#EB5757", stroke: "#FFC4C4", symbol: "E" } : { bg: "#3A2A11", accent: "#F2C94C", stroke: "#FFE8A3", symbol: "C" }, n = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <defs>
     <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
@@ -1300,41 +1302,41 @@ function q(r) {
   <circle cx="${128 / 2}" cy="${128 / 2}" r="26" fill="rgba(0,0,0,0.25)" />
   <text x="${128 / 2}" y="${128 / 2 + 15}" text-anchor="middle" fill="#ffffff" font-size="54" font-family="Segoe UI, Arial, sans-serif" font-weight="700">${t.symbol}</text>
 </svg>`;
-  return xe.createFromDataURL(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(n)}`).toPNG();
+  return ve.createFromDataURL(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(n)}`).toPNG();
 }
-async function ee(r, e) {
+async function ne(r, e) {
   const i = (await u.readdir(r, { withFileTypes: !0 })).filter((a) => a.name !== ".unu-trash").sort((a, c) => Number(c.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(c.name));
   return Promise.all(
     i.map(async (a) => {
       const c = s.join(r, a.name), o = w(s.relative(e, c)) || ".", l = a.isDirectory(), f = {
         id: o,
         name: a.name,
-        type: l ? "folder" : Pe(a.name),
+        type: l ? "folder" : Se(a.name),
         path: o,
         absolutePath: c,
         children: []
       };
-      return l && (f.children = await ee(c, e)), f;
+      return l && (f.children = await ne(c, e)), f;
     })
   );
 }
-async function Ge(r, e) {
+async function Ke(r, e) {
   const t = s.join(r, ".unu-trash"), n = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, i = s.join(t, n);
   await u.mkdir(i, { recursive: !0 });
   const a = s.join(i, s.basename(e));
   return await u.rename(e, a), a;
 }
-async function Je(r) {
+async function He(r) {
   const e = s.extname(r).toLowerCase(), t = e === ".png" ? "image/png" : e === ".jpg" || e === ".jpeg" ? "image/jpeg" : e === ".webp" ? "image/webp" : e === ".gif" ? "image/gif" : e === ".mp3" ? "audio/mpeg" : e === ".wav" ? "audio/wav" : e === ".ogg" ? "audio/ogg" : e === ".m4a" ? "audio/mp4" : "application/octet-stream", n = await u.readFile(r);
   return `data:${t};base64,${n.toString("base64")}`;
 }
-function N(r) {
+function M(r) {
   return String(r || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
 }
-async function he(r, e) {
-  const t = N(e);
+async function we(r, e) {
+  const t = M(e);
   if (!t) return null;
-  const n = j.getAppPath(), i = t.startsWith("assets/") ? t.slice(7) : t, a = [
+  const n = y.getAppPath(), i = t.startsWith("assets/") ? t.slice(7) : t, a = [
     s.join(r, t),
     s.join(r, "assets", i),
     s.join(n, t),
@@ -1343,8 +1345,8 @@ async function he(r, e) {
     s.join(n, "dist", "assets", i),
     s.join(n, "dist-electron", t),
     s.join(n, "dist-electron", "assets", i),
-    s.join($, t),
-    s.join($, "assets", i)
+    s.join(N, t),
+    s.join(N, "assets", i)
   ];
   for (const c of a) {
     const o = await u.stat(c).catch(() => null);
@@ -1352,8 +1354,8 @@ async function he(r, e) {
   }
   return null;
 }
-async function ce(r, e, t) {
-  await _(r);
+async function ue(r, e, t) {
+  await D(r);
   const n = s.join(r, t);
   await u.mkdir(n, { recursive: !0 });
   const i = [];
@@ -1366,10 +1368,10 @@ async function ce(r, e, t) {
   }
   return i;
 }
-async function Ke(r) {
+async function qe(r) {
   let e = r.filePath;
   if (!e) {
-    const t = s.join(r.projectRoot || j.getPath("documents"), r.subdir || "", r.suggestedName || "Asset.json"), n = await S.showSaveDialog({
+    const t = s.join(r.projectRoot || y.getPath("documents"), r.subdir || "", r.suggestedName || "Asset.json"), n = await b.showSaveDialog({
       title: r.title || "保存文本资源",
       defaultPath: t,
       filters: [{ name: r.filterName || "Text Asset", extensions: ["json", "txt"] }]
@@ -1383,9 +1385,9 @@ async function Ke(r) {
     relativePath: r.projectRoot ? w(s.relative(r.projectRoot, e)) : void 0
   };
 }
-async function He(r) {
+async function Ve(r) {
   var i;
-  const e = await S.showOpenDialog({
+  const e = await b.showOpenDialog({
     title: r.title || "打开文本资源",
     defaultPath: r.projectRoot ? s.join(r.projectRoot, r.defaultSubdir || "") : void 0,
     properties: ["openFile"],
@@ -1400,29 +1402,29 @@ async function He(r) {
     content: n
   };
 }
-function U(r) {
-  const e = X.get(r);
-  e && (e.timer && clearTimeout(e.timer), e.watcher.close(), X.delete(r));
+function Y(r) {
+  const e = B.get(r);
+  e && (e.timer && clearTimeout(e.timer), e.watcher.close(), B.delete(r));
 }
-function qe(r) {
+function Qe(r) {
   const e = w(String(r || "")).toLowerCase();
   return e.endsWith(".ts") || e.endsWith(".js") || e.endsWith(".mjs") || e.endsWith(".json");
 }
-async function Ve(r, e) {
-  U(r.id);
-  const t = await b(e);
+async function Ze(r, e) {
+  Y(r.id);
+  const t = await k(e);
   if (!t || t === "sample-project") return { ok: !1, error: "sample-project cannot be watched" };
   const n = s.join(t, "assets", "scripts");
   await u.mkdir(n, { recursive: !0 });
   const i = (c, o) => {
-    if (!o || !qe(String(o))) return;
-    const l = X.get(r.id);
+    if (!o || !Qe(String(o))) return;
+    const l = B.get(r.id);
     if (!l) return;
     l.timer && clearTimeout(l.timer);
     const f = w(String(o));
     l.timer = setTimeout(() => {
       if (r.isDestroyed()) {
-        U(r.id);
+        Y(r.id);
         return;
       }
       r.send("unu:project-script-changed", {
@@ -1434,33 +1436,33 @@ async function Ve(r, e) {
   };
   let a;
   try {
-    a = V.watch(n, { recursive: !0 }, i);
+    a = ee.watch(n, { recursive: !0 }, i);
   } catch {
-    a = V.watch(n, i);
+    a = ee.watch(n, i);
   }
-  return X.set(r.id, { watcher: a, timer: null, projectRoot: t }), r.once("destroyed", () => U(r.id)), { ok: !0 };
+  return B.set(r.id, { watcher: a, timer: null, projectRoot: t }), r.once("destroyed", () => Y(r.id)), { ok: !0 };
 }
-function le() {
-  const r = new te({
+function fe() {
+  const r = new G({
     width: 1120,
     height: 700,
     minWidth: 980,
     minHeight: 640,
     backgroundColor: "#111318",
     webPreferences: {
-      preload: s.join($, "preload.js"),
+      preload: s.join(N, "preload.js"),
       contextIsolation: !0,
       nodeIntegration: !1,
       sandbox: !1
     }
   });
-  ge(r, "launcher"), j.isPackaged ? r.loadFile(s.join(j.getAppPath(), "dist", "index.html")) : (r.loadURL("http://localhost:5173"), process.env.UNU_OPEN_DEVTOOLS === "1" && r.webContents.openDevTools({ mode: "detach" })), k = r, r.on("closed", () => {
-    k === r && (k = null);
+  xe(r, "launcher"), y.isPackaged ? r.loadFile(s.join(y.getAppPath(), "dist", "index.html")) : (r.loadURL("http://localhost:5173"), process.env.UNU_OPEN_DEVTOOLS === "1" && r.webContents.openDevTools({ mode: "detach" })), A = r, r.on("closed", () => {
+    A === r && (A = null);
   });
 }
-function ge(r, e) {
+function xe(r, e) {
   if (!r || r.isDestroyed()) return;
-  const t = we.getPrimaryDisplay().workAreaSize;
+  const t = ye.getPrimaryDisplay().workAreaSize;
   if (e === "editor") {
     const a = Math.min(1680, Math.max(1200, t.width - 120)), c = Math.min(980, Math.max(760, t.height - 100));
     r.setSize(a, c, !0), r.center();
@@ -1469,33 +1471,62 @@ function ge(r, e) {
   const n = Math.min(1180, Math.max(980, t.width - 220)), i = Math.min(760, Math.max(640, t.height - 180));
   r.setSize(n, i, !0), r.center();
 }
-function Qe(r) {
-  j.isPackaged ? r.loadFile(s.join(j.getAppPath(), "dist", "index.html"), {
+function et(r) {
+  y.isPackaged ? r.loadFile(s.join(y.getAppPath(), "dist", "index.html"), {
     query: { tilemapEditor: "1" }
   }) : r.loadURL("http://localhost:5173/?tilemapEditor=1");
 }
-function Ze(r) {
-  return z = r || null, k ? (!P || P.isDestroyed() ? (P = new te({
+function tt(r) {
+  y.isPackaged ? r.loadFile(s.join(y.getAppPath(), "dist", "index.html"), {
+    query: { codeEditor: "1" }
+  }) : r.loadURL("http://localhost:5173/?codeEditor=1");
+}
+function rt(r) {
+  return W = r || null, A ? (!j || j.isDestroyed() ? (j = new G({
     width: 1200,
     height: 840,
     minWidth: 900,
     minHeight: 620,
     title: "Tilemap Graphical Editor",
     backgroundColor: "#0f1420",
-    parent: k,
+    parent: A,
     webPreferences: {
-      preload: s.join($, "preload.js"),
+      preload: s.join(N, "preload.js"),
       contextIsolation: !0,
       nodeIntegration: !1,
       sandbox: !1
     }
-  }), Qe(P), P.on("closed", () => {
-    P = null;
-  })) : (P.isMinimized() && P.restore(), P.focus()), P.webContents.once("did-finish-load", () => {
-    !P || P.isDestroyed() || P.webContents.send("unu:tilemap-editor-init", z);
-  }), P.webContents.isLoadingMainFrame() ? { ok: !0 } : (P.webContents.send("unu:tilemap-editor-init", z), { ok: !0 })) : { ok: !1, error: "Main window not ready" };
+  }), et(j), j.on("closed", () => {
+    j = null;
+  })) : (j.isMinimized() && j.restore(), j.focus()), j.webContents.once("did-finish-load", () => {
+    !j || j.isDestroyed() || j.webContents.send("unu:tilemap-editor-init", W);
+  }), j.webContents.isLoadingMainFrame() ? { ok: !0 } : (j.webContents.send("unu:tilemap-editor-init", W), { ok: !0 })) : { ok: !1, error: "Main window not ready" };
 }
-function et(r) {
+function nt(r) {
+  return _ = r || null, A ? (!S || S.isDestroyed() ? (S = new G({
+    width: 1180,
+    height: 820,
+    minWidth: 760,
+    minHeight: 520,
+    title: "UNU Code Editor",
+    backgroundColor: "#0f1420",
+    parent: A,
+    webPreferences: {
+      preload: s.join(N, "preload.js"),
+      contextIsolation: !0,
+      nodeIntegration: !1,
+      sandbox: !1
+    }
+  }), tt(S), S.on("closed", () => {
+    A && !A.isDestroyed() && A.webContents.send("unu:code-editor-closed", {
+      id: (_ == null ? void 0 : _.id) || "",
+      closedAt: Date.now()
+    }), S = null, _ = null;
+  })) : (S.isMinimized() && S.restore(), S.focus()), S.webContents.once("did-finish-load", () => {
+    !S || S.isDestroyed() || S.webContents.send("unu:code-editor-init", _);
+  }), S.webContents.isLoadingMainFrame() ? { ok: !0 } : (S.webContents.send("unu:code-editor-init", _), { ok: !0 })) : { ok: !1, error: "Main window not ready" };
+}
+function st(r) {
   const e = /* @__PURE__ */ new Date(), t = (i) => String(i).padStart(2, "0"), n = [
     e.getFullYear(),
     t(e.getMonth() + 1),
@@ -1505,27 +1536,27 @@ function et(r) {
     t(e.getMinutes()),
     t(e.getSeconds())
   ].join("");
-  return `${L(r) || "UNUGame"}-web-${n}`;
+  return `${U(r) || "UNUGame"}-web-${n}`;
 }
-async function tt() {
-  const r = j.isPackaged ? [
+async function it() {
+  const r = y.isPackaged ? [
     s.join(process.resourcesPath, "dist"),
     s.join(process.resourcesPath, "app.asar.unpacked", "dist"),
     s.join(process.cwd(), "dist")
   ] : [
     s.join(process.cwd(), "dist"),
-    s.resolve($, "..", "dist"),
-    s.join($, "dist"),
-    s.join(j.getAppPath(), "dist")
+    s.resolve(N, "..", "dist"),
+    s.join(N, "dist"),
+    s.join(y.getAppPath(), "dist")
   ];
   for (const e of r)
     if (!e.includes(".asar") && await x(s.join(e, "index.html")))
       return e;
   throw new Error(
-    j.isPackaged ? "未找到可复制的 Web 构建目录 resources/dist，请重新打包应用后再导出。" : "未找到 Web 构建目录 dist，请先执行 npm run build。"
+    y.isPackaged ? "未找到可复制的 Web 构建目录 resources/dist，请重新打包应用后再导出。" : "未找到 Web 构建目录 dist，请先执行 npm run build。"
   );
 }
-async function rt(r) {
+async function at(r) {
   if (!await x(r)) return 0;
   let e = 0;
   const t = async (n) => {
@@ -1537,15 +1568,15 @@ async function rt(r) {
   };
   return await t(r), e;
 }
-async function nt(r, e) {
+async function ot(r, e) {
   let t = await u.readFile(r, "utf-8");
-  t = t.replace(/(src|href)="\/assets\//g, '$1="./assets/').replace(/<title>.*?<\/title>/i, `<title>${it(e || "UNU Game")}</title>`), t.includes("__UNU_GAME_EXPORT__") || (t = t.replace(
+  t = t.replace(/(src|href)="\/assets\//g, '$1="./assets/').replace(/<title>.*?<\/title>/i, `<title>${lt(e || "UNU Game")}</title>`), t.includes("__UNU_GAME_EXPORT__") || (t = t.replace(
     /<head([^>]*)>/i,
     `<head$1>
     <script>window.__UNU_GAME_EXPORT__ = true;<\/script>`
   )), await u.writeFile(r, t, "utf-8");
 }
-async function st(r, e) {
+async function ct(r, e) {
   const t = [
     "@echo off",
     "setlocal",
@@ -1654,7 +1685,7 @@ try {
 `);
   await u.writeFile(s.join(r, "PLAY_GAME.bat"), t, "utf-8"), await u.writeFile(s.join(r, "PLAY_GAME.ps1"), n, "utf-8"), await u.writeFile(s.join(r, "EXPORT_README.md"), i, "utf-8");
 }
-function it(r) {
+function lt(r) {
   return String(r).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 process.on("unhandledRejection", (r) => {
@@ -1663,15 +1694,15 @@ process.on("unhandledRejection", (r) => {
 process.on("uncaughtException", (r) => {
   console.error("[UNU][main] Uncaught exception:", r);
 });
-j.whenReady().then(() => {
+y.whenReady().then(() => {
   h.handle("unu:create-project", async () => {
-    const r = await S.showOpenDialog({
+    const r = await b.showOpenDialog({
       title: "新建 UNU 工程",
       properties: ["openDirectory", "createDirectory"]
     });
     if (r.canceled || r.filePaths.length === 0) return null;
     const e = r.filePaths[0];
-    return await _(e), await Y(e), {
+    return await D(e), await J(e), {
       rootPath: e,
       name: s.basename(e),
       created: !0
@@ -1679,7 +1710,7 @@ j.whenReady().then(() => {
   }), h.handle("unu:create-project-v2", async (r, e) => {
     let t = String((e == null ? void 0 : e.parentDir) || "").trim();
     if (!t) {
-      const o = await S.showOpenDialog({
+      const o = await b.showOpenDialog({
         title: "新建 UNU 工程",
         properties: ["openDirectory", "createDirectory"]
       });
@@ -1689,11 +1720,11 @@ j.whenReady().then(() => {
     const n = await u.stat(t).catch(() => null);
     if (!(n != null && n.isDirectory()))
       throw new Error("无效的项目目录");
-    const i = L(e == null ? void 0 : e.projectName) || Ce(), a = s.join(t, i);
+    const i = U(e == null ? void 0 : e.projectName) || Ne(), a = s.join(t, i);
     if (await x(a))
       throw new Error(`目标目录已存在: ${a}`);
-    await _(a), await Y(a, i), await I(a);
-    const c = await M(a);
+    await D(a), await J(a, i), await L(a);
+    const c = await I(a);
     return {
       rootPath: a,
       name: i,
@@ -1702,7 +1733,7 @@ j.whenReady().then(() => {
       integrity: c
     };
   }), h.handle("unu:pick-directory", async (r, e) => {
-    const t = await S.showOpenDialog({
+    const t = await b.showOpenDialog({
       title: (e == null ? void 0 : e.title) || "选择目标目录",
       defaultPath: e == null ? void 0 : e.defaultPath,
       properties: ["openDirectory", "createDirectory"]
@@ -1714,18 +1745,18 @@ j.whenReady().then(() => {
       name: s.basename(n)
     };
   }), h.handle("unu:pick-project-folder", async () => {
-    const r = await S.showOpenDialog({
+    const r = await b.showOpenDialog({
       title: "选择 UNU 工程目录",
       properties: ["openDirectory", "createDirectory"]
     });
     if (r.canceled || r.filePaths.length === 0) return null;
     const e = r.filePaths[0];
-    return await _(e), {
+    return await D(e), {
       rootPath: e,
       name: s.basename(e)
     };
   }), h.handle("unu:save-project-as", async (r, e) => {
-    const t = await S.showOpenDialog({
+    const t = await b.showOpenDialog({
       title: "项目另存为",
       properties: ["openDirectory", "createDirectory"]
     });
@@ -1733,30 +1764,30 @@ j.whenReady().then(() => {
     const n = t.filePaths[0], i = s.resolve(n), a = e.sourceProjectRoot ? s.resolve(e.sourceProjectRoot) : "";
     if (a && a !== "sample-project" && a === i)
       throw new Error("目标目录与当前工程目录相同，请选择其他目录。");
-    await _(n);
+    await D(n);
     const c = !e.sourceProjectRoot || e.sourceProjectRoot === "sample-project";
-    !c && a && await x(a) ? (await C(s.join(a, "assets"), s.join(n, "assets")), await C(s.join(a, "scenes"), s.join(n, "scenes")), await C(s.join(a, "prefabs"), s.join(n, "prefabs")), await C(s.join(a, "project.json"), s.join(n, "project.json"))) : await ze(n), await Y(n, e.projectName), await I(n);
+    !c && a && await x(a) ? (await T(s.join(a, "assets"), s.join(n, "assets")), await T(s.join(a, "scenes"), s.join(n, "scenes")), await T(s.join(a, "prefabs"), s.join(n, "prefabs")), await T(s.join(a, "project.json"), s.join(n, "project.json"))) : await We(n), await J(n, e.projectName), await L(n);
     let o;
     const l = Array.isArray(e.sceneFiles) ? e.sceneFiles : [];
     if (l.length > 0) {
       const m = /* @__PURE__ */ new Set();
       for (const p of l) {
-        const d = J(p.fileName);
-        let g = d, F = 2;
+        const d = q(p.fileName);
+        let g = d, R = 2;
         for (; m.has(g.toLowerCase()); )
-          g = d.replace(/\.scene\.json$/i, `_${F}.scene.json`), F += 1;
+          g = d.replace(/\.scene\.json$/i, `_${R}.scene.json`), R += 1;
         m.add(g.toLowerCase());
-        const y = s.join(n, "scenes", g);
-        await u.mkdir(s.dirname(y), { recursive: !0 }), await u.writeFile(y, String(p.content || ""), "utf-8"), o || (o = y);
-        const A = J(e.currentSceneName);
-        g.toLowerCase() === A.toLowerCase() && (o = y);
+        const P = s.join(n, "scenes", g);
+        await u.mkdir(s.dirname(P), { recursive: !0 }), await u.writeFile(P, String(p.content || ""), "utf-8"), o || (o = P);
+        const F = q(e.currentSceneName);
+        g.toLowerCase() === F.toLowerCase() && (o = P);
       }
     } else if (e.currentSceneContent) {
-      const m = J(e.currentSceneName);
+      const m = q(e.currentSceneName);
       o = s.join(n, "scenes", m), await u.mkdir(s.dirname(o), { recursive: !0 }), await u.writeFile(o, e.currentSceneContent, "utf-8");
     }
-    await W(n, e.projectName);
-    const f = await M(n);
+    await O(n, e.projectName);
+    const f = await I(n);
     return {
       rootPath: n,
       name: s.basename(n),
@@ -1765,20 +1796,20 @@ j.whenReady().then(() => {
       integrity: f
     };
   }), h.handle("unu:export-game", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project" || !await x(t))
       throw new Error("请先打开一个本地项目，再导出游戏。");
-    await _(t), await I(t);
-    const n = L(e == null ? void 0 : e.projectName) || s.basename(t), i = await W(t, n), a = await M(t), c = await S.showOpenDialog({
+    await D(t), await L(t);
+    const n = U(e == null ? void 0 : e.projectName) || s.basename(t), i = await O(t, n), a = await I(t), c = await b.showOpenDialog({
       title: "导出 Web 游戏到目录",
       properties: ["openDirectory", "createDirectory"]
     });
     if (c.canceled || c.filePaths.length === 0) return null;
-    const o = await tt(), l = s.join(c.filePaths[0], et(n));
-    await u.mkdir(l, { recursive: !0 }), await u.cp(o, l, { recursive: !0, force: !0 }), await C(s.join(t, "project.json"), s.join(l, "project.json")), await C(s.join(t, "assets"), s.join(l, "assets")), await C(s.join(t, "scenes"), s.join(l, "scenes")), await C(s.join(t, "prefabs"), s.join(l, "prefabs"));
+    const o = await it(), l = s.join(c.filePaths[0], st(n));
+    await u.mkdir(l, { recursive: !0 }), await u.cp(o, l, { recursive: !0, force: !0 }), await T(s.join(t, "project.json"), s.join(l, "project.json")), await T(s.join(t, "assets"), s.join(l, "assets")), await T(s.join(t, "scenes"), s.join(l, "scenes")), await T(s.join(t, "prefabs"), s.join(l, "prefabs"));
     const f = s.join(l, "index.html");
-    await nt(f, n), await st(l, n);
-    const m = await rt(s.join(l, "assets")), p = {
+    await ot(f, n), await ct(l, n);
+    const m = await at(s.join(l, "assets")), p = {
       format: "unu-web-export",
       version: 1,
       exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
@@ -1810,9 +1841,9 @@ j.whenReady().then(() => {
     };
   }), h.handle("unu:scan-project", async (r, e) => {
     if (!e) return { rootPath: "", name: "", tree: [] };
-    const t = await b(e);
-    await _(t), await I(t);
-    const n = s.basename(t), i = await W(t, n), a = await M(t), c = await ee(t, t);
+    const t = await k(e);
+    await D(t), await L(t);
+    const n = s.basename(t), i = await O(t, n), a = await I(t), c = await ne(t, t);
     return {
       rootPath: t,
       name: n,
@@ -1832,11 +1863,11 @@ j.whenReady().then(() => {
       unresolvedRefs: a.unresolvedRefs
     };
   }), h.handle("unu:check-asset-integrity", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("请先打开或另存为本地项目，再检查资源依赖。");
-    await _(t);
-    const n = await M(t), i = await ee(t, t);
+    await D(t);
+    const n = await I(t), i = await ne(t, t);
     return {
       rootPath: t,
       name: s.basename(t),
@@ -1852,10 +1883,10 @@ j.whenReady().then(() => {
       unresolvedAssets: n.unresolvedAssets,
       unresolvedRefs: n.unresolvedRefs
     };
-  }), h.handle("unu:watch-project-scripts", async (r, e) => Ve(r.sender, String((e == null ? void 0 : e.projectRoot) || "").trim())), h.handle("unu:unwatch-project-scripts", async (r) => (U(r.sender.id), { ok: !0 })), h.handle("unu:save-scene", async (r, e) => {
+  }), h.handle("unu:watch-project-scripts", async (r, e) => Ze(r.sender, String((e == null ? void 0 : e.projectRoot) || "").trim())), h.handle("unu:unwatch-project-scripts", async (r) => (Y(r.sender.id), { ok: !0 })), h.handle("unu:save-scene", async (r, e) => {
     let t = e.filePath;
     if (!t) {
-      const n = s.join(e.projectRoot || j.getPath("documents"), "scenes", e.suggestedName || "Main.scene.json"), i = await S.showSaveDialog({
+      const n = s.join(e.projectRoot || y.getPath("documents"), "scenes", e.suggestedName || "Main.scene.json"), i = await b.showSaveDialog({
         title: "保存场景",
         defaultPath: n,
         filters: [{ name: "UNU Scene", extensions: ["json"] }]
@@ -1863,12 +1894,12 @@ j.whenReady().then(() => {
       if (i.canceled || !i.filePath) return null;
       t = i.filePath;
     }
-    return await u.mkdir(s.dirname(t), { recursive: !0 }), await u.writeFile(t, e.content, "utf-8"), e.projectRoot && await W(e.projectRoot, s.basename(e.projectRoot)), {
+    return await u.mkdir(s.dirname(t), { recursive: !0 }), await u.writeFile(t, e.content, "utf-8"), e.projectRoot && await O(e.projectRoot, s.basename(e.projectRoot)), {
       filePath: t,
       name: s.basename(t)
     };
   }), h.handle("unu:open-scene", async (r, e) => {
-    const t = await S.showOpenDialog({
+    const t = await b.showOpenDialog({
       title: "打开场景",
       defaultPath: e.projectRoot ? s.join(e.projectRoot, "scenes") : void 0,
       properties: ["openFile"],
@@ -1884,8 +1915,8 @@ j.whenReady().then(() => {
   }), h.handle("unu:read-asset-data-url", async (r, e) => {
     if (!e.projectRoot || !e.relativePath) return null;
     try {
-      const t = await b(e.projectRoot), n = await he(t, e.relativePath);
-      return n ? { dataUrl: await Je(n) } : null;
+      const t = await k(e.projectRoot), n = await we(t, e.relativePath);
+      return n ? { dataUrl: await He(n) } : null;
     } catch (t) {
       const n = t instanceof Error ? t.message : String(t);
       return console.warn("[UNU][main] read-asset-data-url fallback failed:", {
@@ -1896,24 +1927,24 @@ j.whenReady().then(() => {
     }
   }), h.handle("unu:import-images", async (r, e) => {
     if (!e.projectRoot) return null;
-    const t = await S.showOpenDialog({
+    const t = await b.showOpenDialog({
       title: "导入图片资源",
       properties: ["openFile", "multiSelections"],
       filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }]
     });
-    return t.canceled || t.filePaths.length === 0 ? null : { imported: await ce(e.projectRoot, t.filePaths, "assets/images") };
+    return t.canceled || t.filePaths.length === 0 ? null : { imported: await ue(e.projectRoot, t.filePaths, "assets/images") };
   }), h.handle("unu:import-audios", async (r, e) => {
     if (!e.projectRoot) return null;
-    const t = await S.showOpenDialog({
+    const t = await b.showOpenDialog({
       title: "导入音频资源",
       properties: ["openFile", "multiSelections"],
       filters: [{ name: "Audio", extensions: ["mp3", "wav", "ogg", "m4a"] }]
     });
-    return t.canceled || t.filePaths.length === 0 ? null : { imported: await ce(e.projectRoot, t.filePaths, "assets/audio") };
+    return t.canceled || t.filePaths.length === 0 ? null : { imported: await ue(e.projectRoot, t.filePaths, "assets/audio") };
   }), h.handle("unu:save-prefab", async (r, e) => {
     let t = e.filePath;
     if (!t) {
-      const n = s.join(e.projectRoot || j.getPath("documents"), "prefabs", e.suggestedName || "Entity.prefab.json"), i = await S.showSaveDialog({
+      const n = s.join(e.projectRoot || y.getPath("documents"), "prefabs", e.suggestedName || "Entity.prefab.json"), i = await b.showSaveDialog({
         title: "保存 Prefab",
         defaultPath: n,
         filters: [{ name: "UNU Prefab", extensions: ["json"] }]
@@ -1927,7 +1958,7 @@ j.whenReady().then(() => {
       relativePath: e.projectRoot ? w(s.relative(e.projectRoot, t)) : void 0
     };
   }), h.handle("unu:open-prefab", async (r, e) => {
-    const t = await S.showOpenDialog({
+    const t = await b.showOpenDialog({
       title: "打开 Prefab",
       defaultPath: e.projectRoot ? s.join(e.projectRoot, "prefabs") : void 0,
       properties: ["openFile"],
@@ -1941,17 +1972,17 @@ j.whenReady().then(() => {
       relativePath: e.projectRoot ? w(s.relative(e.projectRoot, n)) : void 0,
       content: i
     };
-  }), h.handle("unu:save-text-asset", async (r, e) => Ke(e)), h.handle("unu:open-text-asset", async (r, e) => He(e)), h.handle("unu:create-text-asset-in-folder", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+  }), h.handle("unu:save-text-asset", async (r, e) => qe(e)), h.handle("unu:open-text-asset", async (r, e) => Ve(e)), h.handle("unu:create-text-asset-in-folder", async (r, e) => {
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("请先打开或另存为本地项目，再新建文件。");
-    const n = E((e == null ? void 0 : e.folderPath) || "assets"), i = R(t, n);
+    const n = C((e == null ? void 0 : e.folderPath) || "assets"), i = E(t, n);
     if (!i) throw new Error("目标目录不在当前项目内。");
     const a = await u.stat(i).catch(() => null);
     if (!a || !a.isDirectory()) throw new Error("目标目录不存在。");
-    const c = !!String((e == null ? void 0 : e.fileName) || "").trim(), o = B(e == null ? void 0 : e.fileName) || "NewFile.ts", l = s.join(i, o), f = s.resolve(t), m = s.relative(f, s.resolve(l));
+    const c = !!String((e == null ? void 0 : e.fileName) || "").trim(), o = K(e == null ? void 0 : e.fileName) || "NewFile.ts", l = s.join(i, o), f = s.resolve(t), m = s.relative(f, s.resolve(l));
     if (m.startsWith("..") || s.isAbsolute(m)) throw new Error("目标文件不在当前项目内。");
-    const p = c ? l : await G(l);
+    const p = c ? l : await H(l);
     if (c && await x(p)) throw new Error("同名文件已存在。");
     return await u.writeFile(p, (e == null ? void 0 : e.content) ?? "", "utf-8"), {
       filePath: p,
@@ -1959,16 +1990,16 @@ j.whenReady().then(() => {
       relativePath: w(s.relative(t, p))
     };
   }), h.handle("unu:create-asset-folder", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("Please open or save a local project before creating folders.");
-    const n = E((e == null ? void 0 : e.folderPath) || "assets"), i = R(t, n);
+    const n = C((e == null ? void 0 : e.folderPath) || "assets"), i = E(t, n);
     if (!i) throw new Error("Target folder is outside the current project.");
     const a = await u.stat(i).catch(() => null);
     if (!a || !a.isDirectory()) throw new Error("Target folder does not exist.");
-    const c = !!String((e == null ? void 0 : e.folderName) || "").trim(), o = B(e == null ? void 0 : e.folderName) || "NewFolder", l = s.join(i, o), f = s.resolve(t), m = s.relative(f, s.resolve(l));
+    const c = !!String((e == null ? void 0 : e.folderName) || "").trim(), o = K(e == null ? void 0 : e.folderName) || "NewFolder", l = s.join(i, o), f = s.resolve(t), m = s.relative(f, s.resolve(l));
     if (m.startsWith("..") || s.isAbsolute(m)) throw new Error("Target folder is outside the current project.");
-    const p = c ? l : await G(l);
+    const p = c ? l : await H(l);
     if (c && await x(p)) throw new Error("A folder with the same name already exists.");
     return await u.mkdir(p, { recursive: !1 }), {
       filePath: p,
@@ -1976,16 +2007,16 @@ j.whenReady().then(() => {
       relativePath: w(s.relative(t, p))
     };
   }), h.handle("unu:rename-asset", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("请先打开或另存为本地项目，再重命名资源。");
-    const n = R(t, (e == null ? void 0 : e.relativePath) || "");
+    const n = E(t, (e == null ? void 0 : e.relativePath) || "");
     if (!n) throw new Error("源资源不在当前项目内。");
     const i = await u.stat(n).catch(() => null);
     if (!i) throw new Error("源资源不存在。");
-    const a = B(e == null ? void 0 : e.nextName);
+    const a = K(e == null ? void 0 : e.nextName);
     if (!a) throw new Error("资源名称不能为空。");
-    const c = s.basename(n), o = i.isDirectory() || s.extname(a) ? a : `${a}${Z(c).ext}`, l = s.join(s.dirname(n), o), f = s.resolve(t), m = s.relative(f, s.resolve(l));
+    const c = s.basename(n), o = i.isDirectory() || s.extname(a) ? a : `${a}${re(c).ext}`, l = s.join(s.dirname(n), o), f = s.resolve(t), m = s.relative(f, s.resolve(l));
     if (m.startsWith("..") || s.isAbsolute(m)) throw new Error("目标资源不在当前项目内。");
     if (s.resolve(l) === s.resolve(n))
       return {
@@ -1995,7 +2026,7 @@ j.whenReady().then(() => {
       };
     if (await x(l)) throw new Error("同名资源已存在。");
     await u.rename(n, l);
-    const p = w(s.relative(t, n)), d = w(s.relative(t, l)), g = await oe(t, p, d, i.isDirectory());
+    const p = w(s.relative(t, n)), d = w(s.relative(t, l)), g = await le(t, p, d, i.isDirectory());
     return {
       filePath: l,
       name: s.basename(l),
@@ -2003,16 +2034,16 @@ j.whenReady().then(() => {
       relinkedFiles: g.relinkedFiles
     };
   }), h.handle("unu:copy-asset", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("Please open or save a local project before copying assets.");
-    const n = E((e == null ? void 0 : e.relativePath) || "");
+    const n = C((e == null ? void 0 : e.relativePath) || "");
     if (!n) throw new Error("Source asset path is invalid.");
-    const i = R(t, n);
+    const i = E(t, n);
     if (!i) throw new Error("Source asset is outside the current project.");
     const a = await u.stat(i).catch(() => null);
     if (!a) throw new Error("Source asset does not exist.");
-    const c = E((e == null ? void 0 : e.targetFolderPath) || "") || w(s.relative(t, s.dirname(i))), o = R(t, c);
+    const c = C((e == null ? void 0 : e.targetFolderPath) || "") || w(s.relative(t, s.dirname(i))), o = E(t, c);
     if (!o) throw new Error("Target folder is outside the current project.");
     const l = await u.stat(o).catch(() => null);
     if (!(l != null && l.isDirectory())) throw new Error("Target folder does not exist.");
@@ -2021,37 +2052,37 @@ j.whenReady().then(() => {
       if (g === d || g.startsWith(`${d}/`))
         throw new Error("Cannot paste a folder into itself or one of its children.");
     }
-    const f = Z(s.basename(i)), m = s.join(o, `${f.base}_Copy${f.ext}`), p = await G(m);
+    const f = re(s.basename(i)), m = s.join(o, `${f.base}_Copy${f.ext}`), p = await H(m);
     return a.isDirectory() ? await u.cp(i, p, { recursive: !0, force: !1 }) : await u.copyFile(i, p), {
       filePath: p,
       name: s.basename(p),
       relativePath: w(s.relative(t, p))
     };
   }), h.handle("unu:delete-asset", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("Please open or save a local project before deleting assets.");
-    const n = E((e == null ? void 0 : e.relativePath) || "");
+    const n = C((e == null ? void 0 : e.relativePath) || "");
     if (!n) throw new Error("Asset path is invalid.");
     if (["assets", "scenes", "prefabs"].includes(n))
       throw new Error("Top-level project folders cannot be deleted from the asset tree.");
-    const i = R(t, n);
+    const i = E(t, n);
     if (!i) throw new Error("Asset is outside the current project.");
     if (!await u.stat(i).catch(() => null)) throw new Error("Asset does not exist.");
-    const c = await Ge(t, i);
+    const c = await Ke(t, i);
     return {
       ok: !0,
       relativePath: n,
       trashRelativePath: w(s.relative(t, c))
     };
   }), h.handle("unu:restore-deleted-asset", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("Please open or save a local project before restoring assets.");
-    const n = E((e == null ? void 0 : e.trashRelativePath) || ""), i = E((e == null ? void 0 : e.restoreRelativePath) || "");
+    const n = C((e == null ? void 0 : e.trashRelativePath) || ""), i = C((e == null ? void 0 : e.restoreRelativePath) || "");
     if (!n || !i || !n.startsWith(".unu-trash/"))
       throw new Error("Restore path is invalid.");
-    const a = R(t, n), c = R(t, i);
+    const a = E(t, n), c = E(t, i);
     if (!a || !c) throw new Error("Restore target is outside the current project.");
     if (!await u.stat(a).catch(() => null)) throw new Error("Deleted asset is no longer available in the undo trash.");
     if (await x(c)) throw new Error("Cannot restore because an asset already exists at the original path.");
@@ -2061,22 +2092,22 @@ j.whenReady().then(() => {
       relativePath: w(s.relative(t, c))
     };
   }), h.handle("unu:move-asset", async (r, e) => {
-    const t = await b(String((e == null ? void 0 : e.projectRoot) || "").trim());
+    const t = await k(String((e == null ? void 0 : e.projectRoot) || "").trim());
     if (!t || t === "sample-project")
       throw new Error("Please open or save a local project before moving assets.");
-    const n = E((e == null ? void 0 : e.relativePath) || ""), i = E((e == null ? void 0 : e.targetFolderPath) || "");
+    const n = C((e == null ? void 0 : e.relativePath) || ""), i = C((e == null ? void 0 : e.targetFolderPath) || "");
     if (!n || !i) throw new Error("Asset path is invalid.");
     if (["assets", "scenes", "prefabs"].includes(n))
       throw new Error("Top-level project folders cannot be moved from the asset tree.");
-    const a = R(t, n), c = R(t, i);
+    const a = E(t, n), c = E(t, i);
     if (!a || !c) throw new Error("Move target is outside the current project.");
     const o = await u.stat(a).catch(() => null), l = await u.stat(c).catch(() => null);
     if (!o) throw new Error("Source asset does not exist.");
     if (!l || !l.isDirectory()) throw new Error("Target folder does not exist.");
     const f = s.resolve(a), m = s.resolve(c);
     if (o.isDirectory()) {
-      const y = s.relative(f, m);
-      if (!y || !y.startsWith("..") && !s.isAbsolute(y))
+      const P = s.relative(f, m);
+      if (!P || !P.startsWith("..") && !s.isAbsolute(P))
         throw new Error("A folder cannot be moved into itself or one of its children.");
     }
     if (s.dirname(f) === m)
@@ -2088,19 +2119,19 @@ j.whenReady().then(() => {
     const p = s.join(c, s.basename(a));
     if (await x(p)) throw new Error("An asset with the same name already exists in the target folder.");
     await u.rename(a, p);
-    const d = w(s.relative(t, a)), g = w(s.relative(t, p)), F = await oe(t, d, g, o.isDirectory());
+    const d = w(s.relative(t, a)), g = w(s.relative(t, p)), R = await le(t, d, g, o.isDirectory());
     return {
       filePath: p,
       name: s.basename(p),
       relativePath: g,
-      relinkedFiles: F.relinkedFiles
+      relinkedFiles: R.relinkedFiles
     };
   }), h.handle("unu:read-text-asset", async (r, e) => {
     if (!e.projectRoot || !e.relativePath) return null;
-    const t = await b(e.projectRoot), n = s.join(t, e.relativePath), i = await u.readFile(n, "utf-8");
+    const t = await k(e.projectRoot), n = s.join(t, e.relativePath), i = await u.readFile(n, "utf-8");
     return { filePath: n, name: s.basename(n), relativePath: e.relativePath, content: i };
   }), h.handle("unu:rename-project", async (r, e) => {
-    const t = String((e == null ? void 0 : e.projectRoot) || "").trim(), n = String((e == null ? void 0 : e.nextName) || "").trim(), i = L(n);
+    const t = String((e == null ? void 0 : e.projectRoot) || "").trim(), n = String((e == null ? void 0 : e.nextName) || "").trim(), i = U(n);
     if (!t || !i) return null;
     if (t === "sample-project")
       throw new Error("示例项目不支持重命名");
@@ -2142,7 +2173,7 @@ j.whenReady().then(() => {
       };
     if (await x(f))
       throw new Error("目标目录已存在");
-    await _e(c, f);
+    await Te(c, f);
     const m = s.join(f, "project.json");
     try {
       const p = await u.readFile(m, "utf-8"), d = JSON.parse(p), g = {
@@ -2180,17 +2211,17 @@ j.whenReady().then(() => {
       if (!n)
         return { ok: !1, error: `Path not found: ${t}` };
       if (e.isDirectory || n.isDirectory()) {
-        const i = await se.openPath(t);
+        const i = await ae.openPath(t);
         return { ok: !i, error: i || void 0 };
       }
-      return se.showItemInFolder(t), { ok: !0 };
+      return ae.showItemInFolder(t), { ok: !0 };
     } catch (n) {
       return { ok: !1, error: n instanceof Error ? n.message : String(n) };
     }
-  }), h.handle("unu:open-tilemap-editor", async (r, e) => Ze(e)), h.handle("unu:tilemap-editor-update", async (r, e) => !k || k.isDestroyed() ? { ok: !1, error: "Main window not available" } : (k.webContents.send("unu:tilemap-editor-apply", e), z = { ...z || {}, ...e || {} }, { ok: !0 })), h.handle("unu:close-tilemap-editor", async () => (P && !P.isDestroyed() && P.close(), P = null, { ok: !0 })), h.handle("unu:set-main-window-preset", async (r, e) => !k || k.isDestroyed() ? { ok: !1, error: "main window not ready" } : e !== "launcher" && e !== "editor" ? { ok: !1, error: "invalid preset" } : (ge(k, e), { ok: !0 })), le(), j.on("activate", () => {
-    te.getAllWindows().length === 0 && le();
+  }), h.handle("unu:open-tilemap-editor", async (r, e) => rt(e)), h.handle("unu:tilemap-editor-update", async (r, e) => !A || A.isDestroyed() ? { ok: !1, error: "Main window not available" } : (A.webContents.send("unu:tilemap-editor-apply", e), W = { ...W || {}, ...e || {} }, { ok: !0 })), h.handle("unu:close-tilemap-editor", async () => (j && !j.isDestroyed() && j.close(), j = null, { ok: !0 })), h.handle("unu:open-code-editor", async (r, e) => nt(e)), h.handle("unu:code-editor-update", async (r, e) => !A || A.isDestroyed() ? { ok: !1, error: "Main window not available" } : (A.webContents.send("unu:code-editor-apply", e), _ = { ..._ || {}, ...e || {} }, { ok: !0 })), h.handle("unu:close-code-editor", async () => (S && !S.isDestroyed() && S.close(), S = null, { ok: !0 })), h.handle("unu:set-main-window-preset", async (r, e) => !A || A.isDestroyed() ? { ok: !1, error: "main window not ready" } : e !== "launcher" && e !== "editor" ? { ok: !1, error: "invalid preset" } : (xe(A, e), { ok: !0 })), fe(), y.on("activate", () => {
+    G.getAllWindows().length === 0 && fe();
   });
 });
-j.on("window-all-closed", () => {
-  process.platform !== "darwin" && j.quit();
+y.on("window-all-closed", () => {
+  process.platform !== "darwin" && y.quit();
 });

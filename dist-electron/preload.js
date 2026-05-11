@@ -37,6 +37,9 @@ i.exposeInMainWorld("unu", {
   openTilemapEditor: (e) => t.invoke("unu:open-tilemap-editor", e),
   submitTilemapEditorUpdate: (e) => t.invoke("unu:tilemap-editor-update", e),
   closeTilemapEditor: () => t.invoke("unu:close-tilemap-editor"),
+  openCodeEditor: (e) => t.invoke("unu:open-code-editor", e),
+  submitCodeEditorUpdate: (e) => t.invoke("unu:code-editor-update", e),
+  closeCodeEditor: () => t.invoke("unu:close-code-editor"),
   setMainWindowPreset: (e) => t.invoke("unu:set-main-window-preset", e),
   onTilemapEditorInit: (e) => {
     const n = (r, o) => e(o);
@@ -45,5 +48,17 @@ i.exposeInMainWorld("unu", {
   onTilemapEditorApply: (e) => {
     const n = (r, o) => e(o);
     return t.on("unu:tilemap-editor-apply", n), () => t.removeListener("unu:tilemap-editor-apply", n);
+  },
+  onCodeEditorInit: (e) => {
+    const n = (r, o) => e(o);
+    return t.on("unu:code-editor-init", n), () => t.removeListener("unu:code-editor-init", n);
+  },
+  onCodeEditorApply: (e) => {
+    const n = (r, o) => e(o);
+    return t.on("unu:code-editor-apply", n), () => t.removeListener("unu:code-editor-apply", n);
+  },
+  onCodeEditorClosed: (e) => {
+    const n = (r, o) => e(o);
+    return t.on("unu:code-editor-closed", n), () => t.removeListener("unu:code-editor-closed", n);
   }
 });

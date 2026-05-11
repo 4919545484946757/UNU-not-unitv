@@ -141,6 +141,7 @@ export const sampleAssetRoots: AssetNode[] = [
           { id: 'assets/scripts/InputState.ts', name: 'InputState.ts', type: 'script', path: 'assets/scripts/InputState.ts' },
           { id: 'assets/scripts/AudioRuntime.ts', name: 'AudioRuntime.ts', type: 'script', path: 'assets/scripts/AudioRuntime.ts' },
           { id: 'assets/scripts/shared', name: 'shared', type: 'folder', path: 'assets/scripts/shared', children: [] },
+          { id: 'assets/scripts/interactions', name: 'interactions', type: 'folder', path: 'assets/scripts/interactions', children: [] },
           { id: 'assets/scripts/scenes', name: 'scenes', type: 'folder', path: 'assets/scripts/scenes', children: [] },
           {
             id: 'assets/scripts/enemy-chase-respawn.js',

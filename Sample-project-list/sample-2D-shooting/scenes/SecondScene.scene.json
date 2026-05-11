@@ -663,6 +663,18 @@
               "targetSpawnId": "Spawn_From_Second",
               "sceneStateMode": "preserve"
             }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
+              "sourceCode": "{\n  \"scene\": \"MainScene\",\n  \"targetSpawnId\": \"Spawn_From_Second\",\n  \"sceneStateMode\": \"preserve\"\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
           }
         ]
       },

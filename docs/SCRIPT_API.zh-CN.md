@@ -18,6 +18,7 @@ UNU 也支持“项目级共享脚本 + 场景级可选脚本”目录约定：
 
 ```text
 assets/scripts/shared/              # 任意场景都可复用
+assets/scripts/interactions/        # 可复用实体交互脚本，如门、箱子、拾取物
 assets/scripts/scenes/MainScene/    # MainScene 专属脚本
 assets/scripts/scenes/SecondScene/  # SecondScene 专属脚本
 ```
@@ -250,7 +251,7 @@ await ctx.api.audio.playOneShot('assets/audio/hit.wav', {
 
 ## 交互 JSON 动作
 
-可交互实体也可以用 `Script` 组件的 JSON 配置快速定义交互行为：
+示例项目在 `assets/scripts/ScriptRuntime.ts` 中注册了 `custom://interaction`，可交互实体可以用 `Script` 组件的 JSON 配置快速定义交互行为。也就是说，下面这些交互动作属于项目脚本逻辑，可以由用户在项目文件中自由修改，而不是写死在引擎运行时中：
 
 ```json
 {

@@ -18,6 +18,7 @@ UNU also supports a "project-level shared scripts + optional scene-level scripts
 
 ```text
 assets/scripts/shared/              # Reusable by any scene
+assets/scripts/interactions/        # Reusable entity interaction scripts, such as doors, chests, pickups
 assets/scripts/scenes/MainScene/    # MainScene-only scripts
 assets/scripts/scenes/SecondScene/  # SecondScene-only scripts
 ```
@@ -250,7 +251,7 @@ await ctx.api.audio.playOneShot('assets/audio/hit.wav', {
 
 ## Interaction JSON Actions
 
-Interactable entities can also define simple behavior with JSON in the `Script` component:
+The sample project registers `custom://interaction` in `assets/scripts/ScriptRuntime.ts`. Interactable entities can use JSON in the `Script` component to define behavior. These interaction actions live in project script code, so users can freely edit them inside the project instead of relying on hard-coded engine behavior:
 
 ```json
 {

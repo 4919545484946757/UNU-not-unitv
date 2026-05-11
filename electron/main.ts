@@ -9,7 +9,9 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 let mainWindow: BrowserWindow | null = null
 let tilemapEditorWindow: BrowserWindow | null = null
+let codeEditorWindow: BrowserWindow | null = null
 let tilemapEditorSession: any = null
+let codeEditorSession: any = null
 const projectScriptWatchers = new Map<number, { watcher: fsSync.FSWatcher; timer: NodeJS.Timeout | null; projectRoot: string }>()
 
 function normalizePath(inputPath: string) {
@@ -36,6 +38,7 @@ async function ensureProjectStructure(projectRoot: string) {
     'assets/audio',
     'assets/scripts',
     'assets/scripts/shared',
+    'assets/scripts/interactions',
     'assets/scripts/scenes',
     'assets/animations',
     'scenes',
@@ -69,6 +72,7 @@ function createProjectRuntimeTemplate() {
 
 // You can also create directly editable scripts under:
 // - assets/scripts/shared/
+// - assets/scripts/interactions/
 // - assets/scripts/scenes/<SceneName>/
 // Files in those folders may export hooks directly:
 // export default { onUpdate(ctx) {} }
@@ -1706,6 +1710,16 @@ function loadTilemapEditorWindow(win: BrowserWindow) {
   }
 }
 
+function loadCodeEditorWindow(win: BrowserWindow) {
+  if (!app.isPackaged) {
+    win.loadURL('http://localhost:5173/?codeEditor=1')
+  } else {
+    win.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
+      query: { codeEditor: '1' }
+    })
+  }
+}
+
 function openTilemapEditorWindow(payload: unknown) {
   tilemapEditorSession = payload || null
   if (!mainWindow) return { ok: false, error: 'Main window not ready' }
@@ -1743,6 +1757,53 @@ function openTilemapEditorWindow(payload: unknown) {
     return { ok: true }
   }
   tilemapEditorWindow.webContents.send('unu:tilemap-editor-init', tilemapEditorSession)
+  return { ok: true }
+}
+
+function openCodeEditorWindow(payload: unknown) {
+  codeEditorSession = payload || null
+  if (!mainWindow) return { ok: false, error: 'Main window not ready' }
+
+  if (!codeEditorWindow || codeEditorWindow.isDestroyed()) {
+    codeEditorWindow = new BrowserWindow({
+      width: 1180,
+      height: 820,
+      minWidth: 760,
+      minHeight: 520,
+      title: 'UNU Code Editor',
+      backgroundColor: '#0f1420',
+      parent: mainWindow,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false
+      }
+    })
+    loadCodeEditorWindow(codeEditorWindow)
+    codeEditorWindow.on('closed', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('unu:code-editor-closed', {
+          id: codeEditorSession?.id || '',
+          closedAt: Date.now()
+        })
+      }
+      codeEditorWindow = null
+      codeEditorSession = null
+    })
+  } else {
+    if (codeEditorWindow.isMinimized()) codeEditorWindow.restore()
+    codeEditorWindow.focus()
+  }
+
+  codeEditorWindow.webContents.once('did-finish-load', () => {
+    if (!codeEditorWindow || codeEditorWindow.isDestroyed()) return
+    codeEditorWindow.webContents.send('unu:code-editor-init', codeEditorSession)
+  })
+  if (codeEditorWindow.webContents.isLoadingMainFrame()) {
+    return { ok: true }
+  }
+  codeEditorWindow.webContents.send('unu:code-editor-init', codeEditorSession)
   return { ok: true }
 }
 
@@ -2707,6 +2768,23 @@ app.whenReady().then(() => {
   ipcMain.handle('unu:close-tilemap-editor', async () => {
     if (tilemapEditorWindow && !tilemapEditorWindow.isDestroyed()) tilemapEditorWindow.close()
     tilemapEditorWindow = null
+    return { ok: true }
+  })
+
+  ipcMain.handle('unu:open-code-editor', async (_event, payload) => {
+    return openCodeEditorWindow(payload)
+  })
+
+  ipcMain.handle('unu:code-editor-update', async (_event, payload) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'Main window not available' }
+    mainWindow.webContents.send('unu:code-editor-apply', payload)
+    codeEditorSession = { ...(codeEditorSession || {}), ...(payload || {}) }
+    return { ok: true }
+  })
+
+  ipcMain.handle('unu:close-code-editor', async () => {
+    if (codeEditorWindow && !codeEditorWindow.isDestroyed()) codeEditorWindow.close()
+    codeEditorWindow = null
     return { ok: true }
   })
 

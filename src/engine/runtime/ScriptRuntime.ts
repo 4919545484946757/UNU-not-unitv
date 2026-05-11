@@ -142,23 +142,6 @@ export interface ScriptConsoleMessage {
   entityName?: string
 }
 
-interface InteractionScriptAction {
-  type?: string
-  target?: 'self' | string
-  scene?: string
-  targetSpawnId?: string
-  sceneStateMode?: 'preserve' | 'reset'
-  path?: string
-  value?: number | string
-  values?: Array<number | string>
-  actions?: InteractionScriptAction[]
-}
-
-interface InteractionScriptDefinition {
-  onInteract?: InteractionScriptAction[]
-  actions?: InteractionScriptAction[]
-}
-
 interface ProjectRuntimeModule {
   scripts?: Record<string, ScriptHooks>
   [key: string]: unknown
@@ -1139,8 +1122,6 @@ export class ScriptRuntime {
     const target = this.pickInteractableAtPointer(scene, pointer.x, pointer.y, playerTransform)
     if (!target) return
 
-    this.applyInteractableAction(scene, target.entity, target.interactable)
-
     const script = target.entity.getComponent<ScriptComponent>('Script')
     const hooks = script?.instance as ScriptHooks | null
     if (script?.enabled && hooks?.onInteract) {
@@ -1148,73 +1129,11 @@ export class ScriptRuntime {
     }
   }
 
-  private applyInteractableAction(scene: Scene, entity: Entity, interactable: InteractableComponent) {
-    if (interactable.actionType === 'scripted') {
-      return
-    }
-
-    if (interactable.actionType === 'switchScene') {
-      const target = String(interactable.targetScene || '').trim()
-      if (target) {
-        this.pendingSceneSwitch = {
-          sceneName: target,
-          targetSpawnId: String(interactable.targetSpawnId || '').trim(),
-          sceneStateMode: interactable.sceneStateMode === 'reset' ? 'reset' : 'preserve'
-        }
-      }
-      return
-    }
-
-    if (interactable.actionType === 'cycleTexture') {
-      const sprite = entity.getComponent<SpriteComponent>('Sprite')
-      const cycle = Array.isArray(interactable.textureCycle) ? interactable.textureCycle.map((item) => String(item || '').trim()).filter(Boolean) : []
-      if (!sprite || !cycle.length) return
-      const state = this.ensureEntityState(entity)
-      const key = '__interact_texture_cycle_index'
-      const current = Number(state[key] ?? -1)
-      const nextIndex = (current + 1 + cycle.length) % cycle.length
-      state[key] = nextIndex
-      sprite.texturePath = cycle[nextIndex]
-      return
-    }
-
-    if (interactable.actionType === 'cycleTint') {
-      const sprite = entity.getComponent<SpriteComponent>('Sprite')
-      const cycle = Array.isArray(interactable.tintCycle) ? interactable.tintCycle.map((item) => Number(item)).filter((value) => Number.isFinite(value)) : []
-      if (!sprite || !cycle.length) return
-      const state = this.ensureEntityState(entity)
-      const key = '__interact_tint_cycle_index'
-      const current = Number(state[key] ?? -1)
-      const nextIndex = (current + 1 + cycle.length) % cycle.length
-      state[key] = nextIndex
-      sprite.tint = Math.max(0, Math.round(cycle[nextIndex]))
-    }
-  }
-
   private resolveScriptHooks(script: ScriptComponent) {
     const projectHooks = this.resolveProjectScriptHooks(script.scriptPath)
     const builtinKey = resolveBuiltinScriptKey(script.scriptPath)
     const builtinHooks = builtinKey ? scriptRegistry[builtinKey] ?? null : null
-    const baseHooks = projectHooks ?? builtinHooks
-    const customHooks = this.buildCustomInteractionHooks(script.sourceCode)
-    if (!baseHooks && !customHooks) return null
-    if (!baseHooks) return customHooks
-    if (!customHooks) return baseHooks
-    return {
-      onInit: customHooks.onInit ?? baseHooks.onInit,
-      onStart: customHooks.onStart ?? baseHooks.onStart,
-      onEnterScene: customHooks.onEnterScene ?? baseHooks.onEnterScene,
-      onExitScene: customHooks.onExitScene ?? baseHooks.onExitScene,
-      onUpdate: customHooks.onUpdate ?? baseHooks.onUpdate,
-      onInteract: customHooks.onInteract ?? baseHooks.onInteract,
-      onCollisionEnter: customHooks.onCollisionEnter ?? baseHooks.onCollisionEnter,
-      onCollisionStay: customHooks.onCollisionStay ?? baseHooks.onCollisionStay,
-      onCollisionExit: customHooks.onCollisionExit ?? baseHooks.onCollisionExit,
-      onTriggerEnter: customHooks.onTriggerEnter ?? baseHooks.onTriggerEnter,
-      onTriggerStay: customHooks.onTriggerStay ?? baseHooks.onTriggerStay,
-      onTriggerExit: customHooks.onTriggerExit ?? baseHooks.onTriggerExit,
-      onDestroy: customHooks.onDestroy ?? baseHooks.onDestroy
-    }
+    return projectHooks ?? builtinHooks
   }
 
   private resolveProjectScriptHooks(scriptPath: string) {
@@ -1227,141 +1146,6 @@ export class ScriptRuntime {
     const canonical = resolveCanonicalScriptPath(normalized)
     if (canonical && this.projectScriptRegistry[canonical]) return this.projectScriptRegistry[canonical]
     return null
-  }
-
-  private buildCustomInteractionHooks(sourceCode: string): ScriptHooks | null {
-    const parsed = parseInteractionScriptDefinition(sourceCode)
-    if (!parsed) return null
-    const actions = normalizeInteractionActionList(parsed.onInteract ?? parsed.actions ?? [])
-    if (!actions.length) return null
-    return {
-      onInteract: (ctx) => {
-        this.runInteractionActions(actions, ctx.scene, ctx.entity)
-      }
-    }
-  }
-
-  private runInteractionActions(actions: InteractionScriptAction[], scene: Scene, self: Entity) {
-    for (const action of actions) {
-      this.runInteractionAction(action, scene, self)
-    }
-  }
-
-  private runInteractionAction(action: InteractionScriptAction, scene: Scene, self: Entity) {
-    const type = String(action.type || '').trim()
-    if (!type) return
-
-    if (type === 'sequence') {
-      const actions = normalizeInteractionActionList(action.actions || [])
-      this.runInteractionActions(actions, scene, self)
-      return
-    }
-
-    if (type === 'randomOne') {
-      const actions = normalizeInteractionActionList(action.actions || [])
-      if (!actions.length) return
-      const picked = actions[Math.floor(Math.random() * actions.length)]
-      if (picked) this.runInteractionAction(picked, scene, self)
-      return
-    }
-
-    const target = this.resolveInteractionTarget(scene, self, action.target)
-    if (!target) return
-
-    if (type === 'switchScene') {
-      const targetScene = String(action.scene || '').trim()
-      if (targetScene) {
-        this.pendingSceneSwitch = {
-          sceneName: targetScene,
-          targetSpawnId: String((action as Record<string, unknown>).targetSpawnId || '').trim(),
-          sceneStateMode: (action as Record<string, unknown>).sceneStateMode === 'reset' ? 'reset' : 'preserve'
-        }
-      }
-      return
-    }
-
-    if (type === 'setBackgroundTexture') {
-      const path = String(action.path || '').trim()
-      if (!path) return
-      this.setSceneBackgroundTexture(scene, path)
-      return
-    }
-
-    if (type === 'cycleBackgroundTexture') {
-      const paths = (action.values || []).map((item) => String(item || '').trim()).filter(Boolean)
-      this.cycleSceneBackgroundTexture(scene, paths)
-      return
-    }
-
-    if (type === 'setTexture') {
-      const sprite = target.getComponent<SpriteComponent>('Sprite')
-      const path = String(action.path || '').trim()
-      if (!sprite || !path) return
-      sprite.texturePath = path
-      return
-    }
-
-    if (type === 'cycleTexture') {
-      const sprite = target.getComponent<SpriteComponent>('Sprite')
-      const cycle = (action.values || []).map((item) => String(item || '').trim()).filter(Boolean)
-      if (!sprite || !cycle.length) return
-      const state = this.ensureEntityState(target)
-      const key = `__custom_cycle_texture_${target.id}`
-      const current = Number(state[key] ?? -1)
-      const nextIndex = (current + 1 + cycle.length) % cycle.length
-      state[key] = nextIndex
-      sprite.texturePath = cycle[nextIndex]
-      return
-    }
-
-    if (type === 'setTint') {
-      const sprite = target.getComponent<SpriteComponent>('Sprite')
-      if (!sprite) return
-      const parsed = parseNumericValue(action.value)
-      if (parsed === null) return
-      sprite.tint = Math.max(0, Math.round(parsed))
-      return
-    }
-
-    if (type === 'cycleTint') {
-      const sprite = target.getComponent<SpriteComponent>('Sprite')
-      const cycle = (action.values || []).map((item) => parseNumericValue(item)).filter((item): item is number => item !== null)
-      if (!sprite || !cycle.length) return
-      const state = this.ensureEntityState(target)
-      const key = `__custom_cycle_tint_${target.id}`
-      const current = Number(state[key] ?? -1)
-      const nextIndex = (current + 1 + cycle.length) % cycle.length
-      state[key] = nextIndex
-      sprite.tint = Math.max(0, Math.round(cycle[nextIndex]))
-      return
-    }
-
-    if (type === 'toggleVisible') {
-      const sprite = target.getComponent<SpriteComponent>('Sprite')
-      if (!sprite) return
-      sprite.visible = !sprite.visible
-      return
-    }
-
-    if (type === 'setInteractDistance') {
-      const interactable = target.getComponent<InteractableComponent>('Interactable')
-      const parsed = parseNumericValue(action.value)
-      if (!interactable || parsed === null) return
-      interactable.interactDistance = Math.max(0, parsed)
-      return
-    }
-
-    if (type === 'removeEntity') {
-      this.pendingRemovals.add(target.id)
-    }
-  }
-
-  private resolveInteractionTarget(scene: Scene, self: Entity, rawTarget?: string) {
-    const target = String(rawTarget || 'self').trim()
-    if (!target || target === 'self') return self
-    if (target === 'selected') return scene.getEntityById(this.selectedEntityId) ?? null
-    if (target.startsWith('id:')) return scene.getEntityById(target.slice(3).trim()) ?? null
-    return scene.entities.find((entity) => entity.name === target) ?? null
   }
 
   private findSceneBackgroundEntity(scene: Scene | null) {
@@ -1503,38 +1287,6 @@ export class ScriptRuntime {
     }
     return null
   }
-}
-
-function parseInteractionScriptDefinition(sourceCode: string): InteractionScriptDefinition | null {
-  const trimmed = String(sourceCode || '').trim()
-  if (!trimmed) return null
-  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return null
-  try {
-    const parsed = JSON.parse(trimmed) as unknown
-    if (Array.isArray(parsed)) return { onInteract: parsed as InteractionScriptAction[] }
-    if (!parsed || typeof parsed !== 'object') return null
-    return parsed as InteractionScriptDefinition
-  } catch {
-    return null
-  }
-}
-
-function normalizeInteractionActionList(input: unknown): InteractionScriptAction[] {
-  if (!Array.isArray(input)) return []
-  return input.filter((item) => item && typeof item === 'object') as InteractionScriptAction[]
-}
-
-function parseNumericValue(input: unknown) {
-  if (typeof input === 'number' && Number.isFinite(input)) return input
-  if (typeof input !== 'string') return null
-  const text = input.trim()
-  if (!text) return null
-  if (/^0x[0-9a-f]+$/i.test(text)) {
-    const parsedHex = Number.parseInt(text.slice(2), 16)
-    return Number.isFinite(parsedHex) ? parsedHex : null
-  }
-  const parsed = Number(text)
-  return Number.isFinite(parsed) ? parsed : null
 }
 
 function parseScriptConfigObject(script?: ScriptComponent | null) {

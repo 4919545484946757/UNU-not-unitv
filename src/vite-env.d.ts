@@ -114,9 +114,15 @@ declare global {
       openTilemapEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       submitTilemapEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       closeTilemapEditor?: () => Promise<{ ok: boolean; error?: string }>
+      openCodeEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
+      submitCodeEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
+      closeCodeEditor?: () => Promise<{ ok: boolean; error?: string }>
       setMainWindowPreset?: (preset: 'launcher' | 'editor') => Promise<{ ok: boolean; error?: string }>
       onTilemapEditorInit?: (callback: (payload: unknown) => void) => (() => void)
       onTilemapEditorApply?: (callback: (payload: unknown) => void) => (() => void)
+      onCodeEditorInit?: (callback: (payload: unknown) => void) => (() => void)
+      onCodeEditorApply?: (callback: (payload: unknown) => void) => (() => void)
+      onCodeEditorClosed?: (callback: (payload: unknown) => void) => (() => void)
     }
   }
 }

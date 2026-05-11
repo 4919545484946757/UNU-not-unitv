@@ -639,6 +639,7 @@ export class PixiRenderer {
       .filter((path) => (
         path === scriptRuntimePath ||
         path.startsWith('assets/scripts/shared/') ||
+        path.startsWith('assets/scripts/interactions/') ||
         path.startsWith('assets/scripts/scenes/')
       ))
     const projectScriptPaths = [scriptRuntimePath, ...discoveredProjectScriptPaths]
