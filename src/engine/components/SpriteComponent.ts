@@ -10,7 +10,9 @@ export class SpriteComponent extends Component {
     public visible = true,
     public alpha = 1,
     public tint = 0xffffff,
-    public preserveAspect = true
+    public preserveAspect = true,
+    public offsetX = 0,
+    public offsetY = 0
   ) {
     super()
   }

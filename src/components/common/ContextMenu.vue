@@ -73,8 +73,8 @@ async function handleItemClick(item: ContextMenuItem) {
   close()
 }
 
-function onWindowPointerDown(event: PointerEvent) {
-  const target = event.target as Node | null
+function onWindowPointerDown(event: Event) {
+  const target = event.target instanceof Node ? event.target : null
   if (target && menuRef.value?.contains(target)) return
   if (props.visible) close()
 }

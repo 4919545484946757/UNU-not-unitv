@@ -404,7 +404,9 @@ const scriptRegistry: Record<string, ScriptHooks> = {
           selfSprite.visible,
           selfSprite.alpha,
           selfSprite.tint,
-          selfSprite.preserveAspect
+          selfSprite.preserveAspect,
+          selfSprite.offsetX,
+          selfSprite.offsetY
         )
       )
       enemy.addComponent(
@@ -1728,7 +1730,9 @@ function createEnemyEntityAt(
       spriteTemplate?.visible ?? true,
       spriteTemplate?.alpha ?? 1,
       spriteTemplate?.tint ?? 0xffffff,
-      spriteTemplate?.preserveAspect ?? true
+      spriteTemplate?.preserveAspect ?? true,
+      spriteTemplate?.offsetX ?? 0,
+      spriteTemplate?.offsetY ?? 0
     )
   )
   enemy.addComponent(

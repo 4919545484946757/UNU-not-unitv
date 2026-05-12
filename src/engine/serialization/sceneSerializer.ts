@@ -85,7 +85,9 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Boolean(data.visible ?? true),
             Number(data.alpha ?? 1),
             Number(data.tint ?? 0xffffff),
-            Boolean(data.preserveAspect ?? true)
+            Boolean(data.preserveAspect ?? true),
+            Number(data.offsetX ?? 0),
+            Number(data.offsetY ?? 0)
           )
         )
         break

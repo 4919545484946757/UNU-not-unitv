@@ -1521,6 +1521,8 @@ export class PixiRenderer {
         node.height = sprite.height
       }
       node.tint = sprite.tint
+      node.x = Number(sprite.offsetX || 0)
+      node.y = Number(sprite.offsetY || 0)
       return node
     }
 
@@ -1528,6 +1530,8 @@ export class PixiRenderer {
     box.rect(-sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height)
     box.fill({ color: sprite.tint, alpha: sprite.alpha })
     box.stroke({ color: 0xffffff, alpha: 0.35, width: 1 })
+    box.x = Number(sprite.offsetX || 0)
+    box.y = Number(sprite.offsetY || 0)
     return box
   }
 
@@ -1547,6 +1551,8 @@ export class PixiRenderer {
       sprite.alpha,
       sprite.tint,
       sprite.preserveAspect,
+      sprite.offsetX,
+      sprite.offsetY,
       showDebug ? 1 : 0,
       collider ? [collider.width, collider.height, collider.offsetX, collider.offsetY, collider.isTrigger ? 1 : 0].join(',') : 'no-collider'
     ].join('|')
@@ -2106,6 +2112,8 @@ export class PixiRenderer {
       sprite.alpha,
       sprite.tint,
       sprite.visible,
+      sprite.offsetX,
+      sprite.offsetY,
       options.targetWidth,
       options.targetHeight,
       options.fitMode,

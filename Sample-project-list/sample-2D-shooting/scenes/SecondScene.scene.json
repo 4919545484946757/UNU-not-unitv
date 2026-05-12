@@ -36,7 +36,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": false
+              "preserveAspect": false,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -366,7 +368,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 8
             }
           },
           {
@@ -374,10 +378,10 @@
             "data": {
               "type": "Collider",
               "shape": "rect",
-              "width": 60,
-              "height": 50,
+              "width": 40,
+              "height": 80,
               "offsetX": 0,
-              "offsetY": 15,
+              "offsetY": 7,
               "isTrigger": false,
               "layer": "Player",
               "collidesWith": [
@@ -631,7 +635,9 @@
               "visible": true,
               "alpha": 0.95,
               "tint": 15201279,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -1350,7 +1356,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {

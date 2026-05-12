@@ -1514,7 +1514,7 @@
             "data": {
               "type": "Collider",
               "shape": "rect",
-              "width": 60,
+              "width": 40,
               "height": 50,
               "offsetX": 0,
               "offsetY": 15,

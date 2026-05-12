@@ -52,6 +52,8 @@
         <div class="group-title">Sprite</div>
         <label>Width <input type="number" :value="sprite.width" @input="setNumber('sprite', 'width', $event)" /></label>
         <label>Height <input type="number" :value="sprite.height" @input="setNumber('sprite', 'height', $event)" /></label>
+        <label>Texture Offset X <input type="number" :value="sprite.offsetX || 0" @input="setNumber('sprite', 'offsetX', $event)" /></label>
+        <label>Texture Offset Y <input type="number" :value="sprite.offsetY || 0" @input="setNumber('sprite', 'offsetY', $event)" /></label>
         <label>Alpha <input type="number" step="0.1" min="0" max="1" :value="sprite.alpha" @input="setNumber('sprite', 'alpha', $event)" /></label>
         <div class="color-field">
           <label>
