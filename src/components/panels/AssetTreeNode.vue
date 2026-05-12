@@ -23,7 +23,9 @@
 
       <button class="node" @click="handleClick" @dblclick.stop="handleDoubleClick">
         <span>{{ node.type === 'folder' ? '📁' : icon }}</span>
-        <span class="label">{{ node.name }}</span>
+        <span class="label">
+          {{ node.name }}<span v-if="isDirtyTextAsset" class="dirty-dot">●</span>
+        </span>
       </button>
     </div>
 
@@ -60,6 +62,14 @@ const dragOver = ref(false)
 const isActive = computed(() => assets.selectedPath === props.node.path || assets.selectedAssetPath === props.node.path)
 const hasChildren = computed(() => !!props.node.children?.length)
 const isExpanded = computed(() => assets.isFolderExpanded(props.node.path))
+const isTextAsset = computed(() => (
+  props.node.type === 'script' ||
+  props.node.type === 'animation' ||
+  props.node.type === 'atlas' ||
+  props.node.type === 'scene' ||
+  props.node.type === 'prefab'
+))
+const isDirtyTextAsset = computed(() => isTextAsset.value && assets.isTextAssetDirty(props.node.path))
 const icon = computed(() => {
   if (props.node.type === 'image') return '🖼️'
   if (props.node.type === 'script') return '🧩'
@@ -164,6 +174,14 @@ li { list-style: none; }
 .row.active .node { /*border-color: #56b6c2;*/ }
 .label {
   white-space: nowrap;
+}
+.dirty-dot {
+  display: inline-block;
+  margin-left: 5px;
+  color: #f2c94c;
+  font-size: 11px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 .children { margin: 4px 0 0 18px; padding: 0; display: grid; gap: 4px; }
 </style>

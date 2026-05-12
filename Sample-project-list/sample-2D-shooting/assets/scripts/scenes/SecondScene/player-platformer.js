@@ -1,12 +1,49 @@
 const parseConfig = (ctx) => {
+  return parseEntityScriptConfig(ctx.entity)
+}
+
+const parseEntityScriptConfig = (entity) => {
   try {
-    const raw = String(ctx.entity.getComponent('Script')?.sourceCode || '').trim()
+    const raw = String(entity?.getComponent('Script')?.sourceCode || '').trim()
     if (!raw.startsWith('{')) return {}
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' ? parsed : {}
   } catch {
     return {}
   }
+}
+
+const readNumber = (value, fallback) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const findGravityConfig = (ctx) => {
+  for (const entity of ctx.scene.entities) {
+    const script = entity.getComponent('Script')
+    if (!script) continue
+    const path = String(script.scriptPath || '')
+    if (path.endsWith('/gravity-system.js') || path.endsWith('\\gravity-system.js') || entity.name === 'SecondSceneGravitySystem') {
+      return parseEntityScriptConfig(entity)
+    }
+  }
+  return {}
+}
+
+const resolveJumpGravity = (ctx, cfg) => {
+  const gravityCfg = findGravityConfig(ctx)
+  return readNumber(
+    cfg.jumpGravity ?? cfg.jumpAcceleration ?? cfg.gravity,
+    readNumber(gravityCfg.gravity, 1600)
+  )
+}
+
+const resolveJumpSpeed = (ctx, cfg) => {
+  const explicitJumpSpeed = Number(cfg.jumpSpeed)
+  if (Number.isFinite(explicitJumpSpeed) && explicitJumpSpeed > 0 && cfg.jumpHeight === undefined) return explicitJumpSpeed
+  const gravity = Math.max(1, resolveJumpGravity(ctx, cfg))
+  const jumpHeight = Math.max(1, readNumber(cfg.jumpHeight, 98))
+  return Math.sqrt(2 * gravity * jumpHeight)
 }
 
 const getColliderBox = (entity) => {
@@ -56,8 +93,11 @@ export default {
     const state = ctx.api.getState(ctx.entity)
     const moveSpeed = Number(cfg.moveSpeed ?? 190)
     const sprintSpeed = Number(cfg.sprintSpeed ?? 280)
-    const jumpSpeed = Number(cfg.jumpSpeed ?? 560)
+    const jumpSpeed = resolveJumpSpeed(ctx, cfg)
     const speed = ctx.api.input.isActionDown('sprint') ? sprintSpeed : moveSpeed
+    const jumpGravity = resolveJumpGravity(ctx, cfg)
+    state.__platformerGravityOverride = jumpGravity
+    state.__platformerGravityScale = readNumber(cfg.gravityScale ?? cfg.jumpGravityScale, 1)
 
     const left = ctx.api.input.isKeyDown('KeyA') || ctx.api.input.isActionDown('move_left')
     const right = ctx.api.input.isKeyDown('KeyD') || ctx.api.input.isActionDown('move_right')

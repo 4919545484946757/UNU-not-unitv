@@ -1,6 +1,10 @@
 const parseConfig = (ctx) => {
+  return parseEntityScriptConfig(ctx.entity)
+}
+
+const parseEntityScriptConfig = (entity) => {
   try {
-    const raw = String(ctx.entity.getComponent('Script')?.sourceCode || '').trim()
+    const raw = String(entity?.getComponent('Script')?.sourceCode || '').trim()
     if (!raw.startsWith('{')) return {}
     const parsed = JSON.parse(raw)
     return parsed && typeof parsed === 'object' ? parsed : {}
@@ -26,6 +30,31 @@ const getColliderBox = (entity) => {
 const isGravityTarget = (entity, whitelist) => {
   const name = String(entity.name || '')
   return whitelist.some((item) => name === item || name.startsWith(`${item}_`) || name.startsWith(item))
+}
+
+const readNumber = (value, fallback) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const resolveEntityGravity = (ctx, entity, baseGravity) => {
+  const state = ctx.api.getState(entity)
+  const scriptCfg = parseEntityScriptConfig(entity)
+  const override = readNumber(
+    state.__platformerGravityOverride ??
+      scriptCfg.jumpGravity ??
+      scriptCfg.jumpAcceleration ??
+      scriptCfg.gravity,
+    NaN
+  )
+  if (Number.isFinite(override) && override > 0) return override
+  const scale = readNumber(
+    state.__platformerGravityScale ??
+      scriptCfg.gravityScale ??
+      scriptCfg.jumpGravityScale,
+    1
+  )
+  return Math.max(0, baseGravity * Math.max(0, scale))
 }
 
 const moveVerticalSafely = (ctx, entity, dy) => {
@@ -65,8 +94,8 @@ export default {
   onUpdate(ctx) {
     const cfg = parseConfig(ctx)
     const whitelist = Array.isArray(cfg.whitelist) && cfg.whitelist.length ? cfg.whitelist.map(String) : ['Player', 'Enemy']
-    const gravity = Number(cfg.gravity ?? 1600)
-    const maxFallSpeed = Number(cfg.maxFallSpeed ?? 760)
+    const gravity = readNumber(cfg.gravity, 1600)
+    const maxFallSpeed = readNumber(cfg.maxFallSpeed, 760)
 
     for (const entity of ctx.scene.entities) {
       if (entity === ctx.entity || !isGravityTarget(entity, whitelist)) continue
@@ -77,7 +106,8 @@ export default {
       state.__platformerGrounded = grounded
       if (grounded && Number(state.__platformerVy || 0) > 0) state.__platformerVy = 0
 
-      state.__platformerVy = Math.min(maxFallSpeed, Number(state.__platformerVy || 0) + gravity * ctx.api.delta)
+      const entityGravity = resolveEntityGravity(ctx, entity, gravity)
+      state.__platformerVy = Math.min(maxFallSpeed, Number(state.__platformerVy || 0) + entityGravity * ctx.api.delta)
       const result = moveVerticalSafely(ctx, entity, Number(state.__platformerVy || 0) * ctx.api.delta)
       if (result.blocked) {
         if (Number(state.__platformerVy || 0) > 0) state.__platformerGrounded = true

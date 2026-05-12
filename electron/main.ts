@@ -1761,8 +1761,9 @@ function openTilemapEditorWindow(payload: unknown) {
 }
 
 function openCodeEditorWindow(payload: unknown) {
-  codeEditorSession = payload || null
   if (!mainWindow) return { ok: false, error: 'Main window not ready' }
+
+  codeEditorSession = payload || null
 
   if (!codeEditorWindow || codeEditorWindow.isDestroyed()) {
     codeEditorWindow = new BrowserWindow({

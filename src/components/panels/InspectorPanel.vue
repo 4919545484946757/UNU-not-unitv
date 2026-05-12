@@ -947,7 +947,6 @@ async function openInteractionCodeEditor() {
     }
   }
 
-  interactionCodeEditorContent = content
   const result = await window.unu.openCodeEditor({
     id: interactionCodeEditorSessionId,
     mode,
@@ -955,11 +954,21 @@ async function openInteractionCodeEditor() {
     path: interactionCodeEditorRelativePath,
     language: guessInteractionEditorLanguage(interactionCodeEditorRelativePath),
     content
-  })
+  }) as { ok: boolean; error?: string; locked?: boolean } | null
   if (!result?.ok) {
     project.setStatus(`打开交互代码窗口失败：${result?.error || '未知错误'}`)
     return
   }
+  if (result.locked) {
+    interactionCodeEditorSessionId = ''
+    interactionCodeEditorEntityId = ''
+    interactionCodeEditorFilePath = ''
+    interactionCodeEditorRelativePath = ''
+    interactionCodeEditorContent = ''
+    project.setStatus('已有独立代码编辑窗口正在编辑，请先关闭该窗口再打开交互代码。')
+    return
+  }
+  interactionCodeEditorContent = content
   project.setStatus('已打开交互代码独立窗口')
 }
 

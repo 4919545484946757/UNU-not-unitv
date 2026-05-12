@@ -36,7 +36,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": false
+              "preserveAspect": false,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -1428,7 +1430,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 10910802,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -1506,7 +1510,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -1733,7 +1739,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -1842,7 +1850,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -1951,7 +1961,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -2060,7 +2072,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -2138,7 +2152,9 @@
               "visible": true,
               "alpha": 0.95,
               "tint": 16762967,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -2353,7 +2369,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 16777215,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {
@@ -2496,7 +2514,9 @@
               "visible": true,
               "alpha": 1,
               "tint": 10910802,
-              "preserveAspect": true
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
             }
           },
           {

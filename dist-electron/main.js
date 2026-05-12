@@ -1503,7 +1503,7 @@ function rt(r) {
   }), j.webContents.isLoadingMainFrame() ? { ok: !0 } : (j.webContents.send("unu:tilemap-editor-init", W), { ok: !0 })) : { ok: !1, error: "Main window not ready" };
 }
 function nt(r) {
-  return _ = r || null, A ? (!S || S.isDestroyed() ? (S = new G({
+  return A ? (_ = r || null, !S || S.isDestroyed() ? (S = new G({
     width: 1180,
     height: 820,
     minWidth: 760,

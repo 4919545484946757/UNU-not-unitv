@@ -69,7 +69,9 @@ export const useAssetStore = defineStore('assets', {
     fileUndoStack: [] as AssetFileHistoryEntry[],
     fileRedoStack: [] as AssetFileHistoryEntry[],
     isRestoringFileHistory: false,
-    assetClipboard: null as { path: string; type: AssetNode['type']; name: string } | null
+    assetClipboard: null as { path: string; type: AssetNode['type']; name: string } | null,
+    textDrafts: {} as Record<string, string>,
+    textDirtyPaths: {} as Record<string, boolean>
   }),
   getters: {
     browserItems(state) {
@@ -93,6 +95,12 @@ export const useAssetStore = defineStore('assets', {
       const firstPath = this.tree[0]?.path ?? ''
       this.selectedPath = this.flat.some((node) => node.path === this.selectedPath) ? this.selectedPath : firstPath
       this.selectedAssetPath = this.flat.some((node) => node.path === this.selectedAssetPath) ? this.selectedAssetPath : ''
+      for (const path of Object.keys(this.textDirtyPaths)) {
+        if (!this.flat.some((node) => node.path === path)) {
+          delete this.textDirtyPaths[path]
+          delete this.textDrafts[path]
+        }
+      }
       for (const node of this.tree) {
         if (node.type === 'folder') this.expandedPaths[node.path] = this.expandedPaths[node.path] ?? true
       }
@@ -109,6 +117,42 @@ export const useAssetStore = defineStore('assets', {
       const target = this.flat.find((node) => node.path === path)
       if (target?.type === 'image') {
         await this.ensurePreview(path)
+      }
+    },
+    setTextAssetDraft(path: string, content: string, dirty = true) {
+      if (!path) return
+      this.textDrafts[path] = content
+      this.textDirtyPaths[path] = dirty
+    },
+    clearTextAssetDraft(path: string) {
+      if (!path) return
+      delete this.textDrafts[path]
+      delete this.textDirtyPaths[path]
+    },
+    getTextAssetDraft(path: string) {
+      return Object.prototype.hasOwnProperty.call(this.textDrafts, path) ? this.textDrafts[path] : undefined
+    },
+    isTextAssetDirty(path: string) {
+      return !!this.textDirtyPaths[path]
+    },
+    moveTextAssetDraft(from: string, to: string) {
+      if (!from || !to || from === to) return
+      if (Object.prototype.hasOwnProperty.call(this.textDrafts, from)) {
+        this.textDrafts[to] = this.textDrafts[from]
+        delete this.textDrafts[from]
+      }
+      if (this.textDirtyPaths[from]) {
+        this.textDirtyPaths[to] = true
+        delete this.textDirtyPaths[from]
+      }
+    },
+    removeTextAssetDraft(path: string) {
+      if (!path) return
+      for (const key of Object.keys(this.textDrafts)) {
+        if (key === path || key.startsWith(`${path}/`)) delete this.textDrafts[key]
+      }
+      for (const key of Object.keys(this.textDirtyPaths)) {
+        if (key === path || key.startsWith(`${path}/`)) delete this.textDirtyPaths[key]
       }
     },
 
@@ -608,6 +652,7 @@ export const useAssetStore = defineStore('assets', {
         if (target?.type === 'folder') this.selectPath(result.relativePath)
         else await this.selectAsset(result.relativePath)
         if (relativePath !== result.relativePath) {
+          this.moveTextAssetDraft(relativePath, result.relativePath)
           this.pushFileHistory({ type: 'rename', from: relativePath, to: result.relativePath })
         }
         project.setStatus(`已重命名资源：${result.relativePath}${Number(result.relinkedFiles || 0) > 0 ? `（已同步引用 ${result.relinkedFiles} 个文件）` : ''}`)
@@ -689,6 +734,7 @@ export const useAssetStore = defineStore('assets', {
         }
         delete this.previews[relativePath]
         delete this.imageSizes[relativePath]
+        this.removeTextAssetDraft(relativePath)
         await this.refreshProject()
         if (this.flat.some((node) => node.path === parent && node.type === 'folder')) this.selectPath(parent)
         this.pushFileHistory({ type: 'delete', path: relativePath, trashPath: result.trashRelativePath })
@@ -733,6 +779,7 @@ export const useAssetStore = defineStore('assets', {
         if (target?.type === 'folder') this.selectPath(result.relativePath)
         else await this.selectAsset(result.relativePath)
         if (relativePath !== result.relativePath) {
+          this.moveTextAssetDraft(relativePath, result.relativePath)
           this.pushFileHistory({ type: 'move', from: relativePath, to: result.relativePath })
         }
         project.setStatus(`已移动资源：${relativePath} -> ${targetFolderPath}${Number(result.relinkedFiles || 0) > 0 ? `（已同步引用 ${result.relinkedFiles} 个文件）` : ''}`)

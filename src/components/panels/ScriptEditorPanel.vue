@@ -6,7 +6,7 @@
         <div class="badge" v-if="mode === 'entity'">{{ script?.scriptPath || '未挂载脚本' }}</div>
         <div class="badge" v-else-if="mode === 'asset'">{{ selectedTextAssetPath }}</div>
         <button v-if="mode !== 'none'" class="save-btn secondary" :disabled="externalCodeEditorLocked" @click="openExternalCodeEditor">独立窗口编辑</button>
-        <button v-if="mode === 'asset'" class="save-btn" :disabled="externalCodeEditorLocked || !assetDirty || !canSaveAsset" @click="saveAssetScript">保存脚本</button>
+        <button v-if="mode === 'asset'" class="save-btn" :disabled="externalCodeEditorLocked || !currentAssetDirty || !canSaveAsset" @click="saveAssetScript">保存脚本</button>
       </div>
     </div>
 
@@ -98,8 +98,8 @@ const selectedTextAssetPath = computed(() => {
   return ''
 })
 const mode = computed<'entity' | 'asset' | 'none'>(() => {
-  if (selectedTextAssetPath.value) return 'asset'
   if (script.value) return 'entity'
+  if (selectedTextAssetPath.value) return 'asset'
   return 'none'
 })
 
@@ -280,6 +280,10 @@ const findPanel = reactive({
   currentIndex: -1
 })
 let codeEditorSessionId = ''
+let codeEditorSessionMode: 'entity' | 'asset' | '' = ''
+let codeEditorSessionPath = ''
+let codeEditorSessionEntityId = ''
+let codeEditorSessionAssetFilePath = ''
 let removeCodeEditorListener: (() => void) | null = null
 let removeCodeEditorClosedListener: (() => void) | null = null
 const externalCodeEditorLocked = ref(false)
@@ -287,6 +291,8 @@ const externalCodeEditorLocked = ref(false)
 const canSaveAsset = computed(() => {
   return mode.value === 'asset' && !!window.unu?.saveTextAsset && project.rootPath !== 'sample-project'
 })
+
+const currentAssetDirty = computed(() => selectedTextAssetPath.value ? assets.isTextAssetDirty(selectedTextAssetPath.value) : assetDirty.value)
 
 const editorText = computed({
   get: () => {
@@ -302,6 +308,7 @@ const editorText = computed({
     if (mode.value === 'asset') {
       assetScriptText.value = value
       assetDirty.value = true
+      if (selectedTextAssetPath.value) assets.setTextAssetDraft(selectedTextAssetPath.value, value, true)
     }
   }
 })
@@ -335,6 +342,9 @@ watch(
   async (path) => {
     if (!path) return
     await loadAssetScript(path)
+    if (externalCodeEditorLocked.value && codeEditorSessionMode === 'asset') {
+      await retargetExternalCodeEditorToAsset(path)
+    }
   },
   { immediate: true }
 )
@@ -367,29 +377,40 @@ watch(
 
 async function loadAssetScript(relativePath: string) {
   if (!relativePath || loadingAsset.value) return
+  const draft = assets.getTextAssetDraft(relativePath)
+  if (draft !== undefined) {
+    assetLoadedPath.value = relativePath
+    assetScriptText.value = draft
+    assetDirty.value = assets.isTextAssetDirty(relativePath)
+    return
+  }
   if (assetLoadedPath.value === relativePath && assetScriptText.value) return
   loadingAsset.value = true
   try {
     assetLoadedPath.value = relativePath
-    assetDirty.value = false
+    assetDirty.value = assets.isTextAssetDirty(relativePath)
     assetFilePath.value = ''
 
     if (!window.unu?.readTextAsset || project.rootPath === 'sample-project') {
       assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
+      assetDirty.value = assets.isTextAssetDirty(relativePath)
       return
     }
 
     const result = await window.unu.readTextAsset({ projectRoot: project.rootPath, relativePath })
     if (!result) {
       assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
+      assetDirty.value = assets.isTextAssetDirty(relativePath)
       project.setStatus(`读取脚本失败：${relativePath}`)
       return
     }
     assetFilePath.value = result.filePath
     assetScriptText.value = result.content
+    assetDirty.value = assets.isTextAssetDirty(relativePath)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
+    assetDirty.value = assets.isTextAssetDirty(relativePath)
     project.setStatus(`读取脚本失败：${message}`)
   } finally {
     loadingAsset.value = false
@@ -573,7 +594,10 @@ function replaceAll() {
 function applyEditorText(value: string, selectionStart: number, selectionEnd: number) {
   editorText.value = value
   if (mode.value === 'entity') sceneStore.markDirty()
-  if (mode.value === 'asset') assetDirty.value = true
+  if (mode.value === 'asset') {
+    assetDirty.value = true
+    if (selectedTextAssetPath.value) assets.setTextAssetDraft(selectedTextAssetPath.value, value, true)
+  }
   void nextTick(() => {
     const textarea = textareaRef.value
     if (!textarea) return
@@ -601,7 +625,7 @@ function scrollSelectionIntoView() {
 
 async function saveAssetScript() {
   if (mode.value !== 'asset') return
-  if (!assetDirty.value) return
+  if (!currentAssetDirty.value) return
   if (!canSaveAsset.value || !window.unu?.saveTextAsset) {
     project.setStatus('当前环境下无法直接保存脚本文件。')
     return
@@ -622,6 +646,7 @@ async function saveAssetScript() {
     }
     assetFilePath.value = saved.filePath
     assetDirty.value = false
+    assets.clearTextAssetDraft(selectedTextAssetPath.value)
     const linkedCount = sceneStore.syncScriptSourceByPath(selectedTextAssetPath.value, assetScriptText.value)
     if (linkedCount > 0) {
       project.setStatus(`脚本已保存并同步到 ${linkedCount} 个实体：${saved.name}`)
@@ -640,41 +665,140 @@ async function openExternalCodeEditor() {
     project.setStatus('当前环境未接入代码编辑器窗口，请使用桌面版运行。')
     return
   }
-  codeEditorSessionId = `code_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  const path = mode.value === 'asset' ? selectedTextAssetPath.value : script.value?.scriptPath || ''
+  const nextSessionId = `code_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const nextSessionMode = mode.value
+  const nextSessionPath = mode.value === 'asset' ? selectedTextAssetPath.value : script.value?.scriptPath || ''
+  const nextSessionEntityId = entity.value?.id || ''
+  const nextSessionAssetFilePath = mode.value === 'asset' ? assetFilePath.value : ''
+  const path = nextSessionPath
   const result = await window.unu.openCodeEditor({
-    id: codeEditorSessionId,
-    mode: mode.value,
-    title: mode.value === 'asset' ? fileNameOf(path) : `${entity.value?.name || 'Entity'} Script`,
+    id: nextSessionId,
+    mode: nextSessionMode,
+    title: nextSessionMode === 'asset' ? fileNameOf(path) : `${entity.value?.name || 'Entity'} Script`,
     path,
     language: currentLanguage.value,
     content: editorText.value
-  })
+  }) as { ok: boolean; error?: string } | null
   if (!result?.ok) {
     project.setStatus(`打开代码编辑窗口失败：${result?.error || '未知错误'}`)
     return
   }
+  codeEditorSessionId = nextSessionId
+  codeEditorSessionMode = nextSessionMode
+  codeEditorSessionPath = nextSessionPath
+  codeEditorSessionEntityId = nextSessionEntityId
+  codeEditorSessionAssetFilePath = nextSessionAssetFilePath
   externalCodeEditorLocked.value = true
   project.setStatus('已打开独立代码编辑窗口')
+}
+
+async function retargetExternalCodeEditorToAsset(path: string) {
+  if (!window.unu?.openCodeEditor || !path) return
+  const previousLoadedPath = assetLoadedPath.value
+  const previousText = assetScriptText.value
+  const previousDirty = assetDirty.value
+  await loadAssetScript(path)
+  const nextSessionId = `code_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const nextFilePath = assetFilePath.value
+  const nextContent = assetScriptText.value
+  const nextLanguage = guessLanguageForPath(path)
+  const result = await window.unu.openCodeEditor({
+    id: nextSessionId,
+    mode: 'asset',
+    title: fileNameOf(path),
+    path,
+    language: nextLanguage,
+    content: nextContent
+  }) as { ok: boolean; error?: string } | null
+  if (!result?.ok) {
+    project.setStatus(`切换独立代码窗口目标失败：${result?.error || '未知错误'}`)
+    assetLoadedPath.value = previousLoadedPath
+    assetScriptText.value = previousText
+    assetDirty.value = previousDirty
+    return
+  }
+  codeEditorSessionId = nextSessionId
+  codeEditorSessionMode = 'asset'
+  codeEditorSessionPath = path
+  codeEditorSessionEntityId = ''
+  codeEditorSessionAssetFilePath = nextFilePath
+  project.setStatus(`独立代码窗口已切换到：${path}`)
+}
+
+function guessLanguageForPath(path: string) {
+  const lower = path.toLowerCase()
+  if (lower.includes('custom://interaction') || lower.includes('interaction')) return 'json'
+  if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.includes('builtin://')) return 'js'
+  if (lower.endsWith('.json') || lower.endsWith('.anim') || lower.endsWith('.atlas')) return 'json'
+  return 'plain'
 }
 
 function applyExternalCodeEditorPayload(raw: unknown) {
   const payload = (raw || {}) as { id?: string; mode?: string; path?: string; content?: string; saveRequested?: boolean; live?: boolean }
   if (payload.mode !== 'asset' && payload.mode !== 'entity') return
   if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
+  if (codeEditorSessionMode && payload.mode !== codeEditorSessionMode) return
   const nextContent = String(payload.content ?? '')
-  if (payload.mode === 'asset' && selectedTextAssetPath.value && payload.path && payload.path !== selectedTextAssetPath.value) {
-    project.setStatus(`代码窗口内容未应用：当前选中文件不是 ${payload.path}`)
+  if (payload.mode === 'entity') {
+    const targetEntity = sceneStore.scenes
+      .map((scene) => scene.getEntityById(codeEditorSessionEntityId))
+      .find(Boolean)
+    const targetScript = targetEntity?.getComponent<ScriptComponent>('Script')
+    if (!targetScript) {
+      project.setStatus('代码窗口内容未应用：原实体脚本已不存在')
+      return
+    }
+    targetScript.sourceCode = nextContent
+    sceneStore.markDirty()
+  } else {
+    if (!codeEditorSessionPath || (payload.path && payload.path !== codeEditorSessionPath)) return
+    assets.setTextAssetDraft(codeEditorSessionPath, nextContent, true)
+    if (selectedTextAssetPath.value === codeEditorSessionPath) {
+      assetScriptText.value = nextContent
+      assetDirty.value = true
+    }
+  }
+  if (!payload.live) project.setStatus('已从独立代码编辑窗口接收内容')
+  if (payload.saveRequested && payload.mode === 'asset') {
+    void saveExternalAssetScript(nextContent)
+  } else if (payload.saveRequested && payload.mode === 'entity') {
+    project.setStatus('实体脚本已保存到当前场景状态，请保存场景/项目以写入文件')
+  }
+}
+
+async function saveExternalAssetScript(content: string) {
+  if (!codeEditorSessionPath) return
+  if (!window.unu?.saveTextAsset || project.rootPath === 'sample-project') {
+    project.setStatus('当前环境下无法直接保存脚本文件。')
     return
   }
-  editorText.value = nextContent
-  if (mode.value === 'entity') sceneStore.markDirty()
-  if (mode.value === 'asset') assetDirty.value = true
-  if (!payload.live) project.setStatus('已从独立代码编辑窗口接收内容')
-  if (payload.saveRequested && mode.value === 'asset') {
-    void nextTick(() => saveAssetScript())
-  } else if (payload.saveRequested && mode.value === 'entity') {
-    project.setStatus('实体脚本已保存到当前场景状态，请保存场景/项目以写入文件')
+  try {
+    const saved = await window.unu.saveTextAsset({
+      filePath: codeEditorSessionAssetFilePath || undefined,
+      content,
+      suggestedName: fileNameOf(codeEditorSessionPath),
+      projectRoot: project.rootPath,
+      subdir: 'assets/scripts',
+      title: '保存脚本文件',
+      filterName: 'Script'
+    })
+    if (!saved) {
+      project.setStatus('已取消保存脚本。')
+      return
+    }
+    codeEditorSessionAssetFilePath = saved.filePath
+    if (selectedTextAssetPath.value === codeEditorSessionPath) {
+      assetFilePath.value = saved.filePath
+      assetDirty.value = false
+    }
+    assets.clearTextAssetDraft(codeEditorSessionPath)
+    const linkedCount = sceneStore.syncScriptSourceByPath(codeEditorSessionPath, content)
+    project.setStatus(linkedCount > 0
+      ? `脚本已保存并同步到 ${linkedCount} 个实体：${saved.name}`
+      : `脚本已保存：${saved.name}`)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    project.setStatus(`保存脚本失败：${message}`)
   }
 }
 
@@ -684,6 +808,10 @@ function handleExternalCodeEditorClosed(raw: unknown) {
   if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
   externalCodeEditorLocked.value = false
   codeEditorSessionId = ''
+  codeEditorSessionMode = ''
+  codeEditorSessionPath = ''
+  codeEditorSessionEntityId = ''
+  codeEditorSessionAssetFilePath = ''
   project.setStatus('独立代码编辑窗口已关闭，右侧编辑器已解锁')
 }
 

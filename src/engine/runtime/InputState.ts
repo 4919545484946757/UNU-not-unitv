@@ -390,7 +390,7 @@ function normalizeInputActionMap(value: unknown) {
 }
 
 function parseProjectInputRuntime(sourceCode: string | null, scriptPath: string) {
-  const raw = String(sourceCode || '').trim()
+  const raw = sanitizeProjectInputRuntimeSource(String(sourceCode || '').trim())
   if (!raw) return {} as InputRuntimeHooks
   try {
     const transpiled = ts.transpileModule(raw, {
@@ -415,4 +415,11 @@ function parseProjectInputRuntime(sourceCode: string | null, scriptPath: string)
     console.warn('[UNU][input] failed to parse project InputState.ts:', error)
     return {} as InputRuntimeHooks
   }
+}
+
+function sanitizeProjectInputRuntimeSource(source: string) {
+  // Users sometimes paste config copied through JSON/Markdown layers where
+  // single-quoted strings become doubled, e.g. ''KeyA''. Repair that narrow
+  // case so a typo does not disable the entire input runtime.
+  return source.replace(/''([^'\n\r]+)''/g, "'$1'")
 }
