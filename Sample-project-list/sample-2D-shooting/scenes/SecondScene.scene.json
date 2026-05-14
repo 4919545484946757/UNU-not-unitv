@@ -560,7 +560,7 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/scenes/SecondScene/player-platformer.js",
-              "sourceCode": "{\n  \"moveSpeed\": 190,\n  \"sprintSpeed\": 280,\n  \"jumpHeight\": 49,\n  \"jumpGravity\": 1600,\n  \"gravityScale\": 1,\n  \"shootAction\": \"fire\",\n  \"bullet\": {\n    \"speed\": 420,\n    \"life\": 2,\n    \"maxDistance\": 560,\n    \"width\": 20,\n    \"height\": 8,\n    \"tint\": 15922687\n  }\n}",
+              "sourceCode": "{\n  \"moveSpeed\": 190,\n  \"sprintSpeed\": 280,\n  \"jumpHeight\": 120,\n  \"jumpGravity\": 1600,\n  \"gravityScale\": 1,\n  \"shootAction\": \"fire\",\n  \"bullet\": {\n    \"speed\": 420,\n    \"life\": 2,\n    \"maxDistance\": 560,\n    \"width\": 20,\n    \"height\": 8,\n    \"tint\": 15922687\n  }\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,

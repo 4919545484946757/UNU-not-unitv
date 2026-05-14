@@ -15,6 +15,13 @@ export const sampleProjectCatalog: SampleProjectEntry[] = [
     rootPath: 'Sample-project-list/sample-2D-shooting'
   },
   {
+    id: 'snake',
+    title: 'Snake',
+    description: 'Classic grid snake with score, pause, restart, and project-local runtime scripts.',
+    available: true,
+    rootPath: 'Sample-project-list/Snake'
+  },
+  {
     id: 'platformer-2d',
     title: '2D Platformer (Coming Soon)',
     description: 'Planned: jump feel, platform collision, traps, and collectible gameplay.',
