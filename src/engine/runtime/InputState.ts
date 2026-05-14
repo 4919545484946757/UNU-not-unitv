@@ -61,7 +61,8 @@ const defaultActionMap: InputActionMap = {
   sprint: ['ShiftLeft', 'ShiftRight'],
   jump: ['Space'],
   fire: ['KeyJ', 'Mouse0'],
-  interact: ['Mouse2']
+  interact: ['Mouse2'],
+  menu: ['Escape']
 }
 
 export class InputState {
@@ -355,11 +356,15 @@ export class InputState {
   }
 
   private readonly handleMouseDown = (event: MouseEvent) => {
+    this.mouseX = event.clientX
+    this.mouseY = event.clientY
     this.mousePressedThisFrame.add(event.button)
     this.mouseButtons.add(event.button)
   }
 
   private readonly handleMouseUp = (event: MouseEvent) => {
+    this.mouseX = event.clientX
+    this.mouseY = event.clientY
     if (this.mouseButtons.has(event.button)) {
       this.mouseReleasedThisFrame.add(event.button)
     }

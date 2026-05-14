@@ -7,6 +7,7 @@
     sprint: ['ShiftLeft', 'ShiftRight'],
     jump: ['Space'],
     fire: ['KeyJ', 'Mouse0'],
-    interact: ['Mouse2']
+    interact: ['Mouse2'],
+    menu: ['Escape']
   }
 }

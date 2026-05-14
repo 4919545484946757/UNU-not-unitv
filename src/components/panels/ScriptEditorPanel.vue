@@ -63,7 +63,7 @@
 
     <div class="tips">
       项目级运行时覆盖文件：`assets/scripts/ScriptRuntime.ts`、`assets/scripts/InputState.ts`、`assets/scripts/AudioRuntime.ts`。保存后会自动热重载；播放中会尽量立即生效。
-      运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`。
+      运行时已接入内置脚本：`builtin://player-input`、`builtin://bullet-projectile`、`builtin://orbit-around-chest`、`builtin://patrol`、`builtin://spin`、`builtin://enemy-chase-respawn`、`builtin://ui-button-click`。
       `builtin://player-input` 与 `builtin://bullet-projectile` 支持直接填写 JSON 配置（如移动速度、疾跑速度、疾跑动画倍速、子弹速度/寿命/射程）。
       脚本可使用 `ctx.api.log/warn/error` 输出到下方 Console；也可使用 `ctx.api.input`（含 `getMoveVector` / `wasMousePressed`）、`ctx.api.audio`（`playOneShot` / `playEntity` / `setGroupVolume`）、`ctx.api.isBlockedAt`（Tilemap 碰撞检测）、`ctx.api.findEntityByName`、`ctx.api.removeEntity`、`ctx.api.spawnEntity`、`ctx.api.setBackgroundTexture`、`ctx.api.cycleBackgroundTexture`。
       示例项目在 `assets/scripts/ScriptRuntime.ts` 中提供 `custom://interaction` JSON 交互脚本：`switchScene`、`setBackgroundTexture`、`cycleBackgroundTexture`、`setTexture`、`cycleTexture`、`setTint`、`cycleTint`、`toggleVisible`、`setInteractDistance`、`removeEntity`、`sequence`、`randomOne`。
@@ -224,6 +224,18 @@ const builtinScriptTemplates: Record<string, string> = {
     const transform = ctx.entity.getTransform()
     if (!transform) return
     transform.rotation += 1.5 * ctx.api.delta
+  }
+}`,
+  'assets/scripts/ui-button-click.js': `export default {
+  onUiClick(ctx) {
+    const ui = ctx.event?.type === 'uiClick' ? ctx.event.ui : null
+    const state = ctx.api.getState(ctx.entity)
+    state.clickCount = Number(state.clickCount || 0) + 1
+    ctx.api.log(\`[UI Button] \${ctx.entity.name} clicked \${state.clickCount} time(s)\`)
+    if (ui) {
+      ui.text = \`Clicked \${state.clickCount}\`
+      ui.backgroundColor = state.clickCount % 2 === 0 ? 0x34528a : 0x4d8a34
+    }
   }
 }`,
   'assets/scripts/enemy-chase-respawn.js': `export default {

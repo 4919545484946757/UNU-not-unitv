@@ -1,6 +1,6 @@
 import { Component } from '../core/Component'
 
-export type UIMode = 'text' | 'button'
+export type UIMode = 'text' | 'button' | 'slider'
 export type UIRenderMode = 'pixi' | 'html'
 
 export class UIComponent extends Component {
@@ -19,7 +19,11 @@ export class UIComponent extends Component {
     public anchorY = 0.5,
     public interactable = true,
     public markdownEnabled = false,
-    public renderMode: UIRenderMode = 'pixi'
+    public renderMode: UIRenderMode = 'pixi',
+    public onClickScriptPath = '',
+    public sliderValue = 1,
+    public sliderMin = 0,
+    public sliderMax = 1
   ) {
     super()
   }

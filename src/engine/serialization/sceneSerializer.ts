@@ -249,7 +249,7 @@ export function deserializeEntity(entityData: SerializedEntity) {
         entity.addComponent(
           new UIComponent(
             Boolean(data.enabled ?? true),
-            data.mode === 'button' ? 'button' : 'text',
+            data.mode === 'button' || data.mode === 'slider' ? data.mode : 'text',
             String(data.text ?? 'UI Text'),
             Number(data.fontSize ?? 20),
             Number(data.textColor ?? 0xffffff),
@@ -260,7 +260,11 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.anchorY ?? 0.5),
             Boolean(data.interactable ?? true),
             Boolean(data.markdownEnabled ?? false),
-            data.renderMode === 'html' ? 'html' : 'pixi'
+            data.renderMode === 'html' ? 'html' : 'pixi',
+            String(data.onClickScriptPath ?? ''),
+            Number(data.sliderValue ?? 1),
+            Number(data.sliderMin ?? 0),
+            Number(data.sliderMax ?? 1)
           )
         )
         break

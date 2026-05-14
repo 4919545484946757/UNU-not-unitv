@@ -7,6 +7,7 @@ import { InteractableComponent } from '../components/InteractableComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
+import { UIComponent } from '../components/UIComponent'
 import { Entity } from '../core/Entity'
 import type { Scene } from '../core/Scene'
 import * as ts from 'typescript'
@@ -39,6 +40,13 @@ export interface SceneSwitchRequest {
   sceneStateMode?: 'preserve' | 'reset'
 }
 
+export type GameCommandRequest =
+  | { type: 'pause' }
+  | { type: 'resume' }
+  | { type: 'togglePause' }
+  | { type: 'reset' }
+  | { type: 'exit' }
+
 interface EntityMatchQuery {
   id?: string
   ids?: string[]
@@ -69,6 +77,11 @@ export interface ScriptContext {
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
     switchScene: (sceneName: string, options?: { targetSpawnId?: string; sceneStateMode?: 'preserve' | 'reset' }) => void
+    pauseGame: () => void
+    resumeGame: () => void
+    togglePause: () => void
+    resetGame: () => void
+    exitGame: () => void
     setBackgroundTexture: (texturePath: string) => void
     cycleBackgroundTexture: (texturePaths: string[]) => void
     isBlockedAt: (x: number, y: number) => boolean
@@ -103,7 +116,14 @@ export interface ScriptSceneEvent {
   scene: Scene
 }
 
-export type ScriptEvent = ScriptColliderEvent | ScriptSceneEvent
+export interface ScriptUiEvent {
+  type: 'uiClick'
+  ui: UIComponent
+  value?: number
+  pointer?: { x: number; y: number }
+}
+
+export type ScriptEvent = ScriptColliderEvent | ScriptSceneEvent | ScriptUiEvent
 
 export interface ScriptHooks {
   onInit?: (ctx: ScriptContext) => void
@@ -111,7 +131,9 @@ export interface ScriptHooks {
   onEnterScene?: (ctx: ScriptContext) => void
   onExitScene?: (ctx: ScriptContext) => void
   onUpdate?: (ctx: ScriptContext) => void
+  onPausedUpdate?: (ctx: ScriptContext) => void
   onInteract?: (ctx: ScriptContext) => void
+  onUiClick?: (ctx: ScriptContext) => void
   onCollisionEnter?: (ctx: ScriptContext) => void
   onCollisionStay?: (ctx: ScriptContext) => void
   onCollisionExit?: (ctx: ScriptContext) => void
@@ -185,6 +207,18 @@ const scriptRegistry: Record<string, ScriptHooks> = {
       const transform = entity.getTransform()
       if (!transform) return
       transform.rotation += 1.5 * api.delta
+    }
+  },
+  'builtin://ui-button-click': {
+    onUiClick: ({ entity, event, api }) => {
+      const ui = event?.type === 'uiClick' ? event.ui : null
+      const state = api.getState<{ clickCount?: number }>(entity)
+      state.clickCount = Number(state.clickCount || 0) + 1
+      api.log(`[UI Button] ${entity.name} clicked ${state.clickCount} time(s)`)
+      if (ui) {
+        ui.text = `Clicked ${state.clickCount}`
+        ui.backgroundColor = state.clickCount % 2 === 0 ? 0x34528a : 0x4d8a34
+      }
     }
   },
   'builtin://player-input': {
@@ -478,6 +512,7 @@ export class ScriptRuntime {
   private readonly pendingSpawns: Entity[] = []
   private activeScene: Scene | null = null
   private pendingSceneSwitch: SceneSwitchRequest | null = null
+  private pendingGameCommand: GameCommandRequest | null = null
   private selectedEntityId = ''
   private input: RuntimeInput = {
     isKeyDown: () => false,
@@ -653,9 +688,28 @@ export class ScriptRuntime {
     }
   }
 
+  updatePausedScene(scene: Scene, input?: RuntimeInput) {
+    this.activeScene = scene
+    if (input) this.input = input
+    for (const entity of scene.entities) {
+      if (this.pendingRemovals.has(entity.id)) continue
+      const script = entity.getComponent<ScriptComponent>('Script')
+      const hooks = script?.instance as ScriptHooks | null
+      if (!script || !hooks || !script.enabled || !hooks.onPausedUpdate) continue
+      this.invokeHook(hooks, 'onPausedUpdate', entity, 0)
+    }
+    this.flushPendingMutations(scene)
+  }
+
   consumeSceneSwitchRequest() {
     const next = this.pendingSceneSwitch
     this.pendingSceneSwitch = null
+    return next
+  }
+
+  consumeGameCommandRequest() {
+    const next = this.pendingGameCommand
+    this.pendingGameCommand = null
     return next
   }
 
@@ -680,6 +734,7 @@ export class ScriptRuntime {
     this.enteredSceneIds.delete(scene.id)
     this.pendingRemovals.clear()
     this.pendingSpawns.length = 0
+    this.pendingGameCommand = null
     this.activeScene = null
   }
 
@@ -692,6 +747,7 @@ export class ScriptRuntime {
     this.pendingRemovals.clear()
     this.pendingSpawns.length = 0
     this.pendingSceneSwitch = null
+    this.pendingGameCommand = null
     this.activeScene = null
   }
 
@@ -728,6 +784,21 @@ export class ScriptRuntime {
             targetSpawnId: String(options?.targetSpawnId || '').trim(),
             sceneStateMode: options?.sceneStateMode === 'reset' ? 'reset' : 'preserve'
           }
+        },
+        pauseGame: () => {
+          this.pendingGameCommand = { type: 'pause' }
+        },
+        resumeGame: () => {
+          this.pendingGameCommand = { type: 'resume' }
+        },
+        togglePause: () => {
+          this.pendingGameCommand = { type: 'togglePause' }
+        },
+        resetGame: () => {
+          this.pendingGameCommand = { type: 'reset' }
+        },
+        exitGame: () => {
+          this.pendingGameCommand = { type: 'exit' }
         },
         setBackgroundTexture: (texturePath: string) => {
           this.setSceneBackgroundTexture(this.activeScene, texturePath)
@@ -867,8 +938,33 @@ export class ScriptRuntime {
     }
   }
 
+  private invokeHookFromPath(hooks: ScriptHooks, hookName: keyof ScriptHooks, entity: Entity, delta: number, scriptPath: string, event?: ScriptEvent) {
+    const hook = hooks[hookName]
+    if (typeof hook !== 'function') return
+    try {
+      hook(this.createContext(entity, delta, event))
+    } catch (error) {
+      this.reportScriptError(normalizeRuntimeError(error, {
+        scriptPath: this.resolveErrorScriptPathByPath(scriptPath),
+        phase: String(hookName),
+        entityId: entity.id,
+        entityName: entity.name
+      }))
+    }
+  }
+
   private resolveErrorScriptPath(script?: ScriptComponent | null) {
     const normalized = normalizeScriptPath(script?.scriptPath || '')
+    const canonical = resolveCanonicalScriptPath(normalized)
+    if (this.resolveProjectScriptHooks(normalized)) {
+      return this.projectScriptSourcePaths[normalized] || this.projectScriptSourcePaths[canonical] || this.projectRuntimePath || canonical || normalized
+    }
+    if (canonical && canonical.startsWith('assets/')) return canonical
+    return this.projectRuntimePath || canonical || normalized || 'assets/scripts/ScriptRuntime.ts'
+  }
+
+  private resolveErrorScriptPathByPath(scriptPath: string) {
+    const normalized = normalizeScriptPath(scriptPath)
     const canonical = resolveCanonicalScriptPath(normalized)
     if (this.resolveProjectScriptHooks(normalized)) {
       return this.projectScriptSourcePaths[normalized] || this.projectScriptSourcePaths[canonical] || this.projectRuntimePath || canonical || normalized
@@ -893,12 +989,12 @@ export class ScriptRuntime {
     }
   }
 
-  private reportConsoleMessage(level: 'log' | 'warn' | 'error', message: string, entity?: Entity | null) {
+  private reportConsoleMessage(level: 'log' | 'warn' | 'error', message: string, entity?: Entity | null, scriptPathOverride?: string) {
     const script = entity?.getComponent<ScriptComponent>('Script')
     this.consoleReporter?.({
       level,
       message,
-      scriptPath: this.resolveErrorScriptPath(script),
+      scriptPath: scriptPathOverride ? this.resolveErrorScriptPathByPath(scriptPathOverride) : this.resolveErrorScriptPath(script),
       entityId: entity?.id,
       entityName: entity?.name
     })
@@ -1131,11 +1227,46 @@ export class ScriptRuntime {
     }
   }
 
+  handleUiClick(scene: Scene, entity: Entity, ui: UIComponent, pointer?: { x: number; y: number }) {
+    this.activeScene = scene
+    const boundPath = normalizeScriptPath(ui.onClickScriptPath || '')
+    if (boundPath) {
+      const hooks = this.resolveProjectScriptHooks(boundPath) ?? this.resolveBuiltinHooks(boundPath)
+      if (!hooks) {
+        this.reportConsoleMessage('warn', `UI Button script not found: ${boundPath}`, entity, boundPath)
+        return
+      }
+      this.invokeHookFromPath(hooks, hooks.onUiClick ? 'onUiClick' : 'onInteract', entity, 0, boundPath, {
+        type: 'uiClick',
+        ui,
+        pointer
+      })
+      this.flushPendingMutations(scene)
+      return
+    }
+
+    const script = entity.getComponent<ScriptComponent>('Script')
+    const hooks = script?.instance as ScriptHooks | null
+    if (script?.enabled && hooks && (hooks.onUiClick || hooks.onInteract)) {
+      this.invokeHook(hooks, hooks.onUiClick ? 'onUiClick' : 'onInteract', entity, 0, {
+        type: 'uiClick',
+        ui,
+        pointer
+      })
+      this.flushPendingMutations(scene)
+    }
+  }
+
   private resolveScriptHooks(script: ScriptComponent) {
     const projectHooks = this.resolveProjectScriptHooks(script.scriptPath)
     const builtinKey = resolveBuiltinScriptKey(script.scriptPath)
     const builtinHooks = builtinKey ? scriptRegistry[builtinKey] ?? null : null
     return projectHooks ?? builtinHooks
+  }
+
+  private resolveBuiltinHooks(scriptPath: string) {
+    const builtinKey = resolveBuiltinScriptKey(scriptPath)
+    return builtinKey ? scriptRegistry[builtinKey] ?? null : null
   }
 
   private resolveProjectScriptHooks(scriptPath: string) {
@@ -1368,6 +1499,7 @@ function resolveBuiltinScriptKey(scriptPath: string) {
     'assets/scripts/patrol.js': 'builtin://patrol',
     'assets/scripts/orbit-around-chest.js': 'builtin://orbit-around-chest',
     'assets/scripts/spin.js': 'builtin://spin',
+    'assets/scripts/ui-button-click.js': 'builtin://ui-button-click',
     'assets/scripts/enemy-chase-respawn.js': 'builtin://enemy-chase-respawn'
   }
   return aliases[normalized] || ''
@@ -1386,7 +1518,8 @@ function resolveCanonicalScriptPath(scriptPath: string) {
     'builtin://enemy-chase-respawn': 'assets/scripts/enemy-chase-respawn.js',
     'builtin://patrol': 'assets/scripts/patrol.js',
     'builtin://orbit-around-chest': 'assets/scripts/orbit-around-chest.js',
-    'builtin://spin': 'assets/scripts/spin.js'
+    'builtin://spin': 'assets/scripts/spin.js',
+    'builtin://ui-button-click': 'assets/scripts/ui-button-click.js'
   }
   return aliases[normalized] || normalized
 }
@@ -1461,7 +1594,9 @@ function isScriptHooksLike(value: unknown) {
     typeof hooks.onEnterScene === 'function' ||
     typeof hooks.onExitScene === 'function' ||
     typeof hooks.onUpdate === 'function' ||
+    typeof hooks.onPausedUpdate === 'function' ||
     typeof hooks.onInteract === 'function' ||
+    typeof hooks.onUiClick === 'function' ||
     typeof hooks.onCollisionEnter === 'function' ||
     typeof hooks.onCollisionStay === 'function' ||
     typeof hooks.onCollisionExit === 'function' ||

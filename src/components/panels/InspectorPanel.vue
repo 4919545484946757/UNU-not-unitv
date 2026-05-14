@@ -448,6 +448,7 @@
             <select :value="ui.mode" @change="setUIMode">
               <option value="text">Text</option>
               <option value="button">Button</option>
+              <option value="slider">Slider</option>
             </select>
           </label>
           <label>
@@ -470,6 +471,19 @@
             <input type="checkbox" :checked="ui.interactable" @change="setChecked('ui', 'interactable', $event)" />
             Interactable
           </label>
+          <template v-if="ui.mode === 'button' || ui.mode === 'slider'">
+            <label>{{ ui.mode === 'slider' ? 'On Change Script Path' : 'On Click Script Path' }} <input :value="ui.onClickScriptPath" placeholder="assets/scripts/ui-button-click.js" @input="setText('ui', 'onClickScriptPath', $event)" /></label>
+            <template v-if="ui.mode === 'slider'">
+              <label>Slider Value <input type="number" step="0.01" :value="ui.sliderValue" @input="setNumber('ui', 'sliderValue', $event)" /></label>
+              <label>Slider Min <input type="number" step="0.01" :value="ui.sliderMin" @input="setNumber('ui', 'sliderMin', $event)" /></label>
+              <label>Slider Max <input type="number" step="0.01" :value="ui.sliderMax" @input="setNumber('ui', 'sliderMax', $event)" /></label>
+            </template>
+            <div class="asset-picker">
+              <button :disabled="!selectedScriptAssetPath" @click="bindSelectedScriptToUIButton">Bind Selected Script</button>
+              <span>{{ selectedScriptAssetPath || 'Select a script/text asset in Asset Tree first' }}</span>
+            </div>
+            <div class="tips">播放态 {{ ui.mode === 'slider' ? '拖动 Slider' : '点击 Button' }} 时会调用绑定脚本的 onUiClick(ctx)，没有该钩子时兼容调用 onInteract(ctx)。</div>
+          </template>
         </template>
         <template v-else>
           <div class="tips">Current entity does not have UI component.</div>
@@ -1731,7 +1745,8 @@ function addTilemapComponent() {
 function setUIMode(event: Event) {
   if (runtime.isPlaying) return
   if (!ui.value) return
-  ui.value.mode = (event.target as HTMLSelectElement).value === 'button' ? 'button' : 'text'
+  const value = (event.target as HTMLSelectElement).value
+  ui.value.mode = value === 'button' || value === 'slider' ? value : 'text'
   sceneStore.markDirty()
 }
 
@@ -1740,6 +1755,14 @@ function setUIRenderMode(event: Event) {
   if (!ui.value) return
   ui.value.renderMode = (event.target as HTMLSelectElement).value === 'html' ? 'html' : 'pixi'
   sceneStore.markDirty()
+}
+
+function bindSelectedScriptToUIButton() {
+  if (runtime.isPlaying) return
+  if (!ui.value || (ui.value.mode !== 'button' && ui.value.mode !== 'slider') || !selectedScriptAssetPath.value) return
+  ui.value.onClickScriptPath = selectedScriptAssetPath.value
+  sceneStore.markDirty()
+  project.setStatus(`已绑定 UI ${ui.value.mode === 'slider' ? 'Slider' : 'Button'} 脚本：${selectedScriptAssetPath.value}`)
 }
 
 function addUIComponent() {

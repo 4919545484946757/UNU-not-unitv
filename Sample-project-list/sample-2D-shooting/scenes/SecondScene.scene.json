@@ -1435,6 +1435,745 @@
             }
           }
         ]
+      },
+      {
+        "id": "pause_menu_manager_secondscene",
+        "name": "PauseMenu_Manager",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 900,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu.js",
+              "sourceCode": "{\n  \"defaultDifficulty\": \"easy\",\n  \"defaultVolume\": 1\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_backdrop_secondscene",
+        "name": "PauseMenu_Backdrop",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 901,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 440,
+              "height": 430,
+              "backgroundColor": 1056816,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_title_secondscene",
+        "name": "PauseMenu_Title",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -170,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 902,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "游戏已暂停",
+              "fontSize": 30,
+              "textColor": 15461887,
+              "width": 360,
+              "height": 44,
+              "backgroundColor": 1978958,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": ""
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_continue_secondscene",
+        "name": "PauseMenu_Continue",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -98,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "继续游戏",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"continue\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_reset_secondscene",
+        "name": "PauseMenu_Reset",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -42,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "重置游戏",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"reset\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_settings_secondscene",
+        "name": "PauseMenu_Settings",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 14,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "设置",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"settings\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_exit_secondscene",
+        "name": "PauseMenu_Exit",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 70,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "退出游戏",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"exit\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_settings_title_secondscene",
+        "name": "PauseMenu_SettingsTitle",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -116,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "设置",
+              "fontSize": 26,
+              "textColor": 15461887,
+              "width": 300,
+              "height": 40,
+              "backgroundColor": 1978958,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": ""
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_volume_text_secondscene",
+        "name": "PauseMenu_VolumeText",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -4,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 904,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "游戏音量：100%",
+              "fontSize": 18,
+              "textColor": 15461887,
+              "width": 240,
+              "height": 34,
+              "backgroundColor": 1978958,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": ""
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_hotkeys_secondscene",
+        "name": "PauseMenu_Hotkeys",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 94,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "快捷键绑定",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"hotkeys\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_done_secondscene",
+        "name": "PauseMenu_Done",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 146,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "完成",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"done\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_hotkeys_title_secondscene",
+        "name": "PauseMenu_HotkeysTitle",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -64,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 904,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "快捷键绑定",
+              "fontSize": 26,
+              "textColor": 15461887,
+              "width": 300,
+              "height": 40,
+              "backgroundColor": 1978958,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": ""
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_hotkeys_info_secondscene",
+        "name": "PauseMenu_HotkeysInfo",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 12,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 904,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "该页面为预留功能\n后续可在这里编辑键鼠映射",
+              "fontSize": 18,
+              "textColor": 15461887,
+              "width": 340,
+              "height": 82,
+              "backgroundColor": 1978958,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": ""
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_volume_slider_secondscene",
+        "name": "PauseMenu_VolumeSlider",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 36,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 904,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "slider",
+              "text": "",
+              "fontSize": 18,
+              "textColor": 15461887,
+              "width": 280,
+              "height": 34,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"volume\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_difficulty_secondscene",
+        "name": "PauseMenu_Difficulty",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": -58,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "游戏难度：普通",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"difficulty\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
       }
     ]
   }

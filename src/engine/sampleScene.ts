@@ -223,7 +223,7 @@ export function createDemoScene() {
   const hudButton = new Entity('ui_btn_001', 'UI_Button')
   hudButton.addComponent(new TransformComponent(-110, -36, 1, 1))
   hudButton.addComponent(
-    new UIComponent(true, 'button', 'Click Me', 18, 0xffffff, 160, 44, 0x34528a, 1, 1, true)
+    new UIComponent(true, 'button', 'Click Me', 18, 0xffffff, 160, 44, 0x34528a, 1, 1, true, false, 'pixi', 'assets/scripts/ui-button-click.js')
   )
 
   const doorToSecond = new Entity('door_to_second_001', 'DoorToSecond')

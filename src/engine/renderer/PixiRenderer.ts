@@ -42,6 +42,8 @@ type CachedWorldNodeKind = 'sprite' | 'tilemap' | 'empty'
 type MarkdownLineKind = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'quote' | 'list' | 'code' | 'blank'
 
 const EMPTY_ENTITY_EDITOR_SIZE = 40
+const UI_FONT_FAMILY = 'Microsoft YaHei, SimHei, Noto Sans CJK SC, Segoe UI, PingFang SC, sans-serif'
+const UI_MONO_FONT_FAMILY = 'Consolas, Microsoft YaHei, SimHei, monospace'
 
 type MarkdownLine = {
   kind: MarkdownLineKind
@@ -246,6 +248,9 @@ export class PixiRenderer {
   private selectedEntityId = ''
   private activeTool: 'select' | 'move' | 'scale' | 'pan' = 'select'
   private gizmoMode: GizmoMode = 'none'
+  private uiSliderDragEntityId = ''
+  private uiSliderWindowMoveHandler: ((event: PointerEvent) => void) | null = null
+  private uiSliderWindowUpHandler: ((event: PointerEvent) => void) | null = null
   private dragOffset = { x: 0, y: 0 }
   private scaleState = { startPointerX: 0, startPointerY: 0, startScaleX: 1, startScaleY: 1 }
   private panState = { lastX: 0, lastY: 0 }
@@ -363,6 +368,10 @@ export class PixiRenderer {
       if (this.isPlaying && !this.isPaused) {
         this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
         const scriptMetrics = this.scriptRuntime.updateScene(this.currentScene, delta, this.inputState, collectPerformance)
+        if (this.consumeGameCommandRequest()) {
+          this.inputState.endFrame()
+          return
+        }
         if (this.consumeSceneSwitchRequest()) {
           this.inputState.endFrame()
           return
@@ -401,6 +410,11 @@ export class PixiRenderer {
         } else {
           void renderPromise
         }
+        this.options.onRuntimeSceneUpdated?.(this.currentScene)
+      } else if (this.isPlaying && this.isPaused) {
+        this.scriptRuntime.updatePausedScene(this.currentScene, this.inputState)
+        this.consumeGameCommandRequest()
+        void this.renderScene(this.currentScene)
         this.options.onRuntimeSceneUpdated?.(this.currentScene)
       } else if (collectPerformance) {
         runtimeStore.setPerformanceMetrics({
@@ -473,6 +487,41 @@ export class PixiRenderer {
     window.setTimeout(() => runtimeStore.stopLoading(), 180)
     useProjectStore().setStatus(`已切换场景：${this.playScene.name}`)
     return true
+  }
+
+  private consumeGameCommandRequest() {
+    const request = this.scriptRuntime.consumeGameCommandRequest()
+    if (!request) return false
+    const runtimeStore = useRuntimeStore()
+    if (request.type === 'pause') {
+      runtimeStore.pause()
+      void this.setRuntimeState(true, true, this.sourceScene ?? this.currentScene)
+      if (this.currentScene) void this.renderScene(this.currentScene)
+      return false
+    }
+    if (request.type === 'resume') {
+      runtimeStore.resume()
+      void this.setRuntimeState(true, false, this.sourceScene ?? this.currentScene)
+      if (this.currentScene) void this.renderScene(this.currentScene)
+      return false
+    }
+    if (request.type === 'togglePause') {
+      runtimeStore.togglePause()
+      void this.setRuntimeState(true, runtimeStore.isPaused, this.sourceScene ?? this.currentScene)
+      if (this.currentScene) void this.renderScene(this.currentScene)
+      return false
+    }
+    if (request.type === 'reset') {
+      runtimeStore.resume()
+      void this.setRuntimeState(true, false, this.sourceScene ?? this.currentScene, true)
+      return true
+    }
+    if (request.type === 'exit') {
+      runtimeStore.stop()
+      void this.setRuntimeState(false, false, this.sourceScene ?? this.currentScene)
+      return true
+    }
+    return false
   }
 
   private applyPlayerSpawnPoint(scene: Scene, spawnId = '') {
@@ -637,7 +686,13 @@ export class PixiRenderer {
       .map((node) => node.path.replace(/\\/g, '/'))
       .filter((path) => /\.(js|ts)$/i.test(path))
       .filter((path) => (
+        path.startsWith('assets/scripts/') &&
+        !path.startsWith('assets/scripts/InputState.') &&
+        !path.startsWith('assets/scripts/AudioRuntime.')
+      ))
+      .filter((path) => (
         path === scriptRuntimePath ||
+        !path.slice('assets/scripts/'.length).includes('/') ||
         path.startsWith('assets/scripts/shared/') ||
         path.startsWith('assets/scripts/interactions/') ||
         path.startsWith('assets/scripts/scenes/')
@@ -998,7 +1053,10 @@ export class PixiRenderer {
     node.rotation = transform.rotation
     node.scale.set(transform.scaleX, transform.scaleY)
     node.eventMode = 'static'
-    node.cursor = ui.mode === 'button' && ui.interactable ? 'pointer' : 'default'
+    if (ui.mode === 'button' || ui.mode === 'slider') {
+      node.hitArea = new Rectangle(-ui.width / 2, -ui.height / 2, ui.width, ui.height)
+    }
+    node.cursor = (ui.mode === 'button' || ui.mode === 'slider') && ui.interactable ? 'pointer' : 'default'
 
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
@@ -1028,15 +1086,27 @@ export class PixiRenderer {
       node.addChild(buttonBg)
     }
 
-    const label = ui.markdownEnabled
-      ? this.createMarkdownUiContent(ui)
-      : this.createPlainUiText(ui)
-    node.addChild(label)
+    if (ui.mode === 'slider') {
+      node.addChild(this.createSliderUiContent(ui))
+    } else {
+      const label = ui.markdownEnabled
+        ? this.createMarkdownUiContent(ui)
+        : this.createPlainUiText(ui)
+      node.addChild(label)
+    }
 
     if (ui.mode === 'button' && ui.interactable) {
-      node.on('pointertap', () => {
+      node.on('pointertap', (event: FederatedPointerEvent) => {
         if (!this.isPlaying) return
         useProjectStore().setStatus(`UI 按钮点击：${ui.text}`)
+        if (this.currentScene) {
+          this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
+            x: event.global.x,
+            y: event.global.y
+          })
+          this.consumeGameCommandRequest()
+          void this.renderScene(this.currentScene)
+        }
         const audio = entity.getComponent<AudioComponent>('Audio')
         if (audio?.enabled && audio.clipPath) {
           void this.audioRuntime.playOneShot(audio.clipPath, {
@@ -1048,7 +1118,92 @@ export class PixiRenderer {
       })
     }
 
+    if (ui.mode === 'slider' && ui.interactable) {
+      const updateSliderFromScreen = (screenX: number, screenY: number) => {
+        if (!this.isPlaying || !this.currentScene) return
+        const uiPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+        const dx = screenX - uiPosition.x
+        const dy = screenY - uiPosition.y
+        const cos = Math.cos(-transform.rotation)
+        const sin = Math.sin(-transform.rotation)
+        const localX = (dx * cos - dy * sin) / (Math.abs(transform.scaleX) > 0.0001 ? transform.scaleX : 1)
+        const min = Number.isFinite(ui.sliderMin) ? ui.sliderMin : 0
+        const max = Number.isFinite(ui.sliderMax) ? ui.sliderMax : 1
+        const range = Math.max(0.0001, max - min)
+        const usableWidth = Math.max(1, ui.width - 28)
+        const ratio = Math.max(0, Math.min(1, (localX + usableWidth / 2) / usableWidth))
+        ui.sliderValue = min + ratio * range
+        this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
+          x: screenX,
+          y: screenY
+        })
+        this.consumeGameCommandRequest()
+        void this.renderScene(this.currentScene)
+      }
+      const updateSlider = (event: FederatedPointerEvent) => {
+        updateSliderFromScreen(event.global.x, event.global.y)
+        event.stopPropagation()
+      }
+      const stopWindowDrag = () => {
+        if (this.uiSliderWindowMoveHandler) window.removeEventListener('pointermove', this.uiSliderWindowMoveHandler)
+        if (this.uiSliderWindowUpHandler) window.removeEventListener('pointerup', this.uiSliderWindowUpHandler)
+        this.uiSliderWindowMoveHandler = null
+        this.uiSliderWindowUpHandler = null
+        if (this.uiSliderDragEntityId === entity.id) this.uiSliderDragEntityId = ''
+      }
+      node.on('pointerdown', (event: FederatedPointerEvent) => {
+        stopWindowDrag()
+        this.uiSliderDragEntityId = entity.id
+        updateSlider(event)
+        this.uiSliderWindowMoveHandler = (pointerEvent: PointerEvent) => {
+          if (this.uiSliderDragEntityId !== entity.id) return
+          const rect = this.options.container.getBoundingClientRect()
+          updateSliderFromScreen(pointerEvent.clientX - rect.left, pointerEvent.clientY - rect.top)
+          pointerEvent.preventDefault()
+        }
+        this.uiSliderWindowUpHandler = () => stopWindowDrag()
+        window.addEventListener('pointermove', this.uiSliderWindowMoveHandler, { passive: false })
+        window.addEventListener('pointerup', this.uiSliderWindowUpHandler, { passive: true })
+      })
+      node.on('pointermove', (event: FederatedPointerEvent) => {
+        if (this.uiSliderDragEntityId !== entity.id) return
+        updateSlider(event)
+      })
+      node.on('pointerup', stopWindowDrag)
+      node.on('pointerupoutside', stopWindowDrag)
+    }
+
     return node
+  }
+
+  private createSliderUiContent(ui: UIComponent) {
+    const content = new Container()
+    const min = Number.isFinite(ui.sliderMin) ? ui.sliderMin : 0
+    const max = Number.isFinite(ui.sliderMax) ? ui.sliderMax : 1
+    const range = Math.max(0.0001, max - min)
+    const ratio = Math.max(0, Math.min(1, (Number(ui.sliderValue ?? min) - min) / range))
+    const usableWidth = Math.max(1, ui.width - 28)
+    const trackHeight = Math.max(6, Math.min(14, ui.height * 0.22))
+    const y = 0
+    const track = new Graphics()
+    track.roundRect(-usableWidth / 2, y - trackHeight / 2, usableWidth, trackHeight, trackHeight / 2)
+    track.fill({ color: ui.backgroundColor, alpha: 0.55 })
+    track.stroke({ color: 0xffffff, alpha: 0.28, width: 1 })
+    content.addChild(track)
+
+    const fill = new Graphics()
+    fill.roundRect(-usableWidth / 2, y - trackHeight / 2, usableWidth * ratio, trackHeight, trackHeight / 2)
+    fill.fill({ color: ui.textColor, alpha: 0.9 })
+    content.addChild(fill)
+
+    const knobX = -usableWidth / 2 + usableWidth * ratio
+    const knobRadius = Math.max(8, Math.min(16, ui.height * 0.34))
+    const knob = new Graphics()
+    knob.circle(knobX, y, knobRadius)
+    knob.fill({ color: 0xffffff, alpha: 1 })
+    knob.stroke({ color: ui.textColor, alpha: 0.85, width: 2 })
+    content.addChild(knob)
+    return content
   }
 
   private createPlainUiText(ui: UIComponent) {
@@ -1057,7 +1212,7 @@ export class PixiRenderer {
       style: {
         fill: ui.textColor,
         fontSize: Math.max(10, ui.fontSize),
-        fontFamily: 'Segoe UI, PingFang SC, sans-serif',
+        fontFamily: UI_FONT_FAMILY,
         align: 'center',
         breakWords: true,
         lineHeight: Math.round(Math.max(10, ui.fontSize) * 1.25),
@@ -1094,7 +1249,7 @@ export class PixiRenderer {
         text: line.text,
         style: {
           fill: isQuote ? blendColor(ui.textColor, 0xbfd3ea, 0.45) : ui.textColor,
-          fontFamily: isCode ? 'Consolas, monospace' : 'Segoe UI, PingFang SC, sans-serif',
+          fontFamily: isCode ? UI_MONO_FONT_FAMILY : UI_FONT_FAMILY,
           fontSize,
           fontStyle: line.italic ? 'italic' : 'normal',
           fontWeight: line.bold || line.kind.startsWith('heading') ? '700' : '400',
@@ -1141,6 +1296,10 @@ export class PixiRenderer {
       ui.anchorX,
       ui.anchorY,
       ui.interactable,
+      ui.onClickScriptPath,
+      ui.sliderValue,
+      ui.sliderMin,
+      ui.sliderMax,
       ui.markdownEnabled,
       ui.enabled,
       transform.zIndex ?? 0,
@@ -1167,6 +1326,10 @@ export class PixiRenderer {
       ui.height,
       ui.backgroundColor,
       ui.interactable,
+      ui.onClickScriptPath,
+      ui.sliderValue,
+      ui.sliderMin,
+      ui.sliderMax,
       ui.markdownEnabled,
       ui.renderMode,
       transform.positionMode,
@@ -1191,25 +1354,33 @@ export class PixiRenderer {
         this.drawSelectionGizmo()
         event.stopPropagation()
       })
-      node.addEventListener('click', (event) => {
-        if (!this.isPlaying || ui.mode !== 'button' || !ui.interactable) return
-        useProjectStore().setStatus(`HTML UI 按钮点击：${stripInlineMarkdown(ui.text)}`)
-        const audio = entity.getComponent<AudioComponent>('Audio')
-        if (audio?.enabled && audio.clipPath) {
-          void this.audioRuntime.playOneShot(audio.clipPath, {
-            group: audio.group,
-            volume: audio.volume,
-            loop: false
-          })
-        }
-        event.stopPropagation()
-      })
       this.htmlUiLayer.appendChild(node)
       cached = { signature: '', node }
       this.htmlUiNodeCache.set(entity.id, cached)
     }
 
     const node = cached.node
+    node.onclick = (event) => {
+      if (!this.isPlaying || ui.mode !== 'button' || !ui.interactable) return
+      useProjectStore().setStatus(`HTML UI 按钮点击：${stripInlineMarkdown(ui.text)}`)
+      if (this.currentScene) {
+        this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
+          x: event.clientX,
+          y: event.clientY
+        })
+        this.consumeGameCommandRequest()
+        void this.renderScene(this.currentScene)
+      }
+      const audio = entity.getComponent<AudioComponent>('Audio')
+      if (audio?.enabled && audio.clipPath) {
+        void this.audioRuntime.playOneShot(audio.clipPath, {
+          group: audio.group,
+          volume: audio.volume,
+          loop: false
+        })
+      }
+      event.stopPropagation()
+    }
     if (cached.signature !== signature) {
       const html = ui.markdownEnabled ? basicMarkdownToHtml(ui.text) : sanitizeHtmlContent(ui.text)
       node.innerHTML = html || '&nbsp;'
@@ -1229,7 +1400,7 @@ export class PixiRenderer {
       zIndex: String(1000 + (transform.zIndex ?? 0)),
       color: colorToCss(ui.textColor),
       fontSize: `${Math.max(10, ui.fontSize)}px`,
-      fontFamily: 'Segoe UI, PingFang SC, sans-serif',
+      fontFamily: UI_FONT_FAMILY,
       lineHeight: '1.35',
       overflow: 'auto',
       padding: ui.mode === 'button' ? '8px 12px' : '0',
@@ -2065,6 +2236,15 @@ export class PixiRenderer {
       this.app.canvas.removeEventListener('auxclick', this.auxClickHandler)
       this.auxClickHandler = null
     }
+    if (this.uiSliderWindowMoveHandler) {
+      window.removeEventListener('pointermove', this.uiSliderWindowMoveHandler)
+      this.uiSliderWindowMoveHandler = null
+    }
+    if (this.uiSliderWindowUpHandler) {
+      window.removeEventListener('pointerup', this.uiSliderWindowUpHandler)
+      this.uiSliderWindowUpHandler = null
+    }
+    this.uiSliderDragEntityId = ''
     if (this.playSceneCache.size > 0) {
       for (const cachedScene of this.playSceneCache.values()) {
         this.scriptRuntime.destroyScene(cachedScene)

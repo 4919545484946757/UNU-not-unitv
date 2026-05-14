@@ -16,8 +16,8 @@ export const sampleProjectCatalog: SampleProjectEntry[] = [
   },
   {
     id: 'snake',
-    title: 'Snake',
-    description: 'Classic grid snake with score, pause, restart, and project-local runtime scripts.',
+    title: 'Snake Demo',
+    description: 'Playable Snake sample: grid movement, food, score, pause, restart, and editable project-local gameplay scripts.',
     available: true,
     rootPath: 'Sample-project-list/Snake'
   },
