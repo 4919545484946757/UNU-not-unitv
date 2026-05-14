@@ -456,7 +456,7 @@ button.danger {
 }
 
 .sample-card.unavailable {
-  opacity: 0.8;
+  opacity: 0.5;
 }
 
 .sample-title {

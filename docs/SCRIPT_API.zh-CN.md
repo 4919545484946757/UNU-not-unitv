@@ -1,8 +1,10 @@
-# UNU 脚本 API 提示文档
+﻿# UNU 脚本 API 提示文档
 
 [English](SCRIPT_API.en-US.md) | 中文
 
-本文是 UNU 项目脚本的快速查询表，适合在脚本编辑器中实现 Player、Enemy、子弹、门、拾取物、陷阱、UI 提示等游戏逻辑时参考。
+更新时间：`2026-05-15`
+
+本文是 UNU 项目脚本的快速查询表，适合在脚本编辑器中实现 Player、Enemy、子弹、门、拾取物、陷阱、UI 按钮、暂停菜单、快捷键改键、场景切换等逻辑时参考。
 
 ## 脚本入口
 
@@ -10,11 +12,13 @@
 
 ```text
 assets/scripts/ScriptRuntime.ts
+assets/scripts/InputState.ts
+assets/scripts/AudioRuntime.ts
 ```
 
-实体的 `Script` 组件通过 `scriptPath` 绑定脚本。运行时会在导出的 `scripts` 表中查找同名脚本，并调用对应生命周期函数。
+实体的 `Script` 组件通过 `scriptPath` 绑定脚本。运行时会按路径查找项目脚本，并调用对应生命周期 Hook。
 
-UNU 也支持“项目级共享脚本 + 场景级可选脚本”目录约定：
+UNU 支持“项目级共享脚本 + 场景级可选脚本”的目录约定：
 
 ```text
 assets/scripts/shared/              # 任意场景都可复用
@@ -23,29 +27,18 @@ assets/scripts/scenes/MainScene/    # MainScene 专属脚本
 assets/scripts/scenes/SecondScene/  # SecondScene 专属脚本
 ```
 
-这些目录中的脚本文件可以直接导出 Hook 对象，文件路径就是实体 `Script.scriptPath`。
+这些目录中的 `.js` / `.ts` 文件可以直接导出 Hook 对象，文件路径就是实体 `Script.scriptPath`。
 
 ```ts
-export const scripts = {
-  'assets/scripts/player.js': {
-    onUpdate(ctx) {
-      const transform = ctx.entity.getTransform()
-      const move = ctx.api.input.getMoveVector(true)
-      if (!transform) return
-
-      const speed = ctx.api.input.isActionDown('sprint') ? 280 : 140
-      transform.x += move.x * speed * ctx.api.delta
-      transform.y += move.y * speed * ctx.api.delta
-    }
-  }
-}
-```
-
-```ts
-// assets/scripts/scenes/SecondScene/player-platformer.js
 export default {
   onUpdate(ctx) {
-    ctx.api.log('SecondScene only')
+    const transform = ctx.entity.getTransform()
+    if (!transform) return
+
+    const move = ctx.api.input.getMoveVector(true)
+    const speed = ctx.api.input.isActionDown('sprint') ? 280 : 140
+    transform.x += move.x * speed * ctx.api.delta
+    transform.y += move.y * speed * ctx.api.delta
   }
 }
 ```
@@ -59,7 +52,9 @@ export default {
 | `onEnterScene(ctx)` | 实体进入场景 | 恢复状态、刷新 UI |
 | `onExitScene(ctx)` | 实体退出场景 | 保存状态、停止音效 |
 | `onUpdate(ctx)` | 每帧更新 | 移动、AI、输入读取、计时 |
+| `onPausedUpdate(ctx)` | 游戏暂停时更新 | 暂停菜单、改键捕获、设置界面 |
 | `onInteract(ctx)` | 可交互实体被交互 | 门、箱子、NPC、机关 |
+| `onUiClick(ctx)` | UI Button / Slider 被操作 | 菜单按钮、音量、难度、改键 |
 | `onCollisionEnter(ctx)` | 碰撞开始 | 子弹命中、受伤、落地 |
 | `onCollisionStay(ctx)` | 碰撞持续 | 推挤、持续伤害 |
 | `onCollisionExit(ctx)` | 碰撞结束 | 离开地面、离开区域 |
@@ -76,7 +71,7 @@ export default {
 | --- | --- | --- |
 | `ctx.entity` | `Entity` | 当前执行脚本的实体 |
 | `ctx.scene` | `Scene` | 当前场景 |
-| `ctx.event` | `ScriptEvent \| undefined` | 碰撞、触发器、场景事件数据 |
+| `ctx.event` | `ScriptEvent \| undefined` | 碰撞、触发器、场景、UI 事件数据 |
 | `ctx.api` | `Script API` | 引擎提供的脚本能力 |
 
 ## 常用组件访问
@@ -86,6 +81,7 @@ const transform = ctx.entity.getTransform()
 const sprite = ctx.entity.getComponent('Sprite')
 const collider = ctx.entity.getComponent('Collider')
 const script = ctx.entity.getComponent('Script')
+const ui = ctx.entity.getComponent('UI')
 ```
 
 建议先判空再使用组件，避免脚本被绑定到缺少组件的实体时报错。
@@ -102,8 +98,8 @@ const script = ctx.entity.getComponent('Script')
 | `ctx.api.error(...values)` | 输出错误到 Console |
 
 ```ts
-const state = ctx.api.getState<{ timer?: number }>(ctx.entity)
-state.timer = (state.timer ?? 0) + ctx.api.delta
+const state = ctx.api.getState(ctx.entity)
+state.timer = Number(state.timer || 0) + ctx.api.delta
 ctx.api.log(`[${ctx.entity.id}] timer`, state.timer)
 ```
 
@@ -114,16 +110,20 @@ ctx.api.log(`[${ctx.entity.id}] timer`, state.timer)
 | `ctx.api.input.isKeyDown(code)` | 键盘按键是否按下，例如 `KeyW`、`ShiftLeft` |
 | `ctx.api.input.isMouseDown(button?)` | 鼠标按钮是否按下，左键 `0`，中键 `1`，右键 `2` |
 | `ctx.api.input.wasMousePressed(button?)` | 鼠标按钮是否在本帧按下 |
-| `ctx.api.input.isActionDown(action)` | 动作是否按下，例如 `move_left`、`shoot`、`sprint` |
+| `ctx.api.input.isActionDown(action)` | 动作是否按下，例如 `move_left`、`fire`、`sprint` |
 | `ctx.api.input.wasActionPressed(action)` | 动作是否在本帧触发 |
 | `ctx.api.input.wasActionReleased(action)` | 动作是否在本帧释放 |
 | `ctx.api.input.getAxis('horizontal' \| 'vertical')` | 获取水平或垂直轴 |
-| `ctx.api.input.getMoveVector(normalized?)` | 获取移动向量，`true` 可保证斜向移动不超速 |
+| `ctx.api.input.getMoveVector(normalized?)` | 获取移动向量，传 `true` 可避免斜向移动超速 |
 | `ctx.api.input.getMousePosition()` | 获取鼠标世界坐标 |
+| `ctx.api.input.getActionMap?.()` | 获取当前动作映射，包含默认、项目和用户自定义映射 |
+| `ctx.api.input.getActionBindings?.(action)` | 获取某个动作当前绑定的按键/鼠标 |
+| `ctx.api.input.setActionBindings?.(action, bindings)` | 设置某个动作的用户自定义绑定 |
+| `ctx.api.input.resetActionBindings?.(action?)` | 重置某个动作；不传参数则重置全部用户自定义绑定 |
+| `ctx.api.input.getPressedBindings?.()` | 获取本帧按下的键或鼠标按钮，常用于改键捕获 |
 
 ```ts
-const move = ctx.api.input.getMoveVector(true)
-if (ctx.api.input.wasActionPressed('shoot')) {
+if (ctx.api.input.wasActionPressed('fire')) {
   const mouse = ctx.api.input.getMousePosition()
   ctx.api.spawnBullet(ctx.entity, {
     targetX: mouse.x,
@@ -134,6 +134,40 @@ if (ctx.api.input.wasActionPressed('shoot')) {
 }
 ```
 
+改键示例：
+
+```ts
+const pressed = ctx.api.input.getPressedBindings?.() || []
+const next = pressed[0]
+if (next) ctx.api.input.setActionBindings?.('move_left', [next])
+```
+
+## UI 事件 API
+
+UI Button 或 Slider 在播放态被操作时会调用 `onUiClick(ctx)`；若脚本没有 `onUiClick`，会兼容调用 `onInteract`。
+
+```ts
+export default {
+  onUiClick(ctx) {
+    const ui = ctx.event?.type === 'uiClick' ? ctx.event.ui : null
+    if (!ui) return
+
+    if (ui.mode === 'slider') {
+      ctx.api.audio.setMasterVolume(Number(ui.sliderValue || 0))
+    }
+  }
+}
+```
+
+`ctx.event` 中的 UI 数据包括：
+
+| 字段 | 说明 |
+| --- | --- |
+| `event.type` | `uiClick` |
+| `event.ui` | 被操作的 UI 组件 |
+| `event.value` | Slider 等控件的数值 |
+| `event.pointer` | 点击位置 |
+
 ## 场景与实体 API
 
 | API | 说明 |
@@ -142,9 +176,14 @@ if (ctx.api.input.wasActionPressed('shoot')) {
 | `ctx.api.findEntityByName(name)` | 按名称查找实体 |
 | `ctx.api.removeEntity(target)` | 删除实体，运行时会安全延迟执行 |
 | `ctx.api.spawnEntity(entity)` | 生成实体，运行时会安全延迟执行 |
-| `ctx.api.switchScene(sceneName, options?)` | 切换场景 |
+| `ctx.api.switchScene(sceneName, options?)` | 请求切换场景 |
+| `ctx.api.pauseGame()` | 请求暂停游戏 |
+| `ctx.api.resumeGame()` | 请求继续游戏 |
+| `ctx.api.togglePause()` | 请求切换暂停状态 |
+| `ctx.api.resetGame()` | 请求重置当前游戏运行态 |
+| `ctx.api.exitGame()` | 请求退出 Web 游戏或返回编辑器上下文 |
 
-`switchScene` 的 `options`：
+`switchScene` 选项：
 
 | 字段 | 说明 |
 | --- | --- |
@@ -177,30 +216,6 @@ ctx.api.switchScene('SecondScene', {
 | `event.selfCollider` | 当前实体碰撞组件 |
 | `event.otherCollider` | 另一方碰撞组件 |
 
-```ts
-onCollisionEnter(ctx) {
-  const event = ctx.event
-  if (!event || !('other' in event)) return
-
-  if (event.other.name.startsWith('Enemy')) {
-    ctx.api.removeEntity(event.other)
-    ctx.api.log(`[${event.other.id}] destroyed`)
-  }
-}
-```
-
-`findEnemyOverlap` 可用的匹配条件：
-
-```ts
-ctx.api.findEnemyOverlap(ctx.entity, {
-  idPrefix: 'Enemy_',
-  namePrefix: 'Enemy',
-  scriptPathPrefix: 'assets/scripts/enemy',
-  requireCollider: true,
-  requireSprite: true
-})
-```
-
 ## 游戏辅助 API
 
 | API | 说明 |
@@ -208,25 +223,7 @@ ctx.api.findEnemyOverlap(ctx.entity, {
 | `ctx.api.spawnEnemyLike(source?, options?)` | 按已有 Enemy 模板生成新 Enemy |
 | `ctx.api.spawnBullet(source?, options?)` | 从实体位置生成子弹 |
 
-`spawnEnemyLike` 选项：
-
-| 字段 | 说明 |
-| --- | --- |
-| `x`, `y` | 指定生成位置 |
-| `avoidX`, `avoidY` | 需要避开的坐标 |
-| `minDistance` | 与避开坐标保持的最小距离 |
-
-`spawnBullet` 选项：
-
-| 字段 | 说明 |
-| --- | --- |
-| `angle` | 子弹方向，弧度 |
-| `targetX`, `targetY` | 朝指定世界坐标发射 |
-| `speed` | 子弹速度 |
-| `life` | 生存时间，秒 |
-| `maxDistance` | 最大飞行距离 |
-| `width`, `height` | 子弹尺寸 |
-| `tint` | 子弹颜色 |
+`spawnBullet` 常用选项：`angle`、`targetX`、`targetY`、`speed`、`life`、`maxDistance`、`width`、`height`、`tint`。
 
 ## 背景与音频 API
 
@@ -242,16 +239,9 @@ ctx.api.findEnemyOverlap(ctx.entity, {
 | `ctx.api.audio.getMasterVolume()` | 获取主音量 |
 | `ctx.api.audio.getGroupVolume(group)` | 获取分组音量 |
 
-```ts
-await ctx.api.audio.playOneShot('assets/audio/hit.wav', {
-  group: 'sfx',
-  volume: 0.8
-})
-```
-
 ## 交互 JSON 动作
 
-示例项目在 `assets/scripts/ScriptRuntime.ts` 中注册了 `custom://interaction`，可交互实体可以用 `Script` 组件的 JSON 配置快速定义交互行为。也就是说，下面这些交互动作属于项目脚本逻辑，可以由用户在项目文件中自由修改，而不是写死在引擎运行时中：
+示例项目在 `assets/scripts/ScriptRuntime.ts` 中注册了 `custom://interaction`。可交互实体可以用 `Script` 组件的 JSON 配置快速定义交互行为。这些动作属于项目脚本逻辑，可以由用户自由编辑。
 
 ```json
 {
@@ -266,31 +256,9 @@ await ctx.api.audio.playOneShot('assets/audio/hit.wav', {
 }
 ```
 
-支持的动作：
+支持的动作：`sequence`、`randomOne`、`switchScene`、`setBackgroundTexture`、`cycleBackgroundTexture`、`setTexture`、`cycleTexture`、`setTint`、`cycleTint`、`toggleVisible`、`setInteractDistance`、`removeEntity`。
 
-| `type` | 说明 |
-| --- | --- |
-| `sequence` | 顺序执行多个动作 |
-| `randomOne` | 随机执行一个动作 |
-| `switchScene` | 切换场景 |
-| `setBackgroundTexture` | 设置背景贴图 |
-| `cycleBackgroundTexture` | 循环背景贴图 |
-| `setTexture` | 设置目标 Sprite 贴图 |
-| `cycleTexture` | 循环目标 Sprite 贴图 |
-| `setTint` | 设置目标颜色 |
-| `cycleTint` | 循环目标颜色 |
-| `toggleVisible` | 切换目标 Sprite 可见性 |
-| `setInteractDistance` | 设置交互距离 |
-| `removeEntity` | 删除目标实体 |
-
-`target` 可填写：
-
-| 写法 | 目标 |
-| --- | --- |
-| 空或 `self` | 当前实体 |
-| `selected` | 编辑器当前选择实体 |
-| `id:EntityId` | 指定 ID 的实体 |
-| `EntityName` | 指定名称的实体 |
+`target` 可填写：空或 `self`、`selected`、`id:EntityId`、实体名称。
 
 ## 调试建议
 
@@ -298,4 +266,4 @@ await ctx.api.audio.playOneShot('assets/audio/hit.wav', {
 - 移动类脚本建议使用 `getMoveVector(true)`，避免斜向移动速度过快。
 - 场景切换默认建议使用 `sceneStateMode: 'preserve'`，需要重置关卡时再使用 `reset`。
 - 子弹、临时特效、掉落物应设置生命周期或距离限制，避免实体无限堆积。
-- 碰撞逻辑尽量放在 `onCollisionEnter/Stay/Exit` 或 `onTriggerEnter/Stay/Exit` 中，便于与碰撞矩阵、Trigger 区域配合。
+- 暂停菜单、设置菜单、改键界面建议使用 `onPausedUpdate` 和 `onUiClick`，避免暂停后 UI 不响应。

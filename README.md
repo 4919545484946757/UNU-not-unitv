@@ -4,7 +4,7 @@
 
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时示例工程。它的目标不是只做一个演示壳子，而是逐步形成一个可以真正支撑 2D 游戏开发的轻量引擎：项目管理、场景编辑、资源管理、组件系统、脚本运行时、动画状态机、Tilemap、UI、音频、打包与 Web 导出都在同一套工作流里闭环。
 
-- 文档更新时间：`2026-05-10`
+- 文档更新时间：`2026-05-15`
 - 项目版本：`0.1.1`
 - 当前定位：桌面端 2D 游戏编辑器 + 可导出 Web 游戏运行包
 
@@ -24,7 +24,7 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 - 支持打开历史项目、本地项目、示例项目。
 - 支持新建项目，并在指定目录下创建同名项目文件夹。
 - 支持重命名、删除项目。
-- 示例项目列表已独立出来，当前 `2D Action Demo` 使用 `Sample-project-list/sample-2D-shooting`。
+- 示例项目列表已独立出来，当前包含 `2D Action Demo`（`Sample-project-list/sample-2D-shooting`）和 `Snake`（`Sample-project-list/Snake`）。
 - 打开项目时会自动扫描和修复场景列表、资源路径与缺失的项目运行时脚本。
 - 示例项目在打包版中会从 `resources/Sample-project-list` 复制到用户数据目录，避免直接修改安装目录内资源。
 
@@ -47,7 +47,7 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 - 播放态和编辑态选择逻辑分离。
 - 播放态默认隐藏碰撞箱、边界框、Tilemap 网格、实体名称、交互提示文本等调试信息。
 - 播放按钮旁提供调试播放开关，启用后显示调试信息。
-- 输入系统支持键盘、鼠标和动作映射。
+- 输入系统支持键盘、鼠标、动作映射、编辑器改键窗口和项目脚本内改键。
 - 示例中 Player 支持：
   - `W/A/S/D` 八方向移动，斜向移动会归一化速度。
   - 按住 `Shift` 疾跑，速度切换为 `280`。
@@ -59,7 +59,7 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 - 碰撞检测支持 `isBlockedRect`，Enemy 和 Player 使用统一阻挡逻辑。
 - 交互系统支持右键点击可交互实体，并按交互距离判断是否触发。
 - Door 示例通过脚本切换场景。
-- Chest 示例通过脚本循环切换材质颜色。
+- Chest 示例通过脚本循环切换材质颜色。`Snake` 示例提供经典贪吃蛇玩法、Esc 菜单、游戏结束菜单、难度切换和重置快捷键。
 
 ### 项目内脚本运行时
 
@@ -70,7 +70,7 @@ UNU 当前已经从“编辑器内置固定玩法逻辑”转向“每个项目�
 - 每个项目可以拥有自己的 `assets/scripts/AudioRuntime.ts`。
 - 示例项目的 Player、Enemy、Bullet、Door、Chest、背景切换等玩法逻辑由项目资源树内脚本驱动。
 - 脚本编辑器支持打开、编辑和保存 `.ts`、`.js`、`.json`、`.anim.json` 等文本资源。
-- 脚本编辑器支持代码高亮与横向滚动。
+- 脚本编辑器支持代码高亮、横向滚动、查找/替换和独立窗口编辑。`Ctrl/Cmd + S` 保存后会触发项目脚本热重载。
 
 ### Console 与性能监测
 
@@ -93,7 +93,7 @@ UNU 当前已经从“编辑器内置固定玩法逻辑”转向“每个项目�
 - `Background`：背景图片、跟随相机、脚本切换。
 - `Interactable`：交互距离、交互动作、提示框。
 - `Audio`：音频播放与运行时控制基础。
-- `UI`：文本、按钮、Markdown、HTML Overlay。
+- `UI`：文本、按钮、Slider、Markdown、HTML Overlay、父子层级和内容自适应尺寸。
 - `Tilemap`：瓦片层、碰撞层、数值到材质映射。
 
 ### Tilemap
@@ -133,11 +133,12 @@ UNU 当前已经从“编辑器内置固定玩法逻辑”转向“每个项目�
 
 ### UI 系统
 
-- 支持 UI Text 实体创建。
+- 支持 UI Text、Button、Slider、HTML UI 实体创建。
 - 支持多行文本渲染。
 - Inspector 文本编辑框支持多行输入。
 - 支持基础 Markdown 渲染。
 - 支持 HTML-in-Canvas 的 DOM Overlay 实现，用于更复杂 UI 排版。
+- 支持 UI 父子层级、相对视窗定位、内容自适应宽高和按钮脚本事件绑定。
 
 ### 资源与示例素材
 
@@ -248,7 +249,8 @@ npm run dist:win:installer
 |   |-- ROADMAP.zh-CN.md
 |   `-- ROADMAP.en-US.md
 |-- Sample-project-list/
-|   `-- sample-2D-shooting/
+|   |-- sample-2D-shooting/
+|   `-- Snake/
 |-- sample-project/
 |-- assets-for-sample/
 |-- scripts/
@@ -318,9 +320,13 @@ npm run dist:win:installer
 ## 当前已知限制
 
 - 前端主 chunk 仍然偏大，构建会提示超过 500KB，后续需要继续拆包。
-- 脚本系统已支持项目内独立运行时，但还没有完整断点调试、脚本热重载和类型提示体验。
+- 脚本系统已支持项目内独立运行时、热重载和错误定位，但还没有完整断点调试和完善的类型提示体验。
 - 动画状态机已有可视预览，但还不是完整节点连线式编辑器。
 - Tilemap 图形化编辑器已经可用，大地图性能仍可继续优化。
-- Web 导出当前面向静态资源和本地 HTTP 预览，后续可加入 itch.io、GitHub Pages 等目标模板。
+- Web 导出当前面向静态资源和本地 HTTP 预览，后续可加入 ZIP、itch.io、GitHub Pages 等目标模板。
+
+
+
+
 
 

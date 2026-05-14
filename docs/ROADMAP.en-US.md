@@ -2,7 +2,7 @@
 
 [中文](ROADMAP.zh-CN.md) | English
 
-Updated: `2026-05-05`
+Updated: `2026-05-15`
 
 This roadmap tracks the evolution of UNU Engine from an editor prototype into a usable 2D game development tool.
 
@@ -62,7 +62,8 @@ Goal: make levels, animation, assets, and UI efficient to edit.
 - [x] UI Markdown rendering.
 - [x] HTML UI DOM Overlay.
 - [ ] More complete Timeline keyframe tracks.
-- [ ] Asset dependency analysis and unused asset detection.
+- [x] Asset dependency check and missing asset auto-repair.
+- [ ] Unused asset detection.
 
 ## Phase 4: Project-Level Script System
 
@@ -75,10 +76,11 @@ Goal: gameplay logic should live in each project, not in hardcoded editor runtim
 - [x] Enemy logic no longer depends on a fixed ID.
 - [x] Bullet, Door, Chest, and background switching driven by project scripts.
 - [x] Missing runtime scripts are created when opening projects.
-- [ ] Script hot reload.
-- [ ] Script type hints and generated API docs.
+- [x] Script hot reload.
+- [x] Script API cheat sheet.
+- [ ] More complete script type hints.
 - [ ] Script breakpoints.
-- [ ] Script errors linked to Asset Tree files.
+- [x] Script errors linked to Asset Tree files and line numbers.
 
 ## Phase 5: Sample Project Library
 
@@ -89,6 +91,8 @@ Goal: reduce learning cost with different game examples.
 - [x] Pixel-art sample material organization.
 - [x] Two-scene Door interaction sample.
 - [x] Background switching sample.
+- [x] Snake sample project.
+- [x] Sample pause menus, game-over menus, difficulty switching, and reset key bindings.
 - [ ] Platformer Demo.
 - [ ] Top-down RPG Demo.
 - [ ] Puzzle Demo.
@@ -122,14 +126,17 @@ Goal: support larger projects and longer iteration cycles.
 - [ ] Frontend code splitting.
 - [ ] Pixi render object pooling.
 - [ ] Collision spatial partitioning.
-- [ ] Performance profiling panel.
+- [x] Performance profiling panel.
 - [ ] Automated regression checklist.
 - [ ] Project format migration tools.
 
 ## Recommended Next Steps
 
-1. Improve script hot reload and error location.
-2. Add asset dependency analysis to reduce missing-resource export issues.
-3. Add ZIP and publishing templates for Web export.
-4. Expand Timeline keyframe editing.
+1. Add ZIP and publishing templates for Web export.
+2. Continue improving script type hints and detached editor UX.
+3. Expand Timeline keyframe editing.
+4. Add unused asset detection and cleanup suggestions.
 5. Add a minimal regression suite for opening projects, scene switching, playback, and export.
+
+
+

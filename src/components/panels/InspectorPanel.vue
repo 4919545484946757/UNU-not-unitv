@@ -464,9 +464,30 @@
           <label>Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /></label>
           <label>Width <input type="number" min="10" :value="ui.width" @input="setNumber('ui', 'width', $event)" /></label>
           <label>Height <input type="number" min="10" :value="ui.height" @input="setNumber('ui', 'height', $event)" /></label>
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="ui.autoWidth" @change="setChecked('ui', 'autoWidth', $event)" />
+            Auto Width
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="ui.autoHeight" @change="setChecked('ui', 'autoHeight', $event)" />
+            Auto Height
+          </label>
+          <label>Min Width <input type="number" min="1" :value="ui.minWidth || 1" @input="setNumber('ui', 'minWidth', $event)" /></label>
+          <label>Min Height <input type="number" min="1" :value="ui.minHeight || 1" @input="setNumber('ui', 'minHeight', $event)" /></label>
           <label>Background (Hex) <input :value="`0x${Number(ui.backgroundColor).toString(16)}`" @input="setHexNumber('ui', 'backgroundColor', $event)" /></label>
           <label>Anchor X <input type="number" min="0" max="1" step="0.01" :value="ui.anchorX" @input="setNumber('ui', 'anchorX', $event)" /></label>
           <label>Anchor Y <input type="number" min="0" max="1" step="0.01" :value="ui.anchorY" @input="setNumber('ui', 'anchorY', $event)" /></label>
+          <label>Parent UI ID / Name <input :value="ui.parentId || ''" placeholder="例如 PauseMenu_Backdrop" @input="setText('ui', 'parentId', $event)" /></label>
+          <label>Layout
+            <select :value="ui.layout || 'none'" @change="setUILayout">
+              <option value="none">None</option>
+              <option value="vertical">Vertical Children</option>
+              <option value="horizontal">Horizontal Children</option>
+            </select>
+          </label>
+          <label>Layout Gap <input type="number" min="0" :value="ui.layoutGap || 0" @input="setNumber('ui', 'layoutGap', $event)" /></label>
+          <label>Padding X <input type="number" min="0" :value="ui.paddingX || 0" @input="setNumber('ui', 'paddingX', $event)" /></label>
+          <label>Padding Y <input type="number" min="0" :value="ui.paddingY || 0" @input="setNumber('ui', 'paddingY', $event)" /></label>
           <label class="checkbox-row">
             <input type="checkbox" :checked="ui.interactable" @change="setChecked('ui', 'interactable', $event)" />
             Interactable
@@ -1754,6 +1775,14 @@ function setUIRenderMode(event: Event) {
   if (runtime.isPlaying) return
   if (!ui.value) return
   ui.value.renderMode = (event.target as HTMLSelectElement).value === 'html' ? 'html' : 'pixi'
+  sceneStore.markDirty()
+}
+
+function setUILayout(event: Event) {
+  if (runtime.isPlaying) return
+  if (!ui.value) return
+  const value = (event.target as HTMLSelectElement).value
+  ui.value.layout = value === 'vertical' || value === 'horizontal' ? value : 'none'
   sceneStore.markDirty()
 }
 

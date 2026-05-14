@@ -19,6 +19,11 @@ interface RuntimeInput {
   isActionDown: (action: string) => boolean
   wasActionPressed: (action: string) => boolean
   wasActionReleased: (action: string) => boolean
+  getActionMap?: () => Record<string, string[]>
+  getActionBindings?: (action: string) => string[]
+  setActionBindings?: (action: string, bindings: string[]) => void
+  resetActionBindings?: (action?: string) => void
+  getPressedBindings?: () => string[]
   getAxis: (axis: 'horizontal' | 'vertical') => number
   getMoveVector: (normalized?: boolean) => { x: number; y: number }
   getMousePosition: () => { x: number; y: number }
@@ -521,6 +526,11 @@ export class ScriptRuntime {
     isActionDown: () => false,
     wasActionPressed: () => false,
     wasActionReleased: () => false,
+    getActionMap: () => ({}),
+    getActionBindings: () => [],
+    setActionBindings: () => undefined,
+    resetActionBindings: () => undefined,
+    getPressedBindings: () => [],
     getAxis: () => 0,
     getMoveVector: () => ({ x: 0, y: 0 }),
     getMousePosition: () => ({ x: 0, y: 0 })

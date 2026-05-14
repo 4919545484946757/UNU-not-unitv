@@ -471,7 +471,7 @@ export const useAssetStore = defineStore('assets', {
         return
       }
       project.setStatus(
-        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}）`
+        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}，启动场景 ${result.startupScene || '未设置'}）。请通过 PLAY_GAME.bat 或本地 HTTP 服务运行，不要直接双击 index.html。`
       )
     },
     async importImages() {

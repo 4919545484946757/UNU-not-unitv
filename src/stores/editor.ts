@@ -23,6 +23,7 @@ export const useEditorStore = defineStore('editor', {
     timelinePreviewClock: 0,
     entityCreateDialogVisible: false,
     sceneListDialogVisible: false,
+    keymapDialogVisible: false,
     leftPanelWidth: 300,
     rightPanelWidth: 340,
     assetBrowserHeight: 220,
@@ -88,6 +89,12 @@ export const useEditorStore = defineStore('editor', {
     },
     closeSceneListDialog() {
       this.sceneListDialogVisible = false
+    },
+    openKeymapDialog() {
+      this.keymapDialogVisible = true
+    },
+    closeKeymapDialog() {
+      this.keymapDialogVisible = false
     },
     toggleGrid() {
       this.showGrid = !this.showGrid

@@ -24,7 +24,7 @@ let renderer: PixiRenderer | null = null
 type ExportProject = {
   name?: string
   startupScene?: string
-  sceneCatalog?: Array<{ file?: string; name?: string }>
+  sceneCatalog?: Array<string | { file?: string; fileName?: string; path?: string; name?: string }>
 }
 
 type LoadedSceneEntry = {
@@ -62,18 +62,40 @@ function normalizeFetchPath(relativePath: string) {
   return `./${normalized}`
 }
 
+function normalizeSceneFileReference(value: unknown) {
+  const raw = String(value || '').replace(/\\/g, '/').trim()
+  if (!raw) return ''
+  const withoutPrefix = raw.replace(/^\.?\//, '').replace(/^scenes\//i, '')
+  return withoutPrefix.split('/').filter(Boolean).pop() || withoutPrefix
+}
+
+function getCatalogFile(item: NonNullable<ExportProject['sceneCatalog']>[number]) {
+  if (typeof item === 'string') return normalizeSceneFileReference(item)
+  return normalizeSceneFileReference(item.file || item.fileName || item.path || '')
+}
+
+function resolveStartupSceneFile(projectJson: ExportProject, sceneFiles: string[]) {
+  const startupReference = normalizeSceneFileReference(projectJson.startupScene)
+  if (!startupReference) return sceneFiles[0] || ''
+  if (!sceneFiles.length) return startupReference
+  const exact = sceneFiles.find((file) => file.toLowerCase() === startupReference.toLowerCase())
+  if (exact) return exact
+  const byName = (projectJson.sceneCatalog || []).find((item) => {
+    if (typeof item === 'string') return false
+    return String(item.name || '').trim().toLowerCase() === startupReference.toLowerCase()
+  })
+  return byName ? getCatalogFile(byName) : (sceneFiles[0] || '')
+}
+
 async function loadExportScenes() {
   const projectResponse = await fetch('./project.json')
   if (!projectResponse.ok) throw new Error('未找到导出的 project.json')
   const projectJson = await projectResponse.json() as ExportProject
-  const startupScene =
-    String(projectJson.startupScene || '').trim() ||
-    String(projectJson.sceneCatalog?.[0]?.file || '').trim()
-  if (!startupScene) throw new Error('导出项目没有启动场景')
-
   const catalogFiles = (projectJson.sceneCatalog || [])
-    .map((item) => String(item.file || '').trim())
+    .map(getCatalogFile)
     .filter(Boolean)
+  const startupScene = resolveStartupSceneFile(projectJson, catalogFiles)
+  if (!startupScene) throw new Error('导出项目没有启动场景')
   const sceneFiles = Array.from(new Set(catalogFiles.length ? catalogFiles : [startupScene]))
   const entries: LoadedSceneEntry[] = []
   let startupSceneId = ''
@@ -84,7 +106,7 @@ async function loadExportScenes() {
     const sceneText = await sceneResponse.text()
     const scene = deserializeScene(sceneText)
     entries.push({ scene, filePath: `scenes/${fileName}` })
-    if (fileName === startupScene) startupSceneId = scene.id
+    if (fileName.toLowerCase() === startupScene.toLowerCase()) startupSceneId = scene.id
   }
 
   if (!entries.length) throw new Error('导出项目没有可加载的场景文件')

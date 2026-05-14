@@ -1,11 +1,15 @@
-# UNU Console Commands
+﻿# UNU Console Commands
+
+[中文](CONSOLE_COMMANDS.zh-CN.md) | English
+
+Updated: `2026-05-15`
 
 The bottom `Console` panel has two tabs:
 
 - `Log`: shows script logs, errors, status messages, and accepts debug commands.
 - `Performance`: shows FPS, entity count, and optional detailed performance metrics.
 
-Type a command in the `Log` tab and press `Enter` to run it. Press `Up` / `Down` to browse command history.
+Type a command in the `Log` tab and press `Enter` to run it. Press `Up` / `Down` to browse command history. Output supports `\n` line breaks and `\t` indentation.
 
 ## Basic Commands
 
@@ -68,6 +72,14 @@ Detailed stage sampling is disabled by default. Enable `Detailed performance sam
 
 Detailed sampling adds a small measurement overhead, so keep it off until you need to diagnose performance.
 
+## Log Filtering
+
+Status messages are integrated into Console. The show/hide log-info button controls whether status logs such as opening folders, project saved, or export completed are displayed.
+
+- Hovering the button shows a tooltip.
+- Right-clicking the button opens the log whitelist menu.
+- The whitelist controls which status categories are visible.
+
 ## Script Output
 
 Project scripts can write to Console with:
@@ -89,3 +101,5 @@ ctx.api.log(`[${spawnedEnemy.id}] respawn`)
 - In play mode, `set`, `tp`, and `remove` operate on the runtime scene copy and are not written back after stopping.
 - In edit mode, `set`, `tp`, and `remove` mark the scene as dirty.
 - Use quotes for names with spaces, for example `select "Enemy Boss"`.
+
+

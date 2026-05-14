@@ -6,6 +6,7 @@ import { BackgroundComponent } from '../components/BackgroundComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
+import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
@@ -44,6 +45,11 @@ type MarkdownLineKind = 'paragraph' | 'heading1' | 'heading2' | 'heading3' | 'qu
 const EMPTY_ENTITY_EDITOR_SIZE = 40
 const UI_FONT_FAMILY = 'Microsoft YaHei, SimHei, Noto Sans CJK SC, Segoe UI, PingFang SC, sans-serif'
 const UI_MONO_FONT_FAMILY = 'Consolas, Microsoft YaHei, SimHei, monospace'
+
+type UiMetrics = {
+  width: number
+  height: number
+}
 
 type MarkdownLine = {
   kind: MarkdownLineKind
@@ -229,6 +235,7 @@ export class PixiRenderer {
   private readonly root = new Container()
   private readonly backdrop = new Container()
   private readonly world = new Container()
+  private readonly playHintOverlay = new Container()
   private readonly ui = new Container()
   private readonly overlay = new Container()
   private readonly htmlUiLayer = document.createElement('div')
@@ -286,6 +293,7 @@ export class PixiRenderer {
 
     this.root.addChild(this.backdrop)
     this.root.addChild(this.world)
+    this.root.addChild(this.playHintOverlay)
     this.root.addChild(this.ui)
     this.root.addChild(this.overlay)
     this.app.stage.addChild(this.root)
@@ -312,6 +320,7 @@ export class PixiRenderer {
 
     this.sourceScene = scene
     this.currentScene = scene
+    this.inputState.setStorageKey(this.getInputStorageKey())
     this.scriptRuntime.setAudioAdapter({
       playOneShot: async (clipPath, options) => {
         await this.audioRuntime.playOneShot(clipPath, options)
@@ -672,32 +681,53 @@ export class PixiRenderer {
   private async refreshProjectRuntimeFiles() {
     const projectStore = useProjectStore()
     const assetStore = useAssetStore()
+    const sceneStore = useSceneStore()
     const scriptRuntimePath = 'assets/scripts/ScriptRuntime.ts'
     const inputRuntimePath = 'assets/scripts/InputState.ts'
     const audioRuntimePath = 'assets/scripts/AudioRuntime.ts'
+    this.inputState.setStorageKey(this.getInputStorageKey())
     if (!window.unu?.readTextAsset || !projectStore.rootPath || projectStore.rootPath === 'sample-project') {
       this.scriptRuntime.setProjectRuntimeSource('', scriptRuntimePath)
       this.inputState.setProjectRuntimeSource('', inputRuntimePath)
       this.audioRuntime.setProjectRuntimeSource('', audioRuntimePath)
       return
     }
+    const isLoadableProjectScriptPath = (scriptPath: string) => {
+      const normalized = scriptPath.replace(/\\/g, '/').trim()
+      if (!/\.(js|ts)$/i.test(normalized)) return false
+      if (!normalized.startsWith('assets/scripts/')) return false
+      if (normalized.startsWith('assets/scripts/InputState.')) return false
+      if (normalized.startsWith('assets/scripts/AudioRuntime.')) return false
+      if (normalized === scriptRuntimePath) return true
+      const localPath = normalized.slice('assets/scripts/'.length)
+      return (
+        !localPath.includes('/') ||
+        normalized.startsWith('assets/scripts/shared/') ||
+        normalized.startsWith('assets/scripts/interactions/') ||
+        normalized.startsWith('assets/scripts/scenes/')
+      )
+    }
     const discoveredProjectScriptPaths = assetStore.flat
       .filter((node) => node.type === 'script')
       .map((node) => node.path.replace(/\\/g, '/'))
-      .filter((path) => /\.(js|ts)$/i.test(path))
-      .filter((path) => (
-        path.startsWith('assets/scripts/') &&
-        !path.startsWith('assets/scripts/InputState.') &&
-        !path.startsWith('assets/scripts/AudioRuntime.')
-      ))
-      .filter((path) => (
-        path === scriptRuntimePath ||
-        !path.slice('assets/scripts/'.length).includes('/') ||
-        path.startsWith('assets/scripts/shared/') ||
-        path.startsWith('assets/scripts/interactions/') ||
-        path.startsWith('assets/scripts/scenes/')
-      ))
+      .filter(isLoadableProjectScriptPath)
+    const sceneScriptPaths = new Set<string>()
+    const collectSceneScriptPaths = (scene: Scene | null | undefined) => {
+      if (!scene) return
+      for (const entity of scene.entities) {
+        const script = entity.getComponent<ScriptComponent>('Script')
+        const scriptPath = script?.scriptPath?.replace(/\\/g, '/').trim()
+        if (scriptPath && isLoadableProjectScriptPath(scriptPath)) {
+          sceneScriptPaths.add(scriptPath)
+        }
+      }
+    }
+    for (const scene of sceneStore.scenes) collectSceneScriptPaths(scene)
+    collectSceneScriptPaths(sceneStore.currentScene)
+    collectSceneScriptPaths(this.sourceScene)
+    collectSceneScriptPaths(this.currentScene)
     const projectScriptPaths = [scriptRuntimePath, ...discoveredProjectScriptPaths]
+      .concat(Array.from(sceneScriptPaths))
       .filter((path, index, list) => list.indexOf(path) === index)
       .sort((left, right) => {
         if (left === scriptRuntimePath) return -1
@@ -727,6 +757,12 @@ export class PixiRenderer {
     this.scriptRuntime.setProjectRuntimeSources(scriptFiles.length ? scriptFiles : [{ path: scriptRuntimePath, content: '' }])
     this.inputState.setProjectRuntimeSource(inputLoaded?.content || '', inputRuntimePath)
     this.audioRuntime.setProjectRuntimeSource(audioLoaded?.content || '', audioRuntimePath)
+  }
+
+  private getInputStorageKey() {
+    const projectStore = useProjectStore()
+    const id = String(projectStore.rootPath || projectStore.name || 'export-web').replace(/\\/g, '/').trim() || 'export-web'
+    return `unu:inputActionMap:${id}`
   }
 
   async hotReloadProjectRuntimeFiles(changedPath = '') {
@@ -849,6 +885,7 @@ export class PixiRenderer {
     const activeWorldIds = new Set<string>()
     const activeUiIds = new Set<string>()
     const activeHtmlUiIds = new Set<string>()
+    const uiMetrics = this.buildUiMetrics(scene)
 
     for (const entity of scene.entities) {
       const transform = entity.getComponent<TransformComponent>('Transform')
@@ -860,13 +897,14 @@ export class PixiRenderer {
       if (!transform) continue
 
       if (ui?.enabled) {
+        const metrics = uiMetrics.get(entity.id) || this.resolveUiMetrics(ui)
         if (ui.renderMode === 'html') {
-          this.updateHtmlUiNode(entity, transform, ui)
+          this.updateHtmlUiNode(entity, transform, ui, metrics, scene, uiMetrics)
           activeHtmlUiIds.add(entity.id)
           continue
         }
-        const uiNode = this.getCachedUiNode(entity, transform, ui)
-        const uiPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+        const uiNode = this.getCachedUiNode(entity, transform, ui, metrics)
+        const uiPosition = this.resolveUiPosition(scene, entity, transform, ui, metrics, uiMetrics)
         uiNode.x = uiPosition.x
         uiNode.y = uiPosition.y
         uiNode.rotation = transform.rotation
@@ -1043,18 +1081,103 @@ export class PixiRenderer {
         : centerY - viewportHeight / 2
   }
 
-  private createUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
+  private buildUiMetrics(scene: Scene) {
+    const metrics = new Map<string, UiMetrics>()
+    for (const entity of scene.entities) {
+      const ui = entity.getComponent<UIComponent>('UI')
+      if (!ui) continue
+      metrics.set(entity.id, this.resolveUiMetrics(ui))
+    }
+    return metrics
+  }
+
+  private resolveUiMetrics(ui: UIComponent): UiMetrics {
+    const explicitWidth = Math.max(1, Number(ui.width || 1))
+    const explicitHeight = Math.max(1, Number(ui.height || 1))
+    const paddingX = Math.max(0, Number(ui.paddingX ?? 14))
+    const paddingY = Math.max(0, Number(ui.paddingY ?? 8))
+    const fontSize = Math.max(10, Number(ui.fontSize || 20))
+    const lines = String(ui.text || '').split(/\r?\n/)
+    const longest = Math.max(1, ...lines.map((line) => stripInlineMarkdown(line).length || 1))
+    const contentWidth = Math.ceil(longest * fontSize * 0.62)
+    const contentHeight = Math.ceil(Math.max(1, lines.length) * fontSize * 1.25)
+    const minWidth = Math.max(1, Number(ui.minWidth || 1))
+    const minHeight = Math.max(1, Number(ui.minHeight || 1))
+    const autoWidth = ui.autoWidth || ui.mode === 'button'
+    const autoHeight = ui.autoHeight || ui.mode === 'button'
+    return {
+      width: Math.max(minWidth, autoWidth ? Math.max(explicitWidth, contentWidth + paddingX * 2) : explicitWidth),
+      height: Math.max(minHeight, autoHeight ? Math.max(explicitHeight, contentHeight + paddingY * 2) : explicitHeight)
+    }
+  }
+
+  private resolveUiPosition(
+    scene: Scene,
+    entity: Scene['entities'][number],
+    transform: TransformComponent,
+    ui: UIComponent,
+    metrics: UiMetrics,
+    metricsById: Map<string, UiMetrics>
+  ) {
+    const parentKey = String(ui.parentId || '').trim()
+    if (!parentKey) return this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
+    const parent = scene.entities.find((candidate) => candidate.id === parentKey || candidate.name === parentKey)
+    const parentTransform = parent?.getComponent<TransformComponent>('Transform')
+    const parentUi = parent?.getComponent<UIComponent>('UI')
+    if (!parent || !parentTransform || !parentUi) {
+      return this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
+    }
+
+    const parentMetrics = metricsById.get(parent.id) || this.resolveUiMetrics(parentUi)
+    const parentPosition = this.resolveViewportPosition(parentTransform, parentMetrics.width, parentMetrics.height, parentUi.anchorX, parentUi.anchorY)
+    const siblings = scene.entities
+      .filter((candidate) => {
+        const candidateUi = candidate.getComponent<UIComponent>('UI')
+        return candidateUi?.enabled && String(candidateUi.parentId || '').trim() === parentKey
+      })
+      .sort((left, right) => {
+        const lt = left.getComponent<TransformComponent>('Transform')
+        const rt = right.getComponent<TransformComponent>('Transform')
+        return (lt?.zIndex ?? 0) - (rt?.zIndex ?? 0)
+      })
+    if (parentUi.layout === 'vertical' || parentUi.layout === 'horizontal') {
+      const gap = Math.max(0, Number(parentUi.layoutGap ?? 8))
+      const sizes = siblings.map((sibling) => metricsById.get(sibling.id) || this.resolveUiMetrics(sibling.getComponent<UIComponent>('UI')!))
+      const index = Math.max(0, siblings.findIndex((sibling) => sibling.id === entity.id))
+      if (parentUi.layout === 'vertical') {
+        const totalHeight = sizes.reduce((sum, size) => sum + size.height, 0) + Math.max(0, sizes.length - 1) * gap
+        const before = sizes.slice(0, index).reduce((sum, size) => sum + size.height, 0) + index * gap
+        return {
+          x: parentPosition.x + transform.x,
+          y: parentPosition.y - totalHeight / 2 + before + metrics.height / 2 + transform.y
+        }
+      }
+      const totalWidth = sizes.reduce((sum, size) => sum + size.width, 0) + Math.max(0, sizes.length - 1) * gap
+      const before = sizes.slice(0, index).reduce((sum, size) => sum + size.width, 0) + index * gap
+      return {
+        x: parentPosition.x - totalWidth / 2 + before + metrics.width / 2 + transform.x,
+        y: parentPosition.y + transform.y
+      }
+    }
+
+    return {
+      x: parentPosition.x + transform.x,
+      y: parentPosition.y + transform.y
+    }
+  }
+
+  private createUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent, metrics: UiMetrics) {
     const node = new Container()
     node.label = entity.id
     node.zIndex = transform.zIndex ?? 0
-    const uiPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+    const uiPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
     node.x = uiPosition.x
     node.y = uiPosition.y
     node.rotation = transform.rotation
     node.scale.set(transform.scaleX, transform.scaleY)
     node.eventMode = 'static'
     if (ui.mode === 'button' || ui.mode === 'slider') {
-      node.hitArea = new Rectangle(-ui.width / 2, -ui.height / 2, ui.width, ui.height)
+      node.hitArea = new Rectangle(-metrics.width / 2, -metrics.height / 2, metrics.width, metrics.height)
     }
     node.cursor = (ui.mode === 'button' || ui.mode === 'slider') && ui.interactable ? 'pointer' : 'default'
 
@@ -1069,7 +1192,7 @@ export class PixiRenderer {
       this.selectedEntityId = entity.id
       this.drawSelectionGizmo()
       const global = event.global
-      const dragPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+      const dragPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
       this.dragOffset.x = global.x - dragPosition.x
       this.dragOffset.y = global.y - dragPosition.y
       if (this.activeTool === 'move') {
@@ -1080,18 +1203,18 @@ export class PixiRenderer {
 
     if (ui.mode === 'button') {
       const buttonBg = new Graphics()
-      buttonBg.roundRect(-ui.width / 2, -ui.height / 2, ui.width, ui.height, 10)
+      buttonBg.roundRect(-metrics.width / 2, -metrics.height / 2, metrics.width, metrics.height, 10)
       buttonBg.fill({ color: ui.backgroundColor, alpha: 0.95 })
       buttonBg.stroke({ color: 0xffffff, alpha: 0.25, width: 1.5 })
       node.addChild(buttonBg)
     }
 
     if (ui.mode === 'slider') {
-      node.addChild(this.createSliderUiContent(ui))
+      node.addChild(this.createSliderUiContent(ui, metrics))
     } else {
       const label = ui.markdownEnabled
-        ? this.createMarkdownUiContent(ui)
-        : this.createPlainUiText(ui)
+        ? this.createMarkdownUiContent(ui, metrics)
+        : this.createPlainUiText(ui, metrics)
       node.addChild(label)
     }
 
@@ -1121,7 +1244,7 @@ export class PixiRenderer {
     if (ui.mode === 'slider' && ui.interactable) {
       const updateSliderFromScreen = (screenX: number, screenY: number) => {
         if (!this.isPlaying || !this.currentScene) return
-        const uiPosition = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+        const uiPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
         const dx = screenX - uiPosition.x
         const dy = screenY - uiPosition.y
         const cos = Math.cos(-transform.rotation)
@@ -1130,7 +1253,7 @@ export class PixiRenderer {
         const min = Number.isFinite(ui.sliderMin) ? ui.sliderMin : 0
         const max = Number.isFinite(ui.sliderMax) ? ui.sliderMax : 1
         const range = Math.max(0.0001, max - min)
-        const usableWidth = Math.max(1, ui.width - 28)
+        const usableWidth = Math.max(1, metrics.width - 28)
         const ratio = Math.max(0, Math.min(1, (localX + usableWidth / 2) / usableWidth))
         ui.sliderValue = min + ratio * range
         this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
@@ -1176,14 +1299,14 @@ export class PixiRenderer {
     return node
   }
 
-  private createSliderUiContent(ui: UIComponent) {
+  private createSliderUiContent(ui: UIComponent, metrics: UiMetrics) {
     const content = new Container()
     const min = Number.isFinite(ui.sliderMin) ? ui.sliderMin : 0
     const max = Number.isFinite(ui.sliderMax) ? ui.sliderMax : 1
     const range = Math.max(0.0001, max - min)
     const ratio = Math.max(0, Math.min(1, (Number(ui.sliderValue ?? min) - min) / range))
-    const usableWidth = Math.max(1, ui.width - 28)
-    const trackHeight = Math.max(6, Math.min(14, ui.height * 0.22))
+    const usableWidth = Math.max(1, metrics.width - 28)
+    const trackHeight = Math.max(6, Math.min(14, metrics.height * 0.22))
     const y = 0
     const track = new Graphics()
     track.roundRect(-usableWidth / 2, y - trackHeight / 2, usableWidth, trackHeight, trackHeight / 2)
@@ -1197,7 +1320,7 @@ export class PixiRenderer {
     content.addChild(fill)
 
     const knobX = -usableWidth / 2 + usableWidth * ratio
-    const knobRadius = Math.max(8, Math.min(16, ui.height * 0.34))
+    const knobRadius = Math.max(8, Math.min(16, metrics.height * 0.34))
     const knob = new Graphics()
     knob.circle(knobX, y, knobRadius)
     knob.fill({ color: 0xffffff, alpha: 1 })
@@ -1206,7 +1329,7 @@ export class PixiRenderer {
     return content
   }
 
-  private createPlainUiText(ui: UIComponent) {
+  private createPlainUiText(ui: UIComponent, metrics: UiMetrics) {
     const label = new Text({
       text: ui.text,
       style: {
@@ -1217,16 +1340,16 @@ export class PixiRenderer {
         breakWords: true,
         lineHeight: Math.round(Math.max(10, ui.fontSize) * 1.25),
         wordWrap: true,
-        wordWrapWidth: Math.max(1, ui.width)
+        wordWrapWidth: Math.max(1, metrics.width - Math.max(0, ui.paddingX || 0) * 2)
       }
     })
     label.anchor.set(0.5)
     return label
   }
 
-  private createMarkdownUiContent(ui: UIComponent) {
+  private createMarkdownUiContent(ui: UIComponent, metrics: UiMetrics) {
     const baseSize = Math.max(10, ui.fontSize)
-    const maxWidth = Math.max(1, ui.width)
+    const maxWidth = Math.max(1, metrics.width - Math.max(0, ui.paddingX || 0) * 2)
     const content = new Container()
     const lines = parseBasicMarkdownLines(ui.text)
     let y = 0
@@ -1280,11 +1403,11 @@ export class PixiRenderer {
       y += Math.max(fontSize, textNode.height) + Math.round(baseSize * 0.2)
     }
 
-    content.y = -Math.min(Math.max(1, ui.height), Math.max(1, y)) / 2
+    content.y = -Math.min(Math.max(1, metrics.height), Math.max(1, y)) / 2
     return content
   }
 
-  private getCachedUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
+  private getCachedUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent, metrics: UiMetrics) {
     const signature = [
       ui.mode,
       ui.text,
@@ -1292,6 +1415,8 @@ export class PixiRenderer {
       ui.textColor,
       ui.width,
       ui.height,
+      metrics.width,
+      metrics.height,
       ui.backgroundColor,
       ui.anchorX,
       ui.anchorY,
@@ -1300,6 +1425,15 @@ export class PixiRenderer {
       ui.sliderValue,
       ui.sliderMin,
       ui.sliderMax,
+      ui.parentId,
+      ui.layout,
+      ui.layoutGap,
+      ui.paddingX,
+      ui.paddingY,
+      ui.autoWidth,
+      ui.autoHeight,
+      ui.minWidth,
+      ui.minHeight,
       ui.markdownEnabled,
       ui.enabled,
       transform.zIndex ?? 0,
@@ -1310,13 +1444,20 @@ export class PixiRenderer {
     const cached = this.uiNodeCache.get(entity.id)
     if (cached && cached.signature === signature) return cached.node
 
-    const node = this.createUiNode(entity, transform, ui)
+    const node = this.createUiNode(entity, transform, ui, metrics)
     if (cached) cached.node.destroy({ children: true })
     this.uiNodeCache.set(entity.id, { signature, node })
     return node
   }
 
-  private updateHtmlUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent) {
+  private updateHtmlUiNode(
+    entity: Scene['entities'][number],
+    transform: TransformComponent,
+    ui: UIComponent,
+    metrics: UiMetrics,
+    scene: Scene,
+    metricsById: Map<string, UiMetrics>
+  ) {
     const signature = [
       ui.mode,
       ui.text,
@@ -1324,6 +1465,8 @@ export class PixiRenderer {
       ui.textColor,
       ui.width,
       ui.height,
+      metrics.width,
+      metrics.height,
       ui.backgroundColor,
       ui.interactable,
       ui.onClickScriptPath,
@@ -1332,6 +1475,15 @@ export class PixiRenderer {
       ui.sliderMax,
       ui.markdownEnabled,
       ui.renderMode,
+      ui.parentId,
+      ui.layout,
+      ui.layoutGap,
+      ui.paddingX,
+      ui.paddingY,
+      ui.autoWidth,
+      ui.autoHeight,
+      ui.minWidth,
+      ui.minHeight,
       transform.positionMode,
       transform.viewportHorizontal,
       transform.viewportVertical,
@@ -1387,13 +1539,13 @@ export class PixiRenderer {
       cached.signature = signature
     }
 
-    const { x, y } = this.resolveViewportPosition(transform, ui.width, ui.height, ui.anchorX, ui.anchorY)
+    const { x, y } = this.resolveUiPosition(scene, entity, transform, ui, metrics, metricsById)
     Object.assign(node.style, {
       position: 'absolute',
       left: `${x}px`,
       top: `${y}px`,
-      width: `${Math.max(1, ui.width)}px`,
-      height: `${Math.max(1, ui.height)}px`,
+      width: `${Math.max(1, metrics.width)}px`,
+      height: `${Math.max(1, metrics.height)}px`,
       boxSizing: 'border-box',
       transform: `translate(-50%, -50%) rotate(${transform.rotation}rad) scale(${transform.scaleX}, ${transform.scaleY})`,
       transformOrigin: 'center center',
@@ -1403,7 +1555,7 @@ export class PixiRenderer {
       fontFamily: UI_FONT_FAMILY,
       lineHeight: '1.35',
       overflow: 'auto',
-      padding: ui.mode === 'button' ? '8px 12px' : '0',
+      padding: ui.mode === 'button' ? `${Math.max(0, ui.paddingY || 0)}px ${Math.max(0, ui.paddingX || 0)}px` : '0',
       borderRadius: ui.mode === 'button' ? '10px' : '0',
       border: ui.mode === 'button' ? '1px solid rgba(255,255,255,0.28)' : '0',
       background: ui.mode === 'button' ? hexToRgba(ui.backgroundColor, 0.95) : 'transparent',
@@ -1699,8 +1851,10 @@ export class PixiRenderer {
 
     const box = new Graphics()
     box.rect(-sprite.width / 2, -sprite.height / 2, sprite.width, sprite.height)
-    box.fill({ color: sprite.tint, alpha: sprite.alpha })
-    box.stroke({ color: 0xffffff, alpha: 0.35, width: 1 })
+    const alpha = Math.max(0, Math.min(1, Number(sprite.alpha || 0)))
+    box.visible = sprite.visible && alpha > 0
+    box.fill({ color: sprite.tint, alpha: sprite.visible ? alpha : 0 })
+    box.stroke({ color: 0xffffff, alpha: sprite.visible ? 0.35 * alpha : 0, width: 1 })
     box.x = Number(sprite.offsetX || 0)
     box.y = Number(sprite.offsetY || 0)
     return box
@@ -2034,6 +2188,8 @@ export class PixiRenderer {
     const worldY = viewHeight / 2 - camY * zoom
     this.world.scale.set(zoom)
     this.world.position.set(worldX, worldY)
+    this.playHintOverlay.scale.set(zoom)
+    this.playHintOverlay.position.set(worldX, worldY)
     this.overlay.scale.set(zoom)
     this.overlay.position.set(worldX, worldY)
   }
@@ -2056,12 +2212,15 @@ export class PixiRenderer {
   private resetCameraTransform() {
     this.world.scale.set(1)
     this.world.position.set(0, 0)
+    this.playHintOverlay.scale.set(1)
+    this.playHintOverlay.position.set(0, 0)
     this.overlay.scale.set(1)
     this.overlay.position.set(0, 0)
   }
 
   private drawSelectionGizmo() {
     this.overlay.removeChildren().forEach((child) => child.destroy())
+    this.playHintOverlay.removeChildren().forEach((child) => child.destroy())
     if (!this.currentScene) return
     if (this.isPlaying) {
       this.drawPlayModeInteractableHints(this.currentScene)
@@ -2188,7 +2347,7 @@ export class PixiRenderer {
       box.rect(boxX, boxY, boxWidth, boxHeight)
       box.fill({ color: 0xffc857, alpha: 0.08 })
       box.stroke({ color: 0xffe082, alpha: 0.95, width: 2 })
-      this.overlay.addChild(box)
+      this.playHintOverlay.addChild(box)
 
       if (this.playDebugEnabled) {
         const hint = new Text({
@@ -2197,7 +2356,7 @@ export class PixiRenderer {
         })
         hint.x = boxX
         hint.y = boxY - 18
-        this.overlay.addChild(hint)
+        this.playHintOverlay.addChild(hint)
       }
     }
   }
@@ -2267,6 +2426,7 @@ export class PixiRenderer {
   private clearSceneNodeCaches() {
     this.backdrop.removeChildren()
     this.world.removeChildren()
+    this.playHintOverlay.removeChildren().forEach((child) => child.destroy())
     this.ui.removeChildren()
     this.htmlUiLayer.replaceChildren()
     for (const cached of this.backdropNodeCache.values()) cached.node.destroy({ children: true })

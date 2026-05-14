@@ -15,6 +15,7 @@
           <option value="launcher">回到开始界面</option>
           <option value="saveAs">项目另存</option>
           <option value="exportGame">导出 Web 游戏</option>
+          <option value="keymap">输入映射/改键</option>
           <option value="checkAssets">检查并修复资源依赖</option>
           <option value="refresh">刷新资源</option>
           <option value="import">导入图片</option>
@@ -159,6 +160,7 @@ async function handleProjectAction(event: Event) {
   else if (action === 'launcher') emit('return-launcher')
   else if (action === 'saveAs') await runAction('项目另存', () => assets.saveProjectAs())
   else if (action === 'exportGame') await runAction('导出 Web 游戏', () => assets.exportGame())
+  else if (action === 'keymap') editor.openKeymapDialog()
   else if (action === 'checkAssets') await runAction('资源依赖检查', () => assets.checkAssetIntegrity())
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())

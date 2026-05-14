@@ -3,6 +3,7 @@
     <TopToolbar @return-launcher="emit('return-launcher')" />
     <EntityCreateDialog />
     <SceneListDialog />
+    <KeymapDialog />
     <div ref="mainRef" class="editor-main" :style="mainStyle">
       <LeftPanel />
       <div class="resizer left-resizer" @mousedown.prevent="startResize('left', $event)"></div>
@@ -21,6 +22,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import TopToolbar from './TopToolbarCompact.vue'
 import EntityCreateDialog from '../common/EntityCreateDialog.vue'
+import KeymapDialog from '../common/KeymapDialog.vue'
 import SceneListDialog from '../common/SceneListDialog.vue'
 import LeftPanel from './LeftPanel.vue'
 import CenterViewport from './CenterViewport.vue'

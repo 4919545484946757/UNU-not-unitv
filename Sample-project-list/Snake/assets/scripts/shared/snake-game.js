@@ -14,6 +14,14 @@ const COLORS = {
   hidden: 0x000000
 }
 
+const DIFFICULTIES = {
+  easy: { label: '简单', baseInterval: 0.15, minInterval: 0.075, scoreStep: 0.0018 },
+  normal: { label: '普通', baseInterval: 0.115, minInterval: 0.055, scoreStep: 0.0025 },
+  hard: { label: '困难', baseInterval: 0.085, minInterval: 0.04, scoreStep: 0.003 }
+}
+
+const DIFFICULTY_ORDER = ['easy', 'normal', 'hard']
+
 function gridToWorld(cell) {
   return {
     x: GRID.originX + cell.x * GRID.cell,
@@ -39,9 +47,58 @@ function getEntity(ctx, id) {
   return ctx.scene.entities.find((entity) => entity.id === id) || null
 }
 
+function findEntityByName(ctx, name) {
+  return ctx.scene.entities.find((entity) => entity.name === name) || null
+}
+
 function setText(entity, text) {
   const ui = entity && entity.getComponent('UI')
   if (ui) ui.text = text
+}
+
+function getUi(entity) {
+  return entity && entity.getComponent('UI')
+}
+
+function setUi(entity, enabled) {
+  const ui = getUi(entity)
+  if (ui) ui.enabled = enabled
+}
+
+function setMenuVisible(ctx, state, visible) {
+  state.menuVisible = visible
+  const names = [
+    'SnakeMenu_Backdrop',
+    'SnakeMenu_Title',
+    'SnakeMenu_Continue',
+    'SnakeMenu_Restart',
+    'SnakeMenu_Difficulty',
+    'SnakeMenu_ResetHotkeys',
+    'SnakeMenu_Exit'
+  ]
+  for (const name of names) setUi(findEntityByName(ctx, name), visible)
+  setUi(findEntityByName(ctx, 'SnakeMenu_Continue'), visible && !state.gameOver)
+  refreshMenuLabels(ctx, state)
+}
+
+function getDifficulty(state) {
+  const key = String(state.difficulty || 'normal')
+  return DIFFICULTIES[key] ? key : 'normal'
+}
+
+function currentDifficultyConfig(state) {
+  return DIFFICULTIES[getDifficulty(state)]
+}
+
+function cycleDifficulty(state) {
+  const current = getDifficulty(state)
+  const index = DIFFICULTY_ORDER.indexOf(current)
+  state.difficulty = DIFFICULTY_ORDER[(index + 1) % DIFFICULTY_ORDER.length]
+}
+
+function refreshMenuLabels(ctx, state) {
+  setText(findEntityByName(ctx, 'SnakeMenu_Title'), state.gameOver ? '游戏结束' : '游戏已暂停')
+  setText(findEntityByName(ctx, 'SnakeMenu_Difficulty'), `难度：${currentDifficultyConfig(state).label}`)
 }
 
 function setSprite(entity, visible, tint) {
@@ -76,11 +133,15 @@ function randomFood(snake) {
 function resetGame(ctx, state) {
   state.started = true
   state.paused = false
+  state.menuVisible = false
   state.gameOver = false
+  state.restartRequested = false
+  state.difficultyChangeRequested = false
+  state.difficulty = getDifficulty(state)
   state.score = 0
   state.best = Math.max(Number(state.best || 0), 0)
   state.timer = 0
-  state.interval = 0.115
+  state.interval = currentDifficultyConfig(state).baseInterval
   state.dir = { x: 1, y: 0 }
   state.nextDir = { x: 1, y: 0 }
   state.snake = [
@@ -91,6 +152,7 @@ function resetGame(ctx, state) {
   ]
   state.food = randomFood(state.snake)
   render(ctx, state)
+  setMenuVisible(ctx, state, false)
   ctx.api.log('[Snake] restart')
 }
 
@@ -112,8 +174,10 @@ function step(ctx, state) {
   const hitSelf = state.snake.some((cell) => sameCell(cell, next))
   if (hitWall || hitSelf) {
     state.gameOver = true
+    state.paused = true
     state.best = Math.max(Number(state.best || 0), Number(state.score || 0))
     ctx.api.warn(`[Snake] game over. score=${state.score}`)
+    setMenuVisible(ctx, state, true)
     render(ctx, state)
     return
   }
@@ -123,7 +187,8 @@ function step(ctx, state) {
     state.score += 1
     state.best = Math.max(Number(state.best || 0), Number(state.score || 0))
     state.food = randomFood(state.snake)
-    state.interval = Math.max(0.055, 0.115 - state.score * 0.0025)
+    const difficulty = currentDifficultyConfig(state)
+    state.interval = Math.max(difficulty.minInterval, difficulty.baseInterval - state.score * difficulty.scoreStep)
     ctx.api.log(`[Snake] ate food. score=${state.score}`)
   } else {
     state.snake.pop()
@@ -151,9 +216,10 @@ function render(ctx, state) {
   const score = getEntity(ctx, 'ui_score')
   const status = getEntity(ctx, 'ui_status')
   setText(score, `Score: ${state.score}    Best: ${state.best}`)
-  if (state.gameOver) setText(status, 'Game Over - Press R / Enter to Restart')
-  else if (state.paused) setText(status, 'Paused - Space / P to Resume')
-  else setText(status, 'WASD / Arrow Keys: Move    Space/P: Pause    R: Restart')
+  if (state.gameOver) setText(status, `Game Over - ${currentDifficultyConfig(state).label} - click Restart or press R / Enter`)
+  else if (state.paused) setText(status, state.menuVisible ? 'Paused - use menu buttons or Esc to resume' : 'Paused - Space / P to Resume')
+  else setText(status, `WASD / Arrow Keys: Move    Esc: Menu    Space/P: Pause    R: Restart    Difficulty: ${currentDifficultyConfig(state).label}`)
+  refreshMenuLabels(ctx, state)
 }
 
 export default {
@@ -166,13 +232,35 @@ export default {
     const state = ctx.api.getState(ctx.entity)
     if (!state.started) resetGame(ctx, state)
 
-    if (ctx.api.input.wasActionPressed('restart')) {
+    if (state.difficultyChangeRequested) {
+      state.difficultyChangeRequested = false
+      cycleDifficulty(state)
+      if (!state.gameOver && !state.paused) {
+        const difficulty = currentDifficultyConfig(state)
+        state.interval = Math.max(difficulty.minInterval, difficulty.baseInterval - Number(state.score || 0) * difficulty.scoreStep)
+      }
+      render(ctx, state)
+      ctx.api.log(`[Snake] difficulty = ${currentDifficultyConfig(state).label}`)
+      return
+    }
+
+    if (state.restartRequested || ctx.api.input.wasActionPressed('restart')) {
       resetGame(ctx, state)
+      return
+    }
+
+    if (ctx.api.input.wasActionPressed('menu') && !state.gameOver) {
+      const visible = !state.menuVisible
+      state.paused = visible
+      setMenuVisible(ctx, state, visible)
+      render(ctx, state)
       return
     }
 
     if (ctx.api.input.wasActionPressed('pause') && !state.gameOver) {
       state.paused = !state.paused
+      state.menuVisible = false
+      setMenuVisible(ctx, state, false)
       render(ctx, state)
       return
     }

@@ -2,7 +2,7 @@
 
 [中文](BEGINNER_TUTORIAL.zh-CN.md) | English
 
-Updated: `2026-05-05`
+Updated: `2026-05-15`
 
 This tutorial is for first-time UNU Engine users. Follow it from Launcher, sample project, scene editing, script editing, and finally Web export.
 
@@ -37,7 +37,7 @@ When creating a project with a name and parent folder, UNU creates a same-name f
 
 ## 3. Open The Sample Project
 
-Start with `2D Action Demo`. It currently uses `Sample-project-list/sample-2D-shooting` and includes:
+Start with a sample project. UNU currently includes two main samples: `2D Action Demo` and `Snake`. `2D Action Demo` uses `Sample-project-list/sample-2D-shooting` and includes:
 
 - Player movement, sprinting, and shooting.
 - Enemy chasing, bullet hit detection, and respawning.
@@ -48,6 +48,14 @@ Start with `2D Action Demo`. It currently uses `Sample-project-list/sample-2D-sh
 - Tilemap collision.
 - Project-level runtime scripts.
 
+`Snake` uses `Sample-project-list/Snake` and includes:
+
+- Classic Snake movement, food, scoring, and failure rules.
+- `Esc` pause menu and game-over menu.
+- Difficulty switching with different speeds.
+- Reset key bindings button.
+- Colored Sprite rectangles with no external image dependency, useful for studying scripts and UI.
+
 ## 4. Editor Layout
 
 The editor is divided into four main areas:
@@ -57,7 +65,7 @@ The editor is divided into four main areas:
 - Right: Inspector, Script Editor, Timeline, and related panels.
 - Top: Project, Scene, Entity, Tool, Play, and Export menus.
 
-The top-right message panel shows save, import, export, and error messages. It can be dragged and closed.
+Save, import, export, and error status messages are shown in the bottom Console by default. The older top-right message panel code is still retained for future notification-layer work.
 
 ## 5. Basic Editing Flow
 
@@ -86,6 +94,14 @@ In `2D Action Demo`:
 - Right-click a nearby Door to switch scenes.
 - Right-click Chest to cycle material colors.
 
+In `Snake`, you can test:
+
+- `W/A/S/D` or Arrow Keys to move.
+- `Esc` to open the menu.
+- Hitting a wall or yourself opens the `Game Over` menu automatically.
+- Click `Difficulty` to cycle Easy, Normal, and Hard.
+- Click `Reset Key Bindings` to restore default inputs.
+
 ## 7. Edit Scripts
 
 UNU sample gameplay is driven by project files instead of hardcoded editor logic.
@@ -106,7 +122,7 @@ How to edit:
 4. Save the text asset.
 5. Replay or switch scenes to verify behavior.
 
-The script editor supports syntax highlighting, horizontal scrolling, and multiple text resource types.
+The script editor supports syntax highlighting, horizontal scrolling, find/replace, detached editor windows, and multiple text resource types. Saving scripts triggers project script hot reload.
 
 ## 8. Create Entities
 
@@ -150,7 +166,13 @@ The graphical editor supports:
 
 The Collision layer uses `0/1` values for blocking. Player and Enemy both use `isBlockedRect` for blocking checks.
 
-## 10. Edit UI
+## 10. Input Mapping And Key Rebinding
+
+The top toolbar Project menu includes an `Input Mapping / Keymap` entry for editing project `InputState.ts` action bindings. Project scripts can also implement in-game key rebinding with `ctx.api.input.setActionBindings`, `resetActionBindings`, and `getPressedBindings`.
+
+Both 2D Action Demo and Snake include an in-game reset key bindings button.
+
+## 11. Edit UI
 
 UI supports:
 
@@ -161,7 +183,7 @@ UI supports:
 
 Use HTML UI for more complex layout. Use UI Text for lightweight labels, hints, titles, and button text.
 
-## 11. Preview Images
+## 12. Preview Images
 
 Image files in the Asset Tree can be previewed by double-clicking or using the context menu.
 
@@ -174,7 +196,7 @@ The image preview window supports:
 
 This is especially helpful for checking pixel-art assets.
 
-## 12. Export A Web Game
+## 13. Export A Web Game
 
 When exporting a Web game, UNU creates a standalone output folder containing project assets, scenes, runtime files, and launch scripts.
 
@@ -188,7 +210,7 @@ PLAY_GAME.bat
 
 It starts a local HTTP server and opens the game in your browser.
 
-## 13. Package The Editor
+## 14. Package The Editor
 
 Developers can run:
 
@@ -204,7 +226,7 @@ Outputs are written to `release-fixed/`:
 
 Packaging currently includes application icons, installer icons, sample resources, and `resources/dist` for packaged Web export.
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 ### Sample assets are missing after opening a sample
 
@@ -221,3 +243,6 @@ Windows may cache shortcut icons. Uninstall the old version, install the new one
 ### Colliders are not visible during play
 
 Debug visuals are hidden by default. Enable Debug Play next to the play button.
+
+
+

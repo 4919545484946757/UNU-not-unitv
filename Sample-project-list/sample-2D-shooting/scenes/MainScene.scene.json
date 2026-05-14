@@ -2629,15 +2629,20 @@
               "text": "",
               "fontSize": 16,
               "textColor": 16777215,
-              "width": 440,
-              "height": 430,
+              "width": 560,
+              "height": 540,
               "backgroundColor": 1056816,
               "anchorX": 0.5,
               "anchorY": 0.5,
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "autoWidth": false,
+              "autoHeight": false,
+              "layout": "none",
+              "paddingX": 18,
+              "paddingY": 12
             }
           }
         ]
@@ -2680,7 +2685,14 @@
               "interactable": false,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": ""
+              "onClickScriptPath": "",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 260,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           }
         ]
@@ -2723,7 +2735,14 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -2778,7 +2797,14 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -2833,7 +2859,14 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -2888,7 +2921,14 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -2943,7 +2983,14 @@
               "interactable": false,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": ""
+              "onClickScriptPath": "",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 260,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           }
         ]
@@ -2986,7 +3033,14 @@
               "interactable": false,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": ""
+              "onClickScriptPath": "",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           }
         ]
@@ -3029,7 +3083,14 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -3047,6 +3108,68 @@
         ]
       },
       {
+        "id": "pause_menu_reset_hotkeys_mainscene",
+        "name": "PauseMenu_ResetHotkeys",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 158,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "重置快捷键",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 42,
+              "backgroundColor": 5196399,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"resetHotkeys\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
         "id": "pause_menu_done_mainscene",
         "name": "PauseMenu_Done",
         "components": [
@@ -3055,7 +3178,7 @@
             "data": {
               "type": "Transform",
               "x": 0,
-              "y": 146,
+              "y": 212,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -3084,7 +3207,14 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/pause-menu-action.js"
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -3110,7 +3240,7 @@
             "data": {
               "type": "Transform",
               "x": 0,
-              "y": -64,
+              "y": -214,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -3139,7 +3269,14 @@
               "interactable": false,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": ""
+              "onClickScriptPath": "",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 260,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           }
         ]
@@ -3153,7 +3290,7 @@
             "data": {
               "type": "Transform",
               "x": 0,
-              "y": 12,
+              "y": -164,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -3171,18 +3308,25 @@
               "type": "UI",
               "enabled": false,
               "mode": "text",
-              "text": "该页面为预留功能\n后续可在这里编辑键鼠映射",
-              "fontSize": 18,
+              "text": "点击要修改的动作，然后按下新的键或鼠标按钮\n改键会保存在本机，导出 Web 后也可使用",
+              "fontSize": 15,
               "textColor": 15461887,
-              "width": 340,
-              "height": 82,
+              "width": 520,
+              "height": 54,
               "backgroundColor": 1978958,
               "anchorX": 0.5,
               "anchorY": 0.5,
               "interactable": false,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": ""
+              "onClickScriptPath": "",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 220,
+              "minHeight": 48,
+              "paddingX": 16,
+              "paddingY": 8
             }
           }
         ]
@@ -3228,7 +3372,14 @@
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
               "sliderValue": 1,
               "sliderMin": 0,
-              "sliderMax": 1
+              "sliderMax": 1,
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -3286,7 +3437,14 @@
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
               "sliderValue": 1,
               "sliderMin": 0,
-              "sliderMax": 1
+              "sliderMax": 1,
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
             }
           },
           {
@@ -3296,6 +3454,564 @@
               "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"difficulty\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keymoveleft_mainscene",
+        "name": "PauseMenu_KeyMoveLeft",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -150,
+              "y": -78,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "左移: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_left\",\n  \"label\": \"左移\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keymoveright_mainscene",
+        "name": "PauseMenu_KeyMoveRight",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 150,
+              "y": -78,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "右移: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_right\",\n  \"label\": \"右移\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keyjump_mainscene",
+        "name": "PauseMenu_KeyJump",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -140,
+              "y": 64,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": false,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keyfire_mainscene",
+        "name": "PauseMenu_KeyFire",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 150,
+              "y": 10,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "射击: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"fire\",\n  \"label\": \"射击\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keyinteract_mainscene",
+        "name": "PauseMenu_KeyInteract",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -150,
+              "y": 54,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "交互: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"interact\",\n  \"label\": \"交互\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keymenu_mainscene",
+        "name": "PauseMenu_KeyMenu",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 150,
+              "y": 54,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "菜单: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"menu\",\n  \"label\": \"菜单\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keymoveup_mainscene",
+        "name": "PauseMenu_KeyMoveUp",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -150,
+              "y": -34,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "上移: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_up\",\n  \"label\": \"上移\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keymovedown_mainscene",
+        "name": "PauseMenu_KeyMoveDown",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 150,
+              "y": -34,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "下移: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_down\",\n  \"label\": \"下移\"\n}",
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "pause_menu_keysprint_mainscene",
+        "name": "PauseMenu_KeySprint",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -150,
+              "y": 10,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 903,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "button",
+              "text": "疾跑: ...",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 240,
+              "height": 38,
+              "backgroundColor": 3429002,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "parentId": "PauseMenu_Backdrop",
+              "autoWidth": true,
+              "autoHeight": true,
+              "minWidth": 220,
+              "minHeight": 36,
+              "paddingX": 16,
+              "paddingY": 8
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "enabled": true,
+              "scriptPath": "assets/scripts/pause-menu-action.js",
+              "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"sprint\",\n  \"label\": \"疾跑\"\n}",
               "instance": null,
               "initialized": false,
               "started": false

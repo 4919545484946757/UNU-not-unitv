@@ -5,6 +5,7 @@
     move_up: ['KeyW', 'ArrowUp'],
     move_down: ['KeyS', 'ArrowDown'],
     pause: ['Space', 'KeyP'],
+    menu: ['Escape'],
     restart: ['KeyR', 'Enter']
   }
 }

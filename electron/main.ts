@@ -1568,6 +1568,9 @@ async function importFiles(projectRoot: string, files: string[], targetDir: stri
 
 async function saveTextAsset(payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string; subdir?: string; title?: string; filterName?: string }) {
   let targetPath = payload.filePath
+  if (targetPath && payload.projectRoot && !path.isAbsolute(targetPath)) {
+    targetPath = path.join(payload.projectRoot, targetPath)
+  }
   if (!targetPath) {
     const defaultPath = path.join(payload.projectRoot || app.getPath('documents'), payload.subdir || '', payload.suggestedName || 'Asset.json')
     const result = await dialog.showSaveDialog({
@@ -1828,7 +1831,9 @@ async function resolveWebDistRoot() {
     ? [
         path.join(process.resourcesPath, 'dist'),
         path.join(process.resourcesPath, 'app.asar.unpacked', 'dist'),
-        path.join(process.cwd(), 'dist')
+        path.join(path.dirname(app.getAppPath()), 'dist'),
+        path.join(process.cwd(), 'dist'),
+        path.join(app.getAppPath(), 'dist')
       ]
     : [
         path.join(process.cwd(), 'dist'),
@@ -1873,6 +1878,46 @@ async function patchExportIndexHtml(indexPath: string, projectName?: string) {
     )
   }
   await fs.writeFile(indexPath, html, 'utf-8')
+}
+
+function normalizeExportSceneFileReference(value: unknown) {
+  const raw = String(value || '').replace(/\\/g, '/').trim()
+  if (!raw) return ''
+  const withoutPrefix = raw.replace(/^\.?\//, '').replace(/^scenes\//i, '')
+  return withoutPrefix.split('/').filter(Boolean).pop() || withoutPrefix
+}
+
+async function writeNormalizedExportProjectFile(projectRoot: string, outputDir: string, projectName: string) {
+  const sourceProjectFile = path.join(projectRoot, 'project.json')
+  const outputProjectFile = path.join(outputDir, 'project.json')
+  let parsed: Record<string, any> = {}
+  try {
+    const raw = await fs.readFile(sourceProjectFile, 'utf-8')
+    const json = JSON.parse(raw)
+    if (json && typeof json === 'object') parsed = json
+  } catch {
+    parsed = {}
+  }
+
+  const sceneFiles = await collectSceneFileNames(outputDir)
+  const catalog = sceneFiles.map((file) => ({ file, name: parseSceneBaseName(file) }))
+  const previousStartup = normalizeExportSceneFileReference(parsed.startupScene)
+  const startupScene =
+    sceneFiles.find((file) => file.toLowerCase() === previousStartup.toLowerCase()) ||
+    sceneFiles[0] ||
+    ''
+
+  const payload = {
+    ...parsed,
+    format: 'unu-project',
+    version: 1,
+    name: String(parsed.name || projectName || '').trim() || projectName,
+    sceneCatalogVersion: 1,
+    sceneCatalog: catalog,
+    startupScene
+  }
+  await fs.writeFile(outputProjectFile, JSON.stringify(payload, null, 2), 'utf-8')
+  return { sceneCatalog: catalog, startupScene }
 }
 
 async function writeExportLaunchFiles(outputDir: string, projectName?: string) {
@@ -2185,10 +2230,10 @@ app.whenReady().then(() => {
     await fs.mkdir(outputDir, { recursive: true })
     await fs.cp(distRoot, outputDir, { recursive: true, force: true })
 
-    await copyIfExists(path.join(projectRoot, 'project.json'), path.join(outputDir, 'project.json'))
     await copyIfExists(path.join(projectRoot, 'assets'), path.join(outputDir, 'assets'))
     await copyIfExists(path.join(projectRoot, 'scenes'), path.join(outputDir, 'scenes'))
     await copyIfExists(path.join(projectRoot, 'prefabs'), path.join(outputDir, 'prefabs'))
+    const exportProject = await writeNormalizedExportProjectFile(projectRoot, outputDir, projectName)
 
     const indexPath = path.join(outputDir, 'index.html')
     await patchExportIndexHtml(indexPath, projectName)
@@ -2203,8 +2248,9 @@ app.whenReady().then(() => {
       outputDir,
       indexPath,
       launchScript: path.join(outputDir, 'PLAY_GAME.bat'),
-      sceneCount: reconcile.sceneCount,
-      startupScene: reconcile.startupScene,
+      sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
+      startupScene: exportProject.startupScene || reconcile.startupScene,
+      sceneCatalog: exportProject.sceneCatalog,
       assetCount,
       assetIntegrityRepaired: integrity.repaired,
       normalizedSceneFiles: integrity.normalizedSceneFiles,
@@ -2223,8 +2269,13 @@ app.whenReady().then(() => {
       ok: true,
       outputDir,
       indexPath,
-      sceneCount: reconcile.sceneCount,
-      assetCount
+      launchScript: path.join(outputDir, 'PLAY_GAME.bat'),
+      reportPath: path.join(outputDir, 'export-report.json'),
+      sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
+      startupScene: exportProject.startupScene || reconcile.startupScene,
+      assetCount,
+      assetIntegrityRepaired: integrity.repaired,
+      unresolvedAssets: integrity.unresolvedAssets
     }
   })
 

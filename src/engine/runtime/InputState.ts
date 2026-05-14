@@ -81,7 +81,9 @@ export class InputState {
   private worldScale = 1
   private readonly actionMap: InputActionMap
   private projectActionMap: InputActionMap | null = null
+  private userActionMap: InputActionMap | null = null
   private projectHooks: InputRuntimeHooks = {}
+  private storageKey = ''
   private attached = false
 
   constructor(actionMap: InputActionMap = defaultActionMap) {
@@ -92,6 +94,56 @@ export class InputState {
     const loaded = parseProjectInputRuntime(sourceCode, scriptPath)
     this.projectHooks = loaded
     this.projectActionMap = loaded.actionMap && typeof loaded.actionMap === 'object' ? loaded.actionMap : null
+  }
+
+  setStorageKey(storageKey: string) {
+    this.storageKey = String(storageKey || '').trim()
+    this.loadUserActionMap()
+  }
+
+  getActionMap() {
+    const merged: InputActionMap = {}
+    for (const [action, bindings] of Object.entries(this.actionMap)) merged[action] = [...bindings]
+    for (const [action, bindings] of Object.entries(this.projectActionMap || {})) merged[action] = [...bindings]
+    for (const [action, bindings] of Object.entries(this.userActionMap || {})) merged[action] = [...bindings]
+    return merged
+  }
+
+  getActionBindings(action: string) {
+    return [...(this.resolveActionBindings(action) || [])]
+  }
+
+  setActionBindings(action: string, bindings: string[]) {
+    const normalizedAction = String(action || '').trim()
+    if (!normalizedAction) return
+    const normalizedBindings = Array.from(new Set(
+      bindings.map((binding) => String(binding || '').trim()).filter(Boolean)
+    ))
+    this.userActionMap = {
+      ...(this.userActionMap || {}),
+      [normalizedAction]: normalizedBindings
+    }
+    this.saveUserActionMap()
+  }
+
+  resetActionBindings(action?: string) {
+    const normalizedAction = String(action || '').trim()
+    if (!normalizedAction) {
+      this.userActionMap = null
+      this.saveUserActionMap()
+      return
+    }
+    const next = { ...(this.userActionMap || {}) }
+    delete next[normalizedAction]
+    this.userActionMap = Object.keys(next).length ? next : null
+    this.saveUserActionMap()
+  }
+
+  getPressedBindings() {
+    return [
+      ...Array.from(this.keysPressedThisFrame),
+      ...Array.from(this.mousePressedThisFrame).map((button) => `Mouse${button}`)
+    ]
   }
 
   attach() {
@@ -296,9 +348,33 @@ export class InputState {
   }
 
   private resolveActionBindings(action: string) {
+    const userBindings = this.userActionMap?.[action]
+    if (Array.isArray(userBindings) && userBindings.length) return userBindings
     const projectBindings = this.projectActionMap?.[action]
     if (Array.isArray(projectBindings) && projectBindings.length) return projectBindings
     return this.actionMap[action]
+  }
+
+  private loadUserActionMap() {
+    if (!this.storageKey || typeof localStorage === 'undefined') {
+      this.userActionMap = null
+      return
+    }
+    try {
+      const raw = localStorage.getItem(this.storageKey)
+      this.userActionMap = normalizeInputActionMap(raw ? JSON.parse(raw) : null)
+    } catch {
+      this.userActionMap = null
+    }
+  }
+
+  private saveUserActionMap() {
+    if (!this.storageKey || typeof localStorage === 'undefined') return
+    try {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.userActionMap || {}))
+    } catch {
+      // Ignore storage failures; the runtime mapping still applies for this session.
+    }
   }
 
   getMousePosition() {

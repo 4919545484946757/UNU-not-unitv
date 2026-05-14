@@ -4,7 +4,7 @@
 
 UNU Engine Starter is a desktop 2D game editor and runtime sample project built with `Vue 3 + Pinia + PixiJS 8 + Electron`. It is designed to grow beyond a demo shell into a lightweight engine that can support real 2D game development workflows: project management, scene editing, asset management, components, project-level scripts, animation state machines, Tilemap editing, UI, audio, packaging, and Web export.
 
-- Documentation updated: `2026-05-10`
+- Documentation updated: `2026-05-15`
 - Project version: `0.1.1`
 - Current focus: desktop 2D game editor + exportable Web game runtime
 
@@ -24,7 +24,7 @@ UNU Engine Starter is a desktop 2D game editor and runtime sample project built 
 - Supports recent projects, local projects, sample projects, and new projects.
 - New projects are created inside a same-name folder under the selected parent directory.
 - Supports project rename and deletion.
-- The sample list is separated from user projects. The current `2D Action Demo` uses `Sample-project-list/sample-2D-shooting`.
+- The sample list is separated from user projects. Current samples include `2D Action Demo` (`Sample-project-list/sample-2D-shooting`) and `Snake` (`Sample-project-list/Snake`).
 - Project opening automatically scans and repairs scene catalogs, resource paths, and missing project runtime script files.
 - Packaged samples are copied from `resources/Sample-project-list` into user data before editing, so installed app resources stay read-only.
 
@@ -47,7 +47,7 @@ UNU Engine Starter is a desktop 2D game editor and runtime sample project built 
 - Play-mode selection and edit-mode selection are separated.
 - Debug visuals such as colliders, bounds, Tilemap grids, entity names, and interaction labels are hidden by default during normal play.
 - A debug play toggle next to the play button can show those debug visuals.
-- Input system supports keyboard, mouse, and action mapping.
+- Input system supports keyboard, mouse, action mapping, the editor keymap dialog, and project-script key rebinding.
 - Sample Player features:
   - `W/A/S/D` movement with normalized diagonal speed.
   - Hold `Shift` to sprint at speed `280`.
@@ -59,7 +59,7 @@ UNU Engine Starter is a desktop 2D game editor and runtime sample project built 
 - `isBlockedRect` is used by both Player and Enemy for consistent collision blocking.
 - Interactions are triggered by right-clicking an interactable entity within range.
 - Door interaction switches scenes through script.
-- Chest interaction cycles material colors through script.
+- Chest interaction cycles material colors through script. The `Snake` sample provides classic Snake gameplay, an Esc menu, game-over menu, difficulty switching, and reset key bindings.
 
 ### Project-Level Runtime Scripts
 
@@ -70,7 +70,7 @@ UNU is moving from editor-hardcoded gameplay logic to project-owned runtime logi
 - Each project can have its own `assets/scripts/AudioRuntime.ts`.
 - Sample gameplay logic such as Player, Enemy, Bullet, Door, Chest, and background switching is driven by files in the project asset tree.
 - The script editor can open, edit, and save `.ts`, `.js`, `.json`, `.anim.json`, and other text resources.
-- The script editor supports syntax highlighting and horizontal scrolling.
+- The script editor supports syntax highlighting, horizontal scrolling, find/replace, and detached editor windows. Saving with `Ctrl/Cmd + S` triggers project script hot reload.
 
 ### Console And Performance Monitoring
 
@@ -93,7 +93,7 @@ Current built-in components:
 - `Background`: background image, camera-follow behavior, and script switching.
 - `Interactable`: interaction range, action, and visual prompt.
 - `Audio`: basic runtime audio control.
-- `UI`: text, buttons, Markdown, and HTML Overlay.
+- `UI`: text, buttons, sliders, Markdown, HTML Overlay, parent-child hierarchy, and content-based auto sizing.
 - `Tilemap`: tile layers, collision layers, and value-to-material mapping.
 
 ### Tilemap
@@ -133,11 +133,12 @@ Current built-in components:
 
 ### UI
 
-- Supports UI Text entity creation.
+- Supports UI Text, Button, Slider, and HTML UI entity creation.
 - Supports multiline text rendering.
 - Inspector text fields support multiline input.
 - Supports basic Markdown rendering.
 - Supports DOM Overlay based HTML UI for more complex layout.
+- Supports UI parent-child hierarchy, viewport-relative positioning, content-based auto sizing, and button script events.
 
 ### Assets And Sample Materials
 
@@ -248,7 +249,8 @@ Build artifacts are written to `release-fixed/`.
 |   |-- ROADMAP.zh-CN.md
 |   `-- ROADMAP.en-US.md
 |-- Sample-project-list/
-|   `-- sample-2D-shooting/
+|   |-- sample-2D-shooting/
+|   `-- Snake/
 |-- sample-project/
 |-- assets-for-sample/
 |-- scripts/
@@ -318,7 +320,11 @@ Type declarations are in `src/vite-env.d.ts`. Renderer code calls APIs through `
 ## Known Limitations
 
 - The main frontend chunk is still large and may trigger Vite's `>500KB` warning. Code splitting is planned.
-- Project-level scripts are supported, but full hot reload, breakpoint debugging, and type-hinting workflows are not complete yet.
+- Project-level scripts support hot reload and error location, but full breakpoint debugging and polished type-hinting workflows are not complete yet.
 - The animation state machine has visual preview but not a full node-link editor.
 - The graphical Tilemap editor works, but very large map performance can still improve.
-- Web export currently targets static files and local HTTP preview. More publishing targets such as itch.io or GitHub Pages can be added later.
+- Web export currently targets static files and local HTTP preview. ZIP, itch.io, and GitHub Pages templates can be added later.
+
+
+
+

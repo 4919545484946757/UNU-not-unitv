@@ -264,7 +264,16 @@ export function deserializeEntity(entityData: SerializedEntity) {
             String(data.onClickScriptPath ?? ''),
             Number(data.sliderValue ?? 1),
             Number(data.sliderMin ?? 0),
-            Number(data.sliderMax ?? 1)
+            Number(data.sliderMax ?? 1),
+            String(data.parentId ?? ''),
+            data.layout === 'vertical' || data.layout === 'horizontal' ? data.layout : 'none',
+            Number(data.layoutGap ?? 8),
+            Number(data.paddingX ?? 14),
+            Number(data.paddingY ?? 8),
+            Boolean(data.autoWidth ?? false),
+            Boolean(data.autoHeight ?? false),
+            Number(data.minWidth ?? 1),
+            Number(data.minHeight ?? 1)
           )
         )
         break

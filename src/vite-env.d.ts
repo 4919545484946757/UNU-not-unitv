@@ -107,8 +107,13 @@ declare global {
         ok: boolean
         outputDir?: string
         indexPath?: string
+        launchScript?: string
+        reportPath?: string
         sceneCount?: number
+        startupScene?: string
         assetCount?: number
+        assetIntegrityRepaired?: boolean
+        unresolvedAssets?: number
         error?: string
       } | null>
       openTilemapEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>

@@ -1,51 +1,44 @@
-# UNU Script API Cheat Sheet
+﻿# UNU Script API Cheat Sheet
 
 English | [中文](SCRIPT_API.zh-CN.md)
 
-This is a quick reference for UNU project scripts. Use it when writing Player, Enemy, bullet, door, pickup, trap, UI hint, or scene transition logic in the script editor.
+Updated: `2026-05-15`
+
+This is a quick reference for UNU project scripts. Use it when writing Player, Enemy, bullet, door, pickup, trap, UI button, pause menu, key rebinding, or scene transition logic in the script editor.
 
 ## Script Entry
 
-Each project can own its runtime script file, usually at:
+Each project can own its runtime files, usually at:
 
 ```text
 assets/scripts/ScriptRuntime.ts
+assets/scripts/InputState.ts
+assets/scripts/AudioRuntime.ts
 ```
 
-An entity `Script` component binds to a script with `scriptPath`. At runtime, UNU looks up the same path in the exported `scripts` table and calls the matching hooks.
+An entity `Script` component binds to a script through `scriptPath`. At runtime, UNU resolves that path in the project script registry and calls the matching hooks.
 
-UNU also supports a "project-level shared scripts + optional scene-level scripts" convention:
+UNU supports a project-level shared script plus optional scene-level script convention:
 
 ```text
 assets/scripts/shared/              # Reusable by any scene
-assets/scripts/interactions/        # Reusable entity interaction scripts, such as doors, chests, pickups
+assets/scripts/interactions/        # Reusable interaction scripts, such as doors, chests, pickups
 assets/scripts/scenes/MainScene/    # MainScene-only scripts
 assets/scripts/scenes/SecondScene/  # SecondScene-only scripts
 ```
 
-Scripts in these folders can directly export a Hook object. The file path becomes the entity `Script.scriptPath`.
+Files in these folders can directly export a hook object. The file path becomes the entity `Script.scriptPath`.
 
 ```ts
-export const scripts = {
-  'assets/scripts/player.js': {
-    onUpdate(ctx) {
-      const transform = ctx.entity.getTransform()
-      const move = ctx.api.input.getMoveVector(true)
-      if (!transform) return
-
-      const speed = ctx.api.input.isActionDown('sprint') ? 280 : 140
-      transform.x += move.x * speed * ctx.api.delta
-      transform.y += move.y * speed * ctx.api.delta
-    }
-  }
-}
-```
-
-```ts
-// assets/scripts/scenes/SecondScene/player-platformer.js
 export default {
   onUpdate(ctx) {
-    ctx.api.log('SecondScene only')
+    const transform = ctx.entity.getTransform()
+    if (!transform) return
+
+    const move = ctx.api.input.getMoveVector(true)
+    const speed = ctx.api.input.isActionDown('sprint') ? 280 : 140
+    transform.x += move.x * speed * ctx.api.delta
+    transform.y += move.y * speed * ctx.api.delta
   }
 }
 ```
@@ -59,7 +52,9 @@ export default {
 | `onEnterScene(ctx)` | Entity enters a scene | Restore state, refresh UI |
 | `onExitScene(ctx)` | Entity exits a scene | Save state, stop audio |
 | `onUpdate(ctx)` | Every frame | Movement, AI, input, timers |
+| `onPausedUpdate(ctx)` | While the game is paused | Pause menus, key capture, settings UI |
 | `onInteract(ctx)` | Interactable entity is used | Doors, chests, NPCs, switches |
+| `onUiClick(ctx)` | UI Button / Slider is operated | Menu buttons, volume, difficulty, key rebinding |
 | `onCollisionEnter(ctx)` | Collision starts | Bullet hits, damage, landing |
 | `onCollisionStay(ctx)` | Collision continues | Pushing, sustained damage |
 | `onCollisionExit(ctx)` | Collision ends | Leaving ground or zones |
@@ -76,7 +71,7 @@ Every hook receives `ctx`:
 | --- | --- | --- |
 | `ctx.entity` | `Entity` | The entity running this script |
 | `ctx.scene` | `Scene` | The active scene |
-| `ctx.event` | `ScriptEvent \| undefined` | Collision, trigger, or scene event data |
+| `ctx.event` | `ScriptEvent \| undefined` | Collision, trigger, scene, or UI event data |
 | `ctx.api` | `Script API` | Runtime helpers exposed by the engine |
 
 ## Component Access
@@ -86,9 +81,10 @@ const transform = ctx.entity.getTransform()
 const sprite = ctx.entity.getComponent('Sprite')
 const collider = ctx.entity.getComponent('Collider')
 const script = ctx.entity.getComponent('Script')
+const ui = ctx.entity.getComponent('UI')
 ```
 
-Always check for missing components before using them. This keeps scripts safe when they are assigned to different entity types.
+Always check for missing components before using them.
 
 ## Time, State, And Logs
 
@@ -101,12 +97,6 @@ Always check for missing components before using them. This keeps scripts safe w
 | `ctx.api.warn(...values)` | Writes a warning to Console |
 | `ctx.api.error(...values)` | Writes an error to Console |
 
-```ts
-const state = ctx.api.getState<{ timer?: number }>(ctx.entity)
-state.timer = (state.timer ?? 0) + ctx.api.delta
-ctx.api.log(`[${ctx.entity.id}] timer`, state.timer)
-```
-
 ## Input API
 
 | API | Description |
@@ -114,16 +104,20 @@ ctx.api.log(`[${ctx.entity.id}] timer`, state.timer)
 | `ctx.api.input.isKeyDown(code)` | Checks a keyboard code, such as `KeyW` or `ShiftLeft` |
 | `ctx.api.input.isMouseDown(button?)` | Checks a mouse button. Left `0`, middle `1`, right `2` |
 | `ctx.api.input.wasMousePressed(button?)` | True only on the frame the mouse button was pressed |
-| `ctx.api.input.isActionDown(action)` | Checks an action, such as `move_left`, `shoot`, or `sprint` |
+| `ctx.api.input.isActionDown(action)` | Checks an action, such as `move_left`, `fire`, or `sprint` |
 | `ctx.api.input.wasActionPressed(action)` | True only on the frame the action was pressed |
 | `ctx.api.input.wasActionReleased(action)` | True only on the frame the action was released |
 | `ctx.api.input.getAxis('horizontal' \| 'vertical')` | Reads a movement axis |
 | `ctx.api.input.getMoveVector(normalized?)` | Reads the movement vector. Use `true` to prevent diagonal overspeed |
 | `ctx.api.input.getMousePosition()` | Gets the mouse world position |
+| `ctx.api.input.getActionMap?.()` | Gets the merged default, project, and user action map |
+| `ctx.api.input.getActionBindings?.(action)` | Gets current bindings for an action |
+| `ctx.api.input.setActionBindings?.(action, bindings)` | Sets user bindings for an action |
+| `ctx.api.input.resetActionBindings?.(action?)` | Resets one action, or all user bindings when no action is passed |
+| `ctx.api.input.getPressedBindings?.()` | Gets keys or mouse buttons pressed this frame; useful for key rebinding |
 
 ```ts
-const move = ctx.api.input.getMoveVector(true)
-if (ctx.api.input.wasActionPressed('shoot')) {
+if (ctx.api.input.wasActionPressed('fire')) {
   const mouse = ctx.api.input.getMousePosition()
   ctx.api.spawnBullet(ctx.entity, {
     targetX: mouse.x,
@@ -134,6 +128,40 @@ if (ctx.api.input.wasActionPressed('shoot')) {
 }
 ```
 
+Key rebinding example:
+
+```ts
+const pressed = ctx.api.input.getPressedBindings?.() || []
+const next = pressed[0]
+if (next) ctx.api.input.setActionBindings?.('move_left', [next])
+```
+
+## UI Event API
+
+UI Buttons and Sliders call `onUiClick(ctx)` during play mode. If a script has no `onUiClick`, UNU falls back to `onInteract` for compatibility.
+
+```ts
+export default {
+  onUiClick(ctx) {
+    const ui = ctx.event?.type === 'uiClick' ? ctx.event.ui : null
+    if (!ui) return
+
+    if (ui.mode === 'slider') {
+      ctx.api.audio.setMasterVolume(Number(ui.sliderValue || 0))
+    }
+  }
+}
+```
+
+UI event fields:
+
+| Field | Description |
+| --- | --- |
+| `event.type` | `uiClick` |
+| `event.ui` | The operated UI component |
+| `event.value` | Numeric value for controls such as sliders |
+| `event.pointer` | Pointer position |
+
 ## Scene And Entity API
 
 | API | Description |
@@ -143,6 +171,11 @@ if (ctx.api.input.wasActionPressed('shoot')) {
 | `ctx.api.removeEntity(target)` | Removes an entity safely through the runtime mutation queue |
 | `ctx.api.spawnEntity(entity)` | Spawns an entity safely through the runtime mutation queue |
 | `ctx.api.switchScene(sceneName, options?)` | Requests a scene switch |
+| `ctx.api.pauseGame()` | Requests game pause |
+| `ctx.api.resumeGame()` | Requests game resume |
+| `ctx.api.togglePause()` | Requests pause toggle |
+| `ctx.api.resetGame()` | Requests runtime game reset |
+| `ctx.api.exitGame()` | Requests Web game exit or editor-context return |
 
 `switchScene` options:
 
@@ -150,13 +183,6 @@ if (ctx.api.input.wasActionPressed('shoot')) {
 | --- | --- |
 | `targetSpawnId` | Spawn point entity ID to place the player at |
 | `sceneStateMode` | `preserve` keeps scene state, `reset` reloads scene state |
-
-```ts
-ctx.api.switchScene('SecondScene', {
-  targetSpawnId: 'Spawn_From_Main',
-  sceneStateMode: 'preserve'
-})
-```
 
 ## Collision And Trigger API
 
@@ -168,38 +194,7 @@ ctx.api.switchScene('SecondScene', {
 | `ctx.api.findEnemyOverlap(target?, matcher?)` | Finds an Enemy-like entity overlapping the target |
 | `ctx.api.moveTowards(source, target, speed, useCollision?)` | Moves an entity toward another entity, optionally using collision blocking |
 
-Collision and trigger events expose `ctx.event`:
-
-| Field | Description |
-| --- | --- |
-| `event.type` | `collisionEnter`, `collisionStay`, `collisionExit`, `triggerEnter`, `triggerStay`, or `triggerExit` |
-| `event.other` | The other entity |
-| `event.selfCollider` | This entity's collider |
-| `event.otherCollider` | The other entity's collider |
-
-```ts
-onCollisionEnter(ctx) {
-  const event = ctx.event
-  if (!event || !('other' in event)) return
-
-  if (event.other.name.startsWith('Enemy')) {
-    ctx.api.removeEntity(event.other)
-    ctx.api.log(`[${event.other.id}] destroyed`)
-  }
-}
-```
-
-`findEnemyOverlap` matcher example:
-
-```ts
-ctx.api.findEnemyOverlap(ctx.entity, {
-  idPrefix: 'Enemy_',
-  namePrefix: 'Enemy',
-  scriptPathPrefix: 'assets/scripts/enemy',
-  requireCollider: true,
-  requireSprite: true
-})
-```
+Collision and trigger events expose `ctx.event` with `type`, `other`, `selfCollider`, and `otherCollider`.
 
 ## Gameplay Helpers
 
@@ -208,25 +203,7 @@ ctx.api.findEnemyOverlap(ctx.entity, {
 | `ctx.api.spawnEnemyLike(source?, options?)` | Spawns a new Enemy based on an existing Enemy template |
 | `ctx.api.spawnBullet(source?, options?)` | Spawns a bullet from an entity position |
 
-`spawnEnemyLike` options:
-
-| Field | Description |
-| --- | --- |
-| `x`, `y` | Explicit spawn position |
-| `avoidX`, `avoidY` | Position to avoid |
-| `minDistance` | Minimum distance from the avoided position |
-
-`spawnBullet` options:
-
-| Field | Description |
-| --- | --- |
-| `angle` | Bullet direction in radians |
-| `targetX`, `targetY` | Fire toward this world position |
-| `speed` | Bullet speed |
-| `life` | Lifetime in seconds |
-| `maxDistance` | Maximum travel distance |
-| `width`, `height` | Bullet size |
-| `tint` | Bullet color |
+Common `spawnBullet` options: `angle`, `targetX`, `targetY`, `speed`, `life`, `maxDistance`, `width`, `height`, `tint`.
 
 ## Background And Audio API
 
@@ -242,55 +219,13 @@ ctx.api.findEnemyOverlap(ctx.entity, {
 | `ctx.api.audio.getMasterVolume()` | Gets master volume |
 | `ctx.api.audio.getGroupVolume(group)` | Gets an audio group volume |
 
-```ts
-await ctx.api.audio.playOneShot('assets/audio/hit.wav', {
-  group: 'sfx',
-  volume: 0.8
-})
-```
-
 ## Interaction JSON Actions
 
-The sample project registers `custom://interaction` in `assets/scripts/ScriptRuntime.ts`. Interactable entities can use JSON in the `Script` component to define behavior. These interaction actions live in project script code, so users can freely edit them inside the project instead of relying on hard-coded engine behavior:
+The sample project registers `custom://interaction` in `assets/scripts/ScriptRuntime.ts`. Interactable entities can use JSON in the `Script` component to define behavior. These actions are project script logic, so users can freely edit them inside the project.
 
-```json
-{
-  "onInteract": [
-    {
-      "type": "switchScene",
-      "scene": "SecondScene",
-      "targetSpawnId": "Spawn_From_Main",
-      "sceneStateMode": "preserve"
-    }
-  ]
-}
-```
+Supported actions include `sequence`, `randomOne`, `switchScene`, `setBackgroundTexture`, `cycleBackgroundTexture`, `setTexture`, `cycleTexture`, `setTint`, `cycleTint`, `toggleVisible`, `setInteractDistance`, and `removeEntity`.
 
-Supported actions:
-
-| `type` | Description |
-| --- | --- |
-| `sequence` | Runs multiple actions in order |
-| `randomOne` | Picks and runs one action |
-| `switchScene` | Switches scene |
-| `setBackgroundTexture` | Sets background texture |
-| `cycleBackgroundTexture` | Cycles background textures |
-| `setTexture` | Sets target Sprite texture |
-| `cycleTexture` | Cycles target Sprite texture |
-| `setTint` | Sets target color |
-| `cycleTint` | Cycles target color |
-| `toggleVisible` | Toggles target Sprite visibility |
-| `setInteractDistance` | Sets interact distance |
-| `removeEntity` | Removes target entity |
-
-`target` accepts:
-
-| Value | Target |
-| --- | --- |
-| Empty or `self` | Current entity |
-| `selected` | Current editor-selected entity |
-| `id:EntityId` | Entity with the given ID |
-| `EntityName` | Entity with the given name |
+`target` accepts empty or `self`, `selected`, `id:EntityId`, or an entity name.
 
 ## Debugging Tips
 
@@ -298,4 +233,4 @@ Supported actions:
 - Use `getMoveVector(true)` for movement to avoid faster diagonal movement.
 - Use `sceneStateMode: 'preserve'` for scene transitions by default, and `reset` only when you need a clean scene.
 - Bullets, temporary effects, and drops should have lifetime or distance limits to avoid entity buildup.
-- Put collision logic in `onCollisionEnter/Stay/Exit` or `onTriggerEnter/Stay/Exit` so it works cleanly with collision layers, matrices, and Trigger areas.
+- Use `onPausedUpdate` and `onUiClick` for pause menus, settings menus, and key rebinding UI.
