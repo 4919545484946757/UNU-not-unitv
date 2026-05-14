@@ -14,6 +14,44 @@
       </div>
 
       <div class="group">
+        <div class="group-title">Script</div>
+        <template v-if="script">
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="script.enabled" @change="setScriptEnabled" />
+            Enabled
+          </label>
+          <label>
+            Script Path
+            <input :value="script.scriptPath" placeholder="assets/scripts/example.js 或 builtin://..." @input="setScriptPath" />
+          </label>
+          <div class="script-link-card">
+            <div>
+              <strong>Bound Script</strong>
+              <span>{{ script.scriptPath || '未设置脚本路径，将只使用实体内联配置。' }}</span>
+            </div>
+            <button class="small" :disabled="!canOpenScriptAsset" @click="void openBoundScriptAsset()">打开脚本文件</button>
+          </div>
+          <div class="asset-picker">
+            <button :disabled="!selectedScriptAssetPath" @click="bindSelectedScriptAsset">Use Selected Script</button>
+            <span>{{ selectedScriptAssetPath || 'Select a script/text asset in Asset Tree first' }}</span>
+          </div>
+          <div class="row-inline">
+            <button class="small" @click="openScriptPanelForEntity">编辑配置</button>
+            <button class="small" @click="openEntityScriptCodeEditor">独立窗口编辑配置</button>
+            <button class="small danger" :disabled="runtime.isPlaying" @click="removeScriptComponent">移除 Script</button>
+          </div>
+          <div class="tips">Script Path 指向项目脚本逻辑；实体配置内容请在 Script 面板或独立窗口中编辑。</div>
+        </template>
+        <template v-else>
+          <div class="tips">Current entity does not have Script component.</div>
+          <div class="row-inline">
+            <button class="small" :disabled="runtime.isPlaying" @click="addScriptComponent">Add Script Component</button>
+            <button class="small" :disabled="runtime.isPlaying || !selectedScriptAssetPath" @click="addScriptComponentFromSelectedAsset">Use Selected Script</button>
+          </div>
+        </template>
+      </div>
+
+      <div class="group">
         <div class="group-title">Transform</div>
         <label>X <input type="number" :value="transform.x" @input="setNumber('transform', 'x', $event)" /></label>
         <label>Y <input type="number" :value="transform.y" @input="setNumber('transform', 'y', $event)" /></label>
@@ -515,12 +553,14 @@ import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
+import { useEditorStore } from '../../stores/editor'
 
 const assets = useAssetStore()
 const project = useProjectStore()
 const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
+const editor = useEditorStore()
 
 const activeScene = computed(() => {
   if (runtime.isPlaying && sceneStore.runtimeScene) {
@@ -554,6 +594,18 @@ const interactableTextureCycleBuffer = ref('')
 const interactableTintCycleBuffer = ref('')
 const collisionLayers = COLLISION_LAYERS
 
+const selectedScriptAssetPath = computed(() => {
+  const asset = assets.selectedAsset
+  if (!asset) return ''
+  if (asset.type === 'script' || asset.type === 'animation' || asset.type === 'atlas' || asset.type === 'scene' || asset.type === 'prefab') return asset.path
+  return ''
+})
+
+const canOpenScriptAsset = computed(() => {
+  const path = String(script.value?.scriptPath || '')
+  return !!path && path.startsWith('assets/')
+})
+
 interface TilemapEditorApplyPayload {
   entityId: string
   mode: 'tiles' | 'collision'
@@ -579,6 +631,8 @@ let interactionCodeEditorEntityId = ''
 let interactionCodeEditorFilePath = ''
 let interactionCodeEditorRelativePath = ''
 let interactionCodeEditorContent = ''
+let entityScriptCodeEditorSessionId = ''
+let entityScriptCodeEditorEntityId = ''
 
 const interactionCodeDescription = computed(() => {
   const path = script.value?.scriptPath?.trim() || ''
@@ -681,6 +735,107 @@ function setEntityName(value: string) {
   if (!entity.value) return
   entity.value.name = value
   sceneStore.markDirty()
+}
+
+function setScriptEnabled(event: Event) {
+  if (runtime.isPlaying) return
+  if (!script.value) return
+  script.value.enabled = (event.target as HTMLInputElement).checked
+  script.value.initialized = false
+  script.value.started = false
+  sceneStore.markDirty()
+}
+
+function setScriptPath(event: Event) {
+  if (runtime.isPlaying) return
+  if (!script.value) return
+  script.value.scriptPath = (event.target as HTMLInputElement).value.trim()
+  script.value.instance = null
+  script.value.initialized = false
+  script.value.started = false
+  sceneStore.markDirty()
+}
+
+function addScriptComponent(path = '') {
+  if (runtime.isPlaying) return
+  if (!entity.value || script.value) return
+  entity.value.addComponent(new ScriptComponent(path, '', true))
+  sceneStore.markDirty()
+}
+
+function addScriptComponentFromSelectedAsset() {
+  if (!selectedScriptAssetPath.value) return
+  addScriptComponent(selectedScriptAssetPath.value)
+}
+
+function bindSelectedScriptAsset() {
+  if (runtime.isPlaying) return
+  if (!script.value || !selectedScriptAssetPath.value) return
+  script.value.scriptPath = selectedScriptAssetPath.value
+  script.value.instance = null
+  script.value.initialized = false
+  script.value.started = false
+  sceneStore.markDirty()
+  project.setStatus(`已绑定脚本：${selectedScriptAssetPath.value}`)
+}
+
+async function openBoundScriptAsset() {
+  const path = String(script.value?.scriptPath || '')
+  if (!path || !path.startsWith('assets/')) return
+  await assets.selectAsset(path)
+  selection.clearSelection()
+  editor.setRightTab('Script')
+}
+
+function openScriptPanelForEntity() {
+  if (!entity.value) return
+  selection.selectEntity(entity.value.id)
+  editor.setRightTab('Script')
+}
+
+async function openEntityScriptCodeEditor() {
+  if (!script.value || !entity.value) {
+    addScriptComponent()
+    if (!script.value) return
+  }
+  if (!window.unu?.openCodeEditor) {
+    project.setStatus('当前环境未接入代码编辑器窗口，请使用桌面版运行。')
+    return
+  }
+  const sessionId = `entity_script_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const targetEntityId = entity.value.id
+  const result = await window.unu.openCodeEditor({
+    id: sessionId,
+    mode: 'inspector-entity-script',
+    title: `${entity.value.name || 'Entity'} Script Config`,
+    path: script.value.scriptPath || 'entity://script-config',
+    language: guessInteractionEditorLanguage(script.value.scriptPath || ''),
+    content: script.value.sourceCode || ''
+  })
+  if (!result?.ok) {
+    project.setStatus(`打开独立代码窗口失败：${result?.error || '未知错误'}`)
+    return
+  }
+  selection.selectEntity(entity.value.id)
+  entityScriptCodeEditorSessionId = sessionId
+  entityScriptCodeEditorEntityId = targetEntityId
+  editor.lockScriptEditorExternal({
+    id: sessionId,
+    mode: 'inspector-entity-script',
+    targetId: targetEntityId,
+    label: `${entity.value.name || 'Entity'} Script Config`
+  })
+  editor.setRightTab('Script')
+  project.setStatus('已打开实体脚本配置独立窗口')
+}
+
+function removeScriptComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || !script.value) return
+  if (!window.confirm(`确认移除实体“${entity.value.name}”上的 Script 组件吗？`)) return
+  entity.value.removeComponent('Script')
+  sceneStore.markDirty()
+  project.setStatus('已移除 Script 组件')
 }
 
 function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
@@ -974,6 +1129,27 @@ async function openInteractionCodeEditor() {
 
 function applyInteractionCodeEditorPayload(raw: unknown) {
   const payload = (raw || {}) as CodeEditorApplyPayload
+  if (payload.mode === 'inspector-entity-script') {
+    if (payload.id && entityScriptCodeEditorSessionId && payload.id !== entityScriptCodeEditorSessionId) return
+    const targetEntity = sceneStore.scenes
+      .map((scene) => scene.getEntityById(entityScriptCodeEditorEntityId))
+      .find(Boolean)
+    const targetScript = targetEntity?.getComponent<ScriptComponent>('Script')
+    if (!targetScript) {
+      project.setStatus('代码窗口内容未应用：原实体或 Script 组件已不存在。')
+      return
+    }
+    targetScript.sourceCode = String(payload.content ?? '')
+    targetScript.instance = null
+    targetScript.initialized = false
+    targetScript.started = false
+    sceneStore.markDirty()
+    if (payload.saveRequested) {
+      project.setStatus('实体脚本配置已保存到当前场景状态，请保存场景/项目以写入文件。')
+    }
+    return
+  }
+
   if (!payload.mode?.startsWith('interaction-')) return
   if (payload.id && interactionCodeEditorSessionId && payload.id !== interactionCodeEditorSessionId) return
   interactionCodeEditorContent = String(payload.content ?? '')
@@ -1024,6 +1200,14 @@ async function saveInteractionAssetFromEditor() {
 
 function handleInteractionCodeEditorClosed(raw: unknown) {
   const payload = (raw || {}) as CodeEditorApplyPayload
+  if (payload.mode === 'inspector-entity-script') {
+    if (payload.id && entityScriptCodeEditorSessionId && payload.id !== entityScriptCodeEditorSessionId) return
+    editor.unlockScriptEditorExternal(payload.id)
+    entityScriptCodeEditorSessionId = ''
+    entityScriptCodeEditorEntityId = ''
+    return
+  }
+
   if (!payload.mode?.startsWith('interaction-')) return
   if (payload.id && interactionCodeEditorSessionId && payload.id !== interactionCodeEditorSessionId) return
   interactionCodeEditorSessionId = ''

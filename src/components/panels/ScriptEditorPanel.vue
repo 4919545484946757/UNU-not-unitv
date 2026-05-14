@@ -55,7 +55,7 @@
         ></textarea>
         <div v-if="externalCodeEditorLocked" class="editor-lock">
           <strong>已交由独立窗口编辑</strong>
-          <span>请在独立代码编辑器中完成修改、保存或关闭窗口后再回到这里编辑。</span>
+          <span>{{ externalCodeEditorLockLabel }}</span>
         </div>
       </div>
     </div>
@@ -286,7 +286,14 @@ let codeEditorSessionEntityId = ''
 let codeEditorSessionAssetFilePath = ''
 let removeCodeEditorListener: (() => void) | null = null
 let removeCodeEditorClosedListener: (() => void) | null = null
-const externalCodeEditorLocked = ref(false)
+const localExternalCodeEditorLocked = ref(false)
+const externalCodeEditorLocked = computed(() => localExternalCodeEditorLocked.value || !!editor.scriptEditorExternalLock)
+const externalCodeEditorLockLabel = computed(() => {
+  const label = editor.scriptEditorExternalLock?.label
+  return label
+    ? `正在独立窗口编辑：${label}。请在独立代码编辑器中完成修改、保存或关闭窗口后再回到这里编辑。`
+    : '请在独立代码编辑器中完成修改、保存或关闭窗口后再回到这里编辑。'
+})
 
 const canSaveAsset = computed(() => {
   return mode.value === 'asset' && !!window.unu?.saveTextAsset && project.rootPath !== 'sample-project'
@@ -688,7 +695,13 @@ async function openExternalCodeEditor() {
   codeEditorSessionPath = nextSessionPath
   codeEditorSessionEntityId = nextSessionEntityId
   codeEditorSessionAssetFilePath = nextSessionAssetFilePath
-  externalCodeEditorLocked.value = true
+  localExternalCodeEditorLocked.value = true
+  editor.lockScriptEditorExternal({
+    id: nextSessionId,
+    mode: nextSessionMode,
+    targetId: nextSessionMode === 'entity' ? nextSessionEntityId : nextSessionPath,
+    label: nextSessionMode === 'asset' ? nextSessionPath : `${entity.value?.name || 'Entity'} Script`
+  })
   project.setStatus('已打开独立代码编辑窗口')
 }
 
@@ -735,6 +748,27 @@ function guessLanguageForPath(path: string) {
 
 function applyExternalCodeEditorPayload(raw: unknown) {
   const payload = (raw || {}) as { id?: string; mode?: string; path?: string; content?: string; saveRequested?: boolean; live?: boolean }
+  if (payload.mode === 'inspector-entity-script') {
+    const lock = editor.scriptEditorExternalLock
+    if (payload.id && lock?.id && payload.id !== lock.id) return
+    const targetEntity = sceneStore.scenes
+      .map((scene) => scene.getEntityById(lock?.targetId || ''))
+      .find(Boolean)
+    const targetScript = targetEntity?.getComponent<ScriptComponent>('Script')
+    if (!targetScript) {
+      project.setStatus('代码窗口内容未应用：原实体脚本已不存在')
+      return
+    }
+    targetScript.sourceCode = String(payload.content ?? '')
+    targetScript.instance = null
+    targetScript.initialized = false
+    targetScript.started = false
+    sceneStore.markDirty()
+    if (!payload.live) project.setStatus('已从独立代码编辑窗口接收实体脚本配置')
+    if (payload.saveRequested) project.setStatus('实体脚本配置已保存到当前场景状态，请保存场景/项目以写入文件')
+    return
+  }
+
   if (payload.mode !== 'asset' && payload.mode !== 'entity') return
   if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
   if (codeEditorSessionMode && payload.mode !== codeEditorSessionMode) return
@@ -804,9 +838,16 @@ async function saveExternalAssetScript(content: string) {
 
 function handleExternalCodeEditorClosed(raw: unknown) {
   const payload = (raw || {}) as { id?: string; mode?: string }
+  if (payload.mode === 'inspector-entity-script') {
+    editor.unlockScriptEditorExternal(payload.id)
+    project.setStatus('独立代码编辑窗口已关闭，右侧编辑器已解锁')
+    return
+  }
+
   if (payload.mode && payload.mode !== 'asset' && payload.mode !== 'entity') return
   if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
-  externalCodeEditorLocked.value = false
+  localExternalCodeEditorLocked.value = false
+  editor.unlockScriptEditorExternal(payload.id)
   codeEditorSessionId = ''
   codeEditorSessionMode = ''
   codeEditorSessionPath = ''

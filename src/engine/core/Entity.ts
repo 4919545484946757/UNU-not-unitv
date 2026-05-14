@@ -28,6 +28,10 @@ export class Entity {
     return Array.from(this.components.values())
   }
 
+  removeComponent(type: string) {
+    return this.components.delete(type)
+  }
+
   getTransform() {
     return this.getComponent<TransformComponent>('Transform')
   }

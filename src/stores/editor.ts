@@ -16,6 +16,7 @@ export const useEditorStore = defineStore('editor', {
     rightTab: 'Inspector' as 'Inspector' | 'Script' | 'Timeline',
     entityJsonEditorEntityId: '',
     scriptErrorTarget: null as null | { path: string; line: number; column?: number; message?: string; nonce: number },
+    scriptEditorExternalLock: null as null | { id: string; mode: string; targetId?: string; label?: string },
     showGrid: true,
     timelineFrameIndex: 0,
     timelinePreviewPlaying: false,
@@ -53,6 +54,18 @@ export const useEditorStore = defineStore('editor', {
     },
     clearEntityJsonEditor() {
       this.entityJsonEditorEntityId = ''
+    },
+    lockScriptEditorExternal(payload: { id: string; mode: string; targetId?: string; label?: string }) {
+      this.scriptEditorExternalLock = {
+        id: payload.id,
+        mode: payload.mode,
+        targetId: payload.targetId || '',
+        label: payload.label || ''
+      }
+    },
+    unlockScriptEditorExternal(id?: string) {
+      if (id && this.scriptEditorExternalLock?.id && this.scriptEditorExternalLock.id !== id) return
+      this.scriptEditorExternalLock = null
     },
     setTimelineFrameIndex(index: number) {
       this.timelineFrameIndex = index
