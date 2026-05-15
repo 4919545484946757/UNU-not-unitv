@@ -3,12 +3,12 @@
     <div class="viewport-header">
       <span>Scene View</span>
       <div class="preview-controls">
-        <button v-if="!runtime.isPlaying" class="preview-btn" @click="runtime.play()">播放</button>
+        <button v-if="!runtime.isPlaying" class="preview-btn" @click="startPreview">播放</button>
         <template v-else>
-          <button class="preview-btn" @click="runtime.isPaused ? runtime.resume() : runtime.pause()">
+          <button class="preview-btn" @click="togglePreviewPause">
             {{ runtime.isPaused ? '继续' : '暂停' }}
           </button>
-          <button class="preview-btn stop" @click="runtime.stop()">停止</button>
+          <button class="preview-btn stop" @click="stopPreview">停止</button>
         </template>
         <button
           class="preview-btn debug"
@@ -185,6 +185,12 @@ async function hotReloadProjectScripts(relativePath: string) {
 
 async function locateScriptError(error: { scriptPath: string; line: number; column?: number; message: string; phase: string; entityName?: string }) {
   const scriptPath = String(error.scriptPath || '').replace(/\\/g, '/').trim()
+  const where = `${scriptPath || 'unknown'}:${error.line || 1}${error.column ? `:${error.column}` : ''}`
+  const entityHint = error.entityName ? `（实体：${error.entityName}）` : ''
+  if (runtime.isPlaying) {
+    project.setStatus(`播放态脚本${error.phase}错误 ${where}${entityHint}：${error.message}`)
+    return
+  }
   if (!scriptPath || scriptPath.startsWith('builtin://')) {
     project.setStatus(`脚本错误：${error.message}`)
     return
@@ -192,9 +198,28 @@ async function locateScriptError(error: { scriptPath: string; line: number; colu
   const assetExists = assets.flat.some((node) => node.path === scriptPath)
   if (assetExists) await assets.selectAsset(scriptPath)
   editor.revealScriptError(scriptPath, error.line || 1, error.column, error.message)
-  const where = `${scriptPath}:${error.line || 1}${error.column ? `:${error.column}` : ''}`
-  const entityHint = error.entityName ? `（实体：${error.entityName}）` : ''
   project.setStatus(`脚本${error.phase}错误 ${where}${entityHint}：${error.message}`)
+}
+
+function blurActiveElement() {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) active.blur()
+}
+
+function startPreview() {
+  blurActiveElement()
+  runtime.play()
+}
+
+function togglePreviewPause() {
+  blurActiveElement()
+  if (runtime.isPaused) runtime.resume()
+  else runtime.pause()
+}
+
+function stopPreview() {
+  blurActiveElement()
+  runtime.stop()
 }
 
 onMounted(async () => {

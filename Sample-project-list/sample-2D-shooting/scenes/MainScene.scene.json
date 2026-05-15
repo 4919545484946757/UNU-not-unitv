@@ -1699,7 +1699,7 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/player-input.js",
-              "sourceCode": "{\n  \"moveSpeed\": 140,\n  \"sprintSpeed\": 280,\n  \"runAnimationMultiplierWhenSprint\": 2,\n  \"shootAction\": \"fire\",\n  \"fireCooldown\": 0,\n  \"bullet\": {\n    \"speed\": 420,\n    \"life\": 2,\n    \"maxDistance\": 560,\n    \"width\": 20,\n    \"height\": 8,\n    \"tint\": 15922687\n  }\n}",
+              "sourceCode": "﻿{\n  \"moveSpeed\": 140,\n  \"sprintSpeed\": 280,\n  \"runAnimationMultiplierWhenSprint\": 2,\n  \"shootAction\": \"fire\",\n  \"fireCooldown\": 0,\n  \"bullet\": {\n    \"speed\": 420,\n    \"life\": 2,\n    \"maxDistance\": 560,\n    \"width\": 20,\n    \"height\": 8,\n    \"tint\": 15922687\n  }\n}\n",
               "enabled": true,
               "instance": null,
               "initialized": false,
@@ -2291,7 +2291,20 @@
               "anchorY": 0,
               "interactable": false,
               "markdownEnabled": false,
-              "renderMode": "pixi"
+              "renderMode": "pixi",
+              "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 14,
+              "paddingY": 8,
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 1,
+              "minHeight": 1
             }
           }
         ]
@@ -2334,7 +2347,19 @@
               "interactable": true,
               "markdownEnabled": false,
               "renderMode": "pixi",
-              "onClickScriptPath": "assets/scripts/ui-button-click.js"
+              "onClickScriptPath": "assets/scripts/ui-button-click.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 14,
+              "paddingY": 8,
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 1,
+              "minHeight": 1
             }
           }
         ]
@@ -2456,7 +2481,20 @@
               "anchorY": 0,
               "interactable": false,
               "markdownEnabled": false,
-              "renderMode": "pixi"
+              "renderMode": "pixi",
+              "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 14,
+              "paddingY": 8,
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 1,
+              "minHeight": 1
             }
           }
         ]
@@ -2579,7 +2617,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 900,
+              "zIndex": 19,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2589,9 +2627,9 @@
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu.js",
               "sourceCode": "{\n  \"defaultDifficulty\": \"easy\",\n  \"defaultVolume\": 1\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2614,7 +2652,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 901,
+              "zIndex": 20,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2638,11 +2676,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 18,
+              "paddingY": 12,
               "autoWidth": false,
               "autoHeight": false,
-              "layout": "none",
-              "paddingX": 18,
-              "paddingY": 12
+              "minWidth": 1,
+              "minHeight": 1
             }
           }
         ]
@@ -2662,7 +2707,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 902,
+              "zIndex": 21,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2686,13 +2731,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -2712,7 +2762,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 22,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2736,22 +2786,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"continue\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2774,7 +2829,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 23,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2798,22 +2853,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"reset\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2836,7 +2896,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 24,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2860,22 +2920,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"settings\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2898,7 +2963,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 25,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2922,22 +2987,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"exit\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2960,7 +3030,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 26,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2984,13 +3054,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -3010,7 +3085,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 27,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3034,13 +3109,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -3060,7 +3140,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 28,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3084,22 +3164,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"hotkeys\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3122,7 +3207,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 29,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3146,22 +3231,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"resetHotkeys\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3184,7 +3274,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 30,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3208,22 +3298,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"done\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3246,7 +3341,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 31,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3270,13 +3365,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -3296,7 +3396,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 32,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3320,13 +3420,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": false,
               "autoHeight": false,
               "minWidth": 220,
-              "minHeight": 48,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 48
             }
           }
         ]
@@ -3346,7 +3451,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 33,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3374,21 +3479,23 @@
               "sliderMin": 0,
               "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"volume\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3411,7 +3518,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 34,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3439,21 +3546,23 @@
               "sliderMin": 0,
               "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"difficulty\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3476,7 +3585,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 35,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3500,22 +3609,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_left\",\n  \"label\": \"左移\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3538,7 +3652,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 36,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3562,22 +3676,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_right\",\n  \"label\": \"右移\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3600,7 +3719,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 37,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3624,22 +3743,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": false,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{}",
+              "enabled": false,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3662,7 +3786,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 38,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3686,22 +3810,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"fire\",\n  \"label\": \"射击\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3724,7 +3853,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 39,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3748,22 +3877,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"interact\",\n  \"label\": \"交互\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3786,7 +3920,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 40,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3810,22 +3944,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"menu\",\n  \"label\": \"菜单\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3848,7 +3987,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 41,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3872,22 +4011,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_up\",\n  \"label\": \"上移\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3910,7 +4054,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 42,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3934,22 +4078,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_down\",\n  \"label\": \"下移\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -3972,7 +4121,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 43,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -3996,22 +4145,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"sprint\",\n  \"label\": \"疾跑\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false

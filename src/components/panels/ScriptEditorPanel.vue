@@ -78,12 +78,14 @@ import type { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
+import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
 
 const assets = useAssetStore()
 const editor = useEditorStore()
 const project = useProjectStore()
+const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
 
@@ -382,6 +384,7 @@ watch(
   async () => {
     const target = editor.scriptErrorTarget
     if (!target || !target.path) return
+    if (runtime.isPlaying) return
     if (target.path !== selectedTextAssetPath.value) return
     await loadAssetScript(target.path)
     await nextTick()
