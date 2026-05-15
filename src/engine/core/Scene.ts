@@ -4,6 +4,7 @@ export class Scene {
   readonly id: string
   name: string
   entities: Entity[] = []
+  sceneFolders: string[] = []
 
   constructor(id: string, name: string) {
     this.id = id

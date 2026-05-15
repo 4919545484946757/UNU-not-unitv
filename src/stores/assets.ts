@@ -458,9 +458,22 @@ export const useAssetStore = defineStore('assets', {
       }
 
       project.setStatus('正在导出 Web 游戏...')
+      const { useSceneStore } = await import('./scene')
+      const scene = useSceneStore()
+      const currentScene = scene.currentScene
+      const sceneFiles = scene.scenes.length > 0
+        ? scene.scenes.map((sceneItem) => ({
+            fileName: `${sceneItem.name}.scene.json`,
+            content: serializeScene(sceneItem)
+          }))
+        : (currentScene ? [{
+            fileName: `${currentScene.name}.scene.json`,
+            content: serializeScene(currentScene)
+          }] : [])
       const result = await window.unu.exportGame({
         projectRoot: project.rootPath,
-        projectName: project.name
+        projectName: project.name,
+        sceneFiles
       })
       if (!result) {
         project.setStatus('已取消导出 Web 游戏。')

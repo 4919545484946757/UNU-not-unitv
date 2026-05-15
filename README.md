@@ -1,11 +1,11 @@
-﻿# UNU Engine Starter
+# UNU Engine Starter
 
 中文 | [English](README.en-US.md)
 
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时示例工程。它的目标不是只做一个演示壳子，而是逐步形成一个可以真正支撑 2D 游戏开发的轻量引擎：项目管理、场景编辑、资源管理、组件系统、脚本运行时、动画状态机、Tilemap、UI、音频、打包与 Web 导出都在同一套工作流里闭环。
 
 - 文档更新时间：`2026-05-15`
-- 项目版本：`0.1.1`
+- 项目版本：`0.2.0`
 - 当前定位：桌面端 2D 游戏编辑器 + 可导出 Web 游戏运行包
 
 ## 文档导航
@@ -24,13 +24,16 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 - 支持打开历史项目、本地项目、示例项目。
 - 支持新建项目，并在指定目录下创建同名项目文件夹。
 - 支持重命名、删除项目。
-- 示例项目列表已独立出来，当前包含 `2D Action Demo`（`Sample-project-list/sample-2D-shooting`）和 `Snake`（`Sample-project-list/Snake`）。
+- 示例项目列表已独立出来，当前包含 `2D Action Demo`（由 `Sample-project-list/sample-2D-shooting` 提供）和 `Snake`（`Sample-project-list/Snake`）。
 - 打开项目时会自动扫描和修复场景列表、资源路径与缺失的项目运行时脚本。
 - 示例项目在打包版中会从 `resources/Sample-project-list` 复制到用户数据目录，避免直接修改安装目录内资源。
 
 ### 编辑器工作流
 
 - 场景树：实体选择、复制、删除、重命名、修改 ID、新建实体。
+- Scene 文件树结构支持类文件夹：可选中、单击展开/折叠、新建、删除、重命名、复制/粘贴、实体/类拖拽移动。
+- 类文件夹支持嵌套并保存到场景文件，脚本可通过 `ctx.api.findEntitiesByClass('Gameplay/Actors')` 检索该类及子类实体。
+- 示例项目 `sample-2D-shooting` 与 `Snake` 已整理场景文件树层级，便于学习项目结构。
 - 资源树：刷新、导入图片、导入音频、折叠、打开所在目录、打开文本文件、预览图片。
 - 资源树支持文件/文件夹新建、重命名、复制、删除、拖拽移动，并支持 `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y` 撤回和恢复文件操作。
 - 资源重命名或移动后会自动同步场景、Prefab、动画、图集等 JSON 资源引用。

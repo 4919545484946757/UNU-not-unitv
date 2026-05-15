@@ -1,4 +1,4 @@
-﻿# UNU 脚本 API 提示文档
+# UNU 脚本 API 提示文档
 
 [English](SCRIPT_API.en-US.md) | 中文
 
@@ -174,6 +174,8 @@ export default {
 | --- | --- |
 | `ctx.api.getSelectedEntity()` | 获取编辑器当前选择实体，通常用于调试 |
 | `ctx.api.findEntityByName(name)` | 按名称查找实体 |
+| `ctx.api.findEntitiesByFolder(folderPath, includeDescendants?)` | 按 Scene 树文件夹路径查找实体，默认包含子文件夹 |
+| `ctx.api.findEntitiesByClass(classPath, includeDescendants?)` | `findEntitiesByFolder` 的语义别名，适合把文件夹当作实体分类使用 |
 | `ctx.api.removeEntity(target)` | 删除实体，运行时会安全延迟执行 |
 | `ctx.api.spawnEntity(entity)` | 生成实体，运行时会安全延迟执行 |
 | `ctx.api.switchScene(sceneName, options?)` | 请求切换场景 |
@@ -195,6 +197,15 @@ ctx.api.switchScene('SecondScene', {
   targetSpawnId: 'Spawn_From_Main',
   sceneStateMode: 'preserve'
 })
+```
+
+Scene 面板的“文件树结构”会把实体的 `分类 / 文件夹路径` 当作类目。脚本中可以这样定位同一类实体：
+
+```ts
+const enemies = ctx.api.findEntitiesByClass('Gameplay/Actors/Enemies')
+for (const enemy of enemies) {
+  ctx.api.log('[Enemy class]', enemy.id)
+}
 ```
 
 ## 碰撞与 Trigger API

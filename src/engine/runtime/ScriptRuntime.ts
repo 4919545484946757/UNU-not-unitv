@@ -79,6 +79,8 @@ export interface ScriptContext {
     input: RuntimeInput
     getSelectedEntity: () => Entity | null
     findEntityByName: (name: string) => Entity | null
+    findEntitiesByFolder: (folderPath: string, includeDescendants?: boolean) => Entity[]
+    findEntitiesByClass: (classPath: string, includeDescendants?: boolean) => Entity[]
     removeEntity: (target: Entity) => void
     spawnEntity: (entity: Entity) => void
     switchScene: (sceneName: string, options?: { targetSpawnId?: string; sceneStateMode?: 'preserve' | 'reset' }) => void
@@ -780,6 +782,10 @@ export class ScriptRuntime {
         input: this.input,
         getSelectedEntity: () => this.activeScene?.getEntityById(this.selectedEntityId) ?? null,
         findEntityByName: (name: string) => this.activeScene?.entities.find((candidate) => candidate.name === name) ?? null,
+        findEntitiesByFolder: (folderPath: string, includeDescendants = true) =>
+          this.findEntitiesBySceneFolder(folderPath, includeDescendants),
+        findEntitiesByClass: (classPath: string, includeDescendants = true) =>
+          this.findEntitiesBySceneFolder(classPath, includeDescendants),
         removeEntity: (target: Entity) => {
           this.pendingRemovals.add(target.id)
         },
@@ -929,6 +935,17 @@ export class ScriptRuntime {
         }
       }
     }
+  }
+
+  private findEntitiesBySceneFolder(folderPath: string, includeDescendants = true) {
+    if (!this.activeScene) return []
+    const normalized = normalizeSceneFolderPath(folderPath)
+    if (!normalized) return this.activeScene.entities.filter((candidate) => !normalizeSceneFolderPath(candidate.sceneFolderPath))
+    return this.activeScene.entities.filter((candidate) => {
+      const current = normalizeSceneFolderPath(candidate.sceneFolderPath)
+      if (!current) return false
+      return includeDescendants ? current === normalized || current.startsWith(`${normalized}/`) : current === normalized
+    })
   }
 
   private invokeHook(hooks: ScriptHooks, hookName: keyof ScriptHooks, entity: Entity, delta: number, event?: ScriptEvent) {
@@ -1517,6 +1534,15 @@ function resolveBuiltinScriptKey(scriptPath: string) {
 
 function normalizeScriptPath(input: string) {
   return String(input || '').trim().replace(/\\/g, '/')
+}
+
+function normalizeSceneFolderPath(input: unknown) {
+  return String(input || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('/')
 }
 
 function resolveCanonicalScriptPath(scriptPath: string) {

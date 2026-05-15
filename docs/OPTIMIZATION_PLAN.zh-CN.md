@@ -1,4 +1,4 @@
-﻿# UNU Engine 小优化计划
+# UNU Engine 小优化计划
 
 中文 | [English](OPTIMIZATION_PLAN.en-US.md)
 
@@ -92,3 +92,10 @@
 
 
 
+
+
+### 2026-05-15 场景组织体验
+
+- 已完成 Scene 文件树结构和图层列表视图切换。
+- 已支持类文件夹嵌套、拖拽、复制/粘贴、重命名同步引用。
+- 已整理 `sample-2D-shooting` 与 `Snake` 示例项目的场景层级，降低学习和维护成本。

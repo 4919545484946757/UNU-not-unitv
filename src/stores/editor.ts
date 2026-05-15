@@ -13,6 +13,7 @@ export const useEditorStore = defineStore('editor', {
   state: () => ({
     tool: 'select' as 'select' | 'move' | 'scale' | 'pan',
     leftTab: 'Scene',
+    sceneTreeViewMode: 'layer' as 'layer' | 'folder',
     rightTab: 'Inspector' as 'Inspector' | 'Script' | 'Timeline',
     entityJsonEditorEntityId: '',
     scriptErrorTarget: null as null | { path: string; line: number; column?: number; message?: string; nonce: number },
@@ -35,6 +36,9 @@ export const useEditorStore = defineStore('editor', {
     },
     setRightTab(tab: 'Inspector' | 'Script' | 'Timeline') {
       this.rightTab = tab
+    },
+    setSceneTreeViewMode(mode: 'layer' | 'folder') {
+      this.sceneTreeViewMode = mode
     },
     revealScriptError(path: string, line = 1, column?: number, message?: string) {
       const normalized = String(path || '').replace(/\\/g, '/').trim()

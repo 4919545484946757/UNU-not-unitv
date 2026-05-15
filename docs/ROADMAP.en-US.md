@@ -1,4 +1,4 @@
-﻿# UNU Engine Roadmap
+# UNU Engine Roadmap
 
 [中文](ROADMAP.zh-CN.md) | English
 
@@ -21,6 +21,7 @@ Goal: users can reliably create, open, save, and manage projects.
 - [x] Top-right message panel.
 - [x] Grouped top toolbar dropdowns.
 - [x] Scene Tree entity context menu.
+- [x] Scene File Tree: class folder selection, expand/collapse, create, delete, rename, copy/paste, drag moving, and nested categorization.
 - [x] Asset Tree context menu.
 - [x] Folder double-click expand/collapse in Asset Tree.
 

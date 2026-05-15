@@ -4,10 +4,34 @@
   "scene": {
     "id": "scene_main",
     "name": "MainScene",
+    "sceneFolders": [
+      "Environment",
+      "Environment/Background",
+      "Environment/Effects",
+      "Environment/Tilemaps",
+      "Gameplay",
+      "Gameplay/Actors",
+      "Gameplay/Actors/Enemies",
+      "Gameplay/Actors/Player",
+      "Gameplay/Interactables",
+      "Gameplay/Interactables/Chests",
+      "Gameplay/Interactables/Doors",
+      "System",
+      "System/Cameras",
+      "System/Menu",
+      "System/SpawnPoints",
+      "UI",
+      "UI/HUD",
+      "UI/PauseMenu",
+      "UI/PauseMenu/Hotkeys",
+      "UI/PauseMenu/Main",
+      "UI/PauseMenu/Settings"
+    ],
     "entities": [
       {
         "id": "background_main_001",
         "name": "Background",
+        "sceneFolderPath": "Environment/Background",
         "components": [
           {
             "type": "Transform",
@@ -72,6 +96,7 @@
       {
         "id": "tilemap_001",
         "name": "LevelTilemap",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -308,6 +333,7 @@
       {
         "id": "tilemap_bywrnz",
         "name": "LevelTilemap01",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -737,6 +763,7 @@
       {
         "id": "copy_5ygi23",
         "name": "LevelTilemap_Copy",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -973,6 +1000,7 @@
       {
         "id": "copy_saxikt",
         "name": "LevelTilemap01_Copy",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -1402,6 +1430,7 @@
       {
         "id": "interactable_akhldc",
         "name": "Chest",
+        "sceneFolderPath": "Gameplay/Interactables/Chests",
         "components": [
           {
             "type": "Transform",
@@ -1482,6 +1511,7 @@
       {
         "id": "player_001",
         "name": "Player",
+        "sceneFolderPath": "Gameplay/Actors/Player",
         "components": [
           {
             "type": "Transform",
@@ -1711,6 +1741,7 @@
       {
         "id": "enemy_001",
         "name": "Enemy",
+        "sceneFolderPath": "Gameplay/Actors/Enemies",
         "components": [
           {
             "type": "Transform",
@@ -1822,6 +1853,7 @@
       {
         "id": "Enemy_002",
         "name": "Enemy002",
+        "sceneFolderPath": "Gameplay/Actors/Enemies",
         "components": [
           {
             "type": "Transform",
@@ -1933,6 +1965,7 @@
       {
         "id": "Enemy_003",
         "name": "Enemy_003",
+        "sceneFolderPath": "Gameplay/Actors/Enemies",
         "components": [
           {
             "type": "Transform",
@@ -2044,6 +2077,7 @@
       {
         "id": "item_001",
         "name": "Chest",
+        "sceneFolderPath": "Gameplay/Interactables/Chests",
         "components": [
           {
             "type": "Transform",
@@ -2124,6 +2158,7 @@
       {
         "id": "fx_001",
         "name": "TorchFX",
+        "sceneFolderPath": "Environment/Effects",
         "components": [
           {
             "type": "Transform",
@@ -2217,6 +2252,7 @@
       {
         "id": "camera_main",
         "name": "MainCamera",
+        "sceneFolderPath": "System/Cameras",
         "components": [
           {
             "type": "Transform",
@@ -2257,6 +2293,7 @@
       {
         "id": "ui_title_001",
         "name": "UI_Title",
+        "sceneFolderPath": "UI/HUD",
         "components": [
           {
             "type": "Transform",
@@ -2312,6 +2349,7 @@
       {
         "id": "ui_btn_001",
         "name": "UI_Button",
+        "sceneFolderPath": "UI/HUD",
         "components": [
           {
             "type": "Transform",
@@ -2367,6 +2405,7 @@
       {
         "id": "door_to_second_001",
         "name": "DoorToSecond",
+        "sceneFolderPath": "Gameplay/Interactables/Doors",
         "components": [
           {
             "type": "Transform",
@@ -2447,6 +2486,7 @@
       {
         "id": "ui-text_svldwe",
         "name": "hotkey_list",
+        "sceneFolderPath": "UI/HUD",
         "components": [
           {
             "type": "Transform",
@@ -2502,6 +2542,7 @@
       {
         "id": "spawn_from_second_001",
         "name": "Spawn_From_Second",
+        "sceneFolderPath": "System/SpawnPoints",
         "components": [
           {
             "type": "Transform",
@@ -2525,6 +2566,7 @@
       {
         "id": "copy_f1bevr",
         "name": "Chest_Copy",
+        "sceneFolderPath": "Gameplay/Interactables/Chests",
         "components": [
           {
             "type": "Transform",
@@ -2605,6 +2647,7 @@
       {
         "id": "pause_menu_manager_mainscene",
         "name": "PauseMenu_Manager",
+        "sceneFolderPath": "System/Menu",
         "components": [
           {
             "type": "Transform",
@@ -2640,6 +2683,7 @@
       {
         "id": "pause_menu_backdrop_mainscene",
         "name": "PauseMenu_Backdrop",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -2695,6 +2739,7 @@
       {
         "id": "pause_menu_title_mainscene",
         "name": "PauseMenu_Title",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -2750,6 +2795,7 @@
       {
         "id": "pause_menu_continue_mainscene",
         "name": "PauseMenu_Continue",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -2817,6 +2863,7 @@
       {
         "id": "pause_menu_reset_mainscene",
         "name": "PauseMenu_Reset",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -2884,6 +2931,7 @@
       {
         "id": "pause_menu_settings_mainscene",
         "name": "PauseMenu_Settings",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -2951,6 +2999,7 @@
       {
         "id": "pause_menu_exit_mainscene",
         "name": "PauseMenu_Exit",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -3018,6 +3067,7 @@
       {
         "id": "pause_menu_settings_title_mainscene",
         "name": "PauseMenu_SettingsTitle",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -3073,6 +3123,7 @@
       {
         "id": "pause_menu_volume_text_mainscene",
         "name": "PauseMenu_VolumeText",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -3128,6 +3179,7 @@
       {
         "id": "pause_menu_hotkeys_mainscene",
         "name": "PauseMenu_Hotkeys",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3195,6 +3247,7 @@
       {
         "id": "pause_menu_reset_hotkeys_mainscene",
         "name": "PauseMenu_ResetHotkeys",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3262,6 +3315,7 @@
       {
         "id": "pause_menu_done_mainscene",
         "name": "PauseMenu_Done",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -3329,6 +3383,7 @@
       {
         "id": "pause_menu_hotkeys_title_mainscene",
         "name": "PauseMenu_HotkeysTitle",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3384,6 +3439,7 @@
       {
         "id": "pause_menu_hotkeys_info_mainscene",
         "name": "PauseMenu_HotkeysInfo",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3439,6 +3495,7 @@
       {
         "id": "pause_menu_volume_slider_mainscene",
         "name": "PauseMenu_VolumeSlider",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -3506,6 +3563,7 @@
       {
         "id": "pause_menu_difficulty_mainscene",
         "name": "PauseMenu_Difficulty",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -3573,6 +3631,7 @@
       {
         "id": "pause_menu_keymoveleft_mainscene",
         "name": "PauseMenu_KeyMoveLeft",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3640,6 +3699,7 @@
       {
         "id": "pause_menu_keymoveright_mainscene",
         "name": "PauseMenu_KeyMoveRight",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3707,6 +3767,7 @@
       {
         "id": "pause_menu_keyjump_mainscene",
         "name": "PauseMenu_KeyJump",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3774,6 +3835,7 @@
       {
         "id": "pause_menu_keyfire_mainscene",
         "name": "PauseMenu_KeyFire",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3841,6 +3903,7 @@
       {
         "id": "pause_menu_keyinteract_mainscene",
         "name": "PauseMenu_KeyInteract",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3908,6 +3971,7 @@
       {
         "id": "pause_menu_keymenu_mainscene",
         "name": "PauseMenu_KeyMenu",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -3975,6 +4039,7 @@
       {
         "id": "pause_menu_keymoveup_mainscene",
         "name": "PauseMenu_KeyMoveUp",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -4042,6 +4107,7 @@
       {
         "id": "pause_menu_keymovedown_mainscene",
         "name": "PauseMenu_KeyMoveDown",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -4109,6 +4175,7 @@
       {
         "id": "pause_menu_keysprint_mainscene",
         "name": "PauseMenu_KeySprint",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",

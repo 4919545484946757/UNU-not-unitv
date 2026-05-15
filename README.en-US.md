@@ -1,11 +1,11 @@
-﻿# UNU Engine Starter
+# UNU Engine Starter
 
 [中文](README.md) | English
 
 UNU Engine Starter is a desktop 2D game editor and runtime sample project built with `Vue 3 + Pinia + PixiJS 8 + Electron`. It is designed to grow beyond a demo shell into a lightweight engine that can support real 2D game development workflows: project management, scene editing, asset management, components, project-level scripts, animation state machines, Tilemap editing, UI, audio, packaging, and Web export.
 
 - Documentation updated: `2026-05-15`
-- Project version: `0.1.1`
+- Project version: `0.2.0`
 - Current focus: desktop 2D game editor + exportable Web game runtime
 
 ## Documentation
@@ -24,13 +24,16 @@ UNU Engine Starter is a desktop 2D game editor and runtime sample project built 
 - Supports recent projects, local projects, sample projects, and new projects.
 - New projects are created inside a same-name folder under the selected parent directory.
 - Supports project rename and deletion.
-- The sample list is separated from user projects. Current samples include `2D Action Demo` (`Sample-project-list/sample-2D-shooting`) and `Snake` (`Sample-project-list/Snake`).
+- The sample list is separated from user projects. Current samples include `2D Action Demo` (provided by `Sample-project-list/sample-2D-shooting`) and `Snake` (`Sample-project-list/Snake`).
 - Project opening automatically scans and repairs scene catalogs, resource paths, and missing project runtime script files.
 - Packaged samples are copied from `resources/Sample-project-list` into user data before editing, so installed app resources stay read-only.
 
 ### Editor Workflow
 
 - Scene Tree: select, duplicate, delete, rename, edit IDs, and create entities.
+- Scene File Tree supports class folders: select, click to expand/collapse, create, delete, rename, copy/paste, and drag entities/classes between folders.
+- Class folders support nesting and are saved in scene files; scripts can query them with `ctx.api.findEntitiesByClass('Gameplay/Actors')`.
+- The `sample-2D-shooting` and `Snake` sample projects now ship with organized Scene File Tree hierarchies.
 - Asset Tree: refresh, import images/audio, collapse, reveal in file manager, open text files, and preview images.
 - Asset Tree supports file/folder creation, rename, copy, delete, drag-move, and `Ctrl/Cmd + Z` / `Ctrl/Cmd + Y` undo/redo for file operations.
 - Resource rename and move operations automatically synchronize JSON references in scenes, prefabs, animations, and atlases.

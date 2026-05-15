@@ -1,4 +1,4 @@
-﻿# UNU Engine Beginner Tutorial
+# UNU Engine Beginner Tutorial
 
 [中文](BEGINNER_TUTORIAL.zh-CN.md) | English
 
@@ -60,7 +60,7 @@ Start with a sample project. UNU currently includes two main samples: `2D Action
 
 The editor is divided into four main areas:
 
-- Left: Scene Tree and Asset Tree.
+- Left: Scene Tree and Asset Tree. The Scene Tree can switch between File Tree and Layer List views; File Tree class folders can be nested, renamed, copied/pasted, and used as drag targets for entities.
 - Center: Scene View for editing and play preview.
 - Right: Inspector, Script Editor, Timeline, and related panels.
 - Top: Project, Scene, Entity, Tool, Play, and Export menus.
@@ -69,7 +69,7 @@ Save, import, export, and error status messages are shown in the bottom Console 
 
 ## 5. Basic Editing Flow
 
-1. Select an entity in the Scene Tree.
+1. Select an entity in the Scene Tree; in File Tree view, expand a class folder first when needed.
 2. Edit its components in the Inspector.
 3. Use the top toolbar to create, duplicate, or delete entities.
 4. Select an image in the Asset Tree and bind it to Sprite or Tilemap materials.

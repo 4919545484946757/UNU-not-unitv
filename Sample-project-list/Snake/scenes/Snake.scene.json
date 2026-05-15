@@ -1,4 +1,4 @@
-﻿{
+{
   "format": "unu-scene",
   "scene": {
     "name": "Snake",
@@ -42,7 +42,8 @@
           }
         ],
         "name": "MainCamera",
-        "id": "main_camera"
+        "id": "main_camera",
+        "sceneFolderPath": "System/Cameras"
       },
       {
         "components": [
@@ -80,7 +81,8 @@
           }
         ],
         "name": "Board_Background",
-        "id": "board_bg"
+        "id": "board_bg",
+        "sceneFolderPath": "Environment/Board"
       },
       {
         "components": [
@@ -118,7 +120,8 @@
           }
         ],
         "name": "Board_PlayArea",
-        "id": "board_inner"
+        "id": "board_inner",
+        "sceneFolderPath": "Environment/Board"
       },
       {
         "components": [
@@ -153,7 +156,8 @@
           }
         ],
         "name": "SnakeGameController",
-        "id": "game_controller"
+        "id": "game_controller",
+        "sceneFolderPath": "System/GameLogic"
       },
       {
         "components": [
@@ -191,7 +195,8 @@
           }
         ],
         "name": "Food",
-        "id": "snake_food"
+        "id": "snake_food",
+        "sceneFolderPath": "Gameplay/Food"
       },
       {
         "components": [
@@ -229,7 +234,8 @@
           }
         ],
         "name": "Snake Segment 000",
-        "id": "snake_segment_000"
+        "id": "snake_segment_000",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -267,7 +273,8 @@
           }
         ],
         "name": "Snake Segment 001",
-        "id": "snake_segment_001"
+        "id": "snake_segment_001",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -305,7 +312,8 @@
           }
         ],
         "name": "Snake Segment 002",
-        "id": "snake_segment_002"
+        "id": "snake_segment_002",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -343,7 +351,8 @@
           }
         ],
         "name": "Snake Segment 003",
-        "id": "snake_segment_003"
+        "id": "snake_segment_003",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -381,7 +390,8 @@
           }
         ],
         "name": "Snake Segment 004",
-        "id": "snake_segment_004"
+        "id": "snake_segment_004",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -419,7 +429,8 @@
           }
         ],
         "name": "Snake Segment 005",
-        "id": "snake_segment_005"
+        "id": "snake_segment_005",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -457,7 +468,8 @@
           }
         ],
         "name": "Snake Segment 006",
-        "id": "snake_segment_006"
+        "id": "snake_segment_006",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -495,7 +507,8 @@
           }
         ],
         "name": "Snake Segment 007",
-        "id": "snake_segment_007"
+        "id": "snake_segment_007",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -533,7 +546,8 @@
           }
         ],
         "name": "Snake Segment 008",
-        "id": "snake_segment_008"
+        "id": "snake_segment_008",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -571,7 +585,8 @@
           }
         ],
         "name": "Snake Segment 009",
-        "id": "snake_segment_009"
+        "id": "snake_segment_009",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -609,7 +624,8 @@
           }
         ],
         "name": "Snake Segment 010",
-        "id": "snake_segment_010"
+        "id": "snake_segment_010",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -647,7 +663,8 @@
           }
         ],
         "name": "Snake Segment 011",
-        "id": "snake_segment_011"
+        "id": "snake_segment_011",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -685,7 +702,8 @@
           }
         ],
         "name": "Snake Segment 012",
-        "id": "snake_segment_012"
+        "id": "snake_segment_012",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -723,7 +741,8 @@
           }
         ],
         "name": "Snake Segment 013",
-        "id": "snake_segment_013"
+        "id": "snake_segment_013",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -761,7 +780,8 @@
           }
         ],
         "name": "Snake Segment 014",
-        "id": "snake_segment_014"
+        "id": "snake_segment_014",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -799,7 +819,8 @@
           }
         ],
         "name": "Snake Segment 015",
-        "id": "snake_segment_015"
+        "id": "snake_segment_015",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -837,7 +858,8 @@
           }
         ],
         "name": "Snake Segment 016",
-        "id": "snake_segment_016"
+        "id": "snake_segment_016",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -875,7 +897,8 @@
           }
         ],
         "name": "Snake Segment 017",
-        "id": "snake_segment_017"
+        "id": "snake_segment_017",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -913,7 +936,8 @@
           }
         ],
         "name": "Snake Segment 018",
-        "id": "snake_segment_018"
+        "id": "snake_segment_018",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -951,7 +975,8 @@
           }
         ],
         "name": "Snake Segment 019",
-        "id": "snake_segment_019"
+        "id": "snake_segment_019",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -989,7 +1014,8 @@
           }
         ],
         "name": "Snake Segment 020",
-        "id": "snake_segment_020"
+        "id": "snake_segment_020",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1027,7 +1053,8 @@
           }
         ],
         "name": "Snake Segment 021",
-        "id": "snake_segment_021"
+        "id": "snake_segment_021",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1065,7 +1092,8 @@
           }
         ],
         "name": "Snake Segment 022",
-        "id": "snake_segment_022"
+        "id": "snake_segment_022",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1103,7 +1131,8 @@
           }
         ],
         "name": "Snake Segment 023",
-        "id": "snake_segment_023"
+        "id": "snake_segment_023",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1141,7 +1170,8 @@
           }
         ],
         "name": "Snake Segment 024",
-        "id": "snake_segment_024"
+        "id": "snake_segment_024",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1179,7 +1209,8 @@
           }
         ],
         "name": "Snake Segment 025",
-        "id": "snake_segment_025"
+        "id": "snake_segment_025",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1217,7 +1248,8 @@
           }
         ],
         "name": "Snake Segment 026",
-        "id": "snake_segment_026"
+        "id": "snake_segment_026",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1255,7 +1287,8 @@
           }
         ],
         "name": "Snake Segment 027",
-        "id": "snake_segment_027"
+        "id": "snake_segment_027",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1293,7 +1326,8 @@
           }
         ],
         "name": "Snake Segment 028",
-        "id": "snake_segment_028"
+        "id": "snake_segment_028",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1331,7 +1365,8 @@
           }
         ],
         "name": "Snake Segment 029",
-        "id": "snake_segment_029"
+        "id": "snake_segment_029",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1369,7 +1404,8 @@
           }
         ],
         "name": "Snake Segment 030",
-        "id": "snake_segment_030"
+        "id": "snake_segment_030",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1407,7 +1443,8 @@
           }
         ],
         "name": "Snake Segment 031",
-        "id": "snake_segment_031"
+        "id": "snake_segment_031",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1445,7 +1482,8 @@
           }
         ],
         "name": "Snake Segment 032",
-        "id": "snake_segment_032"
+        "id": "snake_segment_032",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1483,7 +1521,8 @@
           }
         ],
         "name": "Snake Segment 033",
-        "id": "snake_segment_033"
+        "id": "snake_segment_033",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1521,7 +1560,8 @@
           }
         ],
         "name": "Snake Segment 034",
-        "id": "snake_segment_034"
+        "id": "snake_segment_034",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1559,7 +1599,8 @@
           }
         ],
         "name": "Snake Segment 035",
-        "id": "snake_segment_035"
+        "id": "snake_segment_035",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1597,7 +1638,8 @@
           }
         ],
         "name": "Snake Segment 036",
-        "id": "snake_segment_036"
+        "id": "snake_segment_036",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1635,7 +1677,8 @@
           }
         ],
         "name": "Snake Segment 037",
-        "id": "snake_segment_037"
+        "id": "snake_segment_037",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1673,7 +1716,8 @@
           }
         ],
         "name": "Snake Segment 038",
-        "id": "snake_segment_038"
+        "id": "snake_segment_038",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1711,7 +1755,8 @@
           }
         ],
         "name": "Snake Segment 039",
-        "id": "snake_segment_039"
+        "id": "snake_segment_039",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1749,7 +1794,8 @@
           }
         ],
         "name": "Snake Segment 040",
-        "id": "snake_segment_040"
+        "id": "snake_segment_040",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1787,7 +1833,8 @@
           }
         ],
         "name": "Snake Segment 041",
-        "id": "snake_segment_041"
+        "id": "snake_segment_041",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1825,7 +1872,8 @@
           }
         ],
         "name": "Snake Segment 042",
-        "id": "snake_segment_042"
+        "id": "snake_segment_042",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1863,7 +1911,8 @@
           }
         ],
         "name": "Snake Segment 043",
-        "id": "snake_segment_043"
+        "id": "snake_segment_043",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1901,7 +1950,8 @@
           }
         ],
         "name": "Snake Segment 044",
-        "id": "snake_segment_044"
+        "id": "snake_segment_044",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1939,7 +1989,8 @@
           }
         ],
         "name": "Snake Segment 045",
-        "id": "snake_segment_045"
+        "id": "snake_segment_045",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -1977,7 +2028,8 @@
           }
         ],
         "name": "Snake Segment 046",
-        "id": "snake_segment_046"
+        "id": "snake_segment_046",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2015,7 +2067,8 @@
           }
         ],
         "name": "Snake Segment 047",
-        "id": "snake_segment_047"
+        "id": "snake_segment_047",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2053,7 +2106,8 @@
           }
         ],
         "name": "Snake Segment 048",
-        "id": "snake_segment_048"
+        "id": "snake_segment_048",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2091,7 +2145,8 @@
           }
         ],
         "name": "Snake Segment 049",
-        "id": "snake_segment_049"
+        "id": "snake_segment_049",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2129,7 +2184,8 @@
           }
         ],
         "name": "Snake Segment 050",
-        "id": "snake_segment_050"
+        "id": "snake_segment_050",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2167,7 +2223,8 @@
           }
         ],
         "name": "Snake Segment 051",
-        "id": "snake_segment_051"
+        "id": "snake_segment_051",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2205,7 +2262,8 @@
           }
         ],
         "name": "Snake Segment 052",
-        "id": "snake_segment_052"
+        "id": "snake_segment_052",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2243,7 +2301,8 @@
           }
         ],
         "name": "Snake Segment 053",
-        "id": "snake_segment_053"
+        "id": "snake_segment_053",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2281,7 +2340,8 @@
           }
         ],
         "name": "Snake Segment 054",
-        "id": "snake_segment_054"
+        "id": "snake_segment_054",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2319,7 +2379,8 @@
           }
         ],
         "name": "Snake Segment 055",
-        "id": "snake_segment_055"
+        "id": "snake_segment_055",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2357,7 +2418,8 @@
           }
         ],
         "name": "Snake Segment 056",
-        "id": "snake_segment_056"
+        "id": "snake_segment_056",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2395,7 +2457,8 @@
           }
         ],
         "name": "Snake Segment 057",
-        "id": "snake_segment_057"
+        "id": "snake_segment_057",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2433,7 +2496,8 @@
           }
         ],
         "name": "Snake Segment 058",
-        "id": "snake_segment_058"
+        "id": "snake_segment_058",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2471,7 +2535,8 @@
           }
         ],
         "name": "Snake Segment 059",
-        "id": "snake_segment_059"
+        "id": "snake_segment_059",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2509,7 +2574,8 @@
           }
         ],
         "name": "Snake Segment 060",
-        "id": "snake_segment_060"
+        "id": "snake_segment_060",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2547,7 +2613,8 @@
           }
         ],
         "name": "Snake Segment 061",
-        "id": "snake_segment_061"
+        "id": "snake_segment_061",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2585,7 +2652,8 @@
           }
         ],
         "name": "Snake Segment 062",
-        "id": "snake_segment_062"
+        "id": "snake_segment_062",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2623,7 +2691,8 @@
           }
         ],
         "name": "Snake Segment 063",
-        "id": "snake_segment_063"
+        "id": "snake_segment_063",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2661,7 +2730,8 @@
           }
         ],
         "name": "Snake Segment 064",
-        "id": "snake_segment_064"
+        "id": "snake_segment_064",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2699,7 +2769,8 @@
           }
         ],
         "name": "Snake Segment 065",
-        "id": "snake_segment_065"
+        "id": "snake_segment_065",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2737,7 +2808,8 @@
           }
         ],
         "name": "Snake Segment 066",
-        "id": "snake_segment_066"
+        "id": "snake_segment_066",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2775,7 +2847,8 @@
           }
         ],
         "name": "Snake Segment 067",
-        "id": "snake_segment_067"
+        "id": "snake_segment_067",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2813,7 +2886,8 @@
           }
         ],
         "name": "Snake Segment 068",
-        "id": "snake_segment_068"
+        "id": "snake_segment_068",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2851,7 +2925,8 @@
           }
         ],
         "name": "Snake Segment 069",
-        "id": "snake_segment_069"
+        "id": "snake_segment_069",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2889,7 +2964,8 @@
           }
         ],
         "name": "Snake Segment 070",
-        "id": "snake_segment_070"
+        "id": "snake_segment_070",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2927,7 +3003,8 @@
           }
         ],
         "name": "Snake Segment 071",
-        "id": "snake_segment_071"
+        "id": "snake_segment_071",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -2965,7 +3042,8 @@
           }
         ],
         "name": "Snake Segment 072",
-        "id": "snake_segment_072"
+        "id": "snake_segment_072",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3003,7 +3081,8 @@
           }
         ],
         "name": "Snake Segment 073",
-        "id": "snake_segment_073"
+        "id": "snake_segment_073",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3041,7 +3120,8 @@
           }
         ],
         "name": "Snake Segment 074",
-        "id": "snake_segment_074"
+        "id": "snake_segment_074",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3079,7 +3159,8 @@
           }
         ],
         "name": "Snake Segment 075",
-        "id": "snake_segment_075"
+        "id": "snake_segment_075",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3117,7 +3198,8 @@
           }
         ],
         "name": "Snake Segment 076",
-        "id": "snake_segment_076"
+        "id": "snake_segment_076",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3155,7 +3237,8 @@
           }
         ],
         "name": "Snake Segment 077",
-        "id": "snake_segment_077"
+        "id": "snake_segment_077",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3193,7 +3276,8 @@
           }
         ],
         "name": "Snake Segment 078",
-        "id": "snake_segment_078"
+        "id": "snake_segment_078",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3231,7 +3315,8 @@
           }
         ],
         "name": "Snake Segment 079",
-        "id": "snake_segment_079"
+        "id": "snake_segment_079",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3269,7 +3354,8 @@
           }
         ],
         "name": "Snake Segment 080",
-        "id": "snake_segment_080"
+        "id": "snake_segment_080",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3307,7 +3393,8 @@
           }
         ],
         "name": "Snake Segment 081",
-        "id": "snake_segment_081"
+        "id": "snake_segment_081",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3345,7 +3432,8 @@
           }
         ],
         "name": "Snake Segment 082",
-        "id": "snake_segment_082"
+        "id": "snake_segment_082",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3383,7 +3471,8 @@
           }
         ],
         "name": "Snake Segment 083",
-        "id": "snake_segment_083"
+        "id": "snake_segment_083",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3421,7 +3510,8 @@
           }
         ],
         "name": "Snake Segment 084",
-        "id": "snake_segment_084"
+        "id": "snake_segment_084",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3459,7 +3549,8 @@
           }
         ],
         "name": "Snake Segment 085",
-        "id": "snake_segment_085"
+        "id": "snake_segment_085",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3497,7 +3588,8 @@
           }
         ],
         "name": "Snake Segment 086",
-        "id": "snake_segment_086"
+        "id": "snake_segment_086",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3535,7 +3627,8 @@
           }
         ],
         "name": "Snake Segment 087",
-        "id": "snake_segment_087"
+        "id": "snake_segment_087",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3573,7 +3666,8 @@
           }
         ],
         "name": "Snake Segment 088",
-        "id": "snake_segment_088"
+        "id": "snake_segment_088",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3611,7 +3705,8 @@
           }
         ],
         "name": "Snake Segment 089",
-        "id": "snake_segment_089"
+        "id": "snake_segment_089",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3649,7 +3744,8 @@
           }
         ],
         "name": "Snake Segment 090",
-        "id": "snake_segment_090"
+        "id": "snake_segment_090",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3687,7 +3783,8 @@
           }
         ],
         "name": "Snake Segment 091",
-        "id": "snake_segment_091"
+        "id": "snake_segment_091",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3725,7 +3822,8 @@
           }
         ],
         "name": "Snake Segment 092",
-        "id": "snake_segment_092"
+        "id": "snake_segment_092",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3763,7 +3861,8 @@
           }
         ],
         "name": "Snake Segment 093",
-        "id": "snake_segment_093"
+        "id": "snake_segment_093",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3801,7 +3900,8 @@
           }
         ],
         "name": "Snake Segment 094",
-        "id": "snake_segment_094"
+        "id": "snake_segment_094",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3839,7 +3939,8 @@
           }
         ],
         "name": "Snake Segment 095",
-        "id": "snake_segment_095"
+        "id": "snake_segment_095",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3877,7 +3978,8 @@
           }
         ],
         "name": "Snake Segment 096",
-        "id": "snake_segment_096"
+        "id": "snake_segment_096",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3915,7 +4017,8 @@
           }
         ],
         "name": "Snake Segment 097",
-        "id": "snake_segment_097"
+        "id": "snake_segment_097",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3953,7 +4056,8 @@
           }
         ],
         "name": "Snake Segment 098",
-        "id": "snake_segment_098"
+        "id": "snake_segment_098",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -3991,7 +4095,8 @@
           }
         ],
         "name": "Snake Segment 099",
-        "id": "snake_segment_099"
+        "id": "snake_segment_099",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4029,7 +4134,8 @@
           }
         ],
         "name": "Snake Segment 100",
-        "id": "snake_segment_100"
+        "id": "snake_segment_100",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4067,7 +4173,8 @@
           }
         ],
         "name": "Snake Segment 101",
-        "id": "snake_segment_101"
+        "id": "snake_segment_101",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4105,7 +4212,8 @@
           }
         ],
         "name": "Snake Segment 102",
-        "id": "snake_segment_102"
+        "id": "snake_segment_102",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4143,7 +4251,8 @@
           }
         ],
         "name": "Snake Segment 103",
-        "id": "snake_segment_103"
+        "id": "snake_segment_103",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4181,7 +4290,8 @@
           }
         ],
         "name": "Snake Segment 104",
-        "id": "snake_segment_104"
+        "id": "snake_segment_104",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4219,7 +4329,8 @@
           }
         ],
         "name": "Snake Segment 105",
-        "id": "snake_segment_105"
+        "id": "snake_segment_105",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4257,7 +4368,8 @@
           }
         ],
         "name": "Snake Segment 106",
-        "id": "snake_segment_106"
+        "id": "snake_segment_106",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4295,7 +4407,8 @@
           }
         ],
         "name": "Snake Segment 107",
-        "id": "snake_segment_107"
+        "id": "snake_segment_107",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4333,7 +4446,8 @@
           }
         ],
         "name": "Snake Segment 108",
-        "id": "snake_segment_108"
+        "id": "snake_segment_108",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4371,7 +4485,8 @@
           }
         ],
         "name": "Snake Segment 109",
-        "id": "snake_segment_109"
+        "id": "snake_segment_109",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4409,7 +4524,8 @@
           }
         ],
         "name": "Snake Segment 110",
-        "id": "snake_segment_110"
+        "id": "snake_segment_110",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4447,7 +4563,8 @@
           }
         ],
         "name": "Snake Segment 111",
-        "id": "snake_segment_111"
+        "id": "snake_segment_111",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4485,7 +4602,8 @@
           }
         ],
         "name": "Snake Segment 112",
-        "id": "snake_segment_112"
+        "id": "snake_segment_112",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4523,7 +4641,8 @@
           }
         ],
         "name": "Snake Segment 113",
-        "id": "snake_segment_113"
+        "id": "snake_segment_113",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4561,7 +4680,8 @@
           }
         ],
         "name": "Snake Segment 114",
-        "id": "snake_segment_114"
+        "id": "snake_segment_114",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4599,7 +4719,8 @@
           }
         ],
         "name": "Snake Segment 115",
-        "id": "snake_segment_115"
+        "id": "snake_segment_115",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4637,7 +4758,8 @@
           }
         ],
         "name": "Snake Segment 116",
-        "id": "snake_segment_116"
+        "id": "snake_segment_116",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4675,7 +4797,8 @@
           }
         ],
         "name": "Snake Segment 117",
-        "id": "snake_segment_117"
+        "id": "snake_segment_117",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4713,7 +4836,8 @@
           }
         ],
         "name": "Snake Segment 118",
-        "id": "snake_segment_118"
+        "id": "snake_segment_118",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4751,7 +4875,8 @@
           }
         ],
         "name": "Snake Segment 119",
-        "id": "snake_segment_119"
+        "id": "snake_segment_119",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4789,7 +4914,8 @@
           }
         ],
         "name": "Snake Segment 120",
-        "id": "snake_segment_120"
+        "id": "snake_segment_120",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4827,7 +4953,8 @@
           }
         ],
         "name": "Snake Segment 121",
-        "id": "snake_segment_121"
+        "id": "snake_segment_121",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4865,7 +4992,8 @@
           }
         ],
         "name": "Snake Segment 122",
-        "id": "snake_segment_122"
+        "id": "snake_segment_122",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4903,7 +5031,8 @@
           }
         ],
         "name": "Snake Segment 123",
-        "id": "snake_segment_123"
+        "id": "snake_segment_123",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4941,7 +5070,8 @@
           }
         ],
         "name": "Snake Segment 124",
-        "id": "snake_segment_124"
+        "id": "snake_segment_124",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -4979,7 +5109,8 @@
           }
         ],
         "name": "Snake Segment 125",
-        "id": "snake_segment_125"
+        "id": "snake_segment_125",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5017,7 +5148,8 @@
           }
         ],
         "name": "Snake Segment 126",
-        "id": "snake_segment_126"
+        "id": "snake_segment_126",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5055,7 +5187,8 @@
           }
         ],
         "name": "Snake Segment 127",
-        "id": "snake_segment_127"
+        "id": "snake_segment_127",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5093,7 +5226,8 @@
           }
         ],
         "name": "Snake Segment 128",
-        "id": "snake_segment_128"
+        "id": "snake_segment_128",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5131,7 +5265,8 @@
           }
         ],
         "name": "Snake Segment 129",
-        "id": "snake_segment_129"
+        "id": "snake_segment_129",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5169,7 +5304,8 @@
           }
         ],
         "name": "Snake Segment 130",
-        "id": "snake_segment_130"
+        "id": "snake_segment_130",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5207,7 +5343,8 @@
           }
         ],
         "name": "Snake Segment 131",
-        "id": "snake_segment_131"
+        "id": "snake_segment_131",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5245,7 +5382,8 @@
           }
         ],
         "name": "Snake Segment 132",
-        "id": "snake_segment_132"
+        "id": "snake_segment_132",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5283,7 +5421,8 @@
           }
         ],
         "name": "Snake Segment 133",
-        "id": "snake_segment_133"
+        "id": "snake_segment_133",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5321,7 +5460,8 @@
           }
         ],
         "name": "Snake Segment 134",
-        "id": "snake_segment_134"
+        "id": "snake_segment_134",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5359,7 +5499,8 @@
           }
         ],
         "name": "Snake Segment 135",
-        "id": "snake_segment_135"
+        "id": "snake_segment_135",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5397,7 +5538,8 @@
           }
         ],
         "name": "Snake Segment 136",
-        "id": "snake_segment_136"
+        "id": "snake_segment_136",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5435,7 +5577,8 @@
           }
         ],
         "name": "Snake Segment 137",
-        "id": "snake_segment_137"
+        "id": "snake_segment_137",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5473,7 +5616,8 @@
           }
         ],
         "name": "Snake Segment 138",
-        "id": "snake_segment_138"
+        "id": "snake_segment_138",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5511,7 +5655,8 @@
           }
         ],
         "name": "Snake Segment 139",
-        "id": "snake_segment_139"
+        "id": "snake_segment_139",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5549,7 +5694,8 @@
           }
         ],
         "name": "Snake Segment 140",
-        "id": "snake_segment_140"
+        "id": "snake_segment_140",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5587,7 +5733,8 @@
           }
         ],
         "name": "Snake Segment 141",
-        "id": "snake_segment_141"
+        "id": "snake_segment_141",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5625,7 +5772,8 @@
           }
         ],
         "name": "Snake Segment 142",
-        "id": "snake_segment_142"
+        "id": "snake_segment_142",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5663,7 +5811,8 @@
           }
         ],
         "name": "Snake Segment 143",
-        "id": "snake_segment_143"
+        "id": "snake_segment_143",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5701,7 +5850,8 @@
           }
         ],
         "name": "Snake Segment 144",
-        "id": "snake_segment_144"
+        "id": "snake_segment_144",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5739,7 +5889,8 @@
           }
         ],
         "name": "Snake Segment 145",
-        "id": "snake_segment_145"
+        "id": "snake_segment_145",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5777,7 +5928,8 @@
           }
         ],
         "name": "Snake Segment 146",
-        "id": "snake_segment_146"
+        "id": "snake_segment_146",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5815,7 +5967,8 @@
           }
         ],
         "name": "Snake Segment 147",
-        "id": "snake_segment_147"
+        "id": "snake_segment_147",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5853,7 +6006,8 @@
           }
         ],
         "name": "Snake Segment 148",
-        "id": "snake_segment_148"
+        "id": "snake_segment_148",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5891,7 +6045,8 @@
           }
         ],
         "name": "Snake Segment 149",
-        "id": "snake_segment_149"
+        "id": "snake_segment_149",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5929,7 +6084,8 @@
           }
         ],
         "name": "Snake Segment 150",
-        "id": "snake_segment_150"
+        "id": "snake_segment_150",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -5967,7 +6123,8 @@
           }
         ],
         "name": "Snake Segment 151",
-        "id": "snake_segment_151"
+        "id": "snake_segment_151",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6005,7 +6162,8 @@
           }
         ],
         "name": "Snake Segment 152",
-        "id": "snake_segment_152"
+        "id": "snake_segment_152",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6043,7 +6201,8 @@
           }
         ],
         "name": "Snake Segment 153",
-        "id": "snake_segment_153"
+        "id": "snake_segment_153",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6081,7 +6240,8 @@
           }
         ],
         "name": "Snake Segment 154",
-        "id": "snake_segment_154"
+        "id": "snake_segment_154",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6119,7 +6279,8 @@
           }
         ],
         "name": "Snake Segment 155",
-        "id": "snake_segment_155"
+        "id": "snake_segment_155",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6157,7 +6318,8 @@
           }
         ],
         "name": "Snake Segment 156",
-        "id": "snake_segment_156"
+        "id": "snake_segment_156",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6195,7 +6357,8 @@
           }
         ],
         "name": "Snake Segment 157",
-        "id": "snake_segment_157"
+        "id": "snake_segment_157",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6233,7 +6396,8 @@
           }
         ],
         "name": "Snake Segment 158",
-        "id": "snake_segment_158"
+        "id": "snake_segment_158",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6271,7 +6435,8 @@
           }
         ],
         "name": "Snake Segment 159",
-        "id": "snake_segment_159"
+        "id": "snake_segment_159",
+        "sceneFolderPath": "Gameplay/Snake/Segments"
       },
       {
         "components": [
@@ -6313,7 +6478,8 @@
           }
         ],
         "name": "UI_Title",
-        "id": "ui_title"
+        "id": "ui_title",
+        "sceneFolderPath": "UI/HUD"
       },
       {
         "components": [
@@ -6355,7 +6521,8 @@
           }
         ],
         "name": "UI_Score",
-        "id": "ui_score"
+        "id": "ui_score",
+        "sceneFolderPath": "UI/HUD"
       },
       {
         "components": [
@@ -6397,7 +6564,8 @@
           }
         ],
         "name": "UI_Status",
-        "id": "ui_status"
+        "id": "ui_status",
+        "sceneFolderPath": "UI/HUD"
       },
       {
         "id": "snake_menu_backdrop",
@@ -6451,7 +6619,8 @@
               "layout": "none"
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       },
       {
         "id": "snake_menu_title",
@@ -6504,7 +6673,8 @@
               "paddingY": 9
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       },
       {
         "id": "snake_menu_continue",
@@ -6569,7 +6739,8 @@
               "started": false
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       },
       {
         "id": "snake_menu_restart",
@@ -6634,7 +6805,8 @@
               "started": false
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       },
       {
         "id": "snake_menu_difficulty",
@@ -6699,7 +6871,8 @@
               "started": false
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       },
       {
         "id": "snake_menu_reset_hotkeys",
@@ -6764,7 +6937,8 @@
               "started": false
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       },
       {
         "id": "snake_menu_exit",
@@ -6829,8 +7003,24 @@
               "started": false
             }
           }
-        ]
+        ],
+        "sceneFolderPath": "UI/PauseMenu/Main"
       }
+    ],
+    "sceneFolders": [
+      "Environment",
+      "Environment/Board",
+      "Gameplay",
+      "Gameplay/Food",
+      "Gameplay/Snake",
+      "Gameplay/Snake/Segments",
+      "System",
+      "System/Cameras",
+      "System/GameLogic",
+      "UI",
+      "UI/HUD",
+      "UI/PauseMenu",
+      "UI/PauseMenu/Main"
     ]
   },
   "version": 1

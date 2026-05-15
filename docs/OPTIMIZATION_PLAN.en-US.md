@@ -1,4 +1,4 @@
-﻿# UNU Engine Optimization Plan
+# UNU Engine Optimization Plan
 
 [中文](OPTIMIZATION_PLAN.zh-CN.md) | English
 
@@ -91,3 +91,10 @@ This plan focuses on low-risk, high-impact improvements that are easy to verify.
 ```
 
 
+
+
+### 2026-05-15 Scene Organization UX
+
+- Completed Scene File Tree / Layer List view switching.
+- Added nested class folders, drag moving, copy/paste, and rename reference synchronization.
+- Organized the `sample-2D-shooting` and `Snake` sample scene hierarchies to make examples easier to learn and maintain.

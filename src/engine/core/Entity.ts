@@ -6,6 +6,7 @@ export class Entity {
   name: string
   prefabSourcePath = ''
   prefabVariantBasePath = ''
+  sceneFolderPath = ''
   parent: Entity | null = null
   children: Entity[] = []
   private components = new Map<string, Component>()

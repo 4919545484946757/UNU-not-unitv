@@ -1920,6 +1920,28 @@ async function writeNormalizedExportProjectFile(projectRoot: string, outputDir: 
   return { sceneCatalog: catalog, startupScene }
 }
 
+async function writeSceneSnapshotFiles(projectRoot: string, sceneFiles?: Array<{ fileName?: string; content: string }>) {
+  const files = Array.isArray(sceneFiles) ? sceneFiles : []
+  if (!files.length) return { written: 0, fileNames: [] as string[] }
+  const scenesDir = path.join(projectRoot, 'scenes')
+  await fs.mkdir(scenesDir, { recursive: true })
+  const usedNames = new Set<string>()
+  const fileNames: string[] = []
+  for (const file of files) {
+    const rawName = sanitizeSceneFileName(file.fileName)
+    let candidate = rawName
+    let index = 2
+    while (usedNames.has(candidate.toLowerCase())) {
+      candidate = rawName.replace(/\.scene\.json$/i, `_${index}.scene.json`)
+      index += 1
+    }
+    usedNames.add(candidate.toLowerCase())
+    await fs.writeFile(path.join(scenesDir, candidate), String(file.content || ''), 'utf-8')
+    fileNames.push(candidate)
+  }
+  return { written: fileNames.length, fileNames }
+}
+
 async function writeExportLaunchFiles(outputDir: string, projectName?: string) {
   const batContent = [
     '@echo off',
@@ -2207,7 +2229,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:export-game', async (_event, payload: { projectRoot: string; projectName?: string }) => {
+  ipcMain.handle('unu:export-game', async (_event, payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) => {
     const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
     if (!projectRoot || projectRoot === 'sample-project' || !(await exists(projectRoot))) {
       throw new Error('请先打开一个本地项目，再导出游戏。')
@@ -2216,6 +2238,7 @@ app.whenReady().then(() => {
     await ensureProjectStructure(projectRoot)
     await ensureProjectRuntimeScriptFiles(projectRoot)
     const projectName = sanitizeProjectName(payload?.projectName) || path.basename(projectRoot)
+    const sceneSnapshot = await writeSceneSnapshotFiles(projectRoot, payload?.sceneFiles)
     const reconcile = await reconcileProjectSceneCatalog(projectRoot, projectName)
     const integrity = await ensureProjectAssetIntegrity(projectRoot)
 
@@ -2251,6 +2274,8 @@ app.whenReady().then(() => {
       sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
       startupScene: exportProject.startupScene || reconcile.startupScene,
       sceneCatalog: exportProject.sceneCatalog,
+      sceneSnapshotWritten: sceneSnapshot.written,
+      sceneSnapshotFiles: sceneSnapshot.fileNames,
       assetCount,
       assetIntegrityRepaired: integrity.repaired,
       normalizedSceneFiles: integrity.normalizedSceneFiles,
@@ -2274,6 +2299,7 @@ app.whenReady().then(() => {
       sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
       startupScene: exportProject.startupScene || reconcile.startupScene,
       assetCount,
+      sceneSnapshotWritten: sceneSnapshot.written,
       assetIntegrityRepaired: integrity.repaired,
       unresolvedAssets: integrity.unresolvedAssets
     }

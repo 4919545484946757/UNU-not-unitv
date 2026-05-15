@@ -1,4 +1,4 @@
-﻿# UNU Script API Cheat Sheet
+# UNU Script API Cheat Sheet
 
 English | [中文](SCRIPT_API.zh-CN.md)
 
@@ -168,6 +168,8 @@ UI event fields:
 | --- | --- |
 | `ctx.api.getSelectedEntity()` | Gets the editor-selected entity, mostly for debugging |
 | `ctx.api.findEntityByName(name)` | Finds an entity by name |
+| `ctx.api.findEntitiesByFolder(folderPath, includeDescendants?)` | Finds entities by Scene tree folder path; descendants are included by default |
+| `ctx.api.findEntitiesByClass(classPath, includeDescendants?)` | Semantic alias of `findEntitiesByFolder`, useful when folders are used as entity classes |
 | `ctx.api.removeEntity(target)` | Removes an entity safely through the runtime mutation queue |
 | `ctx.api.spawnEntity(entity)` | Spawns an entity safely through the runtime mutation queue |
 | `ctx.api.switchScene(sceneName, options?)` | Requests a scene switch |
@@ -183,6 +185,15 @@ UI event fields:
 | --- | --- |
 | `targetSpawnId` | Spawn point entity ID to place the player at |
 | `sceneStateMode` | `preserve` keeps scene state, `reset` reloads scene state |
+
+The Scene panel's "File Tree" view treats an entity's `Folder / Class Path` as a category. Scripts can locate entities in that class:
+
+```ts
+const enemies = ctx.api.findEntitiesByClass('Gameplay/Actors/Enemies')
+for (const enemy of enemies) {
+  ctx.api.log('[Enemy class]', enemy.id)
+}
+```
 
 ## Collision And Trigger API
 

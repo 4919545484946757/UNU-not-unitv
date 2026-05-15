@@ -59,7 +59,7 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.on('unu:project-script-changed', listener)
     return () => ipcRenderer.removeListener('unu:project-script-changed', listener)
   },
-  exportGame: (payload: { projectRoot: string; projectName?: string }) =>
+  exportGame: (payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) =>
     ipcRenderer.invoke('unu:export-game', payload),
   openTilemapEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-tilemap-editor', payload),
   submitTilemapEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:tilemap-editor-update', payload),

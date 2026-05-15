@@ -22,6 +22,7 @@ interface SerializedEntity {
   name: string
   prefabSourcePath?: string
   prefabVariantBasePath?: string
+  sceneFolderPath?: string
   components: SerializedComponent[]
 }
 
@@ -31,6 +32,7 @@ interface SerializedScene {
   scene: {
     id: string
     name: string
+    sceneFolders?: string[]
     entities: SerializedEntity[]
   }
 }
@@ -41,6 +43,7 @@ export function serializeEntity(entity: Entity): SerializedEntity {
     name: entity.name,
     prefabSourcePath: entity.prefabSourcePath || undefined,
     prefabVariantBasePath: entity.prefabVariantBasePath || undefined,
+    sceneFolderPath: entity.sceneFolderPath || undefined,
     components: entity.getAllComponents().map((component) => ({
       type: component.type,
       data: JSON.parse(JSON.stringify(component))
@@ -52,6 +55,7 @@ export function deserializeEntity(entityData: SerializedEntity) {
   const entity = new Entity(entityData.id, entityData.name)
   entity.prefabSourcePath = String(entityData.prefabSourcePath || '')
   entity.prefabVariantBasePath = String(entityData.prefabVariantBasePath || '')
+  entity.sceneFolderPath = normalizeSceneFolderPath(entityData.sceneFolderPath)
   for (const componentData of entityData.components) {
     const data = componentData.data
     switch (componentData.type) {
@@ -328,6 +332,15 @@ export function deserializeEntity(entityData: SerializedEntity) {
   return entity
 }
 
+function normalizeSceneFolderPath(value: unknown) {
+  return String(value || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('/')
+}
+
 export function serializeScene(scene: Scene) {
   const payload: SerializedScene = {
     format: 'unu-scene',
@@ -335,6 +348,7 @@ export function serializeScene(scene: Scene) {
     scene: {
       id: scene.id,
       name: scene.name,
+      sceneFolders: normalizeSceneFolderList(scene.sceneFolders),
       entities: scene.entities.map(serializeEntity)
     }
   }
@@ -350,12 +364,21 @@ export function deserializeScene(raw: string) {
   }
 
   const scene = new Scene(parsed.scene.id, parsed.scene.name)
+  scene.sceneFolders = normalizeSceneFolderList(parsed.scene.sceneFolders)
 
   for (const entityData of parsed.scene.entities) {
     scene.addEntity(deserializeEntity(entityData))
   }
 
   return scene
+}
+
+function normalizeSceneFolderList(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => normalizeSceneFolderPath(item))
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index)
 }
 
 function normalizeCollisionLayer(value: unknown): CollisionLayer {

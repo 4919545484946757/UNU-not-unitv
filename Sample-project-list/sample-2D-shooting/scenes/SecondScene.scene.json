@@ -4,10 +4,33 @@
   "scene": {
     "id": "scene_second",
     "name": "SecondScene",
+    "sceneFolders": [
+      "Environment",
+      "Environment/Background",
+      "Environment/Tilemaps",
+      "Gameplay",
+      "Gameplay/Actors",
+      "Gameplay/Actors/Enemies",
+      "Gameplay/Actors/Player",
+      "Gameplay/Interactables",
+      "Gameplay/Interactables/Doors",
+      "System",
+      "System/Cameras",
+      "System/Menu",
+      "System/SceneLogic",
+      "System/SpawnPoints",
+      "UI",
+      "UI/HUD",
+      "UI/PauseMenu",
+      "UI/PauseMenu/Hotkeys",
+      "UI/PauseMenu/Main",
+      "UI/PauseMenu/Settings"
+    ],
     "entities": [
       {
         "id": "background_second_001",
         "name": "Background",
+        "sceneFolderPath": "Environment/Background",
         "components": [
           {
             "type": "Transform",
@@ -72,6 +95,7 @@
       {
         "id": "tilemap_002",
         "name": "LevelTilemap",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -340,6 +364,7 @@
       {
         "id": "player_002",
         "name": "Player",
+        "sceneFolderPath": "Gameplay/Actors/Player",
         "components": [
           {
             "type": "Transform",
@@ -572,6 +597,7 @@
       {
         "id": "second_scene_gravity_system",
         "name": "SecondSceneGravitySystem",
+        "sceneFolderPath": "System/SceneLogic",
         "components": [
           {
             "type": "Transform",
@@ -607,6 +633,7 @@
       {
         "id": "door_to_main_001",
         "name": "DoorToMain",
+        "sceneFolderPath": "Gameplay/Interactables/Doors",
         "components": [
           {
             "type": "Transform",
@@ -687,6 +714,7 @@
       {
         "id": "camera_second",
         "name": "MainCamera",
+        "sceneFolderPath": "System/Cameras",
         "components": [
           {
             "type": "Transform",
@@ -727,6 +755,7 @@
       {
         "id": "spawn_from_main_001",
         "name": "Spawn_From_Main",
+        "sceneFolderPath": "System/SpawnPoints",
         "components": [
           {
             "type": "Transform",
@@ -750,6 +779,7 @@
       {
         "id": "copy_spl4g5",
         "name": "LevelTilemap_Copy",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -1018,6 +1048,7 @@
       {
         "id": "copy_20x8du",
         "name": "hotkey_list_Copy",
+        "sceneFolderPath": "UI/HUD",
         "components": [
           {
             "type": "Transform",
@@ -1052,7 +1083,20 @@
               "anchorY": 0,
               "interactable": false,
               "markdownEnabled": false,
-              "renderMode": "pixi"
+              "renderMode": "pixi",
+              "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 14,
+              "paddingY": 8,
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 1,
+              "minHeight": 1
             }
           }
         ]
@@ -1060,6 +1104,7 @@
       {
         "id": "copy_b5qvpq",
         "name": "LevelTilemap_Copy_Copy",
+        "sceneFolderPath": "Environment/Tilemaps",
         "components": [
           {
             "type": "Transform",
@@ -1328,6 +1373,7 @@
       {
         "id": "copy_txfhvi",
         "name": "Enemy_Copy",
+        "sceneFolderPath": "Gameplay/Actors/Enemies",
         "components": [
           {
             "type": "Transform",
@@ -1439,6 +1485,7 @@
       {
         "id": "pause_menu_manager_secondscene",
         "name": "PauseMenu_Manager",
+        "sceneFolderPath": "System/Menu",
         "components": [
           {
             "type": "Transform",
@@ -1451,7 +1498,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 900,
+              "zIndex": 11,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1461,9 +1508,9 @@
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu.js",
               "sourceCode": "{\n  \"defaultDifficulty\": \"easy\",\n  \"defaultVolume\": 1\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -1474,6 +1521,7 @@
       {
         "id": "pause_menu_backdrop_secondscene",
         "name": "PauseMenu_Backdrop",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -1486,7 +1534,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 901,
+              "zIndex": 12,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1510,11 +1558,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 18,
+              "paddingY": 12,
               "autoWidth": false,
               "autoHeight": false,
-              "layout": "none",
-              "paddingX": 18,
-              "paddingY": 12
+              "minWidth": 1,
+              "minHeight": 1
             }
           }
         ]
@@ -1522,6 +1577,7 @@
       {
         "id": "pause_menu_title_secondscene",
         "name": "PauseMenu_Title",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -1534,7 +1590,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 902,
+              "zIndex": 13,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1558,13 +1614,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -1572,6 +1633,7 @@
       {
         "id": "pause_menu_continue_secondscene",
         "name": "PauseMenu_Continue",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -1584,7 +1646,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 14,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1608,22 +1670,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"continue\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -1634,6 +1701,7 @@
       {
         "id": "pause_menu_reset_secondscene",
         "name": "PauseMenu_Reset",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -1646,7 +1714,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 15,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1670,22 +1738,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"reset\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -1696,6 +1769,7 @@
       {
         "id": "pause_menu_settings_secondscene",
         "name": "PauseMenu_Settings",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -1708,7 +1782,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 16,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1732,22 +1806,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"settings\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -1758,6 +1837,7 @@
       {
         "id": "pause_menu_exit_secondscene",
         "name": "PauseMenu_Exit",
+        "sceneFolderPath": "UI/PauseMenu/Main",
         "components": [
           {
             "type": "Transform",
@@ -1770,7 +1850,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 17,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1794,22 +1874,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"exit\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -1820,6 +1905,7 @@
       {
         "id": "pause_menu_settings_title_secondscene",
         "name": "PauseMenu_SettingsTitle",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -1832,7 +1918,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 18,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1856,13 +1942,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -1870,6 +1961,7 @@
       {
         "id": "pause_menu_volume_text_secondscene",
         "name": "PauseMenu_VolumeText",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -1882,7 +1974,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 19,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1906,13 +1998,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -1920,6 +2017,7 @@
       {
         "id": "pause_menu_hotkeys_secondscene",
         "name": "PauseMenu_Hotkeys",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -1932,7 +2030,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 20,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1956,22 +2054,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"hotkeys\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -1982,6 +2085,7 @@
       {
         "id": "pause_menu_reset_hotkeys_secondscene",
         "name": "PauseMenu_ResetHotkeys",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -1994,7 +2098,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 21,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2018,22 +2122,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"resetHotkeys\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2044,6 +2153,7 @@
       {
         "id": "pause_menu_done_secondscene",
         "name": "PauseMenu_Done",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -2056,7 +2166,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 22,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2080,22 +2190,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"done\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2106,6 +2221,7 @@
       {
         "id": "pause_menu_hotkeys_title_secondscene",
         "name": "PauseMenu_HotkeysTitle",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2118,7 +2234,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 23,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2142,13 +2258,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           }
         ]
@@ -2156,6 +2277,7 @@
       {
         "id": "pause_menu_hotkeys_info_secondscene",
         "name": "PauseMenu_HotkeysInfo",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2168,7 +2290,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 24,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2192,13 +2314,18 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": false,
               "autoHeight": false,
               "minWidth": 220,
-              "minHeight": 48,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 48
             }
           }
         ]
@@ -2206,6 +2333,7 @@
       {
         "id": "pause_menu_volume_slider_secondscene",
         "name": "PauseMenu_VolumeSlider",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -2218,7 +2346,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 904,
+              "zIndex": 25,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2246,21 +2374,23 @@
               "sliderMin": 0,
               "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"volume\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2271,6 +2401,7 @@
       {
         "id": "pause_menu_difficulty_secondscene",
         "name": "PauseMenu_Difficulty",
+        "sceneFolderPath": "UI/PauseMenu/Settings",
         "components": [
           {
             "type": "Transform",
@@ -2283,7 +2414,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 26,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2311,21 +2442,23 @@
               "sliderMin": 0,
               "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"difficulty\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2336,6 +2469,7 @@
       {
         "id": "pause_menu_keymoveleft_secondscene",
         "name": "PauseMenu_KeyMoveLeft",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2348,7 +2482,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 27,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2372,22 +2506,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_left\",\n  \"label\": \"左移\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2398,6 +2537,7 @@
       {
         "id": "pause_menu_keymoveright_secondscene",
         "name": "PauseMenu_KeyMoveRight",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2410,7 +2550,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 28,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2434,22 +2574,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"move_right\",\n  \"label\": \"右移\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2460,6 +2605,7 @@
       {
         "id": "pause_menu_keyjump_secondscene",
         "name": "PauseMenu_KeyJump",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2472,7 +2618,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 29,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2496,22 +2642,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"jump\",\n  \"label\": \"跳跃\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2522,6 +2673,7 @@
       {
         "id": "pause_menu_keyfire_secondscene",
         "name": "PauseMenu_KeyFire",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2534,7 +2686,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 30,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2558,22 +2710,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"fire\",\n  \"label\": \"射击\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2584,6 +2741,7 @@
       {
         "id": "pause_menu_keyinteract_secondscene",
         "name": "PauseMenu_KeyInteract",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2596,7 +2754,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 31,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2620,22 +2778,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"interact\",\n  \"label\": \"交互\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2646,6 +2809,7 @@
       {
         "id": "pause_menu_keymenu_secondscene",
         "name": "PauseMenu_KeyMenu",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2658,7 +2822,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 32,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2682,22 +2846,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"menu\",\n  \"label\": \"菜单\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2708,6 +2877,7 @@
       {
         "id": "pause_menu_keymoveup_secondscene",
         "name": "PauseMenu_KeyMoveUp",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2720,7 +2890,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 33,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2744,22 +2914,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": false,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{}",
+              "enabled": false,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2770,6 +2945,7 @@
       {
         "id": "pause_menu_keymovedown_secondscene",
         "name": "PauseMenu_KeyMoveDown",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2782,7 +2958,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 34,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2806,22 +2982,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": false,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{}",
+              "enabled": false,
               "instance": null,
               "initialized": false,
               "started": false
@@ -2832,6 +3013,7 @@
       {
         "id": "pause_menu_keysprint_secondscene",
         "name": "PauseMenu_KeySprint",
+        "sceneFolderPath": "UI/PauseMenu/Hotkeys",
         "components": [
           {
             "type": "Transform",
@@ -2844,7 +3026,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 903,
+              "zIndex": 35,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2868,22 +3050,27 @@
               "markdownEnabled": false,
               "renderMode": "pixi",
               "onClickScriptPath": "assets/scripts/pause-menu-action.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
               "parentId": "PauseMenu_Backdrop",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 16,
+              "paddingY": 8,
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36,
-              "paddingX": 16,
-              "paddingY": 8
+              "minHeight": 36
             }
           },
           {
             "type": "Script",
             "data": {
               "type": "Script",
-              "enabled": true,
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"sprint\",\n  \"label\": \"疾跑\"\n}",
+              "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false

@@ -103,7 +103,7 @@ declare global {
       watchProjectScripts?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
       unwatchProjectScripts?: () => Promise<{ ok: boolean; error?: string }>
       onProjectScriptChanged?: (callback: (payload: { projectRoot: string; relativePath: string; changedAt: number }) => void) => (() => void)
-      exportGame?: (payload: { projectRoot: string; projectName?: string }) => Promise<{
+      exportGame?: (payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) => Promise<{
         ok: boolean
         outputDir?: string
         indexPath?: string

@@ -44,7 +44,8 @@ export const useSceneStore = defineStore('scene', {
     autoSaveIntervalSec: 20,
     autoSaveTimer: 0 as number,
     isAutoSaving: false,
-    entityClipboard: null as ReturnType<typeof serializeEntity> | null
+    entityClipboard: null as ReturnType<typeof serializeEntity> | null,
+    folderClipboard: null as null | { sourcePath: string; entities: ReturnType<typeof serializeEntity>[]; folders: string[] }
   }),
   getters: {
     entities(state): Entity[] {
@@ -175,6 +176,7 @@ export const useSceneStore = defineStore('scene', {
         return false
       }
       const copy = new SceneClass(createSceneId('scene'), `${source.name}_Copy`)
+      copy.sceneFolders = [...source.sceneFolders]
       for (const entity of source.entities) {
         copy.addEntity(deserializeEntity(serializeEntity(entity)))
       }
@@ -451,6 +453,173 @@ export const useSceneStore = defineStore('scene', {
       const transform = entity.getTransform()
       if (transform) transform.zIndex = this.currentScene.entities.length - 1
       this.markDirty()
+    },
+    updateEntityFolderPath(entityId: string, folderPath: string) {
+      const project = useProjectStore()
+      const normalizedId = String(entityId || '').trim()
+      const entity = this.currentScene?.getEntityById(normalizedId)
+      if (!entity) {
+        project.setStatus('设置实体分类失败：未找到实体。')
+        return false
+      }
+      entity.sceneFolderPath = normalizeSceneFolderPath(folderPath)
+      if (entity.sceneFolderPath && this.currentScene) addSceneFolderPath(this.currentScene, entity.sceneFolderPath)
+      this.markDirty()
+      project.setStatus(entity.sceneFolderPath
+        ? `已将实体 ${entity.name} 归入：${entity.sceneFolderPath}`
+        : `已清除实体 ${entity.name} 的分类`)
+      return true
+    },
+    updateSelectedEntityFolderPath(folderPath: string) {
+      const selection = useSelectionStore()
+      if (!selection.selectedEntityId) return false
+      return this.updateEntityFolderPath(selection.selectedEntityId, folderPath)
+    },
+    createSceneFolder(parentPath = '', folderName = 'NewClass') {
+      const project = useProjectStore()
+      if (!this.currentScene) return false
+      const parent = normalizeSceneFolderPath(parentPath)
+      const name = normalizeSceneFolderName(folderName)
+      if (!name) {
+        project.setStatus('类文件夹名称不能为空。')
+        return false
+      }
+      const path = parent ? `${parent}/${name}` : name
+      const unique = createUniqueSceneFolderPath(this.currentScene, path)
+      addSceneFolderPath(this.currentScene, unique)
+      this.markDirty()
+      project.setStatus(`已新建类文件夹：${unique}`)
+      return unique
+    },
+    renameSceneFolder(folderPath: string, nextNameOrPath: string) {
+      const project = useProjectStore()
+      if (!this.currentScene) return false
+      const source = normalizeSceneFolderPath(folderPath)
+      if (!source) {
+        project.setStatus('请选择要重命名的类文件夹。')
+        return false
+      }
+      const parent = getSceneFolderParentPath(source)
+      const normalizedInput = normalizeSceneFolderPath(nextNameOrPath)
+      const target = normalizedInput.includes('/') ? normalizedInput : (parent ? `${parent}/${normalizedInput}` : normalizedInput)
+      const normalizedTarget = normalizeSceneFolderPath(target)
+      if (!normalizedTarget) {
+        project.setStatus('类文件夹名称不能为空。')
+        return false
+      }
+      if (normalizedTarget === source) return true
+      if (isSceneFolderDescendantPath(normalizedTarget, source)) {
+        project.setStatus('不能将类文件夹重命名到自身子级路径。')
+        return false
+      }
+      const finalPath = createUniqueSceneFolderPath(this.currentScene, normalizedTarget, source)
+      updateSceneFolderPrefix(this.currentScene, source, finalPath)
+      this.markDirty()
+      project.setStatus(`已重命名类文件夹：${source} -> ${finalPath}`)
+      return finalPath
+    },
+    deleteSceneFolder(folderPath: string, force = false) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene) return false
+      const source = normalizeSceneFolderPath(folderPath)
+      if (!source) return false
+      const entities = getEntitiesInSceneFolder(this.currentScene, source, true)
+      if (!force && !window.confirm(`确认删除类文件夹“${source}”及其 ${entities.length} 个实体吗？`)) {
+        project.setStatus('已取消删除类文件夹。')
+        return false
+      }
+      this.currentScene.entities = this.currentScene.entities.filter((entity) => !isSceneFolderPathInside(entity.sceneFolderPath, source))
+      this.currentScene.sceneFolders = this.currentScene.sceneFolders.filter((path) => !isSceneFolderPathInside(path, source))
+      if (selection.selectedEntityId && !this.currentScene.getEntityById(selection.selectedEntityId)) selection.clearSelection()
+      this.currentScene.entities.forEach((entity, index) => {
+        const transform = entity.getTransform()
+        if (transform) transform.zIndex = index
+      })
+      this.markDirty()
+      project.setStatus(`已删除类文件夹：${source}`)
+      return true
+    },
+    copySceneFolder(folderPath: string) {
+      const project = useProjectStore()
+      if (!this.currentScene) return false
+      const source = normalizeSceneFolderPath(folderPath)
+      if (!source) return false
+      const entities = getEntitiesInSceneFolder(this.currentScene, source, true).map((entity) => serializeEntity(entity))
+      const folders = getSceneFolderPathsInPrefix(this.currentScene, source)
+      this.folderClipboard = { sourcePath: source, entities, folders }
+      project.setStatus(`已复制类文件夹：${source}`)
+      return true
+    },
+    pasteSceneFolder(targetParentPath = '') {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      if (!this.currentScene || !this.folderClipboard) {
+        project.setStatus('没有可粘贴的类文件夹。')
+        return false
+      }
+      const parent = normalizeSceneFolderPath(targetParentPath)
+      const sourceBaseName = getSceneFolderBaseName(this.folderClipboard.sourcePath)
+      const desiredRoot = parent ? `${parent}/${sourceBaseName}_Copy` : `${sourceBaseName}_Copy`
+      const targetRoot = createUniqueSceneFolderPath(this.currentScene, desiredRoot)
+      addSceneFolderPath(this.currentScene, targetRoot)
+      for (const folder of this.folderClipboard.folders) {
+        const relative = getRelativeSceneFolderPath(folder, this.folderClipboard.sourcePath)
+        addSceneFolderPath(this.currentScene, relative ? `${targetRoot}/${relative}` : targetRoot)
+      }
+      let firstId = ''
+      for (const raw of this.folderClipboard.entities) {
+        const copy = deserializeEntity(JSON.parse(JSON.stringify(raw)))
+        const oldFolder = normalizeSceneFolderPath(copy.sceneFolderPath)
+        const relativeFolder = getRelativeSceneFolderPath(oldFolder, this.folderClipboard.sourcePath)
+        copy.sceneFolderPath = relativeFolder ? `${targetRoot}/${relativeFolder}` : targetRoot
+        copy.id = createEntityId('copy')
+        copy.name = `${copy.name}_Copy`
+        const transform = copy.getTransform()
+        if (transform) {
+          transform.x += 32
+          transform.y += 32
+          transform.zIndex = this.currentScene.entities.length
+        }
+        this.currentScene.addEntity(copy)
+        if (!firstId) firstId = copy.id
+      }
+      this.markDirty()
+      if (firstId) selection.selectEntity(firstId)
+      project.setStatus(`已粘贴类文件夹：${targetRoot}`)
+      return targetRoot
+    },
+    moveSceneFolder(folderPath: string, targetParentPath = '') {
+      const project = useProjectStore()
+      if (!this.currentScene) return false
+      const source = normalizeSceneFolderPath(folderPath)
+      const parent = normalizeSceneFolderPath(targetParentPath)
+      if (!source) return false
+      if (parent === source || isSceneFolderDescendantPath(parent, source)) {
+        project.setStatus('不能将类文件夹移动到自身或自身子级。')
+        return false
+      }
+      const target = parent ? `${parent}/${getSceneFolderBaseName(source)}` : getSceneFolderBaseName(source)
+      const finalPath = createUniqueSceneFolderPath(this.currentScene, target, source)
+      updateSceneFolderPrefix(this.currentScene, source, finalPath)
+      this.markDirty()
+      project.setStatus(`已移动类文件夹：${source} -> ${finalPath}`)
+      return finalPath
+    },
+    moveEntityToSceneFolder(entityId: string, targetFolderPath = '') {
+      const project = useProjectStore()
+      if (!this.currentScene) return false
+      const entity = this.currentScene.getEntityById(String(entityId || '').trim())
+      if (!entity) {
+        project.setStatus('移动实体失败：未找到实体。')
+        return false
+      }
+      const target = normalizeSceneFolderPath(targetFolderPath)
+      if (target) addSceneFolderPath(this.currentScene, target)
+      entity.sceneFolderPath = target
+      this.markDirty()
+      project.setStatus(target ? `已将实体 ${entity.name} 移入：${target}` : `已将实体 ${entity.name} 移至根目录`)
+      return true
     },
     createEmptyEntity() {
       const project = useProjectStore()
@@ -1240,6 +1409,7 @@ function getPrefabInstanceRoots(scene: Scene, prefabSourcePath: string) {
 async function createPrefabInstanceReplacement(rawPrefab: string, current: Entity) {
   const replacement = await instantiatePrefab(rawPrefab, current.id, current.prefabSourcePath)
   replacement.name = current.name
+  replacement.sceneFolderPath = current.sceneFolderPath
   replacement.prefabSourcePath = current.prefabSourcePath
   replacement.prefabVariantBasePath = current.prefabVariantBasePath
   const currentTransform = current.getTransform()
@@ -1256,6 +1426,136 @@ async function createPrefabInstanceReplacement(rawPrefab: string, current: Entit
     replacementTransform.viewportVertical = currentTransform.viewportVertical
   }
   return replacement
+}
+
+function normalizeSceneFolderPath(input: unknown) {
+  return String(input || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('/')
+}
+
+function normalizeSceneFolderName(input: unknown) {
+  return String(input || '').replace(/\\/g, '/').split('/').map((part) => part.trim()).filter(Boolean).join('_')
+}
+
+function normalizeSceneFolderList(input: unknown) {
+  if (!Array.isArray(input)) return []
+  return input
+    .map((item) => normalizeSceneFolderPath(item))
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index)
+}
+
+function getSceneFolderParentPath(path: string) {
+  const parts = normalizeSceneFolderPath(path).split('/').filter(Boolean)
+  parts.pop()
+  return parts.join('/')
+}
+
+function getSceneFolderBaseName(path: string) {
+  const parts = normalizeSceneFolderPath(path).split('/').filter(Boolean)
+  return parts[parts.length - 1] || 'Class'
+}
+
+function isSceneFolderPathInside(path: unknown, folderPath: string) {
+  const current = normalizeSceneFolderPath(path)
+  const folder = normalizeSceneFolderPath(folderPath)
+  if (!folder) return !current
+  return current === folder || current.startsWith(`${folder}/`)
+}
+
+function isSceneFolderDescendantPath(path: string, ancestorPath: string) {
+  const current = normalizeSceneFolderPath(path)
+  const ancestor = normalizeSceneFolderPath(ancestorPath)
+  return Boolean(current && ancestor && current.startsWith(`${ancestor}/`))
+}
+
+function getSceneFolderPaths(scene: Scene) {
+  const paths = new Set<string>()
+  for (const folder of normalizeSceneFolderList(scene.sceneFolders)) {
+    addSceneFolderAncestorsToSet(paths, folder)
+  }
+  for (const entity of scene.entities) {
+    const path = normalizeSceneFolderPath(entity.sceneFolderPath)
+    if (path) addSceneFolderAncestorsToSet(paths, path)
+  }
+  return [...paths].sort((a, b) => a.localeCompare(b))
+}
+
+function getSceneFolderPathsInPrefix(scene: Scene, folderPath: string) {
+  const source = normalizeSceneFolderPath(folderPath)
+  return getSceneFolderPaths(scene).filter((path) => isSceneFolderPathInside(path, source))
+}
+
+function addSceneFolderAncestorsToSet(paths: Set<string>, folderPath: string) {
+  const parts = normalizeSceneFolderPath(folderPath).split('/').filter(Boolean)
+  let current = ''
+  for (const part of parts) {
+    current = current ? `${current}/${part}` : part
+    paths.add(current)
+  }
+}
+
+function addSceneFolderPath(scene: Scene, folderPath: string) {
+  const paths = new Set(normalizeSceneFolderList(scene.sceneFolders))
+  addSceneFolderAncestorsToSet(paths, folderPath)
+  scene.sceneFolders = [...paths].sort((a, b) => a.localeCompare(b))
+}
+
+function createUniqueSceneFolderPath(scene: Scene, desiredPath: string, ignoredPrefix = '') {
+  const normalized = normalizeSceneFolderPath(desiredPath)
+  if (!normalized) return ''
+  const existing = getSceneFolderPaths(scene).filter((path) => !ignoredPrefix || !isSceneFolderPathInside(path, ignoredPrefix))
+  if (!existing.includes(normalized)) return normalized
+  const parent = getSceneFolderParentPath(normalized)
+  const base = getSceneFolderBaseName(normalized)
+  let index = 2
+  while (true) {
+    const next = parent ? `${parent}/${base}_${index}` : `${base}_${index}`
+    if (!existing.includes(next)) return next
+    index += 1
+  }
+}
+
+function updateSceneFolderPrefix(scene: Scene, sourcePath: string, targetPath: string) {
+  const source = normalizeSceneFolderPath(sourcePath)
+  const target = normalizeSceneFolderPath(targetPath)
+  if (!source || !target) return
+  const nextFolders = new Set<string>()
+  for (const folder of getSceneFolderPaths(scene)) {
+    if (isSceneFolderPathInside(folder, source)) {
+      const relative = getRelativeSceneFolderPath(folder, source)
+      addSceneFolderAncestorsToSet(nextFolders, relative ? `${target}/${relative}` : target)
+    } else {
+      addSceneFolderAncestorsToSet(nextFolders, folder)
+    }
+  }
+  scene.sceneFolders = [...nextFolders].sort((a, b) => a.localeCompare(b))
+  for (const entity of scene.entities) {
+    const current = normalizeSceneFolderPath(entity.sceneFolderPath)
+    if (!isSceneFolderPathInside(current, source)) continue
+    const relative = getRelativeSceneFolderPath(current, source)
+    entity.sceneFolderPath = relative ? `${target}/${relative}` : target
+  }
+}
+
+function getRelativeSceneFolderPath(path: string, rootPath: string) {
+  const normalized = normalizeSceneFolderPath(path)
+  const root = normalizeSceneFolderPath(rootPath)
+  if (!root || normalized === root) return ''
+  return normalized.startsWith(`${root}/`) ? normalized.slice(root.length + 1) : normalized
+}
+
+function getEntitiesInSceneFolder(scene: Scene, folderPath: string, includeDescendants = true) {
+  const source = normalizeSceneFolderPath(folderPath)
+  return scene.entities.filter((entity) => {
+    const current = normalizeSceneFolderPath(entity.sceneFolderPath)
+    if (!source) return !current
+    return includeDescendants ? isSceneFolderPathInside(current, source) : current === source
+  })
 }
 
 function normalizeScriptPath(input: string) {
