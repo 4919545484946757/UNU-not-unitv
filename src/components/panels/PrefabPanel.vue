@@ -91,7 +91,7 @@ async function loadPrefabDiff() {
   diffLoaded.value = false
   const entity = selectedEntity.value
   if (!entity?.prefabSourcePath) return
-  if (!window.unu?.readTextAsset || !project.rootPath || project.rootPath === 'sample-project') {
+  if (!window.unu?.readTextAsset || !project.rootPath || project.isMemoryProject) {
     diffError.value = '当前环境无法读取 Prefab 源文件。'
     return
   }

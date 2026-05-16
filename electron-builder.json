@@ -1,0 +1,53 @@
+{
+  "appId": "com.unu.engine.starter",
+  "productName": "UNU Engine",
+  "directories": {
+    "output": "release-fixed"
+  },
+  "afterPack": "scripts/afterPackIcon.cjs",
+  "files": [
+    "dist/**/*",
+    "dist-electron/**/*",
+    "package.json",
+    "public/**/*",
+    "ico.png",
+    "ico.ico"
+  ],
+  "extraResources": [
+    {
+      "from": "dist",
+      "to": "dist"
+    },
+    {
+      "from": "Sample-project-list",
+      "to": "Sample-project-list"
+    }
+  ],
+  "win": {
+    "icon": "ico.ico",
+    "signAndEditExecutable": false,
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "x64"
+        ]
+      }
+    ]
+  },
+  "nsis": {
+    "installerIcon": "ico.ico",
+    "uninstallerIcon": "ico.ico",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "UNU Engine"
+  }
+}

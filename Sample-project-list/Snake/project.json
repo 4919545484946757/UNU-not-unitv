@@ -1,9 +1,9 @@
 {
   "format": "unu-project",
   "version": 1,
-  "name": "Snake",
+  "name": "snake",
   "createdAt": "2026-05-14T11:14:34.182Z",
-  "updatedAt": "2026-05-14T11:14:34.182Z",
+  "updatedAt": "2026-05-16T00:00:00.000Z",
   "sceneCatalogVersion": 1,
   "sceneCatalog": [
     {
@@ -11,5 +11,6 @@
       "name": "Snake"
     }
   ],
-  "startupScene": "Snake.scene.json"
+  "startupScene": "Snake.scene.json",
+  "sampleManifest": "manifest.json"
 }

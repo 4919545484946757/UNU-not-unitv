@@ -5,75 +5,17 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "dev:electron": "wait-on tcp:5173 && electron .",
+    "dev": "concurrently -k \"vite\" \"vite build --config vite.electron.config.ts --watch\" \"wait-on tcp:5173 dist-electron/main.js dist-electron/preload.js && electron .\"",
+    "dev:electron": "vite build --config vite.electron.config.ts --watch",
     "build": "vite build && vite build --config vite.electron.config.ts",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
-    "dist:win": "npm run build && electron-builder --win dir",
-    "dist:win:installer": "npm run build && electron-builder --win",
-    "preview": "vite preview"
-  },
-  "build": {
-    "appId": "com.unu.engine.starter",
-    "productName": "UNU Engine",
-    "directories": {
-      "output": "release-fixed"
-    },
-    "afterPack": "scripts/afterPackIcon.cjs",
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "package.json",
-      "public/**/*",
-      "ico.png",
-      "ico.ico"
-    ],
-    "extraResources": [
-      {
-        "from": "dist",
-        "to": "dist"
-      },
-      {
-        "from": "Sample-project-list",
-        "to": "Sample-project-list"
-      },
-      {
-        "from": "sample-project",
-        "to": "sample-project"
-      },
-      {
-        "from": "assets-for-sample",
-        "to": "assets-for-sample"
-      }
-    ],
-    "win": {
-      "icon": "ico.ico",
-      "signAndEditExecutable": false,
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
-    },
-    "nsis": {
-      "installerIcon": "ico.ico",
-      "uninstallerIcon": "ico.ico",
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "UNU Engine"
-    }
+    "dist:win": "npm run build && electron-builder --config electron-builder.json --win dir",
+    "dist:win:installer": "npm run build && electron-builder --config electron-builder.json --win",
+    "preview": "vite preview",
+    "assets:audit": "node scripts/audit-assets.cjs",
+    "assets:sync-public": "node scripts/sync-public-assets.cjs",
+    "start:electron": "wait-on tcp:5173 dist-electron/main.js dist-electron/preload.js && electron ."
   },
   "dependencies": {
     "pinia": "^3.0.3",

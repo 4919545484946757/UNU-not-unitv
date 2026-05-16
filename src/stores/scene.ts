@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { Entity } from '../engine/core/Entity'
 import type { Scene } from '../engine/core/Scene'
+import type { SceneData } from '../engine/scene/sceneData'
 import { serializeEntity } from '../engine/serialization/sceneSerializer'
 import { useProjectStore } from './project'
 import { sceneActions } from './sceneActions'
@@ -8,8 +9,10 @@ import { sceneActions } from './sceneActions'
 export const useSceneStore = defineStore('scene', {
   state: () => ({
     scenes: [] as Scene[],
+    sceneDataList: [] as SceneData[],
     sceneFilePathById: {} as Record<string, string>,
     currentScene: null as Scene | null,
+    currentSceneData: null as SceneData | null,
     revision: 0,
     isDirty: false,
     historyEntries: [] as string[],

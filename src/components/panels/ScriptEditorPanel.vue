@@ -12,34 +12,17 @@
 
     <div v-if="mode !== 'none'" class="editor-body">
       <div class="code-shell">
-        <div v-if="findPanel.visible" class="find-popover">
-          <input
-            ref="findInputRef"
-            v-model="findPanel.query"
-            class="find-input"
-            placeholder="查找"
-            @keydown.enter.prevent="findNext(1)"
-            @keydown.shift.enter.prevent="findNext(-1)"
-            @keydown.esc.prevent="closeFindPanel"
-          />
-          <input
-            v-model="findPanel.replace"
-            class="find-input replace-input"
-            placeholder="替换为"
-            @keydown.enter.prevent="replaceCurrent"
-            @keydown.esc.prevent="closeFindPanel"
-          />
-          <span class="find-count">{{ findMatchLabel }}</span>
-          <label class="find-toggle">
-            <input v-model="findPanel.caseSensitive" type="checkbox" />
-            Aa
-          </label>
-          <button @click="findNext(-1)">上一个</button>
-          <button @click="findNext(1)">下一个</button>
-          <button @click="replaceCurrent">替换</button>
-          <button @click="replaceAll">全部替换</button>
-          <button class="find-close" title="关闭" @click="closeFindPanel">×</button>
-        </div>
+        <FindReplaceBar
+          v-if="findPanel.visible"
+          v-model:query="findPanel.query"
+          v-model:replace="findPanel.replace"
+          v-model:case-sensitive="findPanel.caseSensitive"
+          :match-label="findMatchLabel"
+          @next="findNext"
+          @replace-current="replaceCurrent"
+          @replace-all="replaceAll"
+          @close="closeFindPanel"
+        />
         <pre ref="highlightRef" class="highlight-layer" v-html="highlightedHtml"></pre>
         <textarea
           ref="textareaRef"
@@ -81,6 +64,8 @@ import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
+import { useSyntaxHighlight } from '../../composables/useSyntaxHighlight'
+import FindReplaceBar from '../editor/FindReplaceBar.vue'
 
 const assets = useAssetStore()
 const editor = useEditorStore()
@@ -88,6 +73,7 @@ const project = useProjectStore()
 const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
+const { highlightCode } = useSyntaxHighlight()
 
 const entity = computed(() => sceneStore.currentScene?.getEntityById(selection.selectedEntityId) ?? null)
 const script = computed(() => entity.value?.getComponent<ScriptComponent>('Script') ?? null)
@@ -285,7 +271,6 @@ const assetDirty = ref(false)
 const loadingAsset = ref(false)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 const highlightRef = ref<HTMLElement | null>(null)
-const findInputRef = ref<HTMLInputElement | null>(null)
 const findPanel = reactive({
   visible: false,
   query: '',
@@ -310,7 +295,7 @@ const externalCodeEditorLockLabel = computed(() => {
 })
 
 const canSaveAsset = computed(() => {
-  return mode.value === 'asset' && !!window.unu?.saveTextAsset && project.rootPath !== 'sample-project'
+  return mode.value === 'asset' && !!window.unu?.saveTextAsset && !project.isMemoryProject
 })
 
 const currentAssetDirty = computed(() => selectedTextAssetPath.value ? assets.isTextAssetDirty(selectedTextAssetPath.value) : assetDirty.value)
@@ -343,13 +328,7 @@ const currentLanguage = computed<'js' | 'json' | 'plain'>(() => {
   return 'plain'
 })
 
-const highlightedHtml = computed(() => {
-  const code = editorText.value || ''
-  const language = currentLanguage.value
-  if (language === 'plain') return `${escapeHtml(code)}\n`
-  if (language === 'json') return `${highlightJson(code)}\n`
-  return `${highlightJsLike(code)}\n`
-})
+const highlightedHtml = computed(() => highlightCode(editorText.value || '', currentLanguage.value))
 
 const findMatches = computed(() => collectFindMatches(editorText.value, findPanel.query, findPanel.caseSensitive))
 const findMatchLabel = computed(() => {
@@ -413,7 +392,7 @@ async function loadAssetScript(relativePath: string) {
     assetDirty.value = assets.isTextAssetDirty(relativePath)
     assetFilePath.value = ''
 
-    if (!window.unu?.readTextAsset || project.rootPath === 'sample-project') {
+    if (!window.unu?.readTextAsset || project.isMemoryProject) {
       assetScriptText.value = builtinScriptTemplates[relativePath] || defaultTemplate.value
       assetDirty.value = assets.isTextAssetDirty(relativePath)
       return
@@ -493,10 +472,6 @@ function openFindPanel() {
   }
   findPanel.visible = true
   updateFindIndexFromSelection()
-  void nextTick(() => {
-    findInputRef.value?.focus()
-    findInputRef.value?.select()
-  })
 }
 
 function closeFindPanel() {
@@ -817,7 +792,7 @@ function applyExternalCodeEditorPayload(raw: unknown) {
 
 async function saveExternalAssetScript(content: string) {
   if (!codeEditorSessionPath) return
-  if (!window.unu?.saveTextAsset || project.rootPath === 'sample-project') {
+  if (!window.unu?.saveTextAsset || project.isMemoryProject) {
     project.setStatus('当前环境下无法直接保存脚本文件。')
     return
   }

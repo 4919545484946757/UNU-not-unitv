@@ -52,12 +52,14 @@ const DEFAULT_STATUS_LOG_FILTERS: Record<StatusLogCategory, boolean> = {
 }
 
 export const STATUS_LOG_CATEGORIES = Object.keys(STATUS_LOG_CATEGORY_LABELS) as StatusLogCategory[]
+export type ProjectMode = 'sample' | 'local' | 'memory'
 
 export const useProjectStore = defineStore('project', {
   state: () => ({
     rootPath: 'sample-project',
     name: 'sample-project',
     sampleProjectId: 'action-2d',
+    mode: 'memory' as ProjectMode,
     currentScenePath: '',
     statusMessage: '正在使用示例工程数据',
     lastSavedAt: '',
@@ -67,11 +69,16 @@ export const useProjectStore = defineStore('project', {
     statusPopupX: 0,
     statusPopupY: 0
   }),
+  getters: {
+    isMemoryProject: (state) => state.mode === 'memory',
+    canUseLocalProjectFiles: (state) => Boolean(state.rootPath) && state.mode !== 'memory'
+  },
   actions: {
-    setProject(payload: { rootPath: string; name: string; sampleProjectId?: string }) {
+    setProject(payload: { rootPath: string; name: string; sampleProjectId?: string; mode?: ProjectMode }) {
       this.rootPath = payload.rootPath
       this.name = payload.name
       this.sampleProjectId = payload.sampleProjectId || ''
+      this.mode = payload.mode || (payload.sampleProjectId ? 'sample' : 'local')
       this.currentScenePath = ''
       this.statusMessage = `已打开工程：${payload.name}`
     },

@@ -15,7 +15,7 @@
         <button class="primary" @click="save" :disabled="saving || !canSave">{{ saving ? '保存中...' : '保存映射' }}</button>
       </div>
 
-      <div v-if="project.rootPath === 'sample-project'" class="notice">
+      <div v-if="project.isMemoryProject" class="notice">
         当前为内置示例工程，请先“项目另存”为本地项目后再保存改键。
       </div>
 
@@ -110,7 +110,7 @@ const actionOrder = computed(() => {
   }
   return result
 })
-const canSave = computed(() => !!window.unu?.saveTextAsset && !!project.rootPath && project.rootPath !== 'sample-project')
+const canSave = computed(() => !!window.unu?.saveTextAsset && !!project.rootPath && !project.isMemoryProject)
 const previewSource = computed(() => replaceActionMapInSource(sourceText.value, draftMap))
 
 watch(() => editor.keymapDialogVisible, (visible) => {
@@ -138,7 +138,7 @@ async function reload() {
   loading.value = true
   try {
     let content = ''
-    if (window.unu?.readTextAsset && project.rootPath && project.rootPath !== 'sample-project') {
+    if (window.unu?.readTextAsset && project.rootPath && !project.isMemoryProject) {
       const result = await window.unu.readTextAsset({ projectRoot: project.rootPath, relativePath: INPUT_STATE_PATH }).catch(() => null)
       content = result?.content || ''
     }

@@ -60,11 +60,13 @@ export class AudioRuntime {
   private masterVolume = 1
   private groupVolumes: Record<AudioGroup, number> = { bgm: 0.8, sfx: 1, ui: 1 }
   private projectRoot = ''
+  private projectMode: 'sample' | 'local' | 'memory' = 'memory'
   private paused = false
   private projectHooks: AudioRuntimeHooks = {}
 
-  setProjectRoot(projectRoot: string) {
+  setProjectRoot(projectRoot: string, projectMode: 'sample' | 'local' | 'memory' = 'local') {
     this.projectRoot = projectRoot
+    this.projectMode = projectMode
     this.dataUrlCache.clear()
   }
 
@@ -231,7 +233,7 @@ export class AudioRuntime {
     if (clipPath.startsWith('data:') || clipPath.startsWith('http://') || clipPath.startsWith('https://')) {
       return clipPath
     }
-    if (!window.unu?.readAssetDataUrl || !this.projectRoot || this.projectRoot === 'sample-project') {
+    if (!window.unu?.readAssetDataUrl || !this.projectRoot || this.projectMode === 'memory') {
       return null
     }
     if (!this.dataUrlCache.has(clipPath)) {

@@ -9,9 +9,21 @@ Updated: `2026-05-16`
 UNU is gradually moving the scene-editing core away from “Pinia directly owns mutable class instances plus a large amount of business logic” toward a more stable domain model:
 
 - `SceneData`, `EntityData`, and `ComponentData` are serializable DTOs.
-- `sceneSerializer` can read/write DTOs while still exposing `hydrateScene` / `deserializeScene` for runtime class compatibility.
+- `sceneSerializer` can read/write DTOs while still exposing `sceneToData`, `hydrateScene`, `serializeScene`, and `deserializeScene` for runtime class compatibility.
 - `SceneOperations` provides pure functions that can be tested without Vue or Pinia.
 - `scene.ts` stays as a lightweight Pinia store responsible for state, history, status messages, and invoking external operations.
+
+## 2026-05-16 Progress
+
+- `sceneActions.ts` was further split into:
+  - `sceneCatalogActions.ts`: scene collection, current scene, file bindings, and DTO mirror sync.
+  - `sceneHistoryActions.ts`: history, undo/redo, and auto-save.
+  - `sceneFolderActions.ts`: scene tree class-folder create, rename, move, copy, and delete actions.
+  - `sceneEntityActions.ts`: entity creation, copy/paste, deletion, layer moves, entity JSON application, and sample scene switching.
+  - `sceneActionUtils.ts`: Prefab trees, scene folders, script paths, and component repair helpers.
+- Store state now includes `sceneDataList` and `currentSceneData` as synchronized DTO mirrors for the gradual migration from `Scene` instances to `SceneData`.
+- Added `syncSceneDataState()` and `replaceScenesFromData()` as dual-write/migration bridge methods. UI and operation layers can gradually move to DTO reads next.
+- Added `tests/sceneStoreData.test.ts` to lock DTO mirror behavior after `bootstrap` and entity insertion.
 
 ## Why DTO First
 
@@ -26,21 +38,15 @@ DTO-first state is steadier because:
 
 ## Key Files
 
-- `src/engine/scene/sceneData.ts`
-  - Defines `SceneData`, `EntityData`, and `ComponentData`.
-- `src/engine/scene/sceneOperations.ts`
-  - Pure operations for add/remove/duplicate entity, layer moves, component field updates, and scene-folder operations.
-- `src/engine/serialization/sceneSerializer.ts`
-  - DTO serializer APIs: `serializeSceneData`, `deserializeSceneData`.
-  - Compatibility boundary APIs: `sceneToData`, `hydrateScene`, `serializeScene`, `deserializeScene`.
-- `src/stores/scene.ts`
-  - Lightweight Pinia store.
-- `src/stores/sceneActions.ts`
-  - Temporary home for editor-integrated actions; this can keep shrinking into smaller domain/service modules.
+- `src/engine/scene/sceneData.ts`: defines `SceneData`, `EntityData`, and `ComponentData`.
+- `src/engine/scene/sceneOperations.ts`: pure operations for entity, layer, component, and scene-folder edits.
+- `src/engine/serialization/sceneSerializer.ts`: DTO serializer APIs and class hydrate compatibility boundary.
+- `src/stores/scene.ts`: lightweight Pinia store.
+- `src/stores/sceneActions.ts`: composition entry plus remaining editor-integrated script sync, scene save/open, Prefab, and runtime-scene actions.
 
 ## Build Artifact Policy
 
-`dist/` and `dist-electron/` are generated build artifacts and should not be committed. Generate them with:
+`dist/` and `dist-electron/` are generated build artifacts and should not be committed.
 
 ```bash
 npm run build
@@ -68,11 +74,12 @@ The current baseline tests cover:
 - `ScriptRuntime` hook invocation and error location.
 - `InputState` action map merge.
 - `SceneOperations` pure functions outside Vue/Pinia.
+- Scene Store `SceneData` mirror sync.
 
 ## Next Migration Steps
 
-1. Store `SceneData[]` and `currentSceneData` directly in `scene.ts`.
-2. Hydrate with `hydrateScene(sceneData)` only at Renderer/Runtime boundaries.
-3. Move Inspector/SceneTree editing to `SceneOperations` over DTOs.
+1. Move Inspector/SceneTree reads toward `currentSceneData`.
+2. Route entity/folder/layer edits through `SceneOperations` over DTOs.
+3. Hydrate with `hydrateScene(sceneData)` only at Renderer/Runtime boundaries.
 4. Remove temporary class-field compatibility needs.
-5. Split `sceneActions.ts` into `scenePersistence`, `prefabActions`, `folderActions`, `entityFactory`, and similar smaller modules.
+5. Continue splitting `sceneActions.ts` into `sceneEntityActions`, `sceneFolderActions`, `scenePrefabActions`, `scenePersistenceActions`, and similar smaller modules.

@@ -78,7 +78,7 @@ const scenePathDisplay = computed(() => {
 
   const normalizedFull = fullPath.replace(/\\/g, '/')
   const root = String(project.rootPath || '').trim().replace(/\\/g, '/').replace(/\/+$/g, '')
-  if (root && root !== 'sample-project') {
+  if (root && !project.isMemoryProject) {
     const fullLower = normalizedFull.toLowerCase()
     const rootLower = root.toLowerCase()
     if (fullLower.startsWith(`${rootLower}/`)) {
@@ -92,7 +92,7 @@ const scenePathDisplay = computed(() => {
 async function ensureInitialSceneReady() {
   if (sceneStore.currentScene) return
 
-  if (project.rootPath === 'sample-project') {
+  if (project.isMemoryProject) {
     sceneStore.bootstrap(createDemoScene())
     return
   }
@@ -156,7 +156,7 @@ async function startProjectScriptWatcher() {
     scriptHotReloadTimer = 0
   }
   if (!window.unu?.watchProjectScripts || !window.unu?.onProjectScriptChanged) return
-  if (!project.rootPath || project.rootPath === 'sample-project') return
+  if (!project.rootPath || project.isMemoryProject) return
 
   await window.unu.watchProjectScripts({ projectRoot: project.rootPath }).catch(() => null)
   disposeProjectScriptChanged = window.unu.onProjectScriptChanged((payload) => {

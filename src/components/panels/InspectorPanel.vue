@@ -13,135 +13,53 @@
         <div class="readonly">ID: {{ entity.id }}</div>
       </div>
 
-      <div class="group">
-        <div class="group-title">Script</div>
-        <template v-if="script">
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="script.enabled" @change="setScriptEnabled" />
-            Enabled
-          </label>
-          <label>
-            Script Path
-            <input :value="script.scriptPath" placeholder="assets/scripts/example.js 或 builtin://..." @input="setScriptPath" />
-          </label>
-          <div class="script-link-card">
-            <div>
-              <strong>Bound Script</strong>
-              <span>{{ script.scriptPath || '未设置脚本路径，将只使用实体内联配置。' }}</span>
-            </div>
-            <button class="small" :disabled="!canOpenScriptAsset" @click="void openBoundScriptAsset()">打开脚本文件</button>
-          </div>
-          <div class="asset-picker">
-            <button :disabled="!selectedScriptAssetPath" @click="bindSelectedScriptAsset">Use Selected Script</button>
-            <span>{{ selectedScriptAssetPath || 'Select a script/text asset in Asset Tree first' }}</span>
-          </div>
-          <div class="row-inline">
-            <button class="small" @click="openScriptPanelForEntity">编辑配置</button>
-            <button class="small" @click="openEntityScriptCodeEditor">独立窗口编辑配置</button>
-            <button class="small danger" :disabled="runtime.isPlaying" @click="removeScriptComponent">移除 Script</button>
-          </div>
-          <div class="tips">Script Path 指向项目脚本逻辑；实体配置内容请在 Script 面板或独立窗口中编辑。</div>
-        </template>
-        <template v-else>
-          <div class="tips">Current entity does not have Script component.</div>
-          <div class="row-inline">
-            <button class="small" :disabled="runtime.isPlaying" @click="() => addScriptComponent()">Add Script Component</button>
-            <button class="small" :disabled="runtime.isPlaying || !selectedScriptAssetPath" @click="addScriptComponentFromSelectedAsset">Use Selected Script</button>
-          </div>
-        </template>
-      </div>
+      <ScriptInspector
+        :script="script"
+        :selected-script-asset-path="selectedScriptAssetPath"
+        :can-open-script-asset="canOpenScriptAsset"
+        :is-playing="runtime.isPlaying"
+        @set-enabled="setScriptEnabled"
+        @set-path="setScriptPath"
+        @open-bound-script="void openBoundScriptAsset()"
+        @bind-selected-script="bindSelectedScriptAsset"
+        @open-script-panel="openScriptPanelForEntity"
+        @open-external-editor="openEntityScriptCodeEditor"
+        @remove-script="removeScriptComponent"
+        @add-script="() => addScriptComponent()"
+        @add-selected-script="addScriptComponentFromSelectedAsset"
+      />
 
-      <div class="group">
-        <div class="group-title">Transform</div>
-        <label>X <input type="number" :value="transform.x" @input="setNumber('transform', 'x', $event)" /></label>
-        <label>Y <input type="number" :value="transform.y" @input="setNumber('transform', 'y', $event)" /></label>
-        <label>Scale X <input type="number" step="0.1" :value="transform.scaleX" @input="setNumber('transform', 'scaleX', $event)" /></label>
-        <label>Scale Y <input type="number" step="0.1" :value="transform.scaleY" @input="setNumber('transform', 'scaleY', $event)" /></label>
-        <label>Rotation (°) <input type="number" step="1" :value="formatRotationDegrees(transform.rotation)" @input="setRotationDegrees($event)" /></label>
-        <label>
-          Position Mode
-          <select :value="transform.positionMode || 'world'" @change="setTransformPositionMode">
-            <option value="world">World Space</option>
-            <option value="viewport">Viewport Edges</option>
-          </select>
-        </label>
-        <template v-if="(transform.positionMode || 'world') === 'viewport'">
-          <div class="tips">Viewport Edges 模式下，X/Y 表示到所选横向/纵向边缘的像素距离；Center/Middle 表示相对视窗中心偏移。</div>
-          <label>
-            Horizontal Edge
-            <select :value="transform.viewportHorizontal || 'center'" @change="setTransformViewportHorizontal">
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </label>
-          <label>
-            Vertical Edge
-            <select :value="transform.viewportVertical || 'middle'" @change="setTransformViewportVertical">
-              <option value="top">Top</option>
-              <option value="middle">Middle</option>
-              <option value="bottom">Bottom</option>
-            </select>
-          </label>
-        </template>
-      </div>
+      <TransformInspector
+        :transform="transform"
+        :rotation-degrees="formatRotationDegrees(transform.rotation)"
+        @set-number="(key, event) => setNumber('transform', key, event)"
+        @set-rotation="setRotationDegrees"
+        @set-position-mode="setTransformPositionMode"
+        @set-viewport-horizontal="setTransformViewportHorizontal"
+        @set-viewport-vertical="setTransformViewportVertical"
+      />
 
-      <div class="group" v-if="sprite">
-        <div class="group-title">Sprite</div>
-        <label>Width <input type="number" :value="sprite.width" @input="setNumber('sprite', 'width', $event)" /></label>
-        <label>Height <input type="number" :value="sprite.height" @input="setNumber('sprite', 'height', $event)" /></label>
-        <label>Texture Offset X <input type="number" :value="sprite.offsetX || 0" @input="setNumber('sprite', 'offsetX', $event)" /></label>
-        <label>Texture Offset Y <input type="number" :value="sprite.offsetY || 0" @input="setNumber('sprite', 'offsetY', $event)" /></label>
-        <label>Alpha <input type="number" step="0.1" min="0" max="1" :value="sprite.alpha" @input="setNumber('sprite', 'alpha', $event)" /></label>
-        <div class="color-field">
-          <label>
-            Color
-            <input type="color" :value="formatColorInput(sprite.tint)" @input="setHexNumber('sprite', 'tint', $event)" />
-          </label>
-          <label>
-            Tint Hex
-            <input :value="formatHexNumber(sprite.tint)" placeholder="0xffffff" @input="setHexNumber('sprite', 'tint', $event)" />
-          </label>
-        </div>
-        <label>Texture Path <input :value="sprite.texturePath" @input="setText('sprite', 'texturePath', $event)" /></label>
-        <div class="asset-picker">
-          <button @click="void applySelectedImage()">Use Selected Image</button>
-          <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : 'Select an image in Asset Tree first' }}</span>
-        </div>
-        <label class="checkbox-row">
-          <input type="checkbox" :checked="sprite.visible" @change="setChecked('sprite', 'visible', $event)" />
-          Visible
-        </label>
-      </div>
+      <SpriteInspector
+        v-if="sprite"
+        :sprite="sprite"
+        :selected-image-path="selectedImageAssetPath"
+        :hex-value="formatHexNumber(sprite.tint)"
+        :color-input="formatColorInput(sprite.tint)"
+        @set-number="(key, event) => setNumber('sprite', key, event)"
+        @set-text="(key, event) => setText('sprite', key, event)"
+        @set-hex="(key, event) => setHexNumber('sprite', key, event)"
+        @set-checked="(key, event) => setChecked('sprite', key, event)"
+        @apply-selected-image="void applySelectedImage()"
+      />
 
-      <div class="group">
-        <div class="group-title">Background</div>
-        <template v-if="background">
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="background.enabled" @change="setChecked('background', 'enabled', $event)" />
-            Enabled
-          </label>
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="background.followCamera" @change="setChecked('background', 'followCamera', $event)" />
-            Follow Camera
-          </label>
-          <label>
-            Fit Mode
-            <select :value="background.fitMode" @change="setBackgroundFitMode">
-              <option value="cover">cover</option>
-              <option value="contain">contain</option>
-            </select>
-          </label>
-          <div class="asset-picker">
-            <button @click="void applySelectedImageToBackground()">Use Selected Image As Background</button>
-            <span>{{ assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : 'Select an image in Asset Tree first' }}</span>
-          </div>
-        </template>
-        <template v-else>
-          <div class="tips">Current entity does not have Background component.</div>
-          <button class="small" @click="addBackgroundComponent">Add Background Component</button>
-        </template>
-      </div>
+      <BackgroundInspector
+        :background="background"
+        :selected-image-path="selectedImageAssetPath"
+        @set-checked="(key, event) => setChecked('background', key, event)"
+        @set-fit-mode="setBackgroundFitMode"
+        @apply-selected-image="void applySelectedImageToBackground()"
+        @add-background="addBackgroundComponent"
+      />
 
       <div class="group" v-if="animation || sprite">
         <div class="group-title">Animation</div>
@@ -287,34 +205,15 @@
         </template>
       </div>
 
-      <div class="group" v-if="collider">
-        <div class="group-title">Collider</div>
-        <label>Width <input type="number" :value="collider.width" @input="setNumber('collider', 'width', $event)" /></label>
-        <label>Height <input type="number" :value="collider.height" @input="setNumber('collider', 'height', $event)" /></label>
-        <label>Offset X <input type="number" :value="collider.offsetX" @input="setNumber('collider', 'offsetX', $event)" /></label>
-        <label>Offset Y <input type="number" :value="collider.offsetY" @input="setNumber('collider', 'offsetY', $event)" /></label>
-        <label>
-          Collision Layer
-          <select :value="collider.layer || 'Default'" @change="setColliderLayer">
-            <option v-for="layer in collisionLayers" :key="layer" :value="layer">{{ layer }}</option>
-          </select>
-        </label>
-        <div class="collision-mask">
-          <div class="mini-title">Collides With</div>
-          <label v-for="layer in collisionLayers" :key="`mask_${layer}`" class="checkbox-row">
-            <input
-              type="checkbox"
-              :checked="collider.collidesWith?.includes(layer) ?? true"
-              @change="setColliderMaskLayer(layer, $event)"
-            />
-            {{ layer }}
-          </label>
-        </div>
-        <label class="checkbox-row">
-          <input type="checkbox" :checked="collider.isTrigger" @change="setChecked('collider', 'isTrigger', $event)" />
-          Trigger
-        </label>
-      </div>
+      <ColliderInspector
+        v-if="collider"
+        :collider="collider"
+        :collision-layers="collisionLayers"
+        @set-number="(key, event) => setNumber('collider', key, event)"
+        @set-layer="setColliderLayer"
+        @set-mask-layer="setColliderMaskLayer"
+        @set-checked="(key, event) => setChecked('collider', key, event)"
+      />
 
       <div class="group">
         <div class="group-title">Interactable</div>
@@ -512,57 +411,24 @@
         </template>
       </div>
 
-      <div class="group">
-        <div class="group-title">Audio</div>
-        <template v-if="audio">
-          <label class="checkbox-row">
-            <input type="checkbox" :checked="audio.enabled" @change="setChecked('audio', 'enabled', $event)" />
-            Enabled
-          </label>
-          <label>Clip Path <input :value="audio.clipPath" @input="setText('audio', 'clipPath', $event)" /></label>
-          <div class="asset-picker">
-            <button @click="void applySelectedAudio()">Use Selected Audio</button>
-            <span>{{ assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : 'Select an audio in Asset Tree first' }}</span>
-          </div>
-          <label>Group
-            <select :value="audio.group" @change="setAudioGroup">
-              <option value="bgm">BGM</option>
-              <option value="sfx">SFX</option>
-              <option value="ui">UI</option>
-            </select>
-          </label>
-          <label>Volume <input type="number" min="0" max="1" step="0.05" :value="audio.volume" @input="setNumber('audio', 'volume', $event)" /></label>
-          <label class="checkbox-row"><input type="checkbox" :checked="audio.loop" @change="setChecked('audio', 'loop', $event)" />Loop</label>
-          <label class="checkbox-row"><input type="checkbox" :checked="audio.playOnStart" @change="setChecked('audio', 'playOnStart', $event)" />Play On Start</label>
-          <label class="checkbox-row"><input type="checkbox" :checked="audio.playing" @change="setChecked('audio', 'playing', $event)" />Playing</label>
-        </template>
-        <template v-else>
-          <div class="tips">Current entity does not have Audio component.</div>
-          <button class="small" @click="addAudioComponent">Add Audio Component</button>
-        </template>
-      </div>
+      <AudioInspector
+        :audio="audio"
+        :selected-audio-path="selectedAudioAssetPath"
+        @set-number="(key, event) => setNumber('audio', key, event)"
+        @set-text="(key, event) => setText('audio', key, event)"
+        @set-checked="(key, event) => setChecked('audio', key, event)"
+        @set-group="setAudioGroup"
+        @apply-selected-audio="void applySelectedAudio()"
+        @add-audio="addAudioComponent"
+      />
 
-      <div class="group">
-        <div class="group-title">Camera</div>
-        <template v-if="camera">
-          <label>Zoom <input type="number" step="0.1" min="0.1" :value="camera.zoom" @input="setNumber('camera', 'zoom', $event)" /></label>
-          <label>Follow Entity ID <input :value="camera.followEntityId" @input="setText('camera', 'followEntityId', $event)" /></label>
-          <label>Follow Smoothing <input type="number" step="0.01" min="0" max="1" :value="camera.followSmoothing" @input="setNumber('camera', 'followSmoothing', $event)" /></label>
-          <label>Offset X <input type="number" :value="camera.offsetX" @input="setNumber('camera', 'offsetX', $event)" /></label>
-          <label>Offset Y <input type="number" :value="camera.offsetY" @input="setNumber('camera', 'offsetY', $event)" /></label>
-          <label class="checkbox-row"><input type="checkbox" :checked="camera.boundsEnabled" @change="setChecked('camera', 'boundsEnabled', $event)" />Enable Bounds</label>
-          <template v-if="camera.boundsEnabled">
-            <label>Min X <input type="number" :value="camera.minX" @input="setNumber('camera', 'minX', $event)" /></label>
-            <label>Max X <input type="number" :value="camera.maxX" @input="setNumber('camera', 'maxX', $event)" /></label>
-            <label>Min Y <input type="number" :value="camera.minY" @input="setNumber('camera', 'minY', $event)" /></label>
-            <label>Max Y <input type="number" :value="camera.maxY" @input="setNumber('camera', 'maxY', $event)" /></label>
-          </template>
-        </template>
-        <template v-else>
-          <div class="tips">Current entity does not have Camera component.</div>
-          <button class="small" @click="addCameraComponent">Add Camera Component</button>
-        </template>
-      </div>
+      <CameraInspector
+        :camera="camera"
+        @set-number="(key, event) => setNumber('camera', key, event)"
+        @set-text="(key, event) => setText('camera', key, event)"
+        @set-checked="(key, event) => setChecked('camera', key, event)"
+        @add-camera="addCameraComponent"
+      />
     </template>
 
     <div v-else class="empty">Select an entity in Scene Tree or Viewport first.</div>
@@ -583,6 +449,21 @@ import { SpriteComponent } from '../../engine/components/SpriteComponent'
 import { TilemapComponent } from '../../engine/components/TilemapComponent'
 import type { TransformComponent } from '../../engine/components/TransformComponent'
 import { UIComponent } from '../../engine/components/UIComponent'
+import ScriptInspector from '../inspector/ScriptInspector.vue'
+import TransformInspector from '../inspector/TransformInspector.vue'
+import SpriteInspector from '../inspector/SpriteInspector.vue'
+import ColliderInspector from '../inspector/ColliderInspector.vue'
+import BackgroundInspector from '../inspector/BackgroundInspector.vue'
+import AudioInspector from '../inspector/AudioInspector.vue'
+import CameraInspector from '../inspector/CameraInspector.vue'
+import {
+  setInspectorBooleanField,
+  setInspectorColorField,
+  setInspectorNumberField,
+  setInspectorTextField,
+  type InspectorComponentGroup,
+  type InspectorComponentMap
+} from '../../engine/components/componentFieldSchema'
 import { useAssetStore } from '../../stores/assets'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
@@ -635,6 +516,8 @@ const selectedScriptAssetPath = computed(() => {
   if (asset.type === 'script' || asset.type === 'animation' || asset.type === 'atlas' || asset.type === 'scene' || asset.type === 'prefab') return asset.path
   return ''
 })
+const selectedImageAssetPath = computed(() => assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : '')
+const selectedAudioAssetPath = computed(() => assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : '')
 
 const canOpenScriptAsset = computed(() => {
   const path = String(script.value?.scriptPath || '')
@@ -875,19 +758,29 @@ function removeScriptComponent() {
   project.setStatus('已移除 Script 组件')
 }
 
-function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
+function inspectorComponents(): InspectorComponentMap {
+  return {
+    transform: transform.value,
+    sprite: sprite.value,
+    background: background.value,
+    collider: collider.value,
+    animation: animation.value,
+    camera: camera.value,
+    audio: audio.value,
+    ui: ui.value,
+    tilemap: tilemap.value,
+    interactable: interactable.value
+  }
+}
+
+function markDirtyIfUpdated(updated: boolean) {
+  if (updated) sceneStore.markDirty()
+}
+
+function setNumber(group: InspectorComponentGroup, key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = Number((event.target as HTMLInputElement).value)
-  if (group === 'transform' && transform.value) (transform.value as unknown as Record<string, number>)[key] = value
-  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, number>)[key] = value
-  if (group === 'collider' && collider.value) (collider.value as unknown as Record<string, number>)[key] = value
-  if (group === 'animation' && animation.value) (animation.value as unknown as Record<string, number>)[key] = value
-  if (group === 'camera' && camera.value) (camera.value as unknown as Record<string, number>)[key] = value
-  if (group === 'audio' && audio.value) (audio.value as unknown as Record<string, number>)[key] = value
-  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, number>)[key] = value
-  if (group === 'tilemap' && tilemap.value) (tilemap.value as unknown as Record<string, number>)[key] = Math.round(value)
-  if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, number>)[key] = Math.max(0, value)
-  sceneStore.markDirty()
+  markDirtyIfUpdated(setInspectorNumberField(inspectorComponents(), group, key, value))
 }
 
 function formatRotationDegrees(rotationRadians: number) {
@@ -946,12 +839,7 @@ function setTransformViewportVertical(event: Event) {
 function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).value
-  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, string>)[key] = value
-  if (group === 'camera' && camera.value) (camera.value as unknown as Record<string, string>)[key] = value
-  if (group === 'audio' && audio.value) (audio.value as unknown as Record<string, string>)[key] = value
-  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, string>)[key] = value
-  if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, string>)[key] = value
-  sceneStore.markDirty()
+  markDirtyIfUpdated(setInspectorTextField(inspectorComponents(), group, key, value))
 }
 
 function setHexNumber(group: 'sprite' | 'ui', key: string, event: Event) {
@@ -960,10 +848,7 @@ function setHexNumber(group: 'sprite' | 'ui', key: string, event: Event) {
   const normalized = raw.startsWith('0x') || raw.startsWith('0X') ? raw.slice(2) : raw.replace('#', '')
   const parsed = Number.parseInt(normalized, 16)
   if (!Number.isFinite(parsed)) return
-  const color = Math.max(0, Math.min(0xffffff, Math.round(parsed)))
-  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, number>)[key] = color
-  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, number>)[key] = color
-  sceneStore.markDirty()
+  markDirtyIfUpdated(setInspectorColorField(inspectorComponents(), group, key, parsed))
 }
 
 function formatHexNumber(value: number) {
@@ -978,16 +863,7 @@ function formatColorInput(value: number) {
 function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).checked
-  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'background' && background.value) (background.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'collider' && collider.value) (collider.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'animation' && animation.value) (animation.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'camera' && camera.value) (camera.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'audio' && audio.value) (audio.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'tilemap' && tilemap.value) (tilemap.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, boolean>)[key] = value
-  sceneStore.markDirty()
+  markDirtyIfUpdated(setInspectorBooleanField(inspectorComponents(), group, key, value))
 }
 
 function setInteractableSceneStateMode(event: Event) {

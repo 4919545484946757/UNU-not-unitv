@@ -47,6 +47,17 @@ declare global {
         integrity?: UnuAssetIntegrityResult
       } | null>
       pickProjectFolder?: () => Promise<{ rootPath: string; name: string } | null>
+      listSampleProjects?: () => Promise<Array<{
+        id: string
+        title: string
+        description: string
+        available: boolean
+        rootPath?: string
+        manifestPath?: string
+        projectFile?: string
+        entryScene?: string
+        tags?: string[]
+      }>>
       scanProject?: (projectRoot: string) => Promise<{
         rootPath: string
         name: string

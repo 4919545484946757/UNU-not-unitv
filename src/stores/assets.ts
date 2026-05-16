@@ -179,7 +179,7 @@ export const useAssetStore = defineStore('assets', {
     async ensurePreview(path: string) {
       if (this.previews[path]) return this.previews[path]
       const project = useProjectStore()
-      if (window.unu?.readAssetDataUrl && project.rootPath && project.rootPath !== 'sample-project') {
+      if (window.unu?.readAssetDataUrl && project.rootPath && !project.isMemoryProject) {
         const result = await window.unu.readAssetDataUrl({ projectRoot: project.rootPath, relativePath: path })
         if (result?.dataUrl) {
           this.previews[path] = result.dataUrl
@@ -226,7 +226,7 @@ export const useAssetStore = defineStore('assets', {
     },
     async deleteAssetForHistory(relativePath: string) {
       const project = useProjectStore()
-      if (!window.unu?.deleteAsset || !project.rootPath || project.rootPath === 'sample-project') return null
+      if (!window.unu?.deleteAsset || !project.rootPath || project.isMemoryProject) return null
       const result = await window.unu.deleteAsset({ projectRoot: project.rootPath, relativePath })
       if (!result?.ok || !result.trashRelativePath) {
         throw new Error(result?.error || '删除资源失败：未返回可恢复路径。')
@@ -237,7 +237,7 @@ export const useAssetStore = defineStore('assets', {
     },
     async restoreAssetForHistory(trashPath: string, restorePath: string) {
       const project = useProjectStore()
-      if (!window.unu?.restoreDeletedAsset || !project.rootPath || project.rootPath === 'sample-project') return null
+      if (!window.unu?.restoreDeletedAsset || !project.rootPath || project.isMemoryProject) return null
       return window.unu.restoreDeletedAsset({
         projectRoot: project.rootPath,
         trashRelativePath: trashPath,
@@ -437,7 +437,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入资源依赖检查接口，请使用桌面版运行。')
         return
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再检查资源依赖。')
         return
       }
@@ -452,7 +452,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入游戏导出接口，请使用桌面版运行。')
         return
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再导出游戏。')
         return
       }
@@ -495,7 +495,7 @@ export const useAssetStore = defineStore('assets', {
           return
         }
 
-        if (!project.rootPath || project.rootPath === 'sample-project') {
+        if (!project.rootPath || project.isMemoryProject) {
           project.setStatus('请先选择一个本地工程目录，再导入图片。')
           if (window.unu?.pickProjectFolder && window.unu?.scanProject) {
             const picked = await window.unu.pickProjectFolder()
@@ -538,7 +538,7 @@ export const useAssetStore = defineStore('assets', {
           return
         }
 
-        if (!project.rootPath || project.rootPath === 'sample-project') {
+        if (!project.rootPath || project.isMemoryProject) {
           project.setStatus('请先选择一个本地工程目录，再导入音频。')
           if (window.unu?.pickProjectFolder && window.unu?.scanProject) {
             const picked = await window.unu.pickProjectFolder()
@@ -579,7 +579,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入新建文件接口，请使用桌面版运行。')
         return null
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再新建文件。')
         return null
       }
@@ -612,7 +612,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入新建文件夹接口，请使用桌面版运行。')
         return null
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再新建文件夹。')
         return null
       }
@@ -644,7 +644,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入资源重命名接口，请使用桌面版运行。')
         return null
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再重命名资源。')
         return null
       }
@@ -697,7 +697,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('没有可粘贴的资源，请先复制文件或文件夹。')
         return null
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再粘贴资源。')
         return null
       }
@@ -734,7 +734,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入资源删除接口，请使用桌面版运行。')
         return null
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再删除资源。')
         return null
       }
@@ -765,7 +765,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入资源移动接口，请使用桌面版运行。')
         return null
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('请先打开或另存为本地项目，再移动资源。')
         return null
       }
@@ -809,7 +809,7 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('当前环境未接入“打开文件目录”接口，请使用桌面版运行。')
         return
       }
-      if (!project.rootPath || project.rootPath === 'sample-project') {
+      if (!project.rootPath || project.isMemoryProject) {
         project.setStatus('当前是示例工程，无法定位本地文件。')
         return
       }

@@ -132,7 +132,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { sampleProjectCatalog, type SampleProjectEntry } from '../../engine/project/sampleCatalog'
+import { fallbackSampleProjectCatalog, type SampleProjectEntry } from '../../engine/project/sampleCatalog'
 
 interface HistoryProject {
   rootPath: string
@@ -148,7 +148,7 @@ const HISTORY_KEY = 'unu-launcher-history-v1'
 const MAX_HISTORY = 24
 const loading = ref(false)
 const history = ref<HistoryProject[]>([])
-const samples = sampleProjectCatalog
+const samples = ref<SampleProjectEntry[]>(fallbackSampleProjectCatalog)
 
 const createDialogVisible = ref(false)
 const creatingProject = ref(false)
@@ -371,8 +371,22 @@ async function deleteProject(item: HistoryProject) {
 }
 
 onMounted(() => {
+  void refreshSamples()
   void refreshHistory()
 })
+
+async function refreshSamples() {
+  if (!window.unu?.listSampleProjects) {
+    samples.value = fallbackSampleProjectCatalog
+    return
+  }
+  try {
+    const discovered = await window.unu.listSampleProjects()
+    samples.value = discovered?.length ? discovered : fallbackSampleProjectCatalog
+  } catch {
+    samples.value = fallbackSampleProjectCatalog
+  }
+}
 </script>
 
 <style scoped>

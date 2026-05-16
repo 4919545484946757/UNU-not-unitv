@@ -1,0 +1,17 @@
+{
+  "format": "unu-sample-manifest",
+  "version": 1,
+  "id": "snake",
+  "title": "Snake Demo",
+  "description": "Playable Snake sample: grid movement, food, score, pause/game-over menus, difficulty switching, and editable project-local scripts.",
+  "available": true,
+  "projectFile": "project.json",
+  "entryScene": "Snake.scene.json",
+  "tags": [
+    "2d",
+    "arcade",
+    "snake",
+    "ui",
+    "input"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "format": "unu-sample-manifest",
+  "version": 1,
+  "id": "action-2d",
+  "title": "2D Action Demo",
+  "description": "Movement, shooting, enemy chase/respawn, interaction, scene switching, UI menus, animation state machine, and project-local scripts.",
+  "available": true,
+  "projectFile": "project.json",
+  "entryScene": "MainScene.scene.json",
+  "tags": [
+    "2d",
+    "action",
+    "shooting",
+    "animation",
+    "interaction"
+  ]
+}

@@ -48,7 +48,7 @@ npm run dev
 - Tilemap 碰撞。
 - 项目内脚本运行时。
 
-`Snake` 使用 `Sample-project-list/Snake`，包含：
+`Snake` 使用 `Sample-project-list/snake`，包含：
 
 - 经典贪吃蛇移动、食物、得分和失败判定。
 - `Esc` 暂停菜单和游戏结束菜单。

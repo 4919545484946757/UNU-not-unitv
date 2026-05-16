@@ -48,7 +48,7 @@ Start with a sample project. UNU currently includes two main samples: `2D Action
 - Tilemap collision.
 - Project-level runtime scripts.
 
-`Snake` uses `Sample-project-list/Snake` and includes:
+`Snake` uses `Sample-project-list/snake` and includes:
 
 - Classic Snake movement, food, scoring, and failure rules.
 - `Esc` pause menu and game-over menu.

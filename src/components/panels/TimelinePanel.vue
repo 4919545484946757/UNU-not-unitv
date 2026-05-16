@@ -45,19 +45,14 @@
         <input class="playhead-slider" type="range" min="0" max="1000" :value="Math.round(playheadProgress * 1000)" @input="scrubPlayhead" />
       </div>
 
-      <div class="timeline-strip">
-        <button
-          v-for="(framePath, index) in animation.framePaths"
-          :key="framePath + '_' + index"
-          class="frame-card"
-          :class="{ active: editor.timelineFrameIndex === index, playback: animation.currentFrame === index && editor.timelinePreviewPlaying }"
-          @click="editor.setTimelineFrameIndex(index)"
-        >
-          <div class="frame-index">{{ index }}</div>
-          <div class="frame-name">{{ frameLabel(framePath) }}</div>
-          <div class="frame-duration">{{ animation.frameDurations[index] ?? 1 }}x</div>
-        </button>
-      </div>
+      <FrameList
+        :frame-paths="animation.framePaths"
+        :frame-durations="animation.frameDurations"
+        :current-index="editor.timelineFrameIndex"
+        :current-frame="animation.currentFrame"
+        :preview-playing="editor.timelinePreviewPlaying"
+        @select-frame="editor.setTimelineFrameIndex"
+      />
 
       <div class="frame-editor" v-if="currentFramePath">
         <div class="group-title">当前帧</div>
@@ -284,6 +279,7 @@ import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useSceneStore } from '../../stores/scene'
 import { useSelectionStore } from '../../stores/selection'
+import FrameList from '../timeline/FrameList.vue'
 
 const assets = useAssetStore()
 const editor = useEditorStore()
@@ -802,7 +798,7 @@ function togglePreview() {
 
 async function saveAnimationAsset() {
   if (!animation.value || !entity.value) return
-  if (!window.unu?.saveTextAsset || !project.rootPath || project.rootPath === 'sample-project') {
+  if (!window.unu?.saveTextAsset || !project.rootPath || project.isMemoryProject) {
     project.setStatus('当前为示例工程，动画资源保存需在 Electron 本地工程模式下使用。')
     return
   }
@@ -820,7 +816,7 @@ async function saveAnimationAsset() {
 
 async function openAnimationAsset() {
   if (!animation.value) return
-  if (!window.unu?.openTextAsset || !project.rootPath || project.rootPath === 'sample-project') {
+  if (!window.unu?.openTextAsset || !project.rootPath || project.isMemoryProject) {
     project.setStatus('当前为示例工程，动画资源打开需在 Electron 本地工程模式下使用。')
     return
   }
@@ -840,7 +836,7 @@ async function generateAtlasSliceAsset() {
     project.setStatus('请先在素材箱中选择一张图集图片。')
     return
   }
-  if (!window.unu?.saveTextAsset || !project.rootPath || project.rootPath === 'sample-project') {
+  if (!window.unu?.saveTextAsset || !project.rootPath || project.isMemoryProject) {
     project.setStatus('当前为示例工程，图集切片资源保存需在 Electron 本地工程模式下使用。')
     return
   }

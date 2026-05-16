@@ -164,7 +164,8 @@ export class PixiRenderer {
       getMasterVolume: () => this.audioRuntime.getMasterVolume(),
       getGroupVolume: (group) => this.audioRuntime.getGroupVolume(group)
     })
-    this.audioRuntime.setProjectRoot(useProjectStore().rootPath)
+    const projectStoreForAudio = useProjectStore()
+    this.audioRuntime.setProjectRoot(projectStoreForAudio.rootPath, projectStoreForAudio.mode)
     this.scriptRuntime.setErrorReporter((error) => this.options.onScriptError?.(error))
     this.scriptRuntime.setConsoleReporter((message) => this.options.onConsoleMessage?.(message))
     await this.refreshProjectRuntimeFiles()
@@ -396,7 +397,7 @@ export class PixiRenderer {
     if (localScene) return localScene
 
     const projectStore = useProjectStore()
-    if (projectStore.rootPath === 'sample-project') {
+    if (projectStore.isMemoryProject) {
       return createSampleSceneByName(normalized)
     }
     return null
@@ -514,7 +515,7 @@ export class PixiRenderer {
     const inputRuntimePath = 'assets/scripts/InputState.ts'
     const audioRuntimePath = 'assets/scripts/AudioRuntime.ts'
     this.inputState.setStorageKey(this.getInputStorageKey())
-    if (!window.unu?.readTextAsset || !projectStore.rootPath || projectStore.rootPath === 'sample-project') {
+    if (!window.unu?.readTextAsset || !projectStore.rootPath || projectStore.isMemoryProject) {
       this.scriptRuntime.setProjectRuntimeSource('', scriptRuntimePath)
       this.inputState.setProjectRuntimeSource('', inputRuntimePath)
       this.audioRuntime.setProjectRuntimeSource('', audioRuntimePath)

@@ -22,5 +22,6 @@
     "shared": "assets/scripts/shared",
     "scenes": "assets/scripts/scenes",
     "interactions": "assets/scripts/interactions"
-  }
+  },
+  "sampleManifest": "manifest.json"
 }

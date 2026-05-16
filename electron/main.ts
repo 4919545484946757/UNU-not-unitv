@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createExportGameHandler } from './services/exportGame'
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -490,6 +491,47 @@ async function firstExistingPath(candidates: string[]) {
   return ''
 }
 
+async function resolveSampleProjectListRoot() {
+  return firstExistingPath([
+    path.join(process.resourcesPath || '', 'Sample-project-list'),
+    path.join(app.getAppPath(), 'Sample-project-list'),
+    path.join(process.cwd(), 'Sample-project-list'),
+    path.resolve(__dirname, '..', 'Sample-project-list')
+  ])
+}
+
+async function readSampleProjectManifest(sampleRoot: string, sampleDirName: string, sampleListRoot: string) {
+  const manifestPath = path.join(sampleRoot, 'manifest.json')
+  const projectPath = path.join(sampleRoot, 'project.json')
+  if (!(await exists(projectPath))) return null
+  let manifest: Record<string, any> = {}
+  if (await exists(manifestPath)) {
+    try {
+      manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'))
+    } catch {
+      manifest = {}
+    }
+  }
+  let project: Record<string, any> = {}
+  try {
+    project = JSON.parse(await fs.readFile(projectPath, 'utf-8'))
+  } catch {
+    project = {}
+  }
+  const rootPath = `Sample-project-list/${sampleDirName}`
+  return {
+    id: String(manifest.id || sampleDirName),
+    title: String(manifest.title || project.name || sampleDirName),
+    description: String(manifest.description || 'UNU sample project.'),
+    available: manifest.available !== false,
+    rootPath,
+    manifestPath: `${rootPath}/manifest.json`,
+    projectFile: String(manifest.projectFile || 'project.json'),
+    entryScene: String(manifest.entryScene || project.startupScene || ''),
+    tags: Array.isArray(manifest.tags) ? manifest.tags.map((item: unknown) => String(item)) : []
+  }
+}
+
 function makeDefaultProjectName() {
   const now = new Date()
   const pad = (value: number) => String(value).padStart(2, '0')
@@ -609,39 +651,40 @@ async function copyFileIfExists(from: string, to: string) {
 
 function resolveSampleAssetsRoot() {
   const candidates = [
-    path.resolve(__dirname, '..', 'assets-for-sample'),
-    path.resolve(process.cwd(), 'assets-for-sample')
+    path.resolve(__dirname, '..', 'Sample-project-list', 'sample-2D-shooting', 'assets'),
+    path.resolve(process.cwd(), 'Sample-project-list', 'sample-2D-shooting', 'assets'),
+    path.join(process.resourcesPath || '', 'Sample-project-list', 'sample-2D-shooting', 'assets')
   ]
   return candidates.find((candidate) => fsSync.existsSync(candidate)) || ''
 }
 
 const SAMPLE_PIXEL_ASSET_MAPPINGS: Array<{ from: string; to: string }> = [
-  { from: 'background-img.png', to: 'assets/images/pixel/background/background-img.png' },
-  { from: 'background-facility.png', to: 'assets/images/pixel/background/background-facility.png' },
-  { from: 'door.png', to: 'assets/images/pixel/props/door.png' },
-  { from: 'Enemy Animation/Tube Animation1.png', to: 'assets/images/pixel/enemy/tube_01.png' },
-  { from: 'Enemy Animation/Tube Animation2.png', to: 'assets/images/pixel/enemy/tube_02.png' },
-  { from: 'Enemy Animation/Tube Animation3.png', to: 'assets/images/pixel/enemy/tube_03.png' },
-  { from: 'Enemy Animation/Tube Animation4.png', to: 'assets/images/pixel/enemy/tube_04.png' },
-  { from: 'Player Animations/Idle Animation/Idle Astronaut Animation1.png', to: 'assets/images/pixel/player/idle/idle_01.png' },
-  { from: 'Player Animations/Idle Animation/Idle Astronaut Animation2.png', to: 'assets/images/pixel/player/idle/idle_02.png' },
-  { from: 'Player Animations/Idle Animation/Idle Astronaut Animation3.png', to: 'assets/images/pixel/player/idle/idle_03.png' },
-  { from: 'Player Animations/Idle Animation/Idle Astronaut Animation4.png', to: 'assets/images/pixel/player/idle/idle_04.png' },
-  { from: 'Player Animations/Side Animation/Side Astronaut Animation1.png', to: 'assets/images/pixel/player/run/run_01.png' },
-  { from: 'Player Animations/Side Animation/Side Astronaut Animation2.png', to: 'assets/images/pixel/player/run/run_02.png' },
-  { from: 'Player Animations/Side Animation/Side Astronaut Animation3.png', to: 'assets/images/pixel/player/run/run_03.png' },
-  { from: 'Player Animations/Side Animation/Side Astronaut Animation4.png', to: 'assets/images/pixel/player/run/run_04.png' },
-  { from: 'Player Animations/Side Animation/Side Astronaut Animation5.png', to: 'assets/images/pixel/player/run/run_05.png' },
-  { from: 'Player Animations/Side Animation/Side Astronaut Animation6.png', to: 'assets/images/pixel/player/run/run_06.png' },
-  { from: 'Player Animations/Forward Animation/Forward Astronaut Animation1.png', to: 'assets/images/pixel/player/forward/forward_01.png' },
-  { from: 'Player Animations/Forward Animation/Forward Astronaut Animation2.png', to: 'assets/images/pixel/player/forward/forward_02.png' },
-  { from: 'Player Animations/Forward Animation/Forward Astronaut Animation3.png', to: 'assets/images/pixel/player/forward/forward_03.png' },
-  { from: 'Player Animations/Forward Animation/Forward Astronaut Animation4.png', to: 'assets/images/pixel/player/forward/forward_04.png' },
-  { from: 'Player Animations/Forward Animation/Forward Astronaut Animation5.png', to: 'assets/images/pixel/player/forward/forward_05.png' },
-  { from: 'Player Animations/Forward Animation/Forward Astronaut Animation6.png', to: 'assets/images/pixel/player/forward/forward_06.png' },
-  { from: 'tilemap-sorted-by-value/texture-for-1.png', to: 'assets/images/pixel/tilemap/texture_1.png' },
-  { from: 'tilemap-sorted-by-value/texture-for-2.png', to: 'assets/images/pixel/tilemap/texture_2.png' },
-  { from: 'tilemap-sorted-by-value/texture-for-4.png', to: 'assets/images/pixel/tilemap/texture_4.png' }
+  { from: 'images/pixel/background/background-img.png', to: 'assets/images/pixel/background/background-img.png' },
+  { from: 'images/pixel/background/background-facility.png', to: 'assets/images/pixel/background/background-facility.png' },
+  { from: 'images/pixel/props/door.png', to: 'assets/images/pixel/props/door.png' },
+  { from: 'images/pixel/enemy/tube_01.png', to: 'assets/images/pixel/enemy/tube_01.png' },
+  { from: 'images/pixel/enemy/tube_02.png', to: 'assets/images/pixel/enemy/tube_02.png' },
+  { from: 'images/pixel/enemy/tube_03.png', to: 'assets/images/pixel/enemy/tube_03.png' },
+  { from: 'images/pixel/enemy/tube_04.png', to: 'assets/images/pixel/enemy/tube_04.png' },
+  { from: 'images/pixel/player/idle/idle_01.png', to: 'assets/images/pixel/player/idle/idle_01.png' },
+  { from: 'images/pixel/player/idle/idle_02.png', to: 'assets/images/pixel/player/idle/idle_02.png' },
+  { from: 'images/pixel/player/idle/idle_03.png', to: 'assets/images/pixel/player/idle/idle_03.png' },
+  { from: 'images/pixel/player/idle/idle_04.png', to: 'assets/images/pixel/player/idle/idle_04.png' },
+  { from: 'images/pixel/player/run/run_01.png', to: 'assets/images/pixel/player/run/run_01.png' },
+  { from: 'images/pixel/player/run/run_02.png', to: 'assets/images/pixel/player/run/run_02.png' },
+  { from: 'images/pixel/player/run/run_03.png', to: 'assets/images/pixel/player/run/run_03.png' },
+  { from: 'images/pixel/player/run/run_04.png', to: 'assets/images/pixel/player/run/run_04.png' },
+  { from: 'images/pixel/player/run/run_05.png', to: 'assets/images/pixel/player/run/run_05.png' },
+  { from: 'images/pixel/player/run/run_06.png', to: 'assets/images/pixel/player/run/run_06.png' },
+  { from: 'images/pixel/player/forward/forward_01.png', to: 'assets/images/pixel/player/forward/forward_01.png' },
+  { from: 'images/pixel/player/forward/forward_02.png', to: 'assets/images/pixel/player/forward/forward_02.png' },
+  { from: 'images/pixel/player/forward/forward_03.png', to: 'assets/images/pixel/player/forward/forward_03.png' },
+  { from: 'images/pixel/player/forward/forward_04.png', to: 'assets/images/pixel/player/forward/forward_04.png' },
+  { from: 'images/pixel/player/forward/forward_05.png', to: 'assets/images/pixel/player/forward/forward_05.png' },
+  { from: 'images/pixel/player/forward/forward_06.png', to: 'assets/images/pixel/player/forward/forward_06.png' },
+  { from: 'images/pixel/tilemap/texture_1.png', to: 'assets/images/pixel/tilemap/texture_1.png' },
+  { from: 'images/pixel/tilemap/texture_2.png', to: 'assets/images/pixel/tilemap/texture_2.png' },
+  { from: 'images/pixel/tilemap/texture_4.png', to: 'assets/images/pixel/tilemap/texture_4.png' }
 ]
 
 async function writeSampleScriptFiles(projectRoot: string) {
@@ -1811,21 +1854,6 @@ function openCodeEditorWindow(payload: unknown) {
   return { ok: true }
 }
 
-function makeExportFolderName(projectName?: string) {
-  const now = new Date()
-  const pad = (value: number) => String(value).padStart(2, '0')
-  const stamp = [
-    now.getFullYear(),
-    pad(now.getMonth() + 1),
-    pad(now.getDate()),
-    '-',
-    pad(now.getHours()),
-    pad(now.getMinutes()),
-    pad(now.getSeconds())
-  ].join('')
-  return `${sanitizeProjectName(projectName) || 'UNUGame'}-web-${stamp}`
-}
-
 async function resolveWebDistRoot() {
   const candidates = app.isPackaged
     ? [
@@ -1846,223 +1874,9 @@ async function resolveWebDistRoot() {
     if (await exists(path.join(candidate, 'index.html'))) return candidate
   }
   throw new Error(app.isPackaged
-    ? '未找到可复制的 Web 构建目录 resources/dist，请重新打包应用后再导出。'
-    : '未找到 Web 构建目录 dist，请先执行 npm run build。'
+    ? 'Web build directory was not found in packaged resources/dist. Please rebuild the app and try exporting again.'
+    : 'Web build directory dist was not found. Please run npm run build before exporting.'
   )
-}
-
-async function countFilesRecursive(rootPath: string) {
-  if (!(await exists(rootPath))) return 0
-  let count = 0
-  const visit = async (targetPath: string) => {
-    const entries = await fs.readdir(targetPath, { withFileTypes: true }).catch(() => [])
-    for (const entry of entries) {
-      const fullPath = path.join(targetPath, entry.name)
-      if (entry.isDirectory()) await visit(fullPath)
-      else if (entry.isFile()) count += 1
-    }
-  }
-  await visit(rootPath)
-  return count
-}
-
-async function patchExportIndexHtml(indexPath: string, projectName?: string) {
-  let html = await fs.readFile(indexPath, 'utf-8')
-  html = html
-    .replace(/(src|href)="\/assets\//g, '$1="./assets/')
-    .replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(projectName || 'UNU Game')}</title>`)
-  if (!html.includes('__UNU_GAME_EXPORT__')) {
-    html = html.replace(
-      /<head([^>]*)>/i,
-      `<head$1>\n    <script>window.__UNU_GAME_EXPORT__ = true;</script>`
-    )
-  }
-  await fs.writeFile(indexPath, html, 'utf-8')
-}
-
-function normalizeExportSceneFileReference(value: unknown) {
-  const raw = String(value || '').replace(/\\/g, '/').trim()
-  if (!raw) return ''
-  const withoutPrefix = raw.replace(/^\.?\//, '').replace(/^scenes\//i, '')
-  return withoutPrefix.split('/').filter(Boolean).pop() || withoutPrefix
-}
-
-async function writeNormalizedExportProjectFile(projectRoot: string, outputDir: string, projectName: string) {
-  const sourceProjectFile = path.join(projectRoot, 'project.json')
-  const outputProjectFile = path.join(outputDir, 'project.json')
-  let parsed: Record<string, any> = {}
-  try {
-    const raw = await fs.readFile(sourceProjectFile, 'utf-8')
-    const json = JSON.parse(raw)
-    if (json && typeof json === 'object') parsed = json
-  } catch {
-    parsed = {}
-  }
-
-  const sceneFiles = await collectSceneFileNames(outputDir)
-  const catalog = sceneFiles.map((file) => ({ file, name: parseSceneBaseName(file) }))
-  const previousStartup = normalizeExportSceneFileReference(parsed.startupScene)
-  const startupScene =
-    sceneFiles.find((file) => file.toLowerCase() === previousStartup.toLowerCase()) ||
-    sceneFiles[0] ||
-    ''
-
-  const payload = {
-    ...parsed,
-    format: 'unu-project',
-    version: 1,
-    name: String(parsed.name || projectName || '').trim() || projectName,
-    sceneCatalogVersion: 1,
-    sceneCatalog: catalog,
-    startupScene
-  }
-  await fs.writeFile(outputProjectFile, JSON.stringify(payload, null, 2), 'utf-8')
-  return { sceneCatalog: catalog, startupScene }
-}
-
-async function writeSceneSnapshotFiles(projectRoot: string, sceneFiles?: Array<{ fileName?: string; content: string }>) {
-  const files = Array.isArray(sceneFiles) ? sceneFiles : []
-  if (!files.length) return { written: 0, fileNames: [] as string[] }
-  const scenesDir = path.join(projectRoot, 'scenes')
-  await fs.mkdir(scenesDir, { recursive: true })
-  const usedNames = new Set<string>()
-  const fileNames: string[] = []
-  for (const file of files) {
-    const rawName = sanitizeSceneFileName(file.fileName)
-    let candidate = rawName
-    let index = 2
-    while (usedNames.has(candidate.toLowerCase())) {
-      candidate = rawName.replace(/\.scene\.json$/i, `_${index}.scene.json`)
-      index += 1
-    }
-    usedNames.add(candidate.toLowerCase())
-    await fs.writeFile(path.join(scenesDir, candidate), String(file.content || ''), 'utf-8')
-    fileNames.push(candidate)
-  }
-  return { written: fileNames.length, fileNames }
-}
-
-async function writeExportLaunchFiles(outputDir: string, projectName?: string) {
-  const batContent = [
-    '@echo off',
-    'setlocal',
-    'cd /d "%~dp0"',
-    'powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0PLAY_GAME.ps1"',
-    'if errorlevel 1 pause',
-    ''
-  ].join('\r\n')
-
-  const psContent = String.raw`$ErrorActionPreference = "Stop"
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
-
-function Test-PortAvailable([int]$port) {
-  try {
-    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
-    $listener.Start()
-    $listener.Stop()
-    return $true
-  } catch {
-    return $false
-  }
-}
-
-function Get-MimeType([string]$filePath) {
-  switch ([System.IO.Path]::GetExtension($filePath).ToLowerInvariant()) {
-    ".html" { return "text/html; charset=utf-8" }
-    ".js" { return "text/javascript; charset=utf-8" }
-    ".mjs" { return "text/javascript; charset=utf-8" }
-    ".css" { return "text/css; charset=utf-8" }
-    ".json" { return "application/json; charset=utf-8" }
-    ".png" { return "image/png" }
-    ".jpg" { return "image/jpeg" }
-    ".jpeg" { return "image/jpeg" }
-    ".webp" { return "image/webp" }
-    ".gif" { return "image/gif" }
-    ".svg" { return "image/svg+xml" }
-    ".mp3" { return "audio/mpeg" }
-    ".wav" { return "audio/wav" }
-    ".ogg" { return "audio/ogg" }
-    default { return "application/octet-stream" }
-  }
-}
-
-$port = 4173
-while (-not (Test-PortAvailable $port)) {
-  $port += 1
-}
-
-$server = [System.Net.HttpListener]::new()
-$prefix = "http://127.0.0.1:$port/"
-$server.Prefixes.Add($prefix)
-$server.Start()
-Write-Host "UNU exported game is running at $prefix"
-Write-Host "Press Ctrl+C to stop the local server."
-Start-Process $prefix
-
-try {
-  while ($server.IsListening) {
-    $context = $server.GetContext()
-    $requestPath = [System.Uri]::UnescapeDataString($context.Request.Url.AbsolutePath.TrimStart("/"))
-    if ([string]::IsNullOrWhiteSpace($requestPath)) {
-      $requestPath = "index.html"
-    }
-    $requestPath = $requestPath -replace "/", [System.IO.Path]::DirectorySeparatorChar
-    $targetPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($root, $requestPath))
-    $rootFullPath = [System.IO.Path]::GetFullPath($root)
-
-    if (-not $targetPath.StartsWith($rootFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
-      $context.Response.StatusCode = 403
-      $context.Response.Close()
-      continue
-    }
-
-    if (-not [System.IO.File]::Exists($targetPath)) {
-      $targetPath = [System.IO.Path]::Combine($root, "index.html")
-    }
-
-    if ([System.IO.File]::Exists($targetPath)) {
-      $bytes = [System.IO.File]::ReadAllBytes($targetPath)
-      $context.Response.ContentType = Get-MimeType $targetPath
-      $context.Response.ContentLength64 = $bytes.Length
-      $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
-    } else {
-      $context.Response.StatusCode = 404
-    }
-    $context.Response.OutputStream.Close()
-  }
-} finally {
-  if ($server.IsListening) {
-    $server.Stop()
-  }
-  $server.Close()
-}
-`
-
-  const readmeContent = [
-    `# ${projectName || 'UNU Game'} Web Export`,
-    '',
-    'Do not open index.html directly with file://. Modern browsers block ES module scripts and CSS under file:// origins.',
-    '',
-    'Windows:',
-    '1. Double-click PLAY_GAME.bat.',
-    '2. The script starts a local HTTP server and opens the game in your default browser.',
-    '3. Close the PowerShell window or press Ctrl+C to stop the server.',
-    '',
-    'If you already have a web server, serve this folder as static files and open index.html through http:// or https://.',
-    ''
-  ].join('\n')
-
-  await fs.writeFile(path.join(outputDir, 'PLAY_GAME.bat'), batContent, 'utf-8')
-  await fs.writeFile(path.join(outputDir, 'PLAY_GAME.ps1'), psContent, 'utf-8')
-  await fs.writeFile(path.join(outputDir, 'EXPORT_README.md'), readmeContent, 'utf-8')
-}
-
-function escapeHtml(input: string) {
-  return String(input)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 process.on('unhandledRejection', (reason) => {
@@ -2230,79 +2044,38 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('unu:export-game', async (_event, payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) => {
-    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || '').trim())
-    if (!projectRoot || projectRoot === 'sample-project' || !(await exists(projectRoot))) {
-      throw new Error('请先打开一个本地项目，再导出游戏。')
-    }
-
-    await ensureProjectStructure(projectRoot)
-    await ensureProjectRuntimeScriptFiles(projectRoot)
-    const projectName = sanitizeProjectName(payload?.projectName) || path.basename(projectRoot)
-    const sceneSnapshot = await writeSceneSnapshotFiles(projectRoot, payload?.sceneFiles)
-    const reconcile = await reconcileProjectSceneCatalog(projectRoot, projectName)
-    const integrity = await ensureProjectAssetIntegrity(projectRoot)
-
-    const pick = await dialog.showOpenDialog({
-      title: '导出 Web 游戏到目录',
-      properties: ['openDirectory', 'createDirectory']
+    const handler = createExportGameHandler({
+      resolveProjectRootPath,
+      exists,
+      ensureProjectStructure,
+      ensureProjectRuntimeScriptFiles,
+      reconcileProjectSceneCatalog,
+      ensureProjectAssetIntegrity,
+      chooseOutputDirectory: async () => {
+        const pick = await dialog.showOpenDialog({
+          title: 'Export Web game',
+          properties: ['openDirectory', 'createDirectory']
+        })
+        return pick.canceled || pick.filePaths.length === 0 ? null : pick.filePaths[0]
+      },
+      resolveWebDistRoot,
+      copyIfExists
     })
-    if (pick.canceled || pick.filePaths.length === 0) return null
+    return handler(payload)
+  })
 
-    const distRoot = await resolveWebDistRoot()
-    const outputDir = path.join(pick.filePaths[0], makeExportFolderName(projectName))
-    await fs.mkdir(outputDir, { recursive: true })
-    await fs.cp(distRoot, outputDir, { recursive: true, force: true })
-
-    await copyIfExists(path.join(projectRoot, 'assets'), path.join(outputDir, 'assets'))
-    await copyIfExists(path.join(projectRoot, 'scenes'), path.join(outputDir, 'scenes'))
-    await copyIfExists(path.join(projectRoot, 'prefabs'), path.join(outputDir, 'prefabs'))
-    const exportProject = await writeNormalizedExportProjectFile(projectRoot, outputDir, projectName)
-
-    const indexPath = path.join(outputDir, 'index.html')
-    await patchExportIndexHtml(indexPath, projectName)
-    await writeExportLaunchFiles(outputDir, projectName)
-    const assetCount = await countFilesRecursive(path.join(outputDir, 'assets'))
-    const report = {
-      format: 'unu-web-export',
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      projectName,
-      projectRoot,
-      outputDir,
-      indexPath,
-      launchScript: path.join(outputDir, 'PLAY_GAME.bat'),
-      sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
-      startupScene: exportProject.startupScene || reconcile.startupScene,
-      sceneCatalog: exportProject.sceneCatalog,
-      sceneSnapshotWritten: sceneSnapshot.written,
-      sceneSnapshotFiles: sceneSnapshot.fileNames,
-      assetCount,
-      assetIntegrityRepaired: integrity.repaired,
-      normalizedSceneFiles: integrity.normalizedSceneFiles,
-      normalizedFiles: integrity.normalizedFiles,
-      copiedAssets: integrity.copiedAssets,
-      relinkedAssets: integrity.relinkedAssets,
-      relinkedFiles: integrity.relinkedFiles,
-      checkedAssetRefs: integrity.checkedAssetRefs,
-      resolvedAssets: integrity.resolvedAssets,
-      unresolvedAssets: integrity.unresolvedAssets,
-      unresolvedRefs: integrity.unresolvedRefs
-    }
-    await fs.writeFile(path.join(outputDir, 'export-report.json'), JSON.stringify(report, null, 2), 'utf-8')
-
-    return {
-      ok: true,
-      outputDir,
-      indexPath,
-      launchScript: path.join(outputDir, 'PLAY_GAME.bat'),
-      reportPath: path.join(outputDir, 'export-report.json'),
-      sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
-      startupScene: exportProject.startupScene || reconcile.startupScene,
-      assetCount,
-      sceneSnapshotWritten: sceneSnapshot.written,
-      assetIntegrityRepaired: integrity.repaired,
-      unresolvedAssets: integrity.unresolvedAssets
-    }
+  ipcMain.handle('unu:list-sample-projects', async () => {
+    const sampleListRoot = await resolveSampleProjectListRoot()
+    if (!sampleListRoot) return []
+    const entries = await fs.readdir(sampleListRoot, { withFileTypes: true })
+    const samples = await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => readSampleProjectManifest(path.join(sampleListRoot, entry.name), entry.name, sampleListRoot))
+    )
+    return samples
+      .filter(Boolean)
+      .sort((a: any, b: any) => String(a.title).localeCompare(String(b.title)))
   })
 
   ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {
