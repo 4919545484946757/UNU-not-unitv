@@ -11,7 +11,7 @@ const MAX_CONSOLE_HEIGHT = 420
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
-    tool: 'select' as 'select' | 'move' | 'scale' | 'pan',
+    tool: 'select' as 'select' | 'move' | 'scale' | 'rotate' | 'pan',
     leftTab: 'Scene',
     sceneTreeViewMode: 'layer' as 'layer' | 'folder',
     rightTab: 'Inspector' as 'Inspector' | 'Script' | 'Timeline',
@@ -31,7 +31,7 @@ export const useEditorStore = defineStore('editor', {
     consoleHeight: 170
   }),
   actions: {
-    setTool(tool: 'select' | 'move' | 'scale' | 'pan') {
+    setTool(tool: 'select' | 'move' | 'scale' | 'rotate' | 'pan') {
       this.tool = tool
     },
     setRightTab(tab: 'Inspector' | 'Script' | 'Timeline') {

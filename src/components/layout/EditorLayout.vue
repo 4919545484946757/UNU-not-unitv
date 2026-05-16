@@ -200,8 +200,14 @@ function handleGlobalShortcut(event: KeyboardEvent) {
   }
   if (key === 'r') {
     if (runtime.isPlaying) return
+    editor.setTool('rotate')
+    project.setStatus('工具切换：旋转 (R)')
+    return
+  }
+  if (key === 'h') {
+    if (runtime.isPlaying) return
     editor.setTool('pan')
-    project.setStatus('工具切换：平移 (R)')
+    project.setStatus('工具切换：平移 (H)')
     return
   }
   if (key === ' ') {

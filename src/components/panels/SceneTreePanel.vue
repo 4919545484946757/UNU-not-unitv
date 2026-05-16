@@ -38,9 +38,14 @@
         v-for="entity in orderedEntities"
         :key="entity.id"
         class="entity-row"
-        :class="{ active: selection.selectedEntityId === entity.id }"
-        @click="selection.selectEntity(entity.id)"
+        :class="{ active: selection.selectedEntityIdSet.has(entity.id), 'primary-active': selection.selectedEntityId === entity.id, 'drop-target': dragOverPath === `layer:${entity.id}` }"
+        :draggable="!runtime.isPlaying"
+        @click="selectEntity(entity.id, $event)"
         @contextmenu.stop.prevent="openEntityMenu($event, entity.id)"
+        @dragstart="startEntityDrag($event, entity.id)"
+        @dragover.prevent="handleLayerDragOver(entity)"
+        @dragleave="dragOverPath = ''"
+        @drop.prevent="dropOnLayerEntity(entity.id)"
       >
         <div class="meta">
           <span>
@@ -69,13 +74,14 @@
         :key="row.key"
         class="entity-row"
         :class="{
-          active: row.type === 'entity' ? selection.selectedEntityId === row.entity.id : selectedFolderPath === row.path,
+          active: row.type === 'entity' ? selection.selectedEntityIdSet.has(row.entity.id) : selectedFolderPath === row.path,
+          'primary-active': row.type === 'entity' && selection.selectedEntityId === row.entity.id,
           folder: row.type === 'folder',
           'drop-target': dragOverPath === (row.type === 'folder' ? row.path : row.entity.sceneFolderPath)
         }"
         :style="{ paddingLeft: `${10 + row.depth * 16}px` }"
         :draggable="!runtime.isPlaying"
-        @click="row.type === 'folder' ? selectFolder(row.path, true) : selectEntity(row.entity.id)"
+        @click="row.type === 'folder' ? selectFolder(row.path, true) : selectEntity(row.entity.id, $event)"
         @contextmenu.stop.prevent="row.type === 'folder' ? openFolderMenu($event, row.path) : openEntityMenu($event, row.entity.id)"
         @dragstart="row.type === 'folder' ? startFolderDrag($event, row.path) : startEntityDrag($event, row.entity.id)"
         @dragover.prevent="handleRowDragOver(row)"
@@ -189,7 +195,7 @@ const expandedFolders = ref(new Set<string>())
 const knownFolders = ref(new Set<string>())
 const selectedFolderPath = ref('')
 const dragOverPath = ref('')
-const dragPayload = ref<null | { type: 'folder'; path: string } | { type: 'entity'; id: string }>(null)
+const dragPayload = ref<null | { type: 'folder'; path: string } | { type: 'entity'; ids: string[] }>(null)
 const entityDialog = reactive({
   visible: false,
   entityId: '',
@@ -296,9 +302,10 @@ function selectFolder(path: string, shouldToggle = false) {
   if (shouldToggle) toggleFolder(selectedFolderPath.value)
 }
 
-function selectEntity(entityId: string) {
+function selectEntity(entityId: string, event?: MouseEvent) {
   selectedFolderPath.value = ''
-  selection.selectEntity(entityId)
+  if (event?.shiftKey) selection.toggleEntity(entityId)
+  else selection.selectEntity(entityId)
 }
 
 function openPanelMenu(event: MouseEvent) {
@@ -342,7 +349,7 @@ function selectFirstEntityInFolder(folderPath: string) {
 }
 
 function openEntityMenu(event: MouseEvent, entityId: string) {
-  selectEntity(entityId)
+  if (!selection.selectedEntityIdSet.has(entityId)) selectEntity(entityId)
   showMenu(event, [
     { label: '选中实体', action: () => selection.selectEntity(entityId) },
     { label: '编辑实体信息/分类', disabled: runtime.isPlaying, action: () => openEntityDialog(entityId) },
@@ -488,8 +495,10 @@ function startFolderDrag(event: DragEvent, folderPath: string) {
 
 function startEntityDrag(event: DragEvent, entityId: string) {
   if (runtime.isPlaying) return
-  dragPayload.value = { type: 'entity', id: entityId }
-  event.dataTransfer?.setData('text/plain', `scene-entity:${entityId}`)
+  if (!selection.selectedEntityIdSet.has(entityId)) selectEntity(entityId)
+  const ids = selection.selectedEntityIds.length ? [...selection.selectedEntityIds] : [entityId]
+  dragPayload.value = { type: 'entity', ids }
+  event.dataTransfer?.setData('text/plain', `scene-entity:${ids.join(',')}`)
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
@@ -498,14 +507,28 @@ function handleRowDragOver(row: SceneTreeRow) {
   dragOverPath.value = row.type === 'folder' ? row.path : normalizeSceneFolderPath(row.entity.sceneFolderPath)
 }
 
+function handleLayerDragOver(entity: Entity) {
+  if (runtime.isPlaying || !dragPayload.value) return
+  dragOverPath.value = `layer:${entity.id}`
+}
+
 function dropOnFolder(targetFolderPath: string) {
   if (runtime.isPlaying || !dragPayload.value) return
   const target = normalizeSceneFolderPath(targetFolderPath)
   if (dragPayload.value.type === 'entity') {
-    scene.moveEntityToSceneFolder(dragPayload.value.id, target)
+    for (const id of dragPayload.value.ids) scene.moveEntityToSceneFolder(id, target)
   } else if (dragPayload.value.path !== target) {
     scene.moveSceneFolder(dragPayload.value.path, target)
   }
+  dragPayload.value = null
+  dragOverPath.value = ''
+}
+
+function dropOnLayerEntity(targetEntityId: string) {
+  if (runtime.isPlaying || !dragPayload.value || dragPayload.value.type !== 'entity') return
+  selection.selectEntities(dragPayload.value.ids, dragPayload.value.ids[dragPayload.value.ids.length - 1])
+  const index = orderedEntities.value.findIndex((entity) => entity.id === targetEntityId)
+  if (index >= 0) scene.moveSelectedEntitiesToLayerIndex(index)
   dragPayload.value = null
   dragOverPath.value = ''
 }

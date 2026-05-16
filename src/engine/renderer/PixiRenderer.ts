@@ -26,14 +26,15 @@ import { useSceneStore } from '../../stores/scene'
 
 interface PixiRendererOptions {
   container: HTMLDivElement
-  onEntitySelected?: (entityId: string) => void
+  onEntitySelected?: (entityId: string, options?: { additive?: boolean }) => void
   onSceneMutated?: () => void
   onRuntimeSceneUpdated?: (scene: Scene | null) => void
   onScriptError?: (error: ScriptRuntimeError) => void
   onConsoleMessage?: (message: ScriptConsoleMessage) => void
 }
 
-type GizmoMode = 'none' | 'move' | 'scale' | 'pan'
+type EditorTool = 'select' | 'move' | 'scale' | 'rotate' | 'pan'
+type GizmoMode = 'none' | 'move' | 'scale' | 'rotate' | 'pan'
 interface CameraViewState {
   x: number
   y: number
@@ -253,13 +254,22 @@ export class PixiRenderer {
   private playDebugEnabled = false
   private textureCache = new Map<string, Texture>()
   private selectedEntityId = ''
-  private activeTool: 'select' | 'move' | 'scale' | 'pan' = 'select'
+  private selectedEntityIds: string[] = []
+  private activeTool: EditorTool = 'select'
   private gizmoMode: GizmoMode = 'none'
   private uiSliderDragEntityId = ''
   private uiSliderWindowMoveHandler: ((event: PointerEvent) => void) | null = null
   private uiSliderWindowUpHandler: ((event: PointerEvent) => void) | null = null
   private dragOffset = { x: 0, y: 0 }
   private scaleState = { startPointerX: 0, startPointerY: 0, startScaleX: 1, startScaleY: 1 }
+  private batchGestureStart = {
+    pointerWorldX: 0,
+    pointerWorldY: 0,
+    pointerGlobalX: 0,
+    pointerGlobalY: 0,
+    transforms: new Map<string, { x: number; y: number; scaleX: number; scaleY: number; rotation: number }>()
+  }
+  private rotateState = { centerX: 0, centerY: 0, startAngle: 0 }
   private panState = { lastX: 0, lastY: 0 }
   private renderVersion = 0
   private renderInFlight: Promise<void> | null = null
@@ -779,15 +789,66 @@ export class PixiRenderer {
   }
 
   setSelection(entityId: string) {
-    this.selectedEntityId = entityId
-    this.scriptRuntime.setSelectedEntityId(entityId)
+    this.setSelections(entityId ? [entityId] : [], entityId)
+  }
+
+  setSelections(entityIds: string[], primaryId?: string) {
+    const unique = entityIds.map((id) => String(id || '').trim()).filter(Boolean).filter((id, index, list) => list.indexOf(id) === index)
+    const primary = String(primaryId || '').trim()
+    this.selectedEntityIds = unique
+    this.selectedEntityId = primary && unique.includes(primary) ? primary : (unique[unique.length - 1] || '')
+    this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
     this.drawSelectionGizmo()
   }
 
-  setTool(tool: 'select' | 'move' | 'scale' | 'pan') {
+  setTool(tool: EditorTool) {
     this.activeTool = tool
     this.app.stage.cursor = tool === 'pan' && !this.isPlaying ? 'grab' : 'default'
     this.drawSelectionGizmo()
+  }
+
+  private selectEntityFromPointer(entityId: string, event: FederatedPointerEvent) {
+    const additive = Boolean((event as unknown as { shiftKey?: boolean }).shiftKey || (event.originalEvent as PointerEvent | undefined)?.shiftKey)
+    if (additive) {
+      if (this.selectedEntityIds.includes(entityId)) {
+        this.selectedEntityIds = this.selectedEntityIds.filter((id) => id !== entityId)
+      } else {
+        this.selectedEntityIds = [...this.selectedEntityIds, entityId]
+      }
+      this.selectedEntityId = this.selectedEntityIds.includes(entityId)
+        ? entityId
+        : (this.selectedEntityIds[this.selectedEntityIds.length - 1] || '')
+    } else if (!this.selectedEntityIds.includes(entityId) || this.selectedEntityIds.length <= 1) {
+      this.selectedEntityIds = [entityId]
+      this.selectedEntityId = entityId
+    } else {
+      this.selectedEntityId = entityId
+    }
+    this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
+    this.options.onEntitySelected?.(entityId, { additive })
+    this.drawSelectionGizmo()
+  }
+
+  private captureBatchGestureStart(event: FederatedPointerEvent) {
+    const worldPoint = event.getLocalPosition(this.world)
+    this.batchGestureStart.pointerWorldX = worldPoint.x
+    this.batchGestureStart.pointerWorldY = worldPoint.y
+    this.batchGestureStart.pointerGlobalX = event.global.x
+    this.batchGestureStart.pointerGlobalY = event.global.y
+    this.batchGestureStart.transforms.clear()
+    if (!this.currentScene) return
+    const ids = this.selectedEntityIds.length ? this.selectedEntityIds : (this.selectedEntityId ? [this.selectedEntityId] : [])
+    for (const id of ids) {
+      const transform = this.currentScene.getEntityById(id)?.getComponent<TransformComponent>('Transform')
+      if (!transform) continue
+      this.batchGestureStart.transforms.set(id, {
+        x: transform.x,
+        y: transform.y,
+        scaleX: transform.scaleX,
+        scaleY: transform.scaleY,
+        rotation: transform.rotation
+      })
+    }
   }
 
   private installViewportWheelInteractions() {
@@ -1188,9 +1249,8 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.options.onEntitySelected?.(entity.id)
-      this.selectedEntityId = entity.id
-      this.drawSelectionGizmo()
+      this.selectEntityFromPointer(entity.id, event)
+      this.captureBatchGestureStart(event)
       const global = event.global
       const dragPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
       this.dragOffset.x = global.x - dragPosition.x
@@ -1581,9 +1641,8 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.options.onEntitySelected?.(entityId)
-      this.selectedEntityId = entityId
-      this.drawSelectionGizmo()
+      this.selectEntityFromPointer(entityId, event)
+      this.captureBatchGestureStart(event)
       if (transform.positionMode === 'viewport') {
         const position = this.resolveViewportPosition(transform, tilemap.columns * tilemap.tileWidth, tilemap.rows * tilemap.tileHeight, 0, 0)
         this.dragOffset.x = event.global.x - position.x
@@ -1703,6 +1762,7 @@ export class PixiRenderer {
       this.gizmoMode = 'none'
       if (this.activeTool === 'select') {
         this.selectedEntityId = ''
+        this.selectedEntityIds = []
         this.options.onEntitySelected?.('')
         this.drawSelectionGizmo()
       }
@@ -1719,6 +1779,40 @@ export class PixiRenderer {
       }
 
       if (!this.currentScene) return
+      if (this.selectedEntityIds.length > 1 && (this.gizmoMode === 'move' || this.gizmoMode === 'scale' || this.gizmoMode === 'rotate')) {
+        const local = event.getLocalPosition(this.world)
+        const dxWorld = local.x - this.batchGestureStart.pointerWorldX
+        const dyWorld = local.y - this.batchGestureStart.pointerWorldY
+        const dxGlobal = event.global.x - this.batchGestureStart.pointerGlobalX
+        const dyGlobal = event.global.y - this.batchGestureStart.pointerGlobalY
+        const rotationDelta = this.gizmoMode === 'rotate'
+          ? Math.atan2(local.y - this.rotateState.centerY, local.x - this.rotateState.centerX) - this.rotateState.startAngle
+          : 0
+        for (const id of this.selectedEntityIds) {
+          const entity = this.currentScene.getEntityById(id)
+          const transform = entity?.getComponent<TransformComponent>('Transform')
+          const start = this.batchGestureStart.transforms.get(id)
+          if (!entity || !transform || !start) continue
+          if (this.gizmoMode === 'move') {
+            if (transform.positionMode === 'viewport') {
+              transform.x = start.x + dxGlobal
+              transform.y = start.y + dyGlobal
+            } else {
+              transform.x = start.x + dxWorld
+              transform.y = start.y + dyWorld
+            }
+          } else {
+            if (this.gizmoMode === 'scale') {
+              transform.scaleX = Math.max(0.1, start.scaleX + dxWorld / 140)
+              transform.scaleY = Math.max(0.1, start.scaleY + dyWorld / 140)
+            } else {
+              transform.rotation = start.rotation + rotationDelta
+            }
+          }
+        }
+        this.options.onSceneMutated?.()
+        return
+      }
       const entity = this.currentScene.getEntityById(this.selectedEntityId)
       const transform = entity?.getComponent<TransformComponent>('Transform')
       const ui = entity?.getComponent<UIComponent>('UI')
@@ -1766,6 +1860,14 @@ export class PixiRenderer {
         const baseH = sprite ? sprite.height : (tilemap ? tilemap.rows * tilemap.tileHeight : EMPTY_ENTITY_EDITOR_SIZE)
         transform.scaleX = Math.max(0.1, this.scaleState.startScaleX + dx / Math.max(40, baseW))
         transform.scaleY = Math.max(0.1, this.scaleState.startScaleY + dy / Math.max(40, baseH))
+        if (this.isPlaying) void this.renderScene(this.currentScene)
+        else this.options.onSceneMutated?.()
+      } else if (this.gizmoMode === 'rotate') {
+        const local = event.getLocalPosition(this.world)
+        const start = this.batchGestureStart.transforms.get(this.selectedEntityId)
+        if (!start) return
+        const nextAngle = Math.atan2(local.y - this.rotateState.centerY, local.x - this.rotateState.centerX)
+        transform.rotation = start.rotation + (nextAngle - this.rotateState.startAngle)
         if (this.isPlaying) void this.renderScene(this.currentScene)
         else this.options.onSceneMutated?.()
       }
@@ -1896,9 +1998,8 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.options.onEntitySelected?.(entity.id)
-      this.selectedEntityId = entity.id
-      this.drawSelectionGizmo()
+      this.selectEntityFromPointer(entity.id, event)
+      this.captureBatchGestureStart(event)
       if (transform.positionMode === 'viewport') {
         const position = this.resolveViewportPosition(transform, sprite.width, sprite.height)
         this.dragOffset.x = event.global.x - position.x
@@ -1961,9 +2062,8 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.options.onEntitySelected?.(entity.id)
-      this.selectedEntityId = entity.id
-      this.drawSelectionGizmo()
+      this.selectEntityFromPointer(entity.id, event)
+      this.captureBatchGestureStart(event)
       if (transform.positionMode === 'viewport') {
         const position = this.resolveViewportPosition(transform, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
         this.dragOffset.x = event.global.x - position.x
@@ -2218,22 +2318,13 @@ export class PixiRenderer {
     this.overlay.position.set(0, 0)
   }
 
-  private drawSelectionGizmo() {
-    this.overlay.removeChildren().forEach((child) => child.destroy())
-    this.playHintOverlay.removeChildren().forEach((child) => child.destroy())
-    if (!this.currentScene) return
-    if (this.isPlaying) {
-      this.drawPlayModeInteractableHints(this.currentScene)
-      return
-    }
-    if (!this.selectedEntityId) return
-    const entity = this.currentScene.getEntityById(this.selectedEntityId)
-    const transform = entity?.getComponent<TransformComponent>('Transform')
-    const sprite = entity?.getComponent<SpriteComponent>('Sprite')
-    const tilemap = entity?.getComponent<TilemapComponent>('Tilemap')
-    const ui = entity?.getComponent<UIComponent>('UI')
-    if (!entity || !transform) return
-    if (ui?.enabled) return
+  private getEntityEditorBounds(entity: Scene['entities'][number]) {
+    const transform = entity.getComponent<TransformComponent>('Transform')
+    if (!transform) return null
+    const sprite = entity.getComponent<SpriteComponent>('Sprite')
+    const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
+    const ui = entity.getComponent<UIComponent>('UI')
+    if (ui?.enabled) return null
 
     let boxX = transform.x
     let boxY = transform.y
@@ -2258,12 +2349,35 @@ export class PixiRenderer {
       boxX = transform.x - boxWidth / 2
       boxY = transform.y - boxHeight / 2
     }
+    return { transform, sprite, tilemap, boxX, boxY, boxWidth, boxHeight }
+  }
+
+  private drawSelectionGizmo() {
+    this.overlay.removeChildren().forEach((child) => child.destroy())
+    this.playHintOverlay.removeChildren().forEach((child) => child.destroy())
+    if (!this.currentScene) return
+    if (this.isPlaying) {
+      this.drawPlayModeInteractableHints(this.currentScene)
+      return
+    }
+    const ids = this.selectedEntityIds.length ? this.selectedEntityIds : (this.selectedEntityId ? [this.selectedEntityId] : [])
+    if (!ids.length) return
+    let primaryBounds: ReturnType<PixiRenderer['getEntityEditorBounds']> = null
+    for (const id of ids) {
+      const entity = this.currentScene.getEntityById(id)
+      if (!entity) continue
+      const bounds = this.getEntityEditorBounds(entity)
+      if (!bounds) continue
+      if (id === this.selectedEntityId) primaryBounds = bounds
+      const box = new Graphics()
+      box.rect(bounds.boxX, bounds.boxY, bounds.boxWidth, bounds.boxHeight)
+      box.stroke({ color: id === this.selectedEntityId ? 0x56b6c2 : 0x8fdbe4, alpha: id === this.selectedEntityId ? 1 : 0.62, width: id === this.selectedEntityId ? 2 : 1.5 })
+      this.overlay.addChild(box)
+    }
+    if (!primaryBounds) return
+    const { transform, sprite, tilemap, boxX, boxY, boxWidth, boxHeight } = primaryBounds
     const centerX = boxX + boxWidth / 2
     const centerY = boxY + boxHeight / 2
-
-    const box = new Graphics()
-    box.rect(boxX, boxY, boxWidth, boxHeight)
-    box.stroke({ color: 0x56b6c2, alpha: 1, width: 2 })
 
     const center = new Graphics()
     center.moveTo(centerX - 12, centerY)
@@ -2272,7 +2386,7 @@ export class PixiRenderer {
     center.lineTo(centerX, centerY + 12)
     center.stroke({ color: 0x56b6c2, alpha: 0.9, width: 2 })
 
-    this.overlay.addChild(box, center)
+    this.overlay.addChild(center)
 
     const editor = useEditorStore()
     if (editor.tool === 'scale') {
@@ -2288,6 +2402,7 @@ export class PixiRenderer {
       handle.on('pointerdown', (event: FederatedPointerEvent) => {
         event.stopPropagation()
         this.gizmoMode = 'scale'
+        this.captureBatchGestureStart(event)
         const local = event.getLocalPosition(this.world)
         this.scaleState = {
           startPointerX: local.x,
@@ -2296,6 +2411,34 @@ export class PixiRenderer {
           startScaleY: transform.scaleY
         }
       })
+      this.overlay.addChild(handle)
+    }
+    if (editor.tool === 'rotate') {
+      const radius = Math.max(28, Math.min(140, Math.max(boxWidth, boxHeight) / 2 + 22))
+      const handleSize = 14
+      const handleX = centerX
+      const handleY = centerY - radius
+      const ring = new Graphics()
+      ring.circle(centerX, centerY, radius)
+      ring.stroke({ color: 0x70d6ff, alpha: 0.55, width: 1.5 })
+      const handle = new Graphics()
+      handle.circle(handleX, handleY, handleSize / 2)
+      handle.fill({ color: 0x70d6ff, alpha: 1 })
+      handle.stroke({ color: 0xffffff, alpha: 0.95, width: 1.5 })
+      handle.eventMode = 'static'
+      handle.cursor = 'grab'
+      handle.on('pointerdown', (event: FederatedPointerEvent) => {
+        event.stopPropagation()
+        this.gizmoMode = 'rotate'
+        this.captureBatchGestureStart(event)
+        const local = event.getLocalPosition(this.world)
+        this.rotateState = {
+          centerX,
+          centerY,
+          startAngle: Math.atan2(local.y - centerY, local.x - centerX)
+        }
+      })
+      this.overlay.addChild(ring)
       this.overlay.addChild(handle)
     }
   }
@@ -2480,9 +2623,8 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.options.onEntitySelected?.(entityId)
-      this.selectedEntityId = entityId
-      this.drawSelectionGizmo()
+      this.selectEntityFromPointer(entityId, event)
+      this.captureBatchGestureStart(event)
       if (this.activeTool === 'move') {
         this.gizmoMode = 'move'
       }

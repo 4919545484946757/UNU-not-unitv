@@ -57,7 +57,7 @@
         <label>Y <input type="number" :value="transform.y" @input="setNumber('transform', 'y', $event)" /></label>
         <label>Scale X <input type="number" step="0.1" :value="transform.scaleX" @input="setNumber('transform', 'scaleX', $event)" /></label>
         <label>Scale Y <input type="number" step="0.1" :value="transform.scaleY" @input="setNumber('transform', 'scaleY', $event)" /></label>
-        <label>Rotation <input type="number" step="0.01" :value="transform.rotation" @input="setNumber('transform', 'rotation', $event)" /></label>
+        <label>Rotation (°) <input type="number" step="1" :value="formatRotationDegrees(transform.rotation)" @input="setRotationDegrees($event)" /></label>
         <label>
           Position Mode
           <select :value="transform.positionMode || 'world'" @change="setTransformPositionMode">
@@ -886,6 +886,29 @@ function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'c
   if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, number>)[key] = Math.round(value)
   if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, number>)[key] = Math.max(0, value)
   sceneStore.markDirty()
+}
+
+function formatRotationDegrees(rotationRadians: number) {
+  const degrees = radiansToDegrees(Number(rotationRadians) || 0)
+  const rounded = Math.abs(degrees) < 0.0001 ? 0 : Math.round(degrees * 1000) / 1000
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded)
+}
+
+function setRotationDegrees(event: Event) {
+  if (runtime.isPlaying) return
+  if (!transform.value) return
+  const value = Number((event.target as HTMLInputElement).value)
+  if (!Number.isFinite(value)) return
+  transform.value.rotation = degreesToRadians(value)
+  sceneStore.markDirty()
+}
+
+function degreesToRadians(value: number) {
+  return value * Math.PI / 180
+}
+
+function radiansToDegrees(value: number) {
+  return value * 180 / Math.PI
 }
 
 function setTransformPositionMode(event: Event) {

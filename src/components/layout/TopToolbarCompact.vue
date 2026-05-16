@@ -53,6 +53,7 @@
         <button :disabled="runtime.isPlaying" @click="editor.setTool('select')">选择</button>
         <button :disabled="runtime.isPlaying" @click="editor.setTool('move')">移动</button>
         <button :disabled="runtime.isPlaying" @click="editor.setTool('scale')">缩放</button>
+        <button :disabled="runtime.isPlaying" @click="editor.setTool('rotate')">旋转</button>
         <button :disabled="runtime.isPlaying" @click="editor.setTool('pan')">平移</button>
       </div>
 

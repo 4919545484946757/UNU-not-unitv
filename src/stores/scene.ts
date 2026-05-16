@@ -27,6 +27,14 @@ function createSceneId(prefix = 'scene') {
   return `${prefix}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+function getSelectedSceneEntities(scene: Scene | null, selection: { selectedEntityIds: string[]; selectedEntityId: string }) {
+  if (!scene) return []
+  const ids = selection.selectedEntityIds.length > 0 ? selection.selectedEntityIds : (selection.selectedEntityId ? [selection.selectedEntityId] : [])
+  return ids
+    .map((id) => scene.getEntityById(id))
+    .filter((entity): entity is Entity => Boolean(entity))
+}
+
 export const useSceneStore = defineStore('scene', {
   state: () => ({
     scenes: [] as Scene[],
@@ -44,7 +52,7 @@ export const useSceneStore = defineStore('scene', {
     autoSaveIntervalSec: 20,
     autoSaveTimer: 0 as number,
     isAutoSaving: false,
-    entityClipboard: null as ReturnType<typeof serializeEntity> | null,
+    entityClipboard: null as ReturnType<typeof serializeEntity> | ReturnType<typeof serializeEntity>[] | null,
     folderClipboard: null as null | { sourcePath: string; entities: ReturnType<typeof serializeEntity>[]; folders: string[] }
   }),
   getters: {
@@ -472,8 +480,13 @@ export const useSceneStore = defineStore('scene', {
     },
     updateSelectedEntityFolderPath(folderPath: string) {
       const selection = useSelectionStore()
-      if (!selection.selectedEntityId) return false
-      return this.updateEntityFolderPath(selection.selectedEntityId, folderPath)
+      const targets = getSelectedSceneEntities(this.currentScene, selection)
+      if (!targets.length) return false
+      let updated = 0
+      for (const entity of targets) {
+        if (this.updateEntityFolderPath(entity.id, folderPath)) updated += 1
+      }
+      return updated > 0
     },
     createSceneFolder(parentPath = '', folderName = 'NewClass') {
       const project = useProjectStore()
@@ -620,6 +633,16 @@ export const useSceneStore = defineStore('scene', {
       this.markDirty()
       project.setStatus(target ? `已将实体 ${entity.name} 移入：${target}` : `已将实体 ${entity.name} 移至根目录`)
       return true
+    },
+    moveSelectedEntitiesToSceneFolder(targetFolderPath = '') {
+      const selection = useSelectionStore()
+      const targets = getSelectedSceneEntities(this.currentScene, selection)
+      if (!targets.length) return false
+      let moved = 0
+      for (const entity of targets) {
+        if (this.moveEntityToSceneFolder(entity.id, targetFolderPath)) moved += 1
+      }
+      return moved > 0
     },
     createEmptyEntity() {
       const project = useProjectStore()
@@ -892,13 +915,15 @@ export const useSceneStore = defineStore('scene', {
     duplicateSelectedEntity() {
       const project = useProjectStore()
       const selection = useSelectionStore()
-      const entity = this.currentScene?.getEntityById(selection.selectedEntityId)
-      if (!entity || !this.currentScene) {
+      const entities = getSelectedSceneEntities(this.currentScene, selection)
+      if (!entities.length || !this.currentScene) {
         project.setStatus('请先选择一个实体再复制。')
         return
       }
-      this.entityClipboard = serializeEntity(entity)
-      project.setStatus(`已复制实体到剪贴板：${entity.name}`)
+      this.entityClipboard = entities.length === 1 ? serializeEntity(entities[0]) : entities.map((entity) => serializeEntity(entity))
+      project.setStatus(entities.length === 1
+        ? `已复制实体到剪贴板：${entities[0].name}`
+        : `已复制 ${entities.length} 个实体到剪贴板`)
     },
 
     pasteCopiedEntity() {
@@ -912,46 +937,47 @@ export const useSceneStore = defineStore('scene', {
         project.setStatus('没有可粘贴的实体，请先复制实体。')
         return
       }
-      const copy = deserializeEntity(JSON.parse(JSON.stringify(this.entityClipboard)))
-      const sourceName = copy.name
-      copy.id = createEntityId('copy')
-      copy.name = `${copy.name}_Copy`
-      const transform = copy.getTransform()
-      if (transform) {
-        transform.x += 32
-        transform.y += 32
-        transform.zIndex = this.currentScene.entities.length
+      const rawCopies = Array.isArray(this.entityClipboard) ? this.entityClipboard : [this.entityClipboard]
+      const pastedIds: string[] = []
+      for (const raw of rawCopies) {
+        const copy = deserializeEntity(JSON.parse(JSON.stringify(raw)))
+        copy.id = createEntityId('copy')
+        copy.name = `${copy.name}_Copy`
+        const transform = copy.getTransform()
+        if (transform) {
+          transform.x += 32
+          transform.y += 32
+          transform.zIndex = this.currentScene.entities.length
+        }
+        this.currentScene.addEntity(copy)
+        pastedIds.push(copy.id)
       }
-      this.currentScene.addEntity(copy)
       this.markDirty()
-      selection.selectEntity(copy.id)
-      project.setStatus(`已粘贴实体：${sourceName}`)
+      selection.selectEntities(pastedIds, pastedIds[pastedIds.length - 1])
+      project.setStatus(pastedIds.length === 1 ? '已粘贴实体。' : `已粘贴 ${pastedIds.length} 个实体。`)
     },
 
     removeSelectedEntity(force = false) {
       const project = useProjectStore()
       const selection = useSelectionStore()
-      if (!this.currentScene || !selection.selectedEntityId) {
+      const entities = getSelectedSceneEntities(this.currentScene, selection)
+      if (!this.currentScene || !entities.length) {
         project.setStatus('当前没有选中的实体可删除。')
         return
       }
-      const entity = this.currentScene.getEntityById(selection.selectedEntityId)
-      if (!entity) {
-        selection.clearSelection()
-        return
-      }
-      if (!force && !window.confirm(`确认删除实体“${entity.name}”吗？`)) {
+      if (!force && !window.confirm(entities.length === 1 ? `确认删除实体“${entities[0].name}”吗？` : `确认删除选中的 ${entities.length} 个实体吗？`)) {
         project.setStatus('已取消删除实体。')
         return
       }
-      this.currentScene.removeEntityById(entity.id)
+      const ids = new Set(entities.map((entity) => entity.id))
+      this.currentScene.entities = this.currentScene.entities.filter((entity) => !ids.has(entity.id))
       this.currentScene.entities.forEach((item, idx) => {
         const transform = item.getTransform()
         if (transform) transform.zIndex = idx
       })
       selection.clearSelection()
       this.markDirty()
-      project.setStatus(`已删除实体：${entity.name}`)
+      project.setStatus(entities.length === 1 ? `已删除实体：${entities[0].name}` : `已删除 ${entities.length} 个实体`)
     },
 
     removeEntityById(entityId: string, force = false) {
@@ -976,7 +1002,7 @@ export const useSceneStore = defineStore('scene', {
         project.setStatus('删除实体失败。')
         return false
       }
-      if (selection.selectedEntityId === entity.id) selection.clearSelection()
+      if (selection.selectedEntityIds.includes(entity.id)) selection.removeEntity(entity.id)
       this.markDirty()
       project.setStatus(`已删除实体：${entity.name}`)
       return true
@@ -985,19 +1011,41 @@ export const useSceneStore = defineStore('scene', {
     moveSelectedEntityLayer(delta: number) {
       const project = useProjectStore()
       const selection = useSelectionStore()
-      if (!this.currentScene || !selection.selectedEntityId) {
+      const entities = getSelectedSceneEntities(this.currentScene, selection)
+      if (!this.currentScene || !entities.length) {
         project.setStatus('请先选择一个实体再调整层级。')
         return
       }
-      const entity = this.currentScene.getEntityById(selection.selectedEntityId)
-      if (!entity) return
-      const moved = this.currentScene.moveEntityLayer(entity.id, delta)
-      if (!moved) {
-        project.setStatus(delta < 0 ? '该实体已经在最底层。' : '该实体已经在最顶层。')
-        return
-      }
+      const ids = new Set(entities.map((entity) => entity.id))
+      const selected = this.currentScene.entities.filter((entity) => ids.has(entity.id))
+      const others = this.currentScene.entities.filter((entity) => !ids.has(entity.id))
+      const firstIndex = Math.min(...selected.map((entity) => this.currentScene!.entities.indexOf(entity)))
+      const targetIndex = Math.max(0, Math.min(others.length, firstIndex + delta))
+      this.currentScene.entities = [...others.slice(0, targetIndex), ...selected, ...others.slice(targetIndex)]
+      this.currentScene.entities.forEach((item, idx) => {
+        const transform = item.getTransform()
+        if (transform) transform.zIndex = idx
+      })
       this.markDirty()
-      project.setStatus(`已调整层级：${entity.name}`)
+      project.setStatus(entities.length === 1 ? `已调整层级：${entities[0].name}` : `已调整 ${entities.length} 个实体层级`)
+    },
+    moveSelectedEntitiesToLayerIndex(targetIndex: number) {
+      const project = useProjectStore()
+      const selection = useSelectionStore()
+      const entities = getSelectedSceneEntities(this.currentScene, selection)
+      if (!this.currentScene || !entities.length) return false
+      const ids = new Set(entities.map((entity) => entity.id))
+      const selected = this.currentScene.entities.filter((entity) => ids.has(entity.id))
+      const others = this.currentScene.entities.filter((entity) => !ids.has(entity.id))
+      const clamped = Math.max(0, Math.min(others.length, Number(targetIndex) || 0))
+      this.currentScene.entities = [...others.slice(0, clamped), ...selected, ...others.slice(clamped)]
+      this.currentScene.entities.forEach((entity, index) => {
+        const transform = entity.getTransform()
+        if (transform) transform.zIndex = index
+      })
+      this.markDirty()
+      project.setStatus(`已移动 ${selected.length} 个实体到图层位置 ${clamped}`)
+      return true
     },
     renameSelectedEntity(nextName: string) {
       const project = useProjectStore()

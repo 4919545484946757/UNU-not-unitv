@@ -4,29 +4,7 @@
   "scene": {
     "id": "scene_main",
     "name": "MainScene",
-    "sceneFolders": [
-      "Environment",
-      "Environment/Background",
-      "Environment/Effects",
-      "Environment/Tilemaps",
-      "Gameplay",
-      "Gameplay/Actors",
-      "Gameplay/Actors/Enemies",
-      "Gameplay/Actors/Player",
-      "Gameplay/Interactables",
-      "Gameplay/Interactables/Chests",
-      "Gameplay/Interactables/Doors",
-      "System",
-      "System/Cameras",
-      "System/Menu",
-      "System/SpawnPoints",
-      "UI",
-      "UI/HUD",
-      "UI/PauseMenu",
-      "UI/PauseMenu/Hotkeys",
-      "UI/PauseMenu/Main",
-      "UI/PauseMenu/Settings"
-    ],
+    "sceneFolders": [],
     "entities": [
       {
         "id": "background_main_001",

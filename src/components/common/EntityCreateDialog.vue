@@ -37,8 +37,8 @@
           <label>Scale Y <input type="number" step="0.1" v-model="form.scaleY" placeholder="留空使用默认值" /></label>
         </div>
         <label>
-          Rotation
-          <input type="number" step="0.01" v-model="form.rotation" placeholder="留空使用默认值" />
+          Rotation (deg)
+          <input type="number" step="1" v-model="form.rotation" placeholder="留空使用默认值" />
         </label>
       </div>
 
@@ -113,9 +113,13 @@ function submit() {
     y: parseOptional(form.y),
     scaleX: parseOptional(form.scaleX),
     scaleY: parseOptional(form.scaleY),
-    rotation: parseOptional(form.rotation)
+    rotation: degreesToRadians(parseOptional(form.rotation))
   })
   close()
+}
+
+function degreesToRadians(value: number | undefined) {
+  return Number.isFinite(value) ? Number(value) * Math.PI / 180 : undefined
 }
 
 watch(
@@ -205,3 +209,4 @@ input, select {
   border-color: #3b7ea5;
 }
 </style>
+

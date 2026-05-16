@@ -144,7 +144,7 @@ async function reloadCurrentProjectScene() {
   sceneStore.repairCurrentSceneComponents()
   if (!sceneStore.currentScene) return
   await renderer?.renderScene(sceneStore.currentScene)
-  renderer?.setSelection(selection.selectedEntityId)
+  renderer?.setSelections([...selection.selectedEntityIds], selection.selectedEntityId)
   renderer?.setRuntimeState(false, false, sceneStore.currentScene, true)
 }
 
@@ -231,7 +231,11 @@ onMounted(async () => {
 
     renderer = new PixiRenderer({
       container: containerRef.value,
-      onEntitySelected: (entityId) => selection.selectEntity(entityId),
+      onEntitySelected: (entityId, options) => {
+        if (!entityId) selection.clearSelection()
+        else if (options?.additive) selection.toggleEntity(entityId)
+        else selection.selectEntity(entityId)
+      },
       onSceneMutated: () => sceneStore.markDirty(),
       onRuntimeSceneUpdated: (scene) => {
         if (!runtime.isPlaying) {
@@ -258,7 +262,7 @@ onMounted(async () => {
     await renderer.init(sceneStore.currentScene)
     renderer.setGridVisible(editor.showGrid)
     renderer.setPlayDebugEnabled(runtime.playDebugEnabled)
-    renderer.setSelection(selection.selectedEntityId)
+    renderer.setSelections([...selection.selectedEntityIds], selection.selectedEntityId)
     renderer.setTool(editor.tool)
     await startProjectScriptWatcher()
   } catch (error) {
@@ -290,8 +294,8 @@ watch(
 )
 
 watch(
-  () => selection.selectedEntityId,
-  (entityId) => renderer?.setSelection(entityId)
+  () => [selection.selectedEntityId, selection.selectedEntityIds.join('|')] as const,
+  ([entityId]) => renderer?.setSelections([...selection.selectedEntityIds], entityId)
 )
 
 watch(
