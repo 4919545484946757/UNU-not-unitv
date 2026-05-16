@@ -9,7 +9,7 @@ export class Entity {
   sceneFolderPath = ''
   parent: Entity | null = null
   children: Entity[] = []
-  private components = new Map<string, Component>()
+  components = new Map<string, Component>()
 
   constructor(id: string, name: string) {
     this.id = id

@@ -45,7 +45,7 @@
         <template v-else>
           <div class="tips">Current entity does not have Script component.</div>
           <div class="row-inline">
-            <button class="small" :disabled="runtime.isPlaying" @click="addScriptComponent">Add Script Component</button>
+            <button class="small" :disabled="runtime.isPlaying" @click="() => addScriptComponent()">Add Script Component</button>
             <button class="small" :disabled="runtime.isPlaying || !selectedScriptAssetPath" @click="addScriptComponentFromSelectedAsset">Use Selected Script</button>
           </div>
         </template>
@@ -833,16 +833,18 @@ async function openEntityScriptCodeEditor() {
     addScriptComponent()
     if (!script.value) return
   }
+  const targetEntity = entity.value
+  if (!targetEntity) return
   if (!window.unu?.openCodeEditor) {
     project.setStatus('当前环境未接入代码编辑器窗口，请使用桌面版运行。')
     return
   }
   const sessionId = `entity_script_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  const targetEntityId = entity.value.id
+  const targetEntityId = targetEntity.id
   const result = await window.unu.openCodeEditor({
     id: sessionId,
     mode: 'inspector-entity-script',
-    title: `${entity.value.name || 'Entity'} Script Config`,
+    title: `${targetEntity.name || 'Entity'} Script Config`,
     path: script.value.scriptPath || 'entity://script-config',
     language: guessInteractionEditorLanguage(script.value.scriptPath || ''),
     content: script.value.sourceCode || ''
@@ -851,14 +853,14 @@ async function openEntityScriptCodeEditor() {
     project.setStatus(`打开独立代码窗口失败：${result?.error || '未知错误'}`)
     return
   }
-  selection.selectEntity(entity.value.id)
+  selection.selectEntity(targetEntity.id)
   entityScriptCodeEditorSessionId = sessionId
   entityScriptCodeEditorEntityId = targetEntityId
   editor.lockScriptEditorExternal({
     id: sessionId,
     mode: 'inspector-entity-script',
     targetId: targetEntityId,
-    label: `${entity.value.name || 'Entity'} Script Config`
+    label: `${targetEntity.name || 'Entity'} Script Config`
   })
   editor.setRightTab('Script')
   project.setStatus('已打开实体脚本配置独立窗口')
@@ -876,14 +878,14 @@ function removeScriptComponent() {
 function setNumber(group: 'transform' | 'sprite' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = Number((event.target as HTMLInputElement).value)
-  if (group === 'transform' && transform.value) (transform.value as Record<string, number>)[key] = value
-  if (group === 'sprite' && sprite.value) (sprite.value as Record<string, number>)[key] = value
-  if (group === 'collider' && collider.value) (collider.value as Record<string, number>)[key] = value
-  if (group === 'animation' && animation.value) (animation.value as Record<string, number>)[key] = value
-  if (group === 'camera' && camera.value) (camera.value as Record<string, number>)[key] = value
-  if (group === 'audio' && audio.value) (audio.value as Record<string, number>)[key] = value
-  if (group === 'ui' && ui.value) (ui.value as Record<string, number>)[key] = value
-  if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, number>)[key] = Math.round(value)
+  if (group === 'transform' && transform.value) (transform.value as unknown as Record<string, number>)[key] = value
+  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, number>)[key] = value
+  if (group === 'collider' && collider.value) (collider.value as unknown as Record<string, number>)[key] = value
+  if (group === 'animation' && animation.value) (animation.value as unknown as Record<string, number>)[key] = value
+  if (group === 'camera' && camera.value) (camera.value as unknown as Record<string, number>)[key] = value
+  if (group === 'audio' && audio.value) (audio.value as unknown as Record<string, number>)[key] = value
+  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, number>)[key] = value
+  if (group === 'tilemap' && tilemap.value) (tilemap.value as unknown as Record<string, number>)[key] = Math.round(value)
   if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, number>)[key] = Math.max(0, value)
   sceneStore.markDirty()
 }
@@ -944,10 +946,10 @@ function setTransformViewportVertical(event: Event) {
 function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).value
-  if (group === 'sprite' && sprite.value) (sprite.value as Record<string, string>)[key] = value
-  if (group === 'camera' && camera.value) (camera.value as Record<string, string>)[key] = value
-  if (group === 'audio' && audio.value) (audio.value as Record<string, string>)[key] = value
-  if (group === 'ui' && ui.value) (ui.value as Record<string, string>)[key] = value
+  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, string>)[key] = value
+  if (group === 'camera' && camera.value) (camera.value as unknown as Record<string, string>)[key] = value
+  if (group === 'audio' && audio.value) (audio.value as unknown as Record<string, string>)[key] = value
+  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, string>)[key] = value
   if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, string>)[key] = value
   sceneStore.markDirty()
 }
@@ -960,7 +962,7 @@ function setHexNumber(group: 'sprite' | 'ui', key: string, event: Event) {
   if (!Number.isFinite(parsed)) return
   const color = Math.max(0, Math.min(0xffffff, Math.round(parsed)))
   if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, number>)[key] = color
-  if (group === 'ui' && ui.value) (ui.value as Record<string, number>)[key] = color
+  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, number>)[key] = color
   sceneStore.markDirty()
 }
 
@@ -976,14 +978,14 @@ function formatColorInput(value: number) {
 function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).checked
-  if (group === 'sprite' && sprite.value) (sprite.value as Record<string, boolean>)[key] = value
+  if (group === 'sprite' && sprite.value) (sprite.value as unknown as Record<string, boolean>)[key] = value
   if (group === 'background' && background.value) (background.value as unknown as Record<string, boolean>)[key] = value
-  if (group === 'collider' && collider.value) (collider.value as Record<string, boolean>)[key] = value
-  if (group === 'animation' && animation.value) (animation.value as Record<string, boolean>)[key] = value
-  if (group === 'camera' && camera.value) (camera.value as Record<string, boolean>)[key] = value
-  if (group === 'audio' && audio.value) (audio.value as Record<string, boolean>)[key] = value
-  if (group === 'ui' && ui.value) (ui.value as Record<string, boolean>)[key] = value
-  if (group === 'tilemap' && tilemap.value) (tilemap.value as Record<string, boolean>)[key] = value
+  if (group === 'collider' && collider.value) (collider.value as unknown as Record<string, boolean>)[key] = value
+  if (group === 'animation' && animation.value) (animation.value as unknown as Record<string, boolean>)[key] = value
+  if (group === 'camera' && camera.value) (camera.value as unknown as Record<string, boolean>)[key] = value
+  if (group === 'audio' && audio.value) (audio.value as unknown as Record<string, boolean>)[key] = value
+  if (group === 'ui' && ui.value) (ui.value as unknown as Record<string, boolean>)[key] = value
+  if (group === 'tilemap' && tilemap.value) (tilemap.value as unknown as Record<string, boolean>)[key] = value
   if (group === 'interactable' && interactable.value) (interactable.value as unknown as Record<string, boolean>)[key] = value
   sceneStore.markDirty()
 }

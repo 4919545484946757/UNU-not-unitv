@@ -1,0 +1,115 @@
+{
+  "format": "unu-scene",
+  "version": 1,
+  "scene": {
+    "id": "scene_rich",
+    "name": "RichScene",
+    "sceneFolders": ["World", "UI"],
+    "entities": [
+      {
+        "id": "LevelTilemap",
+        "name": "LevelTilemap",
+        "sceneFolderPath": "World",
+        "components": [
+          {
+            "type": "Transform",
+            "data": { "x": 0, "y": 0, "scaleX": 1, "scaleY": 1, "rotation": 0, "zIndex": 0 }
+          },
+          {
+            "type": "Tilemap",
+            "data": {
+              "enabled": true,
+              "columns": 2,
+              "rows": 2,
+              "tileWidth": 16,
+              "tileHeight": 16,
+              "tiles": [1, 0, 2, 1],
+              "collision": [1, 0, 0, 1],
+              "showCollision": true,
+              "tileTextureMap": {
+                "1": "assets/images/tiles/grass.png",
+                "2": "assets/images/tiles/wall.png"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "AnimatedActor",
+        "name": "AnimatedActor",
+        "sceneFolderPath": "World",
+        "components": [
+          {
+            "type": "Transform",
+            "data": { "x": 50, "y": 60, "scaleX": 1, "scaleY": 1, "rotation": 0.25, "zIndex": 1 }
+          },
+          {
+            "type": "Sprite",
+            "data": { "texturePath": "assets/images/actor_idle_0.png", "width": 32, "height": 32, "visible": true }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "framePaths": ["assets/images/actor_idle_0.png", "assets/images/actor_idle_1.png"],
+              "frameDurations": [1, 1],
+              "transformTracks": {
+                "positionX": [{ "frame": 0, "value": 50 }, { "frame": 10, "value": 80 }],
+                "positionY": [],
+                "rotation": [{ "frame": 0, "value": 0 }, { "frame": 10, "value": 1 }]
+              },
+              "stateMachine": {
+                "enabled": true,
+                "initialState": "Idle",
+                "clips": [{ "name": "Idle", "framePaths": ["assets/images/actor_idle_0.png"], "frameDurations": [1], "loop": true }],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": { "scriptPath": "assets/scripts/actor.js", "sourceCode": "", "enabled": true }
+          }
+        ]
+      },
+      {
+        "id": "HelpText",
+        "name": "HelpText",
+        "sceneFolderPath": "UI",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "x": 12,
+              "y": 12,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "positionMode": "viewport",
+              "viewportHorizontal": "left",
+              "viewportVertical": "top",
+              "zIndex": 10
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "enabled": true,
+              "mode": "text",
+              "text": "Hello **UNU**",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 180,
+              "height": 48,
+              "markdownEnabled": true,
+              "renderMode": "html"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

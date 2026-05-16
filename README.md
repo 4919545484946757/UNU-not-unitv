@@ -13,6 +13,7 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 - [新手教程](docs/BEGINNER_TUTORIAL.zh-CN.md) / [English](docs/BEGINNER_TUTORIAL.en-US.md)
 - [Console 命令文档](docs/CONSOLE_COMMANDS.zh-CN.md) / [English](docs/CONSOLE_COMMANDS.en-US.md)
 - [脚本 API 提示文档](docs/SCRIPT_API.zh-CN.md) / [English](docs/SCRIPT_API.en-US.md)
+- [???????](docs/ARCHITECTURE.zh-CN.md) / [English](docs/ARCHITECTURE.en-US.md)
 - [路线图](docs/ROADMAP.zh-CN.md) / [English](docs/ROADMAP.en-US.md)
 - [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md) / [English](docs/OPTIMIZATION_PLAN.en-US.md)
 

@@ -537,7 +537,15 @@ export class ScriptRuntime {
     getMoveVector: () => ({ x: 0, y: 0 }),
     getMousePosition: () => ({ x: 0, y: 0 })
   }
-  private audioAdapter = {
+  private audioAdapter: {
+    playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => Promise<void>
+    playEntity: (target: Entity) => Promise<void>
+    stopEntity: (target: Entity) => void
+    setMasterVolume: (volume: number) => void
+    setGroupVolume: (group: AudioGroup, volume: number) => void
+    getMasterVolume: () => number
+    getGroupVolume: (group: AudioGroup) => number
+  } = {
     playOneShot: async (_clipPath: string, _options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => undefined,
     playEntity: async (_target: Entity) => undefined,
     stopEntity: (_target: Entity) => undefined,

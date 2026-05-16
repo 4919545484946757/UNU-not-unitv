@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-let loadingDelayTimer: ReturnType<typeof window.setTimeout> | null = null
+let loadingDelayTimer: number | null = null
 
 export const useRuntimeStore = defineStore('runtime', {
   state: () => ({

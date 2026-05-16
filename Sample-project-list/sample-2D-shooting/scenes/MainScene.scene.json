@@ -1406,6 +1406,87 @@
         ]
       },
       {
+        "id": "door_to_second_001",
+        "name": "DoorToSecond",
+        "sceneFolderPath": "Gameplay/Interactables/Doors",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 28,
+              "y": -144,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 5,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/props/door.png",
+              "width": 110,
+              "height": 180,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 110,
+              "height": 180,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": true,
+              "layer": "Door",
+              "collidesWith": [
+                "Player"
+              ]
+            }
+          },
+          {
+            "type": "Interactable",
+            "data": {
+              "type": "Interactable",
+              "enabled": true,
+              "interactDistance": 180,
+              "actionType": "switchScene",
+              "targetScene": "SecondScene",
+              "textureCycle": [],
+              "tintCycle": [],
+              "targetSpawnId": "Spawn_From_Main",
+              "sceneStateMode": "preserve"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
+              "sourceCode": "{\n  \"scene\": \"SecondScene\",\n  \"targetSpawnId\": \"Spawn_From_Main\",\n  \"sceneStateMode\": \"preserve\"\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
         "id": "interactable_akhldc",
         "name": "Chest",
         "sceneFolderPath": "Gameplay/Interactables/Chests",
@@ -1421,7 +1502,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 5,
+              "zIndex": 6,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1502,7 +1583,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 6,
+              "zIndex": 7,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1732,7 +1813,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 7,
+              "zIndex": 8,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1844,7 +1925,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 8,
+              "zIndex": 9,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -1956,7 +2037,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 9,
+              "zIndex": 10,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2068,7 +2149,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 10,
+              "zIndex": 11,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2149,7 +2230,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 11,
+              "zIndex": 12,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2243,7 +2324,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 12,
+              "zIndex": 13,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2284,7 +2365,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 13,
+              "zIndex": 14,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2340,7 +2421,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 14,
+              "zIndex": 15,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -2376,87 +2457,6 @@
               "autoHeight": false,
               "minWidth": 1,
               "minHeight": 1
-            }
-          }
-        ]
-      },
-      {
-        "id": "door_to_second_001",
-        "name": "DoorToSecond",
-        "sceneFolderPath": "Gameplay/Interactables/Doors",
-        "components": [
-          {
-            "type": "Transform",
-            "data": {
-              "type": "Transform",
-              "x": 28,
-              "y": -144,
-              "scaleX": 1,
-              "scaleY": 1,
-              "rotation": 0,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
-              "zIndex": 15,
-              "positionMode": "world",
-              "viewportHorizontal": "center",
-              "viewportVertical": "middle"
-            }
-          },
-          {
-            "type": "Sprite",
-            "data": {
-              "type": "Sprite",
-              "texturePath": "assets/images/pixel/props/door.png",
-              "width": 110,
-              "height": 180,
-              "visible": true,
-              "alpha": 1,
-              "tint": 16777215,
-              "preserveAspect": true,
-              "offsetX": 0,
-              "offsetY": 0
-            }
-          },
-          {
-            "type": "Collider",
-            "data": {
-              "type": "Collider",
-              "shape": "rect",
-              "width": 110,
-              "height": 180,
-              "offsetX": 0,
-              "offsetY": 0,
-              "isTrigger": true,
-              "layer": "Door",
-              "collidesWith": [
-                "Player"
-              ]
-            }
-          },
-          {
-            "type": "Interactable",
-            "data": {
-              "type": "Interactable",
-              "enabled": true,
-              "interactDistance": 180,
-              "actionType": "switchScene",
-              "targetScene": "SecondScene",
-              "textureCycle": [],
-              "tintCycle": [],
-              "targetSpawnId": "Spawn_From_Main",
-              "sceneStateMode": "preserve"
-            }
-          },
-          {
-            "type": "Script",
-            "data": {
-              "type": "Script",
-              "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
-              "sourceCode": "{\n  \"scene\": \"SecondScene\",\n  \"targetSpawnId\": \"Spawn_From_Main\",\n  \"sceneStateMode\": \"preserve\"\n}",
-              "enabled": true,
-              "instance": null,
-              "initialized": false,
-              "started": false
             }
           }
         ]

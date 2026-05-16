@@ -332,7 +332,7 @@ function applyTransformTrack(
   key: 'x' | 'y' | 'rotation'
 ) {
   if (!track.length) return
-  ;(transform as Record<string, number>)[key] = evaluateTrack(track, frameCursor)
+  ;(transform as unknown as Record<string, number>)[key] = evaluateTrack(track, frameCursor)
 }
 
 function evaluateTrack(track: TransformTrackPoint[], frameCursor: number) {

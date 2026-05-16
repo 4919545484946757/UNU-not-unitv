@@ -41,7 +41,7 @@ export class Scene {
     return true
   }
 
-  private syncZIndices() {
+  syncZIndices() {
     this.entities.forEach((entity, index) => {
       const transform = entity.getTransform?.()
       if (transform) transform.zIndex = index

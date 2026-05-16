@@ -1,0 +1,40 @@
+{
+  "format": "unu-scene",
+  "version": 1,
+  "scene": {
+    "id": "scene_minimal",
+    "name": "Minimal",
+    "sceneFolders": ["Actors"],
+    "entities": [
+      {
+        "id": "Player",
+        "name": "Player",
+        "sceneFolderPath": "Actors",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "x": 10,
+              "y": 20,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 0
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "texturePath": "assets/images/player.png",
+              "width": 32,
+              "height": 32,
+              "visible": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

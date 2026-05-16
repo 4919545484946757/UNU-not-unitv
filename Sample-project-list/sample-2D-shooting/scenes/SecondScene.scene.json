@@ -362,6 +362,87 @@
         ]
       },
       {
+        "id": "door_to_main_001",
+        "name": "DoorToMain",
+        "sceneFolderPath": "Gameplay/Interactables/Doors",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -229,
+              "y": 40,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 2,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/images/pixel/props/door.png",
+              "width": 110,
+              "height": 180,
+              "visible": true,
+              "alpha": 0.95,
+              "tint": 15201279,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 110,
+              "height": 180,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": true,
+              "layer": "Door",
+              "collidesWith": [
+                "Player"
+              ]
+            }
+          },
+          {
+            "type": "Interactable",
+            "data": {
+              "type": "Interactable",
+              "enabled": true,
+              "interactDistance": 180,
+              "actionType": "switchScene",
+              "targetScene": "MainScene",
+              "textureCycle": [],
+              "tintCycle": [],
+              "targetSpawnId": "Spawn_From_Second",
+              "sceneStateMode": "preserve"
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
+              "sourceCode": "{\n  \"scene\": \"MainScene\",\n  \"targetSpawnId\": \"Spawn_From_Second\",\n  \"sceneStateMode\": \"preserve\"\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
         "id": "player_002",
         "name": "Player",
         "sceneFolderPath": "Gameplay/Actors/Player",
@@ -377,7 +458,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 2,
+              "zIndex": 3,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -610,7 +691,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 3,
+              "zIndex": 4,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -622,87 +703,6 @@
               "type": "Script",
               "scriptPath": "assets/scripts/scenes/SecondScene/gravity-system.js",
               "sourceCode": "{\n  \"whitelist\": [\n    \"Player\",\n    \"Enemy\"\n  ],\n  \"gravity\": 1600,\n  \"maxFallSpeed\": 760\n}",
-              "enabled": true,
-              "instance": null,
-              "initialized": false,
-              "started": false
-            }
-          }
-        ]
-      },
-      {
-        "id": "door_to_main_001",
-        "name": "DoorToMain",
-        "sceneFolderPath": "Gameplay/Interactables/Doors",
-        "components": [
-          {
-            "type": "Transform",
-            "data": {
-              "type": "Transform",
-              "x": -229,
-              "y": 40,
-              "scaleX": 1,
-              "scaleY": 1,
-              "rotation": 0,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
-              "zIndex": 4,
-              "positionMode": "world",
-              "viewportHorizontal": "center",
-              "viewportVertical": "middle"
-            }
-          },
-          {
-            "type": "Sprite",
-            "data": {
-              "type": "Sprite",
-              "texturePath": "assets/images/pixel/props/door.png",
-              "width": 110,
-              "height": 180,
-              "visible": true,
-              "alpha": 0.95,
-              "tint": 15201279,
-              "preserveAspect": true,
-              "offsetX": 0,
-              "offsetY": 0
-            }
-          },
-          {
-            "type": "Collider",
-            "data": {
-              "type": "Collider",
-              "shape": "rect",
-              "width": 110,
-              "height": 180,
-              "offsetX": 0,
-              "offsetY": 0,
-              "isTrigger": true,
-              "layer": "Door",
-              "collidesWith": [
-                "Player"
-              ]
-            }
-          },
-          {
-            "type": "Interactable",
-            "data": {
-              "type": "Interactable",
-              "enabled": true,
-              "interactDistance": 180,
-              "actionType": "switchScene",
-              "targetScene": "MainScene",
-              "textureCycle": [],
-              "tintCycle": [],
-              "targetSpawnId": "Spawn_From_Second",
-              "sceneStateMode": "preserve"
-            }
-          },
-          {
-            "type": "Script",
-            "data": {
-              "type": "Script",
-              "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
-              "sourceCode": "{\n  \"scene\": \"MainScene\",\n  \"targetSpawnId\": \"Spawn_From_Second\",\n  \"sceneStateMode\": \"preserve\"\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,

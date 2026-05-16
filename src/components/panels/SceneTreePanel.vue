@@ -5,9 +5,9 @@
       <div class="mini-actions">
         <button @click="editor.openEntityCreateDialog()">新建实体</button>
         <button :disabled="runtime.isPlaying" @click="openFolderDialog('create', selectedFolderPath)">新建类</button>
-        <button @click="scene.duplicateSelectedEntity">复制</button>
-        <button :disabled="!scene.entityClipboard" @click="scene.pasteCopiedEntity">粘贴</button>
-        <button @click="scene.removeSelectedEntity">删除</button>
+        <button @click="() => scene.duplicateSelectedEntity()">复制</button>
+        <button :disabled="!scene.entityClipboard" @click="() => scene.pasteCopiedEntity()">粘贴</button>
+        <button @click="() => scene.removeSelectedEntity()">删除</button>
       </div>
     </div>
     <div class="scene-switch-row">

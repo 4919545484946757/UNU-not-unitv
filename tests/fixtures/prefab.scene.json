@@ -1,0 +1,50 @@
+{
+  "format": "unu-scene",
+  "version": 1,
+  "scene": {
+    "id": "scene_prefab",
+    "name": "PrefabScene",
+    "sceneFolders": ["Actors/Enemies"],
+    "entities": [
+      {
+        "id": "EnemyPrefabInstance",
+        "name": "Enemy",
+        "prefabSourcePath": "prefabs/Enemy.prefab.json",
+        "sceneFolderPath": "Actors/Enemies",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "x": 100,
+              "y": 120,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "zIndex": 0
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "shape": "rect",
+              "width": 24,
+              "height": 24,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false,
+              "layer": "Enemy",
+              "collidesWith": ["Default", "Player", "Projectile"]
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "scriptPath": "assets/scripts/enemy.js",
+              "enabled": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

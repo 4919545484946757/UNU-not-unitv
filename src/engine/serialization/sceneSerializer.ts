@@ -11,6 +11,7 @@ import { TransformComponent } from '../components/TransformComponent'
 import { UIComponent } from '../components/UIComponent'
 import { Entity } from '../core/Entity'
 import { Scene } from '../core/Scene'
+import type { ComponentData, EntityData, SceneData, SerializedSceneData } from '../scene/sceneData'
 
 interface SerializedComponent {
   type: string
@@ -341,36 +342,79 @@ function normalizeSceneFolderPath(value: unknown) {
     .join('/')
 }
 
-export function serializeScene(scene: Scene) {
-  const payload: SerializedScene = {
+export function entityToData(entity: Entity): EntityData {
+  return serializeEntity(entity)
+}
+
+export function sceneToData(scene: Scene): SceneData {
+  return {
+    id: scene.id,
+    name: scene.name,
+    sceneFolders: normalizeSceneFolderList(scene.sceneFolders),
+    entities: scene.entities.map(entityToData)
+  }
+}
+
+export function serializeSceneData(scene: SceneData) {
+  const payload: SerializedSceneData = {
     format: 'unu-scene',
     version: 1,
     scene: {
       id: scene.id,
       name: scene.name,
       sceneFolders: normalizeSceneFolderList(scene.sceneFolders),
-      entities: scene.entities.map(serializeEntity)
+      entities: scene.entities
     }
   }
 
   return JSON.stringify(payload, null, 2)
 }
 
-export function deserializeScene(raw: string) {
+export function serializeScene(scene: Scene | SceneData) {
+  return serializeSceneData(scene instanceof Scene ? sceneToData(scene) : scene)
+}
+
+export function deserializeSceneData(raw: string): SceneData {
   const normalizedRaw = String(raw || '').replace(/^\uFEFF/, '')
   const parsed = JSON.parse(normalizedRaw) as SerializedScene
   if (parsed.format !== 'unu-scene') {
-    throw new Error('不是有效的 UNU 场景文件。')
+    throw new Error('????? UNU ?????')
   }
+  return {
+    id: String(parsed.scene.id || ''),
+    name: String(parsed.scene.name || ''),
+    sceneFolders: normalizeSceneFolderList(parsed.scene.sceneFolders),
+    entities: Array.isArray(parsed.scene.entities)
+      ? parsed.scene.entities.map((entity) => ({
+          id: String(entity.id || ''),
+          name: String(entity.name || ''),
+          prefabSourcePath: entity.prefabSourcePath ? String(entity.prefabSourcePath) : undefined,
+          prefabVariantBasePath: entity.prefabVariantBasePath ? String(entity.prefabVariantBasePath) : undefined,
+          sceneFolderPath: normalizeSceneFolderPath(entity.sceneFolderPath),
+          components: Array.isArray(entity.components)
+            ? entity.components.map((component) => ({
+                type: String((component as ComponentData).type || ''),
+                data: { ...((component as ComponentData).data || {}) }
+              })).filter((component) => component.type)
+            : []
+        }))
+      : []
+  }
+}
 
-  const scene = new Scene(parsed.scene.id, parsed.scene.name)
-  scene.sceneFolders = normalizeSceneFolderList(parsed.scene.sceneFolders)
+export function hydrateScene(sceneData: SceneData) {
+  const scene = new Scene(sceneData.id, sceneData.name)
+  scene.sceneFolders = normalizeSceneFolderList(sceneData.sceneFolders)
 
-  for (const entityData of parsed.scene.entities) {
+  for (const entityData of sceneData.entities) {
     scene.addEntity(deserializeEntity(entityData))
   }
 
   return scene
+}
+
+export function deserializeScene(raw: string) {
+  return hydrateScene(deserializeSceneData(raw))
 }
 
 function normalizeSceneFolderList(value: unknown) {
