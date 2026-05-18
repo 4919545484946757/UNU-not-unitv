@@ -65,6 +65,7 @@ export const useAssetStore = defineStore('assets', {
     flat: fallbackDatabase.flatten() as AssetNode[],
     previews: {} as Record<string, string>,
     imageSizes: {} as Record<string, { width: number; height: number }>,
+    previewProjectRoot: '',
     expandedPaths: { assets: true, scenes: true, prefabs: true } as Record<string, boolean>,
     fileUndoStack: [] as AssetFileHistoryEntry[],
     fileRedoStack: [] as AssetFileHistoryEntry[],
@@ -177,8 +178,14 @@ export const useAssetStore = defineStore('assets', {
       }
     },
     async ensurePreview(path: string) {
-      if (this.previews[path]) return this.previews[path]
       const project = useProjectStore()
+      const root = project.rootPath || ''
+      if (this.previewProjectRoot !== root) {
+        this.previews = {}
+        this.imageSizes = {}
+        this.previewProjectRoot = root
+      }
+      if (this.previews[path]) return this.previews[path]
       if (window.unu?.readAssetDataUrl && project.rootPath && !project.isMemoryProject) {
         const result = await window.unu.readAssetDataUrl({ projectRoot: project.rootPath, relativePath: path })
         if (result?.dataUrl) {
@@ -375,10 +382,11 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus('已取消打开工程。')
         return
       }
+      project.setProject({ rootPath: picked.rootPath, name: picked.name })
       const result = await window.unu.scanProject(picked.rootPath)
+      project.setProject({ rootPath: result.rootPath, name: result.name })
       this.hydrateTree(result.tree)
       this.clearFileHistory()
-      project.setProject({ rootPath: result.rootPath, name: result.name })
       project.setStatus(buildProjectHealthMessage(result, `已打开工程：${result.name}`))
     },
     async saveProjectAs() {
@@ -411,11 +419,12 @@ export const useAssetStore = defineStore('assets', {
         return
       }
 
+      project.setProject({ rootPath: saved.rootPath, name: saved.name })
       const scanned = await window.unu.scanProject(saved.rootPath)
+      project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
       this.hydrateTree(scanned.tree)
       this.clearFileHistory()
       this.selectedPath = 'assets'
-      project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
       if (saved.sceneFilePath) project.setSceneFile(saved.sceneFilePath)
       project.setStatus(
         buildProjectHealthMessage(

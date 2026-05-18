@@ -33,7 +33,11 @@ export class UIComponent extends Component {
     public autoWidth = false,
     public autoHeight = false,
     public minWidth = 1,
-    public minHeight = 1
+    public minHeight = 1,
+    public htmlSourcePath = '',
+    public htmlUseIframe = true,
+    public htmlAllowScripts = true,
+    public htmlBridgeEnabled = true
   ) {
     super()
   }

@@ -28,7 +28,11 @@ export const useEditorStore = defineStore('editor', {
     leftPanelWidth: 300,
     rightPanelWidth: 340,
     assetBrowserHeight: 220,
-    consoleHeight: 170
+    consoleHeight: 170,
+    showLeftPanel: true,
+    showRightPanel: true,
+    showAssetBrowserPanel: true,
+    showBottomPanel: true
   }),
   actions: {
     setTool(tool: 'select' | 'move' | 'scale' | 'rotate' | 'pan') {
@@ -114,6 +118,19 @@ export const useEditorStore = defineStore('editor', {
     },
     setConsoleHeight(height: number) {
       this.consoleHeight = Math.min(MAX_CONSOLE_HEIGHT, Math.max(MIN_CONSOLE_HEIGHT, Math.round(height)))
+    },
+    setPanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom', visible: boolean) {
+      if (panel === 'left') this.showLeftPanel = visible
+      else if (panel === 'right') this.showRightPanel = visible
+      else if (panel === 'assets') this.showAssetBrowserPanel = visible
+      else if (panel === 'bottom') this.showBottomPanel = visible
+      window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
+    },
+    togglePanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom') {
+      if (panel === 'left') this.setPanelVisible('left', !this.showLeftPanel)
+      else if (panel === 'right') this.setPanelVisible('right', !this.showRightPanel)
+      else if (panel === 'assets') this.setPanelVisible('assets', !this.showAssetBrowserPanel)
+      else if (panel === 'bottom') this.setPanelVisible('bottom', !this.showBottomPanel)
     }
   }
 })

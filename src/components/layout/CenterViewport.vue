@@ -233,6 +233,7 @@ onMounted(async () => {
       container: containerRef.value,
       onEntitySelected: (entityId, options) => {
         if (!entityId) selection.clearSelection()
+        else if (options?.selectedEntityIds) selection.selectEntities(options.selectedEntityIds, options.primaryId || entityId)
         else if (options?.additive) selection.toggleEntity(entityId)
         else selection.selectEntity(entityId)
       },

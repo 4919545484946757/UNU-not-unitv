@@ -9,6 +9,7 @@ export interface EntityData {
   prefabSourcePath?: string
   prefabVariantBasePath?: string
   sceneFolderPath?: string
+  debugFrameVisible?: boolean
   components: ComponentData[]
   children?: EntityData[]
 }

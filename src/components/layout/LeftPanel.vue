@@ -25,9 +25,9 @@
       </div>
     </section>
 
-    <div class="horizontal-resizer" @mousedown.prevent="startBrowserResize"></div>
+    <div v-if="editor.showAssetBrowserPanel" class="horizontal-resizer" @mousedown.prevent="startBrowserResize"></div>
 
-    <section class="browser-panel">
+    <section v-if="editor.showAssetBrowserPanel" class="browser-panel">
       <div class="scroll-inner">
         <div class="section-title">素材箱</div>
         <!--div class="section-tip">拖动中间分隔线可调整素材箱高度</div-->
@@ -50,7 +50,9 @@ const tabs = ['Assets', 'Scene', 'Prefab']
 let cleanup: (() => void) | null = null
 
 const panelStyle = computed(() => ({
-  gridTemplateRows: `40px minmax(0, 1fr) 6px ${editor.assetBrowserHeight}px`
+  gridTemplateRows: editor.showAssetBrowserPanel
+    ? `40px minmax(0, 1fr) 6px ${editor.assetBrowserHeight}px`
+    : '40px minmax(0, 1fr)'
 }))
 
 function startBrowserResize(event: MouseEvent) {

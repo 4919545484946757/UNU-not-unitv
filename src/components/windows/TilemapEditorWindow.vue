@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties } from 'vue'
 
 interface TilemapEditorInitPayload {
   entityId: string
@@ -183,6 +183,7 @@ function applyInitPayload(raw: unknown) {
   session.value = {
     entityId: String(payload.entityId || ''),
     entityName: String(payload.entityName || 'Tilemap'),
+    projectRoot: String(payload.projectRoot || ''),
     mode: payload.mode === 'collision' ? 'collision' : 'tiles',
     columns,
     rows: rowsValue,
@@ -194,6 +195,7 @@ function applyInitPayload(raw: unknown) {
   tiles.value = [...session.value.tiles]
   collision.value = [...session.value.collision]
   tileTextureMap.value = { ...session.value.tileTextureMap }
+  previewCache.value = {}
   selectedIndex.value = -1
   selectedIndices.value = []
   resetView()
@@ -221,8 +223,22 @@ watch(
   { immediate: true, deep: true }
 )
 
-function tileCellStyle(value: number) {
+function tileCellStyle(value: number): CSSProperties {
   if (value <= 0) return {}
+  const path = String(tileTextureMap.value[value] || '')
+  const preview = path ? previewCache.value[path] : ''
+  if (preview) {
+    return {
+      backgroundImage: `url("${preview}")`,
+      backgroundSize: '100% 100%',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      imageRendering: 'pixelated' as CSSProperties['imageRendering'],
+      borderColor: '#6ed6ff',
+      color: '#ffffff',
+      textShadow: '0 1px 2px #000, 0 0 3px #000'
+    }
+  }
   const hue = (value * 47) % 360
   return {
     background: `hsl(${hue} 46% 26%)`,

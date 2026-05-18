@@ -25,6 +25,7 @@ interface SerializedEntity {
   prefabSourcePath?: string
   prefabVariantBasePath?: string
   sceneFolderPath?: string
+  debugFrameVisible?: boolean
   components: SerializedComponent[]
 }
 
@@ -46,6 +47,7 @@ export function serializeEntity(entity: Entity): SerializedEntity {
     prefabSourcePath: entity.prefabSourcePath || undefined,
     prefabVariantBasePath: entity.prefabVariantBasePath || undefined,
     sceneFolderPath: entity.sceneFolderPath || undefined,
+    debugFrameVisible: entity.debugFrameVisible === false ? false : undefined,
     components: entity.getAllComponents().map((component) => {
       if (component instanceof CustomComponent) {
         return {
@@ -66,6 +68,7 @@ export function deserializeEntity(entityData: SerializedEntity) {
   entity.prefabSourcePath = String(entityData.prefabSourcePath || '')
   entity.prefabVariantBasePath = String(entityData.prefabVariantBasePath || '')
   entity.sceneFolderPath = normalizeSceneFolderPath(entityData.sceneFolderPath)
+  entity.debugFrameVisible = entityData.debugFrameVisible !== false
   for (const componentData of entityData.components) {
     const data = componentData.data
     switch (componentData.type) {
@@ -255,7 +258,11 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.volume ?? 1),
             Boolean(data.loop ?? false),
             Boolean(data.playOnStart ?? false),
-            Boolean(data.playing ?? false)
+            Boolean(data.playing ?? false),
+            Boolean(data.muted ?? false),
+            Number(data.playbackRate ?? 1),
+            Number(data.fadeIn ?? 0),
+            Number(data.fadeOut ?? 0)
           )
         )
         break
@@ -287,7 +294,11 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Boolean(data.autoWidth ?? false),
             Boolean(data.autoHeight ?? false),
             Number(data.minWidth ?? 1),
-            Number(data.minHeight ?? 1)
+            Number(data.minHeight ?? 1),
+            String(data.htmlSourcePath ?? ''),
+            Boolean(data.htmlUseIframe ?? true),
+            Boolean(data.htmlAllowScripts ?? true),
+            Boolean(data.htmlBridgeEnabled ?? true)
           )
         )
         break
@@ -401,6 +412,7 @@ export function deserializeSceneData(raw: string): SceneData {
           prefabSourcePath: entity.prefabSourcePath ? String(entity.prefabSourcePath) : undefined,
           prefabVariantBasePath: entity.prefabVariantBasePath ? String(entity.prefabVariantBasePath) : undefined,
           sceneFolderPath: normalizeSceneFolderPath(entity.sceneFolderPath),
+          debugFrameVisible: entity.debugFrameVisible === false ? false : undefined,
           components: Array.isArray(entity.components)
             ? entity.components.map((component) => ({
                 type: String((component as ComponentData).type || ''),

@@ -324,6 +324,8 @@ function openFolderMenu(event: MouseEvent, folderPath: string) {
   selectFolder(folderPath, false)
   showMenu(event, [
     { label: `折叠/展开：${folderPath}`, action: () => toggleFolder(folderPath) },
+    { label: '显示此类及子类实体调试框', action: () => setFolderDebugFrameVisible(folderPath, true) },
+    { label: '隐藏此类及子类实体调试框', action: () => setFolderDebugFrameVisible(folderPath, false) },
     { label: '新建子类文件夹', disabled: runtime.isPlaying, action: () => openFolderDialog('create', folderPath) },
     { label: '重命名类文件夹', disabled: runtime.isPlaying, action: () => openFolderDialog('rename', folderPath) },
     { label: '复制类文件夹', action: () => scene.copySceneFolder(folderPath) },
@@ -350,8 +352,11 @@ function selectFirstEntityInFolder(folderPath: string) {
 
 function openEntityMenu(event: MouseEvent, entityId: string) {
   if (!selection.selectedEntityIdSet.has(entityId)) selectEntity(entityId)
+  const entity = scene.currentScene?.getEntityById(entityId)
+  const debugVisible = entity?.debugFrameVisible !== false
   showMenu(event, [
     { label: '选中实体', action: () => selection.selectEntity(entityId) },
+    { label: debugVisible ? '隐藏调试框' : '显示调试框', action: () => toggleEntityDebugFrameVisible(entityId) },
     { label: '编辑实体信息/分类', disabled: runtime.isPlaying, action: () => openEntityDialog(entityId) },
     { label: '重命名实体', disabled: runtime.isPlaying, action: () => openEntityDialog(entityId, 'name') },
     { label: '修改实体 ID', disabled: runtime.isPlaying, action: () => openEntityDialog(entityId, 'id') },
@@ -364,6 +369,26 @@ function openEntityMenu(event: MouseEvent, entityId: string) {
     { label: '图层上移', action: () => scene.moveSelectedEntityLayer(1) },
     { label: '图层下移', action: () => scene.moveSelectedEntityLayer(-1) }
   ])
+}
+
+function toggleEntityDebugFrameVisible(entityId: string) {
+  const entity = scene.currentScene?.getEntityById(entityId)
+  if (!entity) return
+  entity.debugFrameVisible = entity.debugFrameVisible === false
+  scene.markDirty()
+}
+
+function setFolderDebugFrameVisible(folderPath: string, visible: boolean) {
+  const normalized = normalizeSceneFolderPath(folderPath)
+  let changed = false
+  for (const entity of orderedEntities.value) {
+    const current = normalizeSceneFolderPath(entity.sceneFolderPath)
+    if (current !== normalized && !current.startsWith(`${normalized}/`)) continue
+    if (entity.debugFrameVisible === visible) continue
+    entity.debugFrameVisible = visible
+    changed = true
+  }
+  if (changed) scene.markDirty()
 }
 
 function openEntityDialog(entityId: string, focus: 'name' | 'id' | 'folder' | 'both' = 'both') {

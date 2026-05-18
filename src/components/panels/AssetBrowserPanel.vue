@@ -32,7 +32,12 @@
         @dblclick="handleDoubleClick(item.path, item.type)"
       >
         <div class="preview" :class="`type-${item.type}`">
-          <img v-if="item.type === 'image' && assets.previews[item.path]" :src="assets.previews[item.path]" alt="preview" />
+          <img
+            v-if="item.type === 'image' && assets.previews[item.path]"
+            :key="`${item.path}:${assets.previews[item.path].length}`"
+            :src="assets.previews[item.path]"
+            alt="preview"
+          />
           <span v-else-if="item.type === 'image' && loadingPreviewPaths.has(item.path)" class="asset-kind loading">加载中</span>
           <span v-else class="asset-kind">{{ getAssetKindLabel(item.type) }}</span>
         </div>
@@ -44,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { AssetType } from '../../engine/assets/types'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
@@ -55,7 +60,8 @@ const assets = useAssetStore()
 const editor = useEditorStore()
 const project = useProjectStore()
 const scene = useSceneStore()
-const loadingPreviewPaths = reactive(new Set<string>())
+const loadingPreviewPathsRef = ref(new Set<string>())
+const loadingPreviewPaths = computed(() => loadingPreviewPathsRef.value)
 
 const pathCrumbs = computed(() => {
   const parts = assets.selectedPath.split('/').filter(Boolean)
@@ -66,29 +72,32 @@ const pathCrumbs = computed(() => {
   }))
 })
 
-const visibleImagePaths = computed(() => (
-  assets.browserItems
+const visibleImagePathKey = computed(() => (
+  `${project.rootPath}::${assets.selectedPath}::${assets.browserItems
     .filter((item) => item.type === 'image')
     .map((item) => item.path)
+    .join('|')}`
 ))
 
 watch(
-  visibleImagePaths,
-  (paths) => {
-    for (const path of paths) {
-      void ensureBrowserPreview(path)
+  visibleImagePathKey,
+  () => {
+    for (const item of assets.browserItems) {
+      if (item.type === 'image') void ensureBrowserPreview(item.path)
     }
   },
-  { immediate: true }
+  { immediate: true, flush: 'post' }
 )
 
 async function ensureBrowserPreview(path: string) {
-  if (assets.previews[path] || loadingPreviewPaths.has(path)) return
-  loadingPreviewPaths.add(path)
+  if (assets.previews[path] || loadingPreviewPathsRef.value.has(path)) return
+  loadingPreviewPathsRef.value = new Set([...loadingPreviewPathsRef.value, path])
   try {
     await assets.ensurePreview(path)
   } finally {
-    loadingPreviewPaths.delete(path)
+    const next = new Set(loadingPreviewPathsRef.value)
+    next.delete(path)
+    loadingPreviewPathsRef.value = next
   }
 }
 

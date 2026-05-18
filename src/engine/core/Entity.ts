@@ -7,6 +7,7 @@ export class Entity {
   prefabSourcePath = ''
   prefabVariantBasePath = ''
   sceneFolderPath = ''
+  debugFrameVisible = true
   parent: Entity | null = null
   children: Entity[] = []
   components = new Map<string, Component>()

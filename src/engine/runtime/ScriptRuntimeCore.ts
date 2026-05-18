@@ -32,13 +32,27 @@ interface RuntimeInput {
 }
 
 interface RuntimeAudio {
-  playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => Promise<void>
+  playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean; muted?: boolean; playbackRate?: number; fadeIn?: number; fadeOut?: number }) => Promise<void>
   playEntity: (target?: Entity) => Promise<void>
   stopEntity: (target?: Entity) => void
+  pauseEntity: (target?: Entity) => void
+  resumeEntity: (target?: Entity) => void
+  seekEntity: (seconds: number, target?: Entity) => void
+  getEntityState: (target?: Entity) => Record<string, unknown> | null
+  stopGroup: (group: AudioGroup, fadeOut?: number) => void
   setMasterVolume: (volume: number) => void
+  setMasterMuted: (muted: boolean) => void
   setGroupVolume: (group: AudioGroup, volume: number) => void
+  setGroupMuted: (group: AudioGroup, muted: boolean) => void
   getMasterVolume: () => number
+  getMasterMuted: () => boolean
   getGroupVolume: (group: AudioGroup) => number
+  getGroupMuted: (group: AudioGroup) => boolean
+}
+
+interface RuntimeUiBridge {
+  postMessage: (message: unknown, target?: Entity | string) => void
+  postHtmlMessage: (message: unknown, target?: Entity | string) => void
 }
 
 export interface SceneSwitchRequest {
@@ -109,6 +123,7 @@ export interface ScriptContext {
     log: (...values: unknown[]) => void
     warn: (...values: unknown[]) => void
     error: (...values: unknown[]) => void
+    ui: RuntimeUiBridge
     audio: RuntimeAudio
   }
 }
@@ -126,10 +141,12 @@ export interface ScriptSceneEvent {
 }
 
 export interface ScriptUiEvent {
-  type: 'uiClick'
+  type: 'uiClick' | 'htmlMessage'
   ui: UIComponent
   value?: number
   pointer?: { x: number; y: number }
+  messageType?: string
+  payload?: unknown
 }
 
 export type ScriptEvent = ScriptColliderEvent | ScriptSceneEvent | ScriptUiEvent
@@ -143,6 +160,7 @@ export interface ScriptHooks {
   onPausedUpdate?: (ctx: ScriptContext) => void
   onInteract?: (ctx: ScriptContext) => void
   onUiClick?: (ctx: ScriptContext) => void
+  onHtmlMessage?: (ctx: ScriptContext) => void
   onCollisionEnter?: (ctx: ScriptContext) => void
   onCollisionStay?: (ctx: ScriptContext) => void
   onCollisionExit?: (ctx: ScriptContext) => void
@@ -254,21 +272,44 @@ export class ScriptRuntime {
     getMousePosition: () => ({ x: 0, y: 0 })
   }
   private audioAdapter: {
-    playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => Promise<void>
+    playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean; muted?: boolean; playbackRate?: number; fadeIn?: number; fadeOut?: number }) => Promise<void>
     playEntity: (target: Entity) => Promise<void>
     stopEntity: (target: Entity) => void
+    pauseEntity: (target: Entity) => void
+    resumeEntity: (target: Entity) => void
+    seekEntity: (target: Entity, seconds: number) => void
+    getEntityState: (target: Entity) => Record<string, unknown> | null
+    stopGroup: (group: AudioGroup, fadeOut?: number) => void
     setMasterVolume: (volume: number) => void
+    setMasterMuted: (muted: boolean) => void
     setGroupVolume: (group: AudioGroup, volume: number) => void
+    setGroupMuted: (group: AudioGroup, muted: boolean) => void
     getMasterVolume: () => number
+    getMasterMuted: () => boolean
     getGroupVolume: (group: AudioGroup) => number
+    getGroupMuted: (group: AudioGroup) => boolean
   } = {
-    playOneShot: async (_clipPath: string, _options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => undefined,
+    playOneShot: async (_clipPath: string, _options?: { group?: AudioGroup; volume?: number; loop?: boolean; muted?: boolean; playbackRate?: number; fadeIn?: number; fadeOut?: number }) => undefined,
     playEntity: async (_target: Entity) => undefined,
     stopEntity: (_target: Entity) => undefined,
+    pauseEntity: (_target: Entity) => undefined,
+    resumeEntity: (_target: Entity) => undefined,
+    seekEntity: (_target: Entity, _seconds: number) => undefined,
+    getEntityState: (_target: Entity) => null,
+    stopGroup: (_group: AudioGroup, _fadeOut?: number) => undefined,
     setMasterVolume: (_volume: number) => undefined,
+    setMasterMuted: (_muted: boolean) => undefined,
     setGroupVolume: (_group: AudioGroup, _volume: number) => undefined,
+    setGroupMuted: (_group: AudioGroup, _muted: boolean) => undefined,
     getMasterVolume: () => 1,
-    getGroupVolume: (_group: AudioGroup) => 1
+    getMasterMuted: () => false,
+    getGroupVolume: (_group: AudioGroup) => 1,
+    getGroupMuted: (_group: AudioGroup) => false
+  }
+  private uiAdapter: {
+    postHtmlMessage: (entityId: string, message: unknown) => void
+  } = {
+    postHtmlMessage: (_entityId: string, _message: unknown) => undefined
   }
   private projectRuntimePath = ''
   private projectScriptRegistry: Record<string, ScriptHooks> = {}
@@ -314,15 +355,28 @@ export class ScriptRuntime {
   }
 
   setAudioAdapter(adapter: {
-    playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => Promise<void>
+    playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean; muted?: boolean; playbackRate?: number; fadeIn?: number; fadeOut?: number }) => Promise<void>
     playEntity: (target: Entity) => Promise<void>
     stopEntity: (target: Entity) => void
+    pauseEntity: (target: Entity) => void
+    resumeEntity: (target: Entity) => void
+    seekEntity: (target: Entity, seconds: number) => void
+    getEntityState: (target: Entity) => Record<string, unknown> | null
+    stopGroup: (group: AudioGroup, fadeOut?: number) => void
     setMasterVolume: (volume: number) => void
+    setMasterMuted: (muted: boolean) => void
     setGroupVolume: (group: AudioGroup, volume: number) => void
+    setGroupMuted: (group: AudioGroup, muted: boolean) => void
     getMasterVolume: () => number
+    getMasterMuted: () => boolean
     getGroupVolume: (group: AudioGroup) => number
+    getGroupMuted: (group: AudioGroup) => boolean
   }) {
     this.audioAdapter = adapter
+  }
+
+  setUiAdapter(adapter: { postHtmlMessage: (entityId: string, message: unknown) => void }) {
+    this.uiAdapter = adapter
   }
 
   setSelectedEntityId(entityId: string) {
@@ -633,8 +687,18 @@ export class ScriptRuntime {
         log: (...values: unknown[]) => this.reportConsoleMessage('log', formatConsoleValues(values), entity),
         warn: (...values: unknown[]) => this.reportConsoleMessage('warn', formatConsoleValues(values), entity),
         error: (...values: unknown[]) => this.reportConsoleMessage('error', formatConsoleValues(values), entity),
+        ui: {
+          postMessage: (message: unknown, target?: Entity | string) => {
+            const targetEntity = this.resolveUiMessageTarget(target, entity)
+            if (targetEntity) this.uiAdapter.postHtmlMessage(targetEntity.id, message)
+          },
+          postHtmlMessage: (message: unknown, target?: Entity | string) => {
+            const targetEntity = this.resolveUiMessageTarget(target, entity)
+            if (targetEntity) this.uiAdapter.postHtmlMessage(targetEntity.id, message)
+          }
+        },
         audio: {
-          playOneShot: async (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean }) => {
+          playOneShot: async (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean; muted?: boolean; playbackRate?: number; fadeIn?: number; fadeOut?: number }) => {
             await this.audioAdapter.playOneShot(clipPath, options)
           },
           playEntity: async (target?: Entity) => {
@@ -643,14 +707,35 @@ export class ScriptRuntime {
           stopEntity: (target?: Entity) => {
             this.audioAdapter.stopEntity(target ?? entity)
           },
+          pauseEntity: (target?: Entity) => {
+            this.audioAdapter.pauseEntity(target ?? entity)
+          },
+          resumeEntity: (target?: Entity) => {
+            this.audioAdapter.resumeEntity(target ?? entity)
+          },
+          seekEntity: (seconds: number, target?: Entity) => {
+            this.audioAdapter.seekEntity(target ?? entity, seconds)
+          },
+          getEntityState: (target?: Entity) => this.audioAdapter.getEntityState(target ?? entity),
+          stopGroup: (group: AudioGroup, fadeOut?: number) => {
+            this.audioAdapter.stopGroup(group, fadeOut)
+          },
           setMasterVolume: (volume: number) => {
             this.audioAdapter.setMasterVolume(volume)
+          },
+          setMasterMuted: (muted: boolean) => {
+            this.audioAdapter.setMasterMuted(muted)
           },
           setGroupVolume: (group: AudioGroup, volume: number) => {
             this.audioAdapter.setGroupVolume(group, volume)
           },
+          setGroupMuted: (group: AudioGroup, muted: boolean) => {
+            this.audioAdapter.setGroupMuted(group, muted)
+          },
           getMasterVolume: () => this.audioAdapter.getMasterVolume(),
-          getGroupVolume: (group: AudioGroup) => this.audioAdapter.getGroupVolume(group)
+          getMasterMuted: () => this.audioAdapter.getMasterMuted(),
+          getGroupVolume: (group: AudioGroup) => this.audioAdapter.getGroupVolume(group),
+          getGroupMuted: (group: AudioGroup) => this.audioAdapter.getGroupMuted(group)
         }
       }
     }
@@ -1001,6 +1086,45 @@ export class ScriptRuntime {
       })
       this.flushPendingMutations(scene)
     }
+  }
+
+  handleHtmlUiMessage(scene: Scene, entity: Entity, ui: UIComponent, message: { type: string; payload?: unknown }) {
+    this.activeScene = scene
+    const event: ScriptUiEvent = {
+      type: 'htmlMessage',
+      ui,
+      messageType: String(message.type || 'message'),
+      payload: message.payload
+    }
+    const boundPath = normalizeScriptPath(ui.onClickScriptPath || '')
+    if (boundPath) {
+      const hooks = this.resolveProjectScriptHooks(boundPath) ?? this.resolveBuiltinHooks(boundPath)
+      if (!hooks) {
+        this.reportConsoleMessage('warn', `HTML UI script not found: ${boundPath}`, entity, boundPath)
+        return
+      }
+      const hook = hooks.onHtmlMessage ? 'onHtmlMessage' : hooks.onUiClick ? 'onUiClick' : 'onInteract'
+      this.invokeHookFromPath(hooks, hook, entity, 0, boundPath, event)
+      this.flushPendingMutations(scene)
+      return
+    }
+
+    const script = entity.getComponent<ScriptComponent>('Script')
+    const hooks = script?.instance as ScriptHooks | null
+    if (script?.enabled && hooks && (hooks.onHtmlMessage || hooks.onUiClick || hooks.onInteract)) {
+      const hook = hooks.onHtmlMessage ? 'onHtmlMessage' : hooks.onUiClick ? 'onUiClick' : 'onInteract'
+      this.invokeHook(hooks, hook, entity, 0, event)
+      this.flushPendingMutations(scene)
+    }
+  }
+
+  private resolveUiMessageTarget(target: Entity | string | undefined, fallback: Entity) {
+    if (!target) return fallback
+    if (typeof target !== 'string') return target
+    const key = String(target || '').trim()
+    if (!key || key === 'self') return fallback
+    if (!this.activeScene) return null
+    return this.activeScene.getEntityById(key) || this.activeScene.entities.find((entity) => entity.name === key) || null
   }
 
   private resolveScriptHooks(script: ScriptComponent) {

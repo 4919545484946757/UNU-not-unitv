@@ -424,6 +424,24 @@
               @input="setText('ui', 'text', $event)"
             ></textarea>
           </label>
+          <template v-if="ui.renderMode === 'html'">
+            <label>HTML File Path <input :value="ui.htmlSourcePath || ''" placeholder="assets/ui/pause-menu.html，留空使用上方 Text/HTML" @input="setText('ui', 'htmlSourcePath', $event)" /></label>
+            <div class="html-option-grid">
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="ui.htmlUseIframe" @change="setChecked('ui', 'htmlUseIframe', $event)" />
+                Iframe Isolation
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="ui.htmlAllowScripts" @change="setChecked('ui', 'htmlAllowScripts', $event)" />
+                Allow JS
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="ui.htmlBridgeEnabled" @change="setChecked('ui', 'htmlBridgeEnabled', $event)" />
+                UNU Bridge
+              </label>
+            </div>
+            <div class="tips">HTML Overlay 可直接写完整 HTML/CSS/JS，或链接工程内 .html 文件。HTML 中可调用 <code>window.UNU.emit(type, payload)</code> 连接游戏脚本。</div>
+          </template>
           <label>Font Size <input type="number" min="8" max="96" :value="ui.fontSize" @input="setNumber('ui', 'fontSize', $event)" /></label>
           <label>Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /></label>
           <label>Width <input type="number" min="10" :value="ui.width" @input="setNumber('ui', 'width', $event)" /></label>
@@ -2024,7 +2042,7 @@ async function applySelectedAudio() {
 function addAudioComponent() {
   if (runtime.isPlaying) return
   if (!entity.value || audio.value) return
-  entity.value.addComponent(new AudioComponent(true, '', 'sfx', 1, false, false, false))
+  entity.value.addComponent(new AudioComponent(true, '', 'sfx', 1, false, false, false, false, 1, 0, 0))
   sceneStore.markDirty()
 }
 
@@ -2272,6 +2290,19 @@ textarea { min-height: 96px; resize: vertical; }
   cursor: pointer;
 }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
+.html-option-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-width: 0;
+}
+.html-option-grid .checkbox-row {
+  padding: 7px 8px;
+  border: 1px solid #2a3446;
+  border-radius: 8px;
+  background: #131b28;
+  font-size: 12px;
+}
 .collision-mask {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

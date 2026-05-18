@@ -6,48 +6,59 @@
     </div>
 
     <div class="toolbar-actions">
-      <label class="action-select-wrap">
-        <span>项目</span>
-        <select class="action-select" @change="handleProjectAction">
-          <option value="">项目操作</option>
-          <option value="new">新建项目</option>
-          <option value="open">打开工程</option>
-          <option value="launcher">回到开始界面</option>
-          <option value="saveAs">项目另存</option>
-          <option value="exportGame">导出 Web 游戏</option>
-          <option value="keymap">输入映射/改键</option>
-          <option value="checkAssets">检查并修复资源依赖</option>
-          <option value="refresh">刷新资源</option>
-          <option value="import">导入图片</option>
-          <option value="importAudio">导入音频</option>
-        </select>
-      </label>
+      <div class="action-select-wrap action-menu-wrap">
+        <button class="action-menu-button" type="button" @click.stop="toggleActionMenu('project')">项目操作 ▾</button>
+        <div v-if="openActionMenu === 'project'" class="action-menu" @click.stop>
+          <button v-for="item in projectActions" :key="item.value" type="button" class="action-menu-item" @click="runProjectAction(item.value)">
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
 
-      <label class="action-select-wrap">
-        <span>场景</span>
-        <select class="action-select" @change="handleSceneAction">
-          <option value="">场景操作</option>
-          <option value="list">场景列表</option>
-          <option value="new">新建场景</option>
-          <option value="open">打开场景</option>
-          <option value="save">保存场景</option>
-          <option value="saveAs">另存场景</option>
-        </select>
-      </label>
+      <div class="action-select-wrap action-menu-wrap">
+        <button class="action-menu-button" type="button" @click.stop="toggleActionMenu('scene')">场景操作 ▾</button>
+        <div v-if="openActionMenu === 'scene'" class="action-menu" @click.stop>
+          <button v-for="item in sceneActions" :key="item.value" type="button" class="action-menu-item" @click="runSceneAction(item.value)">
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
 
-      <label class="action-select-wrap">
-        <span>实体</span>
-        <select class="action-select" @change="handleEntityAction">
-          <option value="">实体操作</option>
-          <option value="create">新建实体</option>
-          <option value="duplicate">复制实体</option>
-          <option value="remove">删除实体</option>
-          <option value="up">图层上移</option>
-          <option value="down">图层下移</option>
-          <option value="savePrefab">保存 Prefab</option>
-          <option value="loadPrefab">实例化 Prefab</option>
-        </select>
-      </label>
+      <div class="action-select-wrap action-menu-wrap">
+        <button class="action-menu-button" type="button" @click.stop="toggleActionMenu('entity')">实体操作 ▾</button>
+        <div v-if="openActionMenu === 'entity'" class="action-menu" @click.stop>
+          <button v-for="item in entityActions" :key="item.value" type="button" class="action-menu-item" @click="runEntityAction(item.value)">
+            {{ item.label }}
+          </button>
+        </div>
+      </div>
+
+      <div class="view-menu-wrap action-select-wrap">
+        <button class="view-menu-button action-menu-button" type="button" @click.stop="toggleViewMenu">显示选项 ▾</button>
+        <div v-if="viewMenuOpen" class="view-menu" @click.stop>
+          <div class="menu-title">显示面板</div>
+          <label class="filter-row">
+            <input type="checkbox" :checked="editor.showLeftPanel" @change="setPanelVisible('left', $event)" />
+            <span>左侧面板</span>
+          </label>
+          <label class="filter-row">
+            <input type="checkbox" :checked="editor.showRightPanel" @change="setPanelVisible('right', $event)" />
+            <span>右侧面板</span>
+          </label>
+          <label class="filter-row">
+            <input type="checkbox" :checked="editor.showAssetBrowserPanel" @change="setPanelVisible('assets', $event)" />
+            <span>素材箱面板</span>
+          </label>
+          <label class="filter-row">
+            <input type="checkbox" :checked="editor.showBottomPanel" @change="setPanelVisible('bottom', $event)" />
+            <span>下方命令/监测面板</span>
+          </label>
+          <div class="menu-actions">
+            <button type="button" @click="setAllPanelsVisible(true)">全部显示</button>
+            <button type="button" @click="setAllPanelsVisible(false)">全部隐藏</button>
+          </div>
+        </div>
+      </div>
 
       <div class="tool-group">
         <button :disabled="runtime.isPlaying" @click="editor.setTool('select')">选择</button>
@@ -116,8 +127,38 @@ const project = useProjectStore()
 const scene = useSceneStore()
 const runtime = useRuntimeStore()
 const statusFilterMenuOpen = ref(false)
+const viewMenuOpen = ref(false)
+const openActionMenu = ref<'' | 'project' | 'scene' | 'entity'>('')
 const statusCategories = STATUS_LOG_CATEGORIES
 const statusCategoryLabels = STATUS_LOG_CATEGORY_LABELS
+const projectActions = [
+  { value: 'new', label: '新建项目' },
+  { value: 'open', label: '打开工程' },
+  { value: 'launcher', label: '回到开始界面' },
+  { value: 'saveAs', label: '项目另存' },
+  { value: 'exportGame', label: '导出 Web 游戏' },
+  { value: 'keymap', label: '输入映射/改键' },
+  { value: 'checkAssets', label: '检查并修复资源依赖' },
+  { value: 'refresh', label: '刷新资源' },
+  { value: 'import', label: '导入图片' },
+  { value: 'importAudio', label: '导入音频' }
+] as const
+const sceneActions = [
+  { value: 'list', label: '场景列表' },
+  { value: 'new', label: '新建场景' },
+  { value: 'open', label: '打开场景' },
+  { value: 'save', label: '保存场景' },
+  { value: 'saveAs', label: '另存场景' }
+] as const
+const entityActions = [
+  { value: 'create', label: '新建实体' },
+  { value: 'duplicate', label: '复制实体' },
+  { value: 'remove', label: '删除实体' },
+  { value: 'up', label: '图层上移' },
+  { value: 'down', label: '图层下移' },
+  { value: 'savePrefab', label: '保存 Prefab' },
+  { value: 'loadPrefab', label: '实例化 Prefab' }
+] as const
 
 const emit = defineEmits<{
   (event: 'return-launcher'): void
@@ -133,13 +174,33 @@ async function runAction(label: string, action: () => void | Promise<void>) {
   }
 }
 
-function resetSelect(event: Event) {
-  const target = event.target as HTMLSelectElement
-  target.value = ''
-}
-
 function openStatusFilterMenu() {
   statusFilterMenuOpen.value = true
+  closeActionMenu()
+}
+
+function toggleActionMenu(menu: 'project' | 'scene' | 'entity') {
+  openActionMenu.value = openActionMenu.value === menu ? '' : menu
+  if (openActionMenu.value) {
+    viewMenuOpen.value = false
+    statusFilterMenuOpen.value = false
+  }
+}
+
+function closeActionMenu() {
+  openActionMenu.value = ''
+}
+
+function toggleViewMenu() {
+  viewMenuOpen.value = !viewMenuOpen.value
+  if (viewMenuOpen.value) {
+    statusFilterMenuOpen.value = false
+    closeActionMenu()
+  }
+}
+
+function closeViewMenu() {
+  viewMenuOpen.value = false
 }
 
 function closeStatusFilterMenu() {
@@ -148,14 +209,29 @@ function closeStatusFilterMenu() {
 
 onMounted(() => {
   window.addEventListener('click', closeStatusFilterMenu)
+  window.addEventListener('click', closeViewMenu)
+  window.addEventListener('click', closeActionMenu)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('click', closeStatusFilterMenu)
+  window.removeEventListener('click', closeViewMenu)
+  window.removeEventListener('click', closeActionMenu)
 })
 
-async function handleProjectAction(event: Event) {
-  const action = (event.target as HTMLSelectElement).value
+function setPanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom', event: Event) {
+  editor.setPanelVisible(panel, (event.target as HTMLInputElement).checked)
+}
+
+function setAllPanelsVisible(visible: boolean) {
+  editor.setPanelVisible('left', visible)
+  editor.setPanelVisible('right', visible)
+  editor.setPanelVisible('assets', visible)
+  editor.setPanelVisible('bottom', visible)
+}
+
+async function runProjectAction(action: typeof projectActions[number]['value']) {
+  closeActionMenu()
   if (action === 'new') await runAction('新建项目', () => assets.createProject())
   else if (action === 'open') await runAction('打开工程', () => assets.openProjectFolder())
   else if (action === 'launcher') emit('return-launcher')
@@ -166,21 +242,19 @@ async function handleProjectAction(event: Event) {
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())
   else if (action === 'importAudio') await runAction('导入音频', () => assets.importAudios())
-  resetSelect(event)
 }
 
-async function handleSceneAction(event: Event) {
-  const action = (event.target as HTMLSelectElement).value
+async function runSceneAction(action: typeof sceneActions[number]['value']) {
+  closeActionMenu()
   if (action === 'list') editor.openSceneListDialog()
   else if (action === 'new') await runAction('新建场景', () => scene.createNewScene())
   else if (action === 'open') await runAction('打开场景', () => scene.openSceneFromDisk())
   else if (action === 'save') await runAction('保存场景', () => scene.saveScene())
   else if (action === 'saveAs') await runAction('另存场景', () => scene.saveSceneAs())
-  resetSelect(event)
 }
 
-async function handleEntityAction(event: Event) {
-  const action = (event.target as HTMLSelectElement).value
+async function runEntityAction(action: typeof entityActions[number]['value']) {
+  closeActionMenu()
   if (action === 'create') editor.openEntityCreateDialog()
   else if (action === 'duplicate') await runAction('复制实体', () => scene.duplicateSelectedEntity())
   else if (action === 'remove') await runAction('删除实体', () => scene.removeSelectedEntity())
@@ -188,7 +262,6 @@ async function handleEntityAction(event: Event) {
   else if (action === 'down') await runAction('图层下移', () => scene.moveSelectedEntityLayer(-1))
   else if (action === 'savePrefab') await runAction('保存 Prefab', () => scene.saveSelectedAsPrefab())
   else if (action === 'loadPrefab') await runAction('实例化 Prefab', () => scene.instantiatePrefabFromDisk())
-  resetSelect(event)
 }
 </script>
 
@@ -225,31 +298,103 @@ async function handleEntityAction(event: Event) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .action-select-wrap {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   font-size: 11px;
   color: #94a3b8;
+  min-width: 0;
 }
 
-.action-select {
-  min-width: 112px;
-  border: 1px solid #303848;
-  background: #202632;
-  color: #ecf0f7;
-  border-radius: 4px;
-  padding: 4px 8px;
+.action-select-wrap > span {
+  padding-left: 2px;
+  line-height: 1;
 }
-.action-select:hover {
-  background: #333b4c;
+
+.action-menu-button {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid #364155;
+  border-bottom: 2px solid #47546a;
+  background:
+    linear-gradient(180deg, rgba(43, 52, 69, 0.96));
+  color: #ecf0f7;
+  border-radius: 8px;
+  padding: 0 10px;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.action-menu-button:hover {
+  border-color: #51617b;
+  background-color: #333b4c;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.action-menu-button:focus-visible {
+  border-color: #66d9ef;
+  box-shadow: 0 0 0 2px rgba(102, 217, 239, 0.18);
 }
 
 .tool-group {
   display: inline-flex;
   gap: 4px;
+}
+
+.action-menu-wrap,
+.view-menu-wrap {
+  position: relative;
+}
+
+.action-menu-button,
+.view-menu-button {
+  text-align: left;
+}
+
+.action-menu,
+.view-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 2600;
+  width: max-content;
+  min-width: 50px;
+  max-width: min(72vw, 260px);
+  padding: 10px;
+  border: 1px solid #364155;
+  border-radius: 10px;
+  background: #171d28;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38);
+}
+
+.view-menu {
+  min-width: 220px;
+}
+
+.action-menu {
+  display: grid;
+  gap: 3px;
+}
+
+.action-menu-item {
+  width: 100%;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #dbe7f8;
+  padding: 7px 8px;
+  text-align: left;
+  font-size: 12px;
+}
+
+.action-menu-item:hover {
+  background: #263143;
 }
 
 button {

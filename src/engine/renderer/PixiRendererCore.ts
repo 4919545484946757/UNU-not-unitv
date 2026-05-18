@@ -29,7 +29,7 @@ import type { UiMetrics } from './utils/uiMetrics'
 
 interface PixiRendererOptions {
   container: HTMLDivElement
-  onEntitySelected?: (entityId: string, options?: { additive?: boolean }) => void
+  onEntitySelected?: (entityId: string, options?: { additive?: boolean; selectedEntityIds?: string[]; primaryId?: string }) => void
   onSceneMutated?: () => void
   onRuntimeSceneUpdated?: (scene: Scene | null) => void
   onScriptError?: (error: ScriptRuntimeError) => void
@@ -44,6 +44,7 @@ interface CameraViewState {
   zoom: number
 }
 type CachedWorldNodeKind = 'sprite' | 'tilemap' | 'empty'
+type CachedHtmlUiNode = { signature: string; node: HTMLDivElement; iframe: HTMLIFrameElement | null }
 
 const EMPTY_ENTITY_EDITOR_SIZE = 40
 const UI_FONT_FAMILY = 'Microsoft YaHei, SimHei, Noto Sans CJK SC, Segoe UI, PingFang SC, sans-serif'
@@ -96,7 +97,7 @@ export class PixiRenderer {
   private readonly backdropNodeCache = new Map<string, { signature: string; node: Container }>()
   private readonly worldNodeCache = new Map<string, { kind: CachedWorldNodeKind; signature: string; node: Container }>()
   private readonly uiNodeCache = new Map<string, { signature: string; node: Container }>()
-  private readonly htmlUiNodeCache = new Map<string, { signature: string; node: HTMLDivElement }>()
+  private readonly htmlUiNodeCache = new Map<string, CachedHtmlUiNode>()
   private wheelHandler: ((event: WheelEvent) => void) | null = null
   private auxClickHandler: ((event: MouseEvent) => void) | null = null
   private lastViewportWidth = 0
@@ -106,6 +107,22 @@ export class PixiRenderer {
     if (!this.resizePendingDuringPanelDrag) return
     this.resizePendingDuringPanelDrag = false
     this.resizeAndRedraw()
+  }
+  private readonly htmlUiMessageHandler = (event: MessageEvent) => {
+    const data = event.data as { source?: string; entityId?: string; type?: string; payload?: unknown } | null
+    if (!data || data.source !== 'unu-html-ui' || !data.entityId) return
+    const cached = this.htmlUiNodeCache.get(data.entityId)
+    if (!cached?.iframe || event.source !== cached.iframe.contentWindow) return
+    if (!this.currentScene) return
+    const entity = this.currentScene.getEntityById(data.entityId)
+    const ui = entity?.getComponent<UIComponent>('UI')
+    if (!entity || !ui) return
+    this.scriptRuntime.handleHtmlUiMessage(this.currentScene, entity, ui, {
+      type: String(data.type || 'message'),
+      payload: data.payload
+    })
+    this.consumeGameCommandRequest()
+    if (!this.isPlaying) void this.renderScene(this.currentScene)
   }
 
   constructor(private readonly options: PixiRendererOptions) {}
@@ -145,6 +162,7 @@ export class PixiRenderer {
       zIndex: '5'
     })
     this.options.container.appendChild(this.htmlUiLayer)
+    window.addEventListener('message', this.htmlUiMessageHandler)
 
     this.sourceScene = scene
     this.currentScene = scene
@@ -159,10 +177,28 @@ export class PixiRenderer {
       stopEntity: (target) => {
         this.audioRuntime.stopEntityAudio(target.id)
       },
+      pauseEntity: (target) => {
+        this.audioRuntime.pauseEntityAudio(target.id)
+      },
+      resumeEntity: (target) => {
+        this.audioRuntime.resumeEntityAudio(target.id)
+      },
+      seekEntity: (target, seconds) => {
+        this.audioRuntime.seekEntityAudio(target.id, seconds)
+      },
+      getEntityState: (target) => this.audioRuntime.getEntityAudioState(target.id),
+      stopGroup: (group, fadeOut) => this.audioRuntime.stopGroup(group, fadeOut),
       setMasterVolume: (volume) => this.audioRuntime.setMasterVolume(volume),
+      setMasterMuted: (muted) => this.audioRuntime.setMasterMuted(muted),
       setGroupVolume: (group, volume) => this.audioRuntime.setGroupVolume(group, volume),
+      setGroupMuted: (group, muted) => this.audioRuntime.setGroupMuted(group, muted),
       getMasterVolume: () => this.audioRuntime.getMasterVolume(),
-      getGroupVolume: (group) => this.audioRuntime.getGroupVolume(group)
+      getMasterMuted: () => this.audioRuntime.getMasterMuted(),
+      getGroupVolume: (group) => this.audioRuntime.getGroupVolume(group),
+      getGroupMuted: (group) => this.audioRuntime.getGroupMuted(group)
+    })
+    this.scriptRuntime.setUiAdapter({
+      postHtmlMessage: (entityId, message) => this.postHtmlMessageToEntity(entityId, message)
     })
     const projectStoreForAudio = useProjectStore()
     this.audioRuntime.setProjectRoot(projectStoreForAudio.rootPath, projectStoreForAudio.mode)
@@ -644,7 +680,11 @@ export class PixiRenderer {
       this.selectedEntityId = entityId
     }
     this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
-    this.options.onEntitySelected?.(entityId, { additive })
+    this.options.onEntitySelected?.(this.selectedEntityId, {
+      additive,
+      selectedEntityIds: [...this.selectedEntityIds],
+      primaryId: this.selectedEntityId
+    })
     this.drawSelectionGizmo()
   }
 
@@ -779,7 +819,7 @@ export class PixiRenderer {
       if (ui?.enabled) {
         const metrics = uiMetrics.get(entity.id) || this.resolveUiMetrics(ui)
         if (ui.renderMode === 'html') {
-          this.updateHtmlUiNode(entity, transform, ui, metrics, scene, uiMetrics)
+          await this.updateHtmlUiNode(entity, transform, ui, metrics, scene, uiMetrics)
           activeHtmlUiIds.add(entity.id)
           continue
         }
@@ -795,7 +835,7 @@ export class PixiRenderer {
         continue
       }
       if (tilemap?.enabled) {
-        const tilemapNode = await this.getCachedTilemapNode(entity.id, entity.name, transform, tilemap)
+        const tilemapNode = await this.getCachedTilemapNode(entity.id, entity.name, transform, tilemap, this.shouldShowEntityDebug(entity))
         if (version !== this.renderVersion) return
         const viewportPosition = transform.positionMode === 'viewport'
           ? this.resolveViewportPosition(transform, tilemap.columns * tilemap.tileWidth, tilemap.rows * tilemap.tileHeight, 0, 0)
@@ -841,7 +881,8 @@ export class PixiRenderer {
               fitMode: background?.fitMode || 'cover'
             },
             transform,
-            entity.name
+            entity.name,
+            this.shouldShowEntityDebug(entity)
           )
         : await this.getCachedWorldSpriteNode(entity, transform, sprite, collider)
       if (version !== this.renderVersion) return
@@ -1329,7 +1370,7 @@ export class PixiRenderer {
     return node
   }
 
-  private updateHtmlUiNode(
+  private async updateHtmlUiNode(
     entity: Scene['entities'][number],
     transform: TransformComponent,
     ui: UIComponent,
@@ -1337,9 +1378,11 @@ export class PixiRenderer {
     scene: Scene,
     metricsById: Map<string, UiMetrics>
   ) {
+    const externalHtml = await this.resolveHtmlUiSource(ui.htmlSourcePath)
     const signature = [
       ui.mode,
       ui.text,
+      externalHtml ?? '',
       ui.fontSize,
       ui.textColor,
       ui.width,
@@ -1363,13 +1406,17 @@ export class PixiRenderer {
       ui.autoHeight,
       ui.minWidth,
       ui.minHeight,
+      ui.htmlSourcePath,
+      ui.htmlUseIframe,
+      ui.htmlAllowScripts,
+      ui.htmlBridgeEnabled,
       transform.positionMode,
       transform.viewportHorizontal,
       transform.viewportVertical,
       transform.zIndex ?? 0
     ].join('|')
     let cached = this.htmlUiNodeCache.get(entity.id)
-    if (!cached) {
+      if (!cached) {
       const node = document.createElement('div')
       node.className = 'unu-html-ui-node'
       node.dataset.entityId = entity.id
@@ -1386,7 +1433,7 @@ export class PixiRenderer {
         event.stopPropagation()
       })
       this.htmlUiLayer.appendChild(node)
-      cached = { signature: '', node }
+      cached = { signature: '', node, iframe: null }
       this.htmlUiNodeCache.set(entity.id, cached)
     }
 
@@ -1413,8 +1460,30 @@ export class PixiRenderer {
       event.stopPropagation()
     }
     if (cached.signature !== signature) {
-      const html = ui.markdownEnabled ? basicMarkdownToHtml(ui.text) : sanitizeHtmlContent(ui.text)
-      node.innerHTML = html || '&nbsp;'
+      cached.iframe = null
+      node.replaceChildren()
+      const rawHtml = externalHtml ?? ui.text
+      const html = ui.markdownEnabled ? basicMarkdownToHtml(rawHtml) : rawHtml
+      const useIframe = ui.htmlUseIframe || ui.htmlAllowScripts || !!ui.htmlSourcePath
+      if (useIframe) {
+        const iframe = document.createElement('iframe')
+        iframe.className = 'unu-html-ui-frame'
+        iframe.sandbox.add('allow-forms', 'allow-modals', 'allow-popups', 'allow-pointer-lock')
+        if (ui.htmlAllowScripts) iframe.sandbox.add('allow-scripts')
+        iframe.srcdoc = this.buildHtmlUiDocument(entity, ui, html)
+        Object.assign(iframe.style, {
+          width: '100%',
+          height: '100%',
+          border: '0',
+          display: 'block',
+          background: 'transparent',
+          pointerEvents: this.isPlaying && ui.interactable ? 'auto' : 'none'
+        })
+        node.appendChild(iframe)
+        cached.iframe = iframe
+      } else {
+        node.innerHTML = sanitizeHtmlContent(html) || '&nbsp;'
+      }
       cached.signature = signature
     }
 
@@ -1438,12 +1507,120 @@ export class PixiRenderer {
       borderRadius: ui.mode === 'button' ? '10px' : '0',
       border: ui.mode === 'button' ? '1px solid rgba(255,255,255,0.28)' : '0',
       background: ui.mode === 'button' ? hexToRgba(ui.backgroundColor, 0.95) : 'transparent',
-      pointerEvents: this.isPlaying && ui.mode !== 'button' ? 'none' : 'auto',
+      pointerEvents: !this.isPlaying || ui.interactable ? 'auto' : 'none',
       cursor: ui.mode === 'button' && ui.interactable ? 'pointer' : 'default'
     })
+    if (cached.iframe) cached.iframe.style.pointerEvents = this.isPlaying && ui.interactable ? 'auto' : 'none'
   }
 
-  private async createTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent) {
+  private async resolveHtmlUiSource(relativePath: string) {
+    const normalized = String(relativePath || '').replace(/\\/g, '/').trim()
+    if (!normalized) return null
+    const project = useProjectStore()
+    if (!window.unu?.readTextAsset) {
+      try {
+        const response = await fetch(normalized)
+        return response.ok ? await response.text() : null
+      } catch {
+        return null
+      }
+    }
+    if (!project.rootPath || project.isMemoryProject) return null
+    try {
+      const result = await window.unu.readTextAsset({
+        projectRoot: project.rootPath,
+        relativePath: normalized
+      })
+      return result?.content ?? null
+    } catch (error) {
+      project.setStatus(`HTML UI 文件读取失败：${normalized}`)
+      return null
+    }
+  }
+
+  private buildHtmlUiDocument(entity: Scene['entities'][number], ui: UIComponent, html: string) {
+    const project = useProjectStore()
+    const bridge = ui.htmlBridgeEnabled ? `
+<script>
+(() => {
+  const entityId = ${JSON.stringify(entity.id)};
+  const listeners = new Set();
+  window.UNU = {
+    entityId,
+    emit(type, payload) {
+      window.parent.postMessage({ source: 'unu-html-ui', entityId, type, payload }, '*');
+    },
+    onMessage(callback) {
+      if (typeof callback !== 'function') return () => {};
+      listeners.add(callback);
+      return () => listeners.delete(callback);
+    }
+  };
+  window.addEventListener('message', (event) => {
+    const data = event.data || {};
+    if (data.source !== 'unu-game-ui' || data.entityId !== entityId) return;
+    for (const callback of Array.from(listeners)) {
+      try { callback(data.message); } catch (error) { console.error(error); }
+    }
+  });
+  document.addEventListener('click', (event) => {
+    const target = event.target && event.target.closest ? event.target.closest('[data-unu-action]') : null;
+    if (!target) return;
+    window.UNU.emit(String(target.getAttribute('data-unu-action') || 'click'), {
+      value: target.getAttribute('data-unu-value'),
+      text: target.textContent || ''
+    });
+  });
+})();
+</script>` : ''
+    const baseHref = this.getHtmlUiBaseHref(project.rootPath, ui.htmlSourcePath)
+    const hasDocument = /<html[\s>]/i.test(html) || /<!doctype/i.test(html)
+    if (hasDocument) {
+      const withBase = baseHref && !/<base[\s>]/i.test(html)
+        ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`)
+        : html
+      return withBase.includes('</body>')
+        ? withBase.replace('</body>', `${bridge}</body>`)
+        : `${withBase}${bridge}`
+    }
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  ${baseHref ? `<base href="${baseHref}">` : ''}
+  <style>
+    html, body { width: 100%; height: 100%; margin: 0; background: transparent; overflow: auto; }
+    body { color: ${colorToCss(ui.textColor)}; font: ${Math.max(8, ui.fontSize)}px/1.35 ${UI_FONT_FAMILY}; }
+    * { box-sizing: border-box; }
+  </style>
+</head>
+<body>${html || '&nbsp;'}${bridge}</body>
+</html>`
+  }
+
+  private getHtmlUiBaseHref(projectRoot: string, htmlSourcePath: string) {
+    const root = String(projectRoot || '').replace(/\\/g, '/').replace(/\/+$/g, '')
+    const source = String(htmlSourcePath || '').replace(/\\/g, '/')
+    const folder = source.includes('/') ? source.slice(0, source.lastIndexOf('/')) : ''
+    if (!root) return folder ? `${folder}/` : ''
+    const path = [root, folder].filter(Boolean).join('/')
+    return `file:///${path.replace(/^\/+/, '')}/`
+  }
+
+  private postHtmlMessageToEntity(entityId: string, message: unknown) {
+    const cached = this.htmlUiNodeCache.get(entityId)
+    cached?.iframe?.contentWindow?.postMessage({
+      source: 'unu-game-ui',
+      entityId,
+      message
+    }, '*')
+  }
+
+  private shouldShowEntityDebug(entity: Scene['entities'][number]) {
+    return (!this.isPlaying || this.playDebugEnabled) && entity.debugFrameVisible !== false
+  }
+
+  private async createTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent, showDebug: boolean) {
     const node = new Container()
     node.label = entityId
     node.x = transform.x
@@ -1513,7 +1690,6 @@ export class PixiRenderer {
           graphics.fill({ color, alpha: 0.9 })
         }
       }
-      const showDebug = !this.isPlaying || this.playDebugEnabled
       if (showDebug) {
         graphics.rect(x, y, tilemap.tileWidth, tilemap.tileHeight)
         graphics.stroke({ color: 0x1e2b3d, alpha: 0.65, width: 1 })
@@ -1525,7 +1701,7 @@ export class PixiRenderer {
     }
     node.addChild(graphics)
 
-    if (!this.isPlaying || this.playDebugEnabled) {
+    if (showDebug) {
       const label = new Text({
         text: `${entityName} (${tilemap.columns}x${tilemap.rows})`,
         style: { fill: '#cde8ff', fontSize: 12 }
@@ -1537,7 +1713,7 @@ export class PixiRenderer {
     return node
   }
 
-  private async getCachedTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent) {
+  private async getCachedTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent, showDebug: boolean) {
     const textureMapSig = Object.entries(tilemap.tileTextureMap || {})
       .map(([key, value]) => `${key}:${String(value || '').trim()}`)
       .sort()
@@ -1552,6 +1728,7 @@ export class PixiRenderer {
       tilemap.showCollision,
       this.isPlaying ? 1 : 0,
       this.playDebugEnabled ? 1 : 0,
+      showDebug ? 1 : 0,
       textureMapSig,
       tilemap.tiles.join(','),
       tilemap.collision.join(',')
@@ -1559,7 +1736,7 @@ export class PixiRenderer {
     const cached = this.worldNodeCache.get(entityId)
     if (cached && cached.kind === 'tilemap' && cached.signature === signature) return cached.node
 
-    const node = await this.createTilemapNode(entityId, entityName, transform, tilemap)
+    const node = await this.createTilemapNode(entityId, entityName, transform, tilemap, showDebug)
     if (cached) cached.node.destroy({ children: true })
     this.worldNodeCache.set(entityId, { kind: 'tilemap', signature, node })
     return node
@@ -1787,7 +1964,7 @@ export class PixiRenderer {
     sprite: SpriteComponent,
     collider: ColliderComponent | undefined
   ) {
-    const showDebug = !this.isPlaying || this.playDebugEnabled
+    const showDebug = this.shouldShowEntityDebug(entity)
     const signature = [
       entity.name,
       sprite.texturePath,
@@ -1865,7 +2042,7 @@ export class PixiRenderer {
   }
 
   private getCachedEmptyEntityNode(entity: Scene['entities'][number], transform: TransformComponent) {
-    const showDebug = !this.isPlaying || this.playDebugEnabled
+    const showDebug = this.shouldShowEntityDebug(entity)
     const signature = [entity.name, showDebug ? 1 : 0].join('|')
     const cached = this.worldNodeCache.get(entity.id)
     if (cached && cached.kind === 'empty' && cached.signature === signature) return cached.node
@@ -1902,13 +2079,15 @@ export class PixiRenderer {
     const half = EMPTY_ENTITY_EDITOR_SIZE / 2
     const markerColor = /spawn/i.test(`${entity.id} ${entity.name}`) ? 0xffc857 : 0x56b6c2
     marker.rect(-half, -half, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
-    marker.fill({ color: markerColor, alpha: 0.08 })
-    marker.stroke({ color: markerColor, alpha: 0.9, width: 2 })
-    marker.moveTo(-half, 0)
-    marker.lineTo(half, 0)
-    marker.moveTo(0, -half)
-    marker.lineTo(0, half)
-    marker.stroke({ color: markerColor, alpha: 0.75, width: 1 })
+    marker.fill({ color: markerColor, alpha: showDebug ? 0.08 : 0 })
+    marker.stroke({ color: markerColor, alpha: showDebug ? 0.9 : 0, width: 2 })
+    if (showDebug) {
+      marker.moveTo(-half, 0)
+      marker.lineTo(half, 0)
+      marker.moveTo(0, -half)
+      marker.lineTo(0, half)
+      marker.stroke({ color: markerColor, alpha: 0.75, width: 1 })
+    }
     marker.hitArea = new Rectangle(-half, -half, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
     node.addChild(marker)
 
@@ -2379,6 +2558,7 @@ export class PixiRenderer {
     this.inputState.detach()
     this.resizeObserver?.disconnect()
     window.removeEventListener('unu:layout-resize-end', this.layoutResizeEndHandler)
+    window.removeEventListener('message', this.htmlUiMessageHandler)
     this.cachedSceneRef = null
     this.clearSceneNodeCaches()
     this.htmlUiLayer.remove()
@@ -2405,7 +2585,8 @@ export class PixiRenderer {
     sprite: SpriteComponent,
     options: { targetWidth: number; targetHeight: number; fitMode: 'cover' | 'contain' },
     transform: TransformComponent,
-    entityName: string
+    entityName: string,
+    showDebug: boolean
   ) {
     const signature = [
       sprite.texturePath,
@@ -2421,6 +2602,7 @@ export class PixiRenderer {
       options.fitMode,
       this.isPlaying ? 1 : 0,
       this.playDebugEnabled ? 1 : 0,
+      showDebug ? 1 : 0,
       transform.rotation,
       transform.scaleX,
       transform.scaleY
@@ -2453,7 +2635,6 @@ export class PixiRenderer {
     const textureNode = await this.createSpriteNode(sprite, options)
     node.addChild(textureNode)
 
-    const showDebug = !this.isPlaying || this.playDebugEnabled
     if (showDebug) {
       const label = new Text({
         text: entityName,

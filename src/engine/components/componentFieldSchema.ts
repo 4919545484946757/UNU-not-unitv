@@ -65,14 +65,14 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
     boolean: ['enabled', 'boundsEnabled']
   },
   audio: {
-    number: ['volume'],
+    number: ['volume', 'playbackRate', 'fadeIn', 'fadeOut'],
     text: ['clipPath'],
-    boolean: ['enabled', 'loop', 'playOnStart', 'spatial', 'playing']
+    boolean: ['enabled', 'loop', 'playOnStart', 'spatial', 'playing', 'muted']
   },
   ui: {
     number: ['fontSize', 'width', 'height', 'alpha', 'anchorX', 'anchorY', 'paddingX', 'paddingY', 'cornerRadius', 'sliderValue', 'sliderMin', 'sliderMax'],
-    text: ['text', 'parentId', 'onClickScriptPath'],
-    boolean: ['enabled', 'visible', 'markdownEnabled', 'htmlEnabled', 'autoSize'],
+    text: ['text', 'parentId', 'onClickScriptPath', 'htmlSourcePath'],
+    boolean: ['enabled', 'visible', 'markdownEnabled', 'htmlEnabled', 'autoSize', 'autoWidth', 'autoHeight', 'htmlUseIframe', 'htmlAllowScripts', 'htmlBridgeEnabled'],
     color: ['textColor', 'backgroundColor']
   },
   tilemap: {

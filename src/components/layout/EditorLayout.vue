@@ -5,15 +5,15 @@
     <SceneListDialog />
     <KeymapDialog />
     <div ref="mainRef" class="editor-main" :style="mainStyle">
-      <LeftPanel />
-      <div class="resizer left-resizer" @mousedown.prevent="startResize('left', $event)"></div>
+      <LeftPanel v-if="editor.showLeftPanel" />
+      <div v-if="editor.showLeftPanel" class="resizer left-resizer" @mousedown.prevent="startResize('left', $event)"></div>
       <div ref="centerStackRef" class="center-stack" :style="centerStackStyle">
         <CenterViewport />
-        <div class="console-resizer" @mousedown.prevent="startConsoleResize"></div>
-        <EditorConsole />
+        <div v-if="editor.showBottomPanel" class="console-resizer" @mousedown.prevent="startConsoleResize"></div>
+        <EditorConsole v-if="editor.showBottomPanel" />
       </div>
-      <div class="resizer right-resizer" @mousedown.prevent="startResize('right', $event)"></div>
-      <RightPanel />
+      <div v-if="editor.showRightPanel" class="resizer right-resizer" @mousedown.prevent="startResize('right', $event)"></div>
+      <RightPanel v-if="editor.showRightPanel" />
     </div>
   </div>
 </template>
@@ -51,9 +51,14 @@ const centerStackHeight = ref(0)
 let cleanup: (() => void) | null = null
 let centerStackObserver: ResizeObserver | null = null
 
-const mainStyle = computed(() => ({
-  gridTemplateColumns: `${editor.leftPanelWidth}px ${RESIZER_WIDTH}px minmax(0, 1fr) ${RESIZER_WIDTH}px ${editor.rightPanelWidth}px`
-}))
+const mainStyle = computed(() => {
+  const columns = [
+    ...(editor.showLeftPanel ? [`${editor.leftPanelWidth}px`, `${RESIZER_WIDTH}px`] : []),
+    'minmax(0, 1fr)',
+    ...(editor.showRightPanel ? [`${RESIZER_WIDTH}px`, `${editor.rightPanelWidth}px`] : [])
+  ]
+  return { gridTemplateColumns: columns.join(' ') }
+})
 
 const effectiveConsoleHeight = computed(() => {
   const available = centerStackHeight.value || window.innerHeight
@@ -62,7 +67,9 @@ const effectiveConsoleHeight = computed(() => {
 })
 
 const centerStackStyle = computed(() => ({
-  gridTemplateRows: `minmax(${MIN_SCENE_VIEW_HEIGHT}px, 1fr) 6px ${effectiveConsoleHeight.value}px`
+  gridTemplateRows: editor.showBottomPanel
+    ? `minmax(${MIN_SCENE_VIEW_HEIGHT}px, 1fr) 6px ${effectiveConsoleHeight.value}px`
+    : 'minmax(0, 1fr)'
 }))
 
 function clampPanelWidths(nextLeft: number, nextRight: number) {

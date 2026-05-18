@@ -98,6 +98,10 @@ const defaultJsTemplate = `export default {
     const move = ctx.api.input.getMoveVector(true)
     const clicked = ctx.api.input.wasMousePressed(0)
   },
+  onHtmlMessage(ctx) {
+    // HTML Overlay 内可调用 window.UNU.emit('action', payload)
+    // 这里可读取 ctx.event.messageType / ctx.event.payload，并通过 ctx.api.ui.postMessage(...) 回发。
+  },
   onDestroy(ctx) {}
 }`
 
@@ -224,6 +228,10 @@ const builtinScriptTemplates: Record<string, string> = {
       ui.text = \`Clicked \${state.clickCount}\`
       ui.backgroundColor = state.clickCount % 2 === 0 ? 0x34528a : 0x4d8a34
     }
+  },
+  onHtmlMessage(ctx) {
+    ctx.api.log('[HTML UI]', ctx.event?.messageType, ctx.event?.payload)
+    ctx.api.ui.postMessage({ ok: true, received: ctx.event?.payload })
   }
 }`,
   'assets/scripts/enemy-chase-respawn.js': `export default {
@@ -260,6 +268,26 @@ const builtinScriptTemplates: Record<string, string> = {
     bgm: 0.8,
     sfx: 1,
     ui: 1
+  },
+  resolveOneShot(request) {
+    // 可在这里按难度、场景或音频分组替换音效、调整音量/速率、取消播放。
+    return {
+      options: {
+        ...request.options,
+        playbackRate: request.options.playbackRate ?? 1,
+        fadeIn: request.options.fadeIn ?? 0,
+        fadeOut: request.options.fadeOut ?? 0
+      }
+    }
+  },
+  resolveEntityAudio(request) {
+    // 实体 Audio 组件播放前会经过这里，适合做 BGM 淡入淡出或按实体状态换音频。
+    return {
+      volume: request.volume,
+      playbackRate: request.playbackRate,
+      fadeIn: request.fadeIn,
+      fadeOut: request.fadeOut
+    }
   }
 }`
 }

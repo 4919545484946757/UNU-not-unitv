@@ -19,9 +19,16 @@
         </select>
       </label>
       <label>Volume <input type="number" min="0" max="1" step="0.05" :value="audio.volume" @input="$emit('set-number', 'volume', $event)" /></label>
+      <label>Playback Rate <input type="number" min="0.25" max="4" step="0.05" :value="audio.playbackRate" @input="$emit('set-number', 'playbackRate', $event)" /></label>
+      <div class="two-column">
+        <label>Fade In (s)<input type="number" min="0" step="0.1" :value="audio.fadeIn" @input="$emit('set-number', 'fadeIn', $event)" /></label>
+        <label>Fade Out (s)<input type="number" min="0" step="0.1" :value="audio.fadeOut" @input="$emit('set-number', 'fadeOut', $event)" /></label>
+      </div>
       <label class="checkbox-row"><input type="checkbox" :checked="audio.loop" @change="$emit('set-checked', 'loop', $event)" />Loop</label>
+      <label class="checkbox-row"><input type="checkbox" :checked="audio.muted" @change="$emit('set-checked', 'muted', $event)" />Muted</label>
       <label class="checkbox-row"><input type="checkbox" :checked="audio.playOnStart" @change="$emit('set-checked', 'playOnStart', $event)" />Play On Start</label>
       <label class="checkbox-row"><input type="checkbox" :checked="audio.playing" @change="$emit('set-checked', 'playing', $event)" />Playing</label>
+      <p class="tips">Fade、Rate、Muted 会在播放态实时同步；脚本也可通过 ctx.api.audio 控制播放、停止、分组静音和 seek。</p>
     </template>
     <template v-else>
       <div class="tips">Current entity does not have Audio component.</div>
@@ -64,6 +71,7 @@ input:not([type='checkbox']), select {
   box-sizing: border-box;
 }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
+.two-column { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
 .asset-picker { display: flex; gap: 8px; align-items: center; font-size: 12px; color: #9bb0c9; min-width: 0; width: 100%; }
 .asset-picker span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-picker button, .small {

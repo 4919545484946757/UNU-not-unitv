@@ -225,10 +225,21 @@ Common `spawnBullet` options: `angle`, `targetX`, `targetY`, `speed`, `life`, `m
 | `ctx.api.audio.playOneShot(clipPath, options?)` | Plays a one-shot sound |
 | `ctx.api.audio.playEntity(target?)` | Plays the target entity's Audio component |
 | `ctx.api.audio.stopEntity(target?)` | Stops the target entity's Audio component |
+| `ctx.api.audio.pauseEntity(target?)` | Pauses the target entity's Audio component |
+| `ctx.api.audio.resumeEntity(target?)` | Resumes the target entity's Audio component |
+| `ctx.api.audio.seekEntity(seconds, target?)` | Seeks the target entity audio playback position |
+| `ctx.api.audio.getEntityState(target?)` | Gets current playback state for an entity audio |
+| `ctx.api.audio.stopGroup(group, fadeOut?)` | Stops all active audio in a group |
 | `ctx.api.audio.setMasterVolume(volume)` | Sets master volume |
+| `ctx.api.audio.setMasterMuted(muted)` | Mutes or unmutes master output |
 | `ctx.api.audio.setGroupVolume(group, volume)` | Sets an audio group volume |
+| `ctx.api.audio.setGroupMuted(group, muted)` | Mutes or unmutes an audio group |
 | `ctx.api.audio.getMasterVolume()` | Gets master volume |
+| `ctx.api.audio.getMasterMuted()` | Gets master mute state |
 | `ctx.api.audio.getGroupVolume(group)` | Gets an audio group volume |
+| `ctx.api.audio.getGroupMuted(group)` | Gets an audio group mute state |
+
+`playOneShot` options support `group`, `volume`, `loop`, `muted`, `playbackRate`, `fadeIn`, and `fadeOut`.
 
 ## Interaction JSON Actions
 
