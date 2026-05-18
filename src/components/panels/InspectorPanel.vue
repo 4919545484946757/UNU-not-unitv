@@ -2169,9 +2169,9 @@ h3 { margin: 0; }
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 20% 20%, rgba(111, 168, 220, 0.24), transparent 28%),
+    radial-gradient(circle at 20% 20%, rgba(111, 167, 220, 0.6), transparent 28%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01));
-  filter: blur(8px);
+  filter: blur(0.1px);
   opacity: 0.55;
 }
 .inactive-component-card:hover:not(:disabled) {
@@ -2188,8 +2188,9 @@ h3 { margin: 0; }
   width: 42px;
   height: 32px;
   border-radius: 10px;
-  background: rgba(10, 14, 22, 0.72);
+  background: rgba(10, 14, 22, 0);
   box-shadow: inset 0 0 0 1px rgba(159, 184, 220, 0.16);
+  backdrop-filter: blur(4px);
 }
 .inactive-copy {
   position: relative;
