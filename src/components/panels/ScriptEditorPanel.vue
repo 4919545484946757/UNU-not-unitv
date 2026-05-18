@@ -86,8 +86,8 @@ const selectedTextAssetPath = computed(() => {
   return ''
 })
 const mode = computed<'entity' | 'asset' | 'none'>(() => {
-  if (script.value) return 'entity'
   if (selectedTextAssetPath.value) return 'asset'
+  if (script.value && editor.rightTab === 'Script') return 'entity'
   return 'none'
 })
 
@@ -725,6 +725,13 @@ async function retargetExternalCodeEditorToAsset(path: string) {
   codeEditorSessionPath = path
   codeEditorSessionEntityId = ''
   codeEditorSessionAssetFilePath = nextFilePath
+  localExternalCodeEditorLocked.value = true
+  editor.lockScriptEditorExternal({
+    id: nextSessionId,
+    mode: 'asset',
+    targetId: path,
+    label: path
+  })
   project.setStatus(`独立代码窗口已切换到：${path}`)
 }
 
@@ -829,15 +836,20 @@ async function saveExternalAssetScript(content: string) {
 function handleExternalCodeEditorClosed(raw: unknown) {
   const payload = (raw || {}) as { id?: string; mode?: string }
   if (payload.mode === 'inspector-entity-script') {
+    localExternalCodeEditorLocked.value = false
     editor.unlockScriptEditorExternal(payload.id)
     project.setStatus('独立代码编辑窗口已关闭，右侧编辑器已解锁')
     return
   }
 
   if (payload.mode && payload.mode !== 'asset' && payload.mode !== 'entity') return
-  if (payload.id && codeEditorSessionId && payload.id !== codeEditorSessionId) return
+  const lock = editor.scriptEditorExternalLock
+  const closingId = String(payload.id || '')
+  const knownIds = [codeEditorSessionId, lock?.id || ''].filter(Boolean)
+  if (closingId && knownIds.length > 0 && !knownIds.includes(closingId)) return
   localExternalCodeEditorLocked.value = false
-  editor.unlockScriptEditorExternal(payload.id)
+  if (closingId) editor.unlockScriptEditorExternal(closingId)
+  editor.unlockScriptEditorExternal()
   codeEditorSessionId = ''
   codeEditorSessionMode = ''
   codeEditorSessionPath = ''

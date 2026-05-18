@@ -13,6 +13,13 @@
         <div class="readonly">ID: {{ entity.id }}</div>
       </div>
 
+      <section v-if="script" class="component-shell" :class="componentShellClass('script')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('script')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('script') ? '▸' : '▾' }}</button>
+          <div><strong>Script</strong><span>脚本路径与实体配置</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Script')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('script')" class="component-shell-content">
       <ScriptInspector
         :script="script"
         :selected-script-asset-path="selectedScriptAssetPath"
@@ -28,7 +35,15 @@
         @add-script="() => addScriptComponent()"
         @add-selected-script="addScriptComponentFromSelectedAsset"
       />
+        </div>
+      </section>
 
+      <section class="component-shell" :class="componentShellClass('transform')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('transform')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('transform') ? '▸' : '▾' }}</button>
+          <div><strong>Transform</strong><span>位置、缩放与旋转</span></div>
+        </div>
+        <div v-show="!isComponentCollapsed('transform')" class="component-shell-content">
       <TransformInspector
         :transform="transform"
         :rotation-degrees="formatRotationDegrees(transform.rotation)"
@@ -38,9 +53,17 @@
         @set-viewport-horizontal="setTransformViewportHorizontal"
         @set-viewport-vertical="setTransformViewportVertical"
       />
+        </div>
+      </section>
 
+      <section v-if="sprite" class="component-shell" :class="componentShellClass('sprite')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('sprite')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('sprite') ? '▸' : '▾' }}</button>
+          <div><strong>Sprite</strong><span>贴图、尺寸与颜色</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Sprite')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('sprite')" class="component-shell-content">
       <SpriteInspector
-        v-if="sprite"
         :sprite="sprite"
         :selected-image-path="selectedImageAssetPath"
         :hex-value="formatHexNumber(sprite.tint)"
@@ -51,7 +74,16 @@
         @set-checked="(key, event) => setChecked('sprite', key, event)"
         @apply-selected-image="void applySelectedImage()"
       />
+        </div>
+      </section>
 
+      <section v-if="background" class="component-shell" :class="componentShellClass('background')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('background')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('background') ? '▸' : '▾' }}</button>
+          <div><strong>Background</strong><span>背景跟随与适配</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Background')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('background')" class="component-shell-content">
       <BackgroundInspector
         :background="background"
         :selected-image-path="selectedImageAssetPath"
@@ -60,9 +92,16 @@
         @apply-selected-image="void applySelectedImageToBackground()"
         @add-background="addBackgroundComponent"
       />
+        </div>
+      </section>
 
-      <div class="group" v-if="animation || sprite">
-        <div class="group-title">Animation</div>
+      <div class="group component-shell" v-if="animation" :class="componentShellClass('animation')">
+        <div class="component-shell-header inline" @click="toggleComponentCollapsed('animation')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('animation') ? '▸' : '▾' }}</button>
+          <div><strong>Animation</strong><span>序列帧与状态机</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Animation')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('animation')" class="component-shell-content inline">
         <template v-if="animation">
           <label>FPS <input type="number" min="1" :value="animation.fps" @input="setNumber('animation', 'fps', $event)" /></label>
           <label>Animation Asset <input :value="animation.animationAssetPath" readonly /></label>
@@ -203,20 +242,34 @@
           <div class="tips">Current entity does not have Animation component.</div>
           <button class="small" @click="addAnimationComponent">Add Animation Component</button>
         </template>
+        </div>
       </div>
 
-      <ColliderInspector
-        v-if="collider"
-        :collider="collider"
-        :collision-layers="collisionLayers"
-        @set-number="(key, event) => setNumber('collider', key, event)"
-        @set-layer="setColliderLayer"
-        @set-mask-layer="setColliderMaskLayer"
-        @set-checked="(key, event) => setChecked('collider', key, event)"
-      />
+      <section v-if="collider" class="component-shell" :class="componentShellClass('collider')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('collider')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('collider') ? '▸' : '▾' }}</button>
+          <div><strong>Collider</strong><span>碰撞箱与触发器</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Collider')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('collider')" class="component-shell-content">
+          <ColliderInspector
+            :collider="collider"
+            :collision-layers="collisionLayers"
+            @set-number="(key, event) => setNumber('collider', key, event)"
+            @set-layer="setColliderLayer"
+            @set-mask-layer="setColliderMaskLayer"
+            @set-checked="(key, event) => setChecked('collider', key, event)"
+          />
+        </div>
+      </section>
 
-      <div class="group">
-        <div class="group-title">Interactable</div>
+      <div v-if="interactable" class="group component-shell" :class="componentShellClass('interactable')">
+        <div class="component-shell-header inline" @click="toggleComponentCollapsed('interactable')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('interactable') ? '▸' : '▾' }}</button>
+          <div><strong>Interactable</strong><span>交互距离与交互行为</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Interactable')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('interactable')" class="component-shell-content inline">
         <template v-if="interactable">
           <label class="checkbox-row">
             <input type="checkbox" :checked="interactable.enabled" @change="setChecked('interactable', 'enabled', $event)" />
@@ -274,10 +327,16 @@
           <div class="tips">Current entity does not have Interactable component.</div>
           <button class="small" @click="addInteractableComponent">Add Interactable Component</button>
         </template>
+        </div>
       </div>
 
-      <div class="group">
-        <div class="group-title">Tilemap</div>
+      <div v-if="tilemap" class="group component-shell" :class="componentShellClass('tilemap')">
+        <div class="component-shell-header inline" @click="toggleComponentCollapsed('tilemap')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('tilemap') ? '▸' : '▾' }}</button>
+          <div><strong>Tilemap</strong><span>Tile 数据与碰撞编辑</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Tilemap')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('tilemap')" class="component-shell-content inline">
         <template v-if="tilemap">
           <label class="checkbox-row">
             <input type="checkbox" :checked="tilemap.enabled" @change="setChecked('tilemap', 'enabled', $event)" />
@@ -324,10 +383,16 @@
           <div class="tips">Current entity does not have Tilemap component.</div>
           <button class="small" @click="addTilemapComponent">Add Tilemap Component</button>
         </template>
+        </div>
       </div>
 
-      <div class="group">
-        <div class="group-title">UI</div>
+      <div v-if="ui" class="group component-shell" :class="componentShellClass('ui')">
+        <div class="component-shell-header inline" @click="toggleComponentCollapsed('ui')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('ui') ? '▸' : '▾' }}</button>
+          <div><strong>UI</strong><span>文本、按钮与布局</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('UI')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('ui')" class="component-shell-content inline">
         <template v-if="ui">
           <label class="checkbox-row">
             <input type="checkbox" :checked="ui.enabled" @change="setChecked('ui', 'enabled', $event)" />
@@ -409,26 +474,98 @@
           <div class="tips">Current entity does not have UI component.</div>
           <button class="small" @click="addUIComponent">Add UI Component</button>
         </template>
+        </div>
       </div>
 
-      <AudioInspector
-        :audio="audio"
-        :selected-audio-path="selectedAudioAssetPath"
-        @set-number="(key, event) => setNumber('audio', key, event)"
-        @set-text="(key, event) => setText('audio', key, event)"
-        @set-checked="(key, event) => setChecked('audio', key, event)"
-        @set-group="setAudioGroup"
-        @apply-selected-audio="void applySelectedAudio()"
-        @add-audio="addAudioComponent"
-      />
+      <section v-if="audio" class="component-shell" :class="componentShellClass('audio')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('audio')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('audio') ? '▸' : '▾' }}</button>
+          <div><strong>Audio</strong><span>音频资源与播放设置</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Audio')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('audio')" class="component-shell-content">
+          <AudioInspector
+            :audio="audio"
+            :selected-audio-path="selectedAudioAssetPath"
+            @set-number="(key, event) => setNumber('audio', key, event)"
+            @set-text="(key, event) => setText('audio', key, event)"
+            @set-checked="(key, event) => setChecked('audio', key, event)"
+            @set-group="setAudioGroup"
+            @apply-selected-audio="void applySelectedAudio()"
+            @add-audio="addAudioComponent"
+          />
+        </div>
+      </section>
 
-      <CameraInspector
-        :camera="camera"
-        @set-number="(key, event) => setNumber('camera', key, event)"
-        @set-text="(key, event) => setText('camera', key, event)"
-        @set-checked="(key, event) => setChecked('camera', key, event)"
-        @add-camera="addCameraComponent"
-      />
+      <section v-if="camera" class="component-shell" :class="componentShellClass('camera')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('camera')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('camera') ? '▸' : '▾' }}</button>
+          <div><strong>Camera</strong><span>缩放、跟随和平滑</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Camera')">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed('camera')" class="component-shell-content">
+          <CameraInspector
+            :camera="camera"
+            @set-number="(key, event) => setNumber('camera', key, event)"
+            @set-text="(key, event) => setText('camera', key, event)"
+            @set-checked="(key, event) => setChecked('camera', key, event)"
+            @add-camera="addCameraComponent"
+          />
+        </div>
+      </section>
+
+      <section
+        v-for="custom in customComponents"
+        :key="custom.type"
+        class="component-shell custom-component-shell"
+        :class="componentShellClass(`custom:${custom.type}`)"
+      >
+        <div class="component-shell-header" @click="toggleComponentCollapsed(`custom:${custom.type}`)">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed(`custom:${custom.type}`) ? '▸' : '▾' }}</button>
+          <div>
+            <strong>{{ custom.type }}</strong>
+            <span>自定义 JSON 组件</span>
+          </div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeCustomComponent(custom.type)">删除</button>
+        </div>
+        <div v-show="!isComponentCollapsed(`custom:${custom.type}`)" class="component-shell-content inline">
+          <label>
+            Data (JSON)
+            <textarea :value="formatCustomComponentData(custom)" @change="setCustomComponentData(custom, $event)"></textarea>
+          </label>
+          <div class="tips">自定义组件会随场景序列化保存，脚本可按组件类型读取这些数据。</div>
+        </div>
+      </section>
+
+      <div v-if="inactiveComponentPanels.length" class="inactive-components">
+        <div class="inactive-title">可添加组件</div>
+        <button
+          v-for="panel in inactiveComponentPanels"
+          :key="panel.id"
+          class="inactive-component-card"
+          type="button"
+          :disabled="runtime.isPlaying || panel.id === 'transform'"
+          @click="addBuiltinComponent(panel.id)"
+        >
+          <span class="inactive-visual" aria-hidden="true"></span>
+          <span class="inactive-copy">
+            <strong>{{ panel.title }}</strong>
+            <span>{{ panel.description }}</span>
+          </span>
+          <span class="inactive-action">{{ panel.id === 'transform' ? 'Required' : '+ Add' }}</span>
+        </button>
+      </div>
+
+      <div class="custom-component-add">
+        <div>
+          <strong>Custom Component</strong>
+          <span>自定义组件始终排在最后，适合存放项目/脚本专用数据。</span>
+        </div>
+        <div class="row-inline">
+          <input v-model="customComponentName" placeholder="Component name, e.g. Health" @keydown.enter.prevent="addCustomComponent" />
+          <button class="small" :disabled="runtime.isPlaying" @click="addCustomComponent">Add Custom</button>
+        </div>
+      </div>
     </template>
 
     <div v-else class="empty">Select an entity in Scene Tree or Viewport first.</div>
@@ -442,13 +579,14 @@ import { AnimationComponent } from '../../engine/components/AnimationComponent'
 import { AudioComponent } from '../../engine/components/AudioComponent'
 import { BackgroundComponent } from '../../engine/components/BackgroundComponent'
 import { CameraComponent } from '../../engine/components/CameraComponent'
-import { COLLISION_LAYERS, DEFAULT_COLLISION_MASKS, type ColliderComponent, type CollisionLayer } from '../../engine/components/ColliderComponent'
+import { COLLISION_LAYERS, ColliderComponent, DEFAULT_COLLISION_MASKS, type CollisionLayer } from '../../engine/components/ColliderComponent'
 import { InteractableComponent } from '../../engine/components/InteractableComponent'
 import { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { SpriteComponent } from '../../engine/components/SpriteComponent'
 import { TilemapComponent } from '../../engine/components/TilemapComponent'
 import type { TransformComponent } from '../../engine/components/TransformComponent'
 import { UIComponent } from '../../engine/components/UIComponent'
+import { CustomComponent } from '../../engine/components/CustomComponent'
 import ScriptInspector from '../inspector/ScriptInspector.vue'
 import TransformInspector from '../inspector/TransformInspector.vue'
 import SpriteInspector from '../inspector/SpriteInspector.vue'
@@ -499,6 +637,44 @@ const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camer
 const audio = computed(() => entity.value?.getComponent<AudioComponent>('Audio') ?? null)
 const ui = computed(() => entity.value?.getComponent<UIComponent>('UI') ?? null)
 const tilemap = computed(() => entity.value?.getComponent<TilemapComponent>('Tilemap') ?? null)
+const collapsedComponents = ref<Record<string, boolean>>({})
+const customComponentName = ref('')
+
+type BuiltinComponentId = 'script' | 'transform' | 'sprite' | 'background' | 'animation' | 'collider' | 'interactable' | 'tilemap' | 'ui' | 'audio' | 'camera'
+
+interface InspectorComponentPanel {
+  id: BuiltinComponentId
+  type: string
+  title: string
+  description: string
+  removable: boolean
+  active: boolean
+}
+
+const componentPanelOrder: Array<Omit<InspectorComponentPanel, 'active'>> = [
+  { id: 'script', type: 'Script', title: 'Script', description: '挂载项目脚本、内联配置或实体交互逻辑。', removable: true },
+  { id: 'transform', type: 'Transform', title: 'Transform', description: '实体在世界或视窗中的位置、旋转和缩放。', removable: false },
+  { id: 'sprite', type: 'Sprite', title: 'Sprite', description: '贴图、尺寸、颜色和可见性设置。', removable: true },
+  { id: 'background', type: 'Background', title: 'Background', description: '背景图跟随摄像机、适配模式与背景资源绑定。', removable: true },
+  { id: 'animation', type: 'Animation', title: 'Animation', description: '序列帧、状态机和动画轨道设置。', removable: true },
+  { id: 'collider', type: 'Collider', title: 'Collider', description: '碰撞箱、触发器、碰撞层与碰撞矩阵。', removable: true },
+  { id: 'interactable', type: 'Interactable', title: 'Interactable', description: '交互距离、交互脚本和门/箱子等交互行为。', removable: true },
+  { id: 'tilemap', type: 'Tilemap', title: 'Tilemap', description: 'Tile 数据、碰撞数据和数值贴图绑定。', removable: true },
+  { id: 'ui', type: 'UI', title: 'UI', description: '文本、按钮、Slider、Markdown/HTML Overlay 和布局。', removable: true },
+  { id: 'audio', type: 'Audio', title: 'Audio', description: '音频资源、音量、循环和播放分组。', removable: true },
+  { id: 'camera', type: 'Camera', title: 'Camera', description: '摄像机缩放、跟随目标和平滑/边界设置。', removable: true }
+]
+
+const builtinComponentPanels = computed<InspectorComponentPanel[]>(() =>
+  componentPanelOrder.map((panel) => ({ ...panel, active: isBuiltinComponentActive(panel.id) }))
+)
+const inactiveComponentPanels = computed(() => builtinComponentPanels.value.filter((panel) => !panel.active))
+const customComponents = computed(() => {
+  const current = entity.value
+  if (!current) return []
+  const builtInTypes = new Set(componentPanelOrder.map((panel) => panel.type))
+  return current.getAllComponents().filter((component) => !builtInTypes.has(component.type)) as CustomComponent[]
+})
 const newAnimationStateName = ref('')
 const selectedAnimationStateName = ref('Idle')
 const animationStateClips = computed(() => animation.value?.stateMachine.clips ?? [])
@@ -653,6 +829,119 @@ function setEntityName(value: string) {
   if (!entity.value) return
   entity.value.name = value
   sceneStore.markDirty()
+}
+
+function componentShellClass(id: string) {
+  return {
+    collapsed: isComponentCollapsed(id)
+  }
+}
+
+function isComponentCollapsed(id: string) {
+  return Boolean(collapsedComponents.value[id])
+}
+
+function toggleComponentCollapsed(id: string) {
+  collapsedComponents.value = {
+    ...collapsedComponents.value,
+    [id]: !collapsedComponents.value[id]
+  }
+}
+
+function isBuiltinComponentActive(id: BuiltinComponentId) {
+  switch (id) {
+    case 'script': return Boolean(script.value)
+    case 'transform': return Boolean(transform.value)
+    case 'sprite': return Boolean(sprite.value)
+    case 'background': return Boolean(background.value)
+    case 'animation': return Boolean(animation.value)
+    case 'collider': return Boolean(collider.value)
+    case 'interactable': return Boolean(interactable.value)
+    case 'tilemap': return Boolean(tilemap.value)
+    case 'ui': return Boolean(ui.value)
+    case 'audio': return Boolean(audio.value)
+    case 'camera': return Boolean(camera.value)
+    default: return false
+  }
+}
+
+function addBuiltinComponent(id: BuiltinComponentId) {
+  if (runtime.isPlaying) return
+  switch (id) {
+    case 'script': addScriptComponent(); break
+    case 'sprite': addSpriteComponent(); break
+    case 'background': addBackgroundComponent(); break
+    case 'animation': addAnimationComponent(); break
+    case 'collider': addColliderComponent(); break
+    case 'interactable': addInteractableComponent(); break
+    case 'tilemap': addTilemapComponent(); break
+    case 'ui': addUIComponent(); break
+    case 'audio': addAudioComponent(); break
+    case 'camera': addCameraComponent(); break
+    case 'transform':
+    default:
+      break
+  }
+  collapsedComponents.value = { ...collapsedComponents.value, [id]: false }
+}
+
+function removeBuiltinComponent(type: string) {
+  if (runtime.isPlaying) return
+  if (!entity.value || type === 'Transform') return
+  if (!entity.value.getComponent(type)) return
+  if (!window.confirm(`确认删除 ${type} 组件吗？`)) return
+  entity.value.removeComponent(type)
+  sceneStore.markDirty()
+  project.setStatus(`已删除 ${type} 组件`)
+}
+
+function normalizeCustomComponentType(value: string) {
+  const base = value.trim().replace(/\s+/g, '')
+  if (!base) return ''
+  return base.startsWith('Custom:') ? base : `Custom:${base}`
+}
+
+function addCustomComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value) return
+  const type = normalizeCustomComponentType(customComponentName.value || `Component${customComponents.value.length + 1}`)
+  if (!type || entity.value.getComponent(type)) {
+    project.setStatus('自定义组件名称为空或已存在。')
+    return
+  }
+  entity.value.addComponent(new CustomComponent(type, { enabled: true }))
+  customComponentName.value = ''
+  collapsedComponents.value = { ...collapsedComponents.value, [`custom:${type}`]: false }
+  sceneStore.markDirty()
+  project.setStatus(`已添加自定义组件：${type}`)
+}
+
+function removeCustomComponent(type: string) {
+  if (runtime.isPlaying) return
+  if (!entity.value || !entity.value.getComponent(type)) return
+  if (!window.confirm(`确认删除自定义组件“${type}”吗？`)) return
+  entity.value.removeComponent(type)
+  sceneStore.markDirty()
+}
+
+function formatCustomComponentData(component: CustomComponent) {
+  try {
+    return JSON.stringify(component.data || {}, null, 2)
+  } catch {
+    return '{}'
+  }
+}
+
+function setCustomComponentData(component: CustomComponent, event: Event) {
+  if (runtime.isPlaying) return
+  const raw = (event.target as HTMLTextAreaElement).value
+  try {
+    const parsed = JSON.parse(raw || '{}')
+    component.data = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : { value: parsed }
+    sceneStore.markDirty()
+  } catch {
+    project.setStatus(`自定义组件 ${component.type} 的 JSON 暂未保存：格式不合法。`)
+  }
 }
 
 function setScriptEnabled(event: Event) {
@@ -1475,6 +1764,13 @@ function appendSelectedImageToAnimation() {
   sceneStore.markDirty()
 }
 
+function addSpriteComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || sprite.value) return
+  entity.value.addComponent(new SpriteComponent('', 80, 80, true, 1, 0xffffff, true))
+  sceneStore.markDirty()
+}
+
 function addAnimationComponent() {
   if (runtime.isPlaying) return
   if (!entity.value) return
@@ -1664,6 +1960,13 @@ function addTilemapComponent() {
   sceneStore.markDirty()
 }
 
+function addColliderComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || collider.value) return
+  entity.value.addComponent(new ColliderComponent('rect', 80, 80, 0, 0, false, 'Default', [...DEFAULT_COLLISION_MASKS.Default]))
+  sceneStore.markDirty()
+}
+
 function setUIMode(event: Event) {
   if (runtime.isPlaying) return
   if (!ui.value) return
@@ -1737,6 +2040,210 @@ function addCameraComponent() {
 h3 { margin: 0; }
 .group { padding: 12px; border-radius: 10px; background: #1a2030; display: grid; gap: 8px; min-width: 0; width: 100%; box-sizing: border-box; transition: all ease-in-out 0.1s; }
 .group:hover { background: #202637; }
+.component-shell {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(94, 112, 143, 0.28);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(30, 38, 55, 0.96), rgba(20, 26, 39, 0.96));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+  transition:
+    transform 180ms ease,
+    opacity 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+  animation: componentPanelIn 180ms ease both;
+}
+.component-shell:hover {
+  transform: translateY(-1px);
+  border-color: rgba(112, 139, 178, 0.46);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2);
+}
+.component-shell.collapsed {
+  background: linear-gradient(135deg, rgba(26, 33, 48, 0.92), rgba(18, 24, 36, 0.92));
+}
+.component-shell-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.component-shell-header.inline {
+  padding: 0 0 4px;
+}
+.component-shell-header strong {
+  display: block;
+  color: #e7eef9;
+  font-size: 13px;
+}
+.component-shell-header span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #8fa3bf;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collapse-toggle {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #303848;
+  border-radius: 8px;
+  background: #171e2b;
+  color: #dce7f5;
+  cursor: pointer;
+}
+.component-shell-content {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px 12px;
+}
+.component-shell-content.inline {
+  padding: 0;
+}
+.component-shell-content :deep(.group) {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.component-shell-content :deep(.group:hover) {
+  background: transparent;
+}
+.component-shell-content :deep(.group > .group-title) {
+  display: none;
+}
+.component-list-move,
+.component-list-enter-active,
+.component-list-leave-active {
+  transition: all 200ms ease;
+}
+.component-list-enter-from,
+.component-list-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.99);
+}
+.inactive-components {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.inactive-title {
+  color: #91a8c6;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.inactive-component-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(69, 82, 108, 0.45);
+  border-radius: 12px;
+  background: rgba(17, 23, 34, 0.52);
+  color: #dce7f5;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.inactive-component-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(111, 168, 220, 0.24), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.01));
+  filter: blur(8px);
+  opacity: 0.55;
+}
+.inactive-component-card:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(112, 157, 221, 0.68);
+  background: rgba(24, 33, 49, 0.74);
+}
+.inactive-component-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.inactive-visual {
+  position: relative;
+  width: 42px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(10, 14, 22, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(159, 184, 220, 0.16);
+}
+.inactive-copy {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.inactive-copy strong {
+  font-size: 13px;
+}
+.inactive-copy span {
+  overflow: hidden;
+  color: #91a4bd;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inactive-action {
+  position: relative;
+  color: #9bd4ff;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.custom-component-shell {
+  border-color: rgba(92, 138, 118, 0.42);
+}
+.custom-component-add {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px dashed rgba(117, 142, 178, 0.42);
+  border-radius: 12px;
+  background: rgba(17, 23, 34, 0.55);
+}
+.custom-component-add strong {
+  display: block;
+  color: #dbe7f5;
+  font-size: 13px;
+}
+.custom-component-add span {
+  color: #8fa3bf;
+  font-size: 12px;
+}
+@keyframes componentPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 .subgroup { border: 1px solid #2b3344; border-radius: 8px; padding: 8px; display: grid; gap: 8px; background: #161d2a; min-width: 0; width: 100%; box-sizing: border-box; }
 .group-title { color: #9bb0c9; font-size: 13px; }
 label { display: grid; gap: 6px; font-size: 13px; min-width: 0; width: 100%; }

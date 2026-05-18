@@ -2554,7 +2554,7 @@
               "y": -90,
               "scaleX": 1,
               "scaleY": 1,
-              "rotation": 0,
+              "rotation": 1.5707963267948966,
               "anchorX": 0.5,
               "anchorY": 0.5,
               "zIndex": 18,

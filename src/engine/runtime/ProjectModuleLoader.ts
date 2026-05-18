@@ -13,6 +13,7 @@ export function parseProjectRuntimeRegistry(
 ) {
   const raw = String(sourceCode || '').trim()
   if (!raw) return {}
+  if (isJsonConfigScript(raw)) return {}
   try {
     const transpiled = ts.transpileModule(raw, {
       compilerOptions: {
@@ -85,6 +86,16 @@ export function normalizeRuntimeError(
     entityId: fallback.entityId,
     entityName: fallback.entityName,
     stack
+  }
+}
+
+function isJsonConfigScript(raw: string) {
+  if (!raw.startsWith('{') && !raw.startsWith('[')) return false
+  try {
+    JSON.parse(raw)
+    return true
+  } catch {
+    return false
   }
 }
 

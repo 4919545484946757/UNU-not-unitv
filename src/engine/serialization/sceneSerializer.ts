@@ -9,6 +9,7 @@ import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
 import { UIComponent } from '../components/UIComponent'
+import { CustomComponent } from '../components/CustomComponent'
 import { Entity } from '../core/Entity'
 import { Scene } from '../core/Scene'
 import type { ComponentData, EntityData, SceneData, SerializedSceneData } from '../scene/sceneData'
@@ -45,10 +46,18 @@ export function serializeEntity(entity: Entity): SerializedEntity {
     prefabSourcePath: entity.prefabSourcePath || undefined,
     prefabVariantBasePath: entity.prefabVariantBasePath || undefined,
     sceneFolderPath: entity.sceneFolderPath || undefined,
-    components: entity.getAllComponents().map((component) => ({
-      type: component.type,
-      data: JSON.parse(JSON.stringify(component))
-    }))
+    components: entity.getAllComponents().map((component) => {
+      if (component instanceof CustomComponent) {
+        return {
+          type: component.type,
+          data: JSON.parse(JSON.stringify(component.data || {}))
+        }
+      }
+      return {
+        type: component.type,
+        data: JSON.parse(JSON.stringify(component))
+      }
+    })
   }
 }
 
@@ -327,6 +336,7 @@ export function deserializeEntity(entityData: SerializedEntity) {
         )
         break
       default:
+        entity.addComponent(new CustomComponent(String(componentData.type || 'Custom'), { ...data }))
         break
     }
   }

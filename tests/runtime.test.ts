@@ -107,4 +107,22 @@ describe('ScriptRuntime', () => {
     expect(errors[0].line).toBeGreaterThanOrEqual(1)
     warn.mockRestore()
   })
+
+  it('ignores JSON-only script config assets during module compilation', () => {
+    const errors: ScriptRuntimeError[] = []
+    const runtime = new ScriptRuntime()
+    runtime.setErrorReporter((error) => errors.push(error))
+
+    runtime.setProjectRuntimeSources([
+      {
+        path: 'assets/scripts/player-input.js',
+        content: `{
+          "moveSpeed": 140,
+          "sprintSpeed": 280
+        }`
+      }
+    ])
+
+    expect(errors).toHaveLength(0)
+  })
 })

@@ -51,3 +51,52 @@ defineEmits<{
   'set-viewport-vertical': [event: Event]
 }>()
 </script>
+
+<style scoped>
+.group {
+  padding: 12px;
+  border-radius: 10px;
+  background: #1a2030;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all ease-in-out 0.1s;
+}
+
+.group:hover {
+  background: #202637;
+}
+
+.group-title {
+  color: #9bb0c9;
+  font-size: 13px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+  width: 100%;
+}
+
+input:not([type='checkbox']),
+select {
+  background: #0f141d;
+  color: #ecf0f7;
+  border: 1px solid #313a4a;
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.tips {
+  color: #a8b5c7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+</style>

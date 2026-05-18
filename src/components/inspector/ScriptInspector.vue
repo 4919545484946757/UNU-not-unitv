@@ -60,3 +60,133 @@ defineEmits<{
   'add-selected-script': []
 }>()
 </script>
+
+<style scoped>
+.group {
+  padding: 12px;
+  border-radius: 10px;
+  background: #1a2030;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all ease-in-out 0.1s;
+}
+
+.group:hover {
+  background: #202637;
+}
+
+.group-title {
+  color: #9bb0c9;
+  font-size: 13px;
+}
+
+label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+  width: 100%;
+}
+
+input:not([type='checkbox']) {
+  background: #0f141d;
+  color: #ecf0f7;
+  border: 1px solid #313a4a;
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.script-link-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #2a3446;
+  border-radius: 8px;
+  background: #131b28;
+}
+
+.script-link-card strong {
+  display: block;
+  color: #dbe7f5;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.script-link-card span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8fa3bf;
+  font-size: 12px;
+}
+
+.asset-picker {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #9bb0c9;
+  min-width: 0;
+  width: 100%;
+}
+
+.asset-picker span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-picker button,
+.small {
+  border: 1px solid #303848;
+  background: #202632;
+  color: #ecf0f7;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.asset-picker button:disabled,
+.small:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.small.danger {
+  border-color: #5b2631;
+  background: #3b1e27;
+}
+
+.row-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.tips {
+  color: #a8b5c7;
+  font-size: 12px;
+  line-height: 1.45;
+}
+</style>
