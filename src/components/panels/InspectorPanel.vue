@@ -566,6 +566,7 @@
           <button class="small" :disabled="runtime.isPlaying" @click="addCustomComponent">Add Custom</button>
         </div>
       </div>
+      <div style="margin-bottom: 10px;"></div>
     </template>
 
     <div v-else class="empty">Select an entity in Scene Tree or Viewport first.</div>
@@ -2149,7 +2150,7 @@ h3 { margin: 0; }
 .inactive-component-card {
   position: relative;
   display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
+  grid-template-columns: 2px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   min-width: 0;
@@ -2185,7 +2186,7 @@ h3 { margin: 0; }
 }
 .inactive-visual {
   position: relative;
-  width: 42px;
+  width: 2px;
   height: 32px;
   border-radius: 10px;
   background: rgba(10, 14, 22, 0);

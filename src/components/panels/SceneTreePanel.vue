@@ -37,7 +37,7 @@
       <li
         v-for="entity in orderedEntities"
         :key="entity.id"
-        class="entity-row"
+        class="entity-row layer-row"
         :class="{ active: selection.selectedEntityIdSet.has(entity.id), 'primary-active': selection.selectedEntityId === entity.id, 'drop-target': dragOverPath === `layer:${entity.id}` }"
         :draggable="!runtime.isPlaying"
         @click="selectEntity(entity.id, $event)"
@@ -642,6 +642,9 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 .entity-row.folder:hover {
   background: #313a51;
+}
+.layer-row {
+  background: #1a2030;
 }
 .folder-meta span { color: #e5f2bf; }
 .folder-caret {
