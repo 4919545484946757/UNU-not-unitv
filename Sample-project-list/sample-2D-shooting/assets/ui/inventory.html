@@ -278,6 +278,7 @@
   <script>
     let equipment = { helmet: '', chest: '', leggings: '', boots: '' };
     let items = new Array(24).fill('');
+    let itemDefs = {};
     let selectedHotbar = 1;
     let dragSlotId = '';
     let playerTexture = '';
@@ -289,7 +290,7 @@
       slot.dataset.slot = id;
       slot.innerHTML = `
         <div class="slot-label"><span style="display: none;">${label}</span>${hotkey ? `<span class="hotkey">${hotkey}</span>` : ''}</div>
-        <div class="slot-item">${item || '空'}</div>
+        <div class="slot-item">${displayItem(item)}</div>
       `;
       slot.addEventListener('dragstart', () => { dragSlotId = id; });
       slot.addEventListener('dragover', (event) => {
@@ -338,6 +339,9 @@
           if (hotbar) setHotbar(hotbar);
           window.UNU?.emit('select-slot', { slotId: `bag:${index}`, index, item, hotbar });
         });
+        slot.addEventListener('dblclick', () => {
+          window.UNU?.emit('use-item', { slotId: `bag:${index}`, index, item, hotbar, selectedHotbar, items, equipment });
+        });
         grid.appendChild(slot);
       });
       document.getElementById('selectedText').textContent = `当前手持：${heldItemName()}`;
@@ -347,10 +351,22 @@
       if (!fromId || !toId || fromId === toId) return;
       const from = readSlot(fromId);
       const to = readSlot(toId);
+      if (!canPlaceItem(from, toId) || !canPlaceItem(to, fromId)) {
+        window.UNU?.emit('select-slot', { slotId: toId, item: from, message: '装备槽不匹配' });
+        return;
+      }
       writeSlot(fromId, to);
       writeSlot(toId, from);
       renderAll();
       emitInventoryChanged();
+    }
+
+    function canPlaceItem(itemId, slotId) {
+      const id = String(itemId || '');
+      if (!id || !slotId.startsWith('equip:')) return true;
+      const slot = slotId.slice(6);
+      const def = itemDefs[id] || {};
+      return def.type === 'equipment' && def.equipSlot === slot;
     }
 
     function readSlot(slotId) {
@@ -371,7 +387,7 @@
     }
 
     function heldItemName() {
-      return items[17 + selectedHotbar] || '空手';
+      return displayItem(items[17 + selectedHotbar]) || '空手';
     }
 
     function emitInventoryChanged(type = 'inventory-changed') {
@@ -396,9 +412,16 @@
           boots: String(message.equipment.boots || '')
         };
       }
+      if (message.itemDefs && typeof message.itemDefs === 'object') itemDefs = message.itemDefs;
       if (message.playerTexture) playerTexture = String(message.playerTexture || '');
       if (Number.isFinite(Number(message.selectedHotbar))) selectedHotbar = Math.max(1, Math.min(6, Number(message.selectedHotbar) || 1));
       renderAll();
+    }
+
+    function displayItem(itemId) {
+      const id = String(itemId || '');
+      if (!id) return '空';
+      return itemDefs[id]?.displayName || id;
     }
 
     function renderAll() {

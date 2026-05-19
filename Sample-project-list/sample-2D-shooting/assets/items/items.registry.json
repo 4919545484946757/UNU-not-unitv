@@ -1,0 +1,85 @@
+{
+  "format": "unu-item-registry",
+  "version": 1,
+  "project": "sample-2D-shooting",
+  "namespace": "sample-2D-shooting",
+  "itemRoot": "assets/items",
+  "items": [
+    {
+      "id": "sample-2D-shooting:bandage",
+      "file": "bandage.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:medkit",
+      "file": "medkit.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:scp_500",
+      "file": "scp_500.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:light_helmet",
+      "file": "light_helmet.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:light_chest",
+      "file": "light_chest.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:light_leggings",
+      "file": "light_leggings.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:light_boots",
+      "file": "light_boots.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:heavy_helmet",
+      "file": "heavy_helmet.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:heavy_chest",
+      "file": "heavy_chest.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:heavy_leggings",
+      "file": "heavy_leggings.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:heavy_boots",
+      "file": "heavy_boots.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:debug_crown",
+      "file": "debug_crown.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:auto_rifle",
+      "file": "auto_rifle.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:precision_rifle",
+      "file": "precision_rifle.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:sniper_rifle",
+      "file": "sniper_rifle.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:shotgun",
+      "file": "shotgun.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:access_card",
+      "file": "access_card.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:debug_spawn_enemy",
+      "file": "debug_spawn_enemy.item.json"
+    },
+    {
+      "id": "sample-2D-shooting:debug_teleport",
+      "file": "debug_teleport.item.json"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:shotgun",
+  "namespace": "sample-2D-shooting",
+  "name": "shotgun",
+  "displayName": "???",
+  "type": "weapon",
+  "maxStack": 1,
+  "description": "??????????????????? R ?????",
+  "script": "assets/items/scripts/shotgun.js",
+  "tags": [
+    "weapon",
+    "firearm"
+  ],
+  "attributes": {
+    "fireMode": "semi",
+    "magazineSize": 7,
+    "reserveAmmo": 42,
+    "fireInterval": 0.34,
+    "reloadMode": "shell",
+    "shellReloadInterval": 0.42,
+    "bulletSpeed": 840,
+    "spread": 0.18,
+    "pellets": 7,
+    "damage": 12
+  }
+}

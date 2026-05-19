@@ -1,0 +1,26 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:auto_rifle",
+  "namespace": "sample-2D-shooting",
+  "name": "auto_rifle",
+  "displayName": "????",
+  "type": "weapon",
+  "maxStack": 1,
+  "description": "????????30 ??????????????",
+  "script": "assets/items/scripts/auto_rifle.js",
+  "tags": [
+    "weapon",
+    "firearm"
+  ],
+  "attributes": {
+    "fireMode": "auto",
+    "magazineSize": 30,
+    "reserveAmmo": 180,
+    "fireInterval": 0.08,
+    "reloadTime": 1.55,
+    "bulletSpeed": 980,
+    "spread": 0.025,
+    "damage": 18
+  }
+}

@@ -3,7 +3,7 @@
   "version": 1,
   "name": "sample-2D-shooting",
   "createdAt": "2026-04-24T03:20:39.708Z",
-  "updatedAt": "2026-05-11T07:01:04.143Z",
+  "updatedAt": "2026-05-19T08:53:56.292Z",
   "sceneCatalogVersion": 1,
   "sceneCatalog": [
     {
@@ -23,5 +23,7 @@
     "scenes": "assets/scripts/scenes",
     "interactions": "assets/scripts/interactions"
   },
-  "sampleManifest": "manifest.json"
+  "sampleManifest": "manifest.json",
+  "itemRegistry": "assets/items/items.registry.json",
+  "itemRoot": "assets/items"
 }

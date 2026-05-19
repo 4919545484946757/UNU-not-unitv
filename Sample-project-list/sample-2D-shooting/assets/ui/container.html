@@ -226,6 +226,7 @@
   <script>
     let chestItems = new Array(30).fill('');
     let bagItems = new Array(24).fill('');
+    let itemDefs = {};
     let chestName = 'Chest';
     let dragSlotId = '';
 
@@ -236,7 +237,7 @@
       slot.dataset.slot = id;
       slot.innerHTML = `
         <div class="slot-label"><span>${label}</span>${hotkey ? `<span class="hotkey">${hotkey}</span>` : ''}</div>
-        <div class="slot-item">${item || '空'}</div>
+        <div class="slot-item">${displayItem(item)}</div>
       `;
       slot.addEventListener('dragstart', () => { dragSlotId = id; });
       slot.addEventListener('dragover', (event) => {
@@ -304,9 +305,16 @@
       if (message?.type !== 'container-state') return;
       chestItems = normalizeItems(message.chestItems, 30);
       bagItems = normalizeItems(message.bagItems, 24);
+      if (message.itemDefs && typeof message.itemDefs === 'object') itemDefs = message.itemDefs;
       chestName = String(message.chestName || 'Chest');
       render();
     });
+
+    function displayItem(itemId) {
+      const id = String(itemId || '');
+      if (!id) return '空';
+      return itemDefs[id]?.displayName || id;
+    }
 
     window.addEventListener('keydown', (event) => {
       if (event.code === 'KeyE') window.UNU?.emit('close', {});

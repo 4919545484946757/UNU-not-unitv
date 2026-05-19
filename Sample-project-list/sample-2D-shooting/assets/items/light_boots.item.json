@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:light_boots",
+  "namespace": "sample-2D-shooting",
+  "name": "light_boots",
+  "displayName": "???",
+  "type": "equipment",
+  "equipSlot": "boots",
+  "maxStack": 1,
+  "description": "?????????????????",
+  "script": "assets/items/scripts/light_boots.js",
+  "tags": [
+    "armor",
+    "boots"
+  ],
+  "attributes": {
+    "percentReduction": 0.03,
+    "moveSpeedMultiplier": 0.99
+  }
+}

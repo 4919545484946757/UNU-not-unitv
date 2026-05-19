@@ -4,9 +4,7 @@
   "scene": {
     "id": "scene_main",
     "name": "MainScene",
-    "sceneFolders": [
-      "UI"
-    ],
+    "sceneFolders": [],
     "entities": [
       {
         "id": "background_main_001",
@@ -1479,7 +1477,7 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/interactions/door-switch-scene.js",
-              "sourceCode": "{\n  \"scene\": \"SecondScene\",\n  \"targetSpawnId\": \"Spawn_From_Main\",\n  \"sceneStateMode\": \"preserve\"\n}",
+              "sourceCode": "{\n  \"scene\": \"SecondScene\",\n  \"targetSpawnId\": \"Spawn_From_Main\",\n  \"sceneStateMode\": \"preserve\",\n  \"locked\": true,\n  \"requiresAccessCard\": true\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
@@ -1565,6 +1563,46 @@
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Chest",
+              "capacity": 30,
+              "items": [
+                "sample-2D-shooting:bandage",
+                "sample-2D-shooting:medkit",
+                "sample-2D-shooting:heavy_helmet",
+                "sample-2D-shooting:heavy_chest",
+                "sample-2D-shooting:heavy_leggings",
+                "sample-2D-shooting:heavy_boots",
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "sample-2D-shooting:scp_500",
+                "sample-2D-shooting:debug_crown",
+                "",
+                "",
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "sample-2D-shooting:auto_rifle",
+                "sample-2D-shooting:precision_rifle",
+                "sample-2D-shooting:sniper_rifle",
+                "sample-2D-shooting:shotgun",
+                "sample-2D-shooting:medkit",
+                "",
+                "sample-2D-shooting:access_card",
+                "sample-2D-shooting:debug_spawn_enemy",
+                "sample-2D-shooting:debug_teleport",
+                "sample-2D-shooting:light_boots",
+                "",
+                ""
+              ]
             }
           }
         ]
@@ -1796,6 +1834,54 @@
               "initialized": false,
               "started": false
             }
+          },
+          {
+            "type": "Health",
+            "data": {
+              "type": "Health",
+              "max": 100,
+              "current": 100
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Player",
+              "capacity": 24,
+              "items": [
+                "sample-2D-shooting:bandage",
+                "sample-2D-shooting:bandage",
+                "sample-2D-shooting:medkit",
+                "sample-2D-shooting:heavy_helmet",
+                "sample-2D-shooting:heavy_chest",
+                "sample-2D-shooting:heavy_leggings",
+                "sample-2D-shooting:heavy_boots",
+                "sample-2D-shooting:debug_crown",
+                "sample-2D-shooting:scp_500",
+                "sample-2D-shooting:debug_teleport",
+                "",
+                "",
+                "sample-2D-shooting:light_helmet",
+                "sample-2D-shooting:light_chest",
+                "sample-2D-shooting:light_leggings",
+                "sample-2D-shooting:light_boots",
+                "sample-2D-shooting:access_card",
+                "sample-2D-shooting:debug_spawn_enemy",
+                "sample-2D-shooting:auto_rifle",
+                "sample-2D-shooting:precision_rifle",
+                "sample-2D-shooting:sniper_rifle",
+                "sample-2D-shooting:shotgun",
+                "sample-2D-shooting:medkit",
+                "sample-2D-shooting:scp_500"
+              ],
+              "equipment": {
+                "helmet": "sample-2D-shooting:light_helmet",
+                "chest": "sample-2D-shooting:light_chest",
+                "leggings": "sample-2D-shooting:light_leggings",
+                "boots": "sample-2D-shooting:light_boots"
+              }
+            }
           }
         ]
       },
@@ -1902,11 +1988,41 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/enemy-chase-respawn.js",
-              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160,\n  \"maxHealth\": 120,\n  \"contactDamage\": 10,\n  \"contactDamageInterval\": 0.9\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Enemy",
+              "capacity": 12,
+              "items": [
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ]
+            }
+          },
+          {
+            "type": "Health",
+            "data": {
+              "type": "Health",
+              "max": 120,
+              "current": 120
             }
           }
         ]
@@ -2014,11 +2130,41 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/enemy-chase-respawn.js",
-              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160,\n  \"maxHealth\": 120,\n  \"contactDamage\": 10,\n  \"contactDamageInterval\": 0.9\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Enemy",
+              "capacity": 12,
+              "items": [
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ]
+            }
+          },
+          {
+            "type": "Health",
+            "data": {
+              "type": "Health",
+              "max": 120,
+              "current": 120
             }
           }
         ]
@@ -2126,11 +2272,41 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/enemy-chase-respawn.js",
-              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160\n}",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160,\n  \"maxHealth\": 120,\n  \"contactDamage\": 10,\n  \"contactDamageInterval\": 0.9\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Enemy",
+              "capacity": 12,
+              "items": [
+                "",
+                "",
+                "sample-2D-shooting:medkit",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ]
+            }
+          },
+          {
+            "type": "Health",
+            "data": {
+              "type": "Health",
+              "max": 120,
+              "current": 120
             }
           }
         ]
@@ -2212,6 +2388,46 @@
               "tintCycle": [],
               "targetSpawnId": "",
               "sceneStateMode": "preserve"
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Chest",
+              "capacity": 30,
+              "items": [
+                "sample-2D-shooting:bandage",
+                "sample-2D-shooting:medkit",
+                "sample-2D-shooting:heavy_helmet",
+                "sample-2D-shooting:heavy_chest",
+                "sample-2D-shooting:heavy_leggings",
+                "sample-2D-shooting:heavy_boots",
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "sample-2D-shooting:scp_500",
+                "sample-2D-shooting:debug_crown",
+                "",
+                "",
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "sample-2D-shooting:auto_rifle",
+                "sample-2D-shooting:precision_rifle",
+                "sample-2D-shooting:sniper_rifle",
+                "sample-2D-shooting:shotgun",
+                "sample-2D-shooting:medkit",
+                "",
+                "sample-2D-shooting:access_card",
+                "sample-2D-shooting:debug_spawn_enemy",
+                "sample-2D-shooting:debug_teleport",
+                "sample-2D-shooting:light_boots",
+                "",
+                ""
+              ]
             }
           }
         ]
@@ -2632,6 +2848,46 @@
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "Chest",
+              "capacity": 30,
+              "items": [
+                "sample-2D-shooting:bandage",
+                "sample-2D-shooting:medkit",
+                "sample-2D-shooting:heavy_helmet",
+                "sample-2D-shooting:heavy_chest",
+                "sample-2D-shooting:heavy_leggings",
+                "sample-2D-shooting:heavy_boots",
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "sample-2D-shooting:scp_500",
+                "sample-2D-shooting:debug_crown",
+                "",
+                "",
+                "",
+                "sample-2D-shooting:bandage",
+                "",
+                "",
+                "sample-2D-shooting:auto_rifle",
+                "sample-2D-shooting:precision_rifle",
+                "sample-2D-shooting:sniper_rifle",
+                "sample-2D-shooting:shotgun",
+                "sample-2D-shooting:medkit",
+                "",
+                "sample-2D-shooting:access_card",
+                "sample-2D-shooting:debug_spawn_enemy",
+                "sample-2D-shooting:debug_teleport",
+                "sample-2D-shooting:light_boots",
+                "",
+                ""
+              ]
             }
           }
         ]
@@ -4500,7 +4756,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": 45,
+              "zIndex": 46,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"

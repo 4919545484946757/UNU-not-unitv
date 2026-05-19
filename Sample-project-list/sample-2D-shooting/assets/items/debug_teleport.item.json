@@ -1,0 +1,17 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:debug_teleport",
+  "namespace": "sample-2D-shooting",
+  "name": "debug_teleport",
+  "displayName": "??-??",
+  "type": "debugTool",
+  "maxStack": 1,
+  "description": "??????????????????",
+  "script": "assets/items/scripts/debug_teleport.js",
+  "tags": [
+    "debug",
+    "tool"
+  ],
+  "attributes": {}
+}

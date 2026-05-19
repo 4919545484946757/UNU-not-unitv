@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:light_chest",
+  "namespace": "sample-2D-shooting",
+  "name": "light_chest",
+  "displayName": "????",
+  "type": "equipment",
+  "equipSlot": "chest",
+  "maxStack": 1,
+  "description": "?????????????????",
+  "script": "assets/items/scripts/light_chest.js",
+  "tags": [
+    "armor",
+    "chest"
+  ],
+  "attributes": {
+    "percentReduction": 0.07,
+    "moveSpeedMultiplier": 0.97
+  }
+}

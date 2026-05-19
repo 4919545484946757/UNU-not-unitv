@@ -9,7 +9,7 @@ export function createBulletEntity(
   x: number,
   y: number,
   angle: number,
-  config?: { speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number }
+  config?: { speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number; damage?: number }
 ) {
   const width = clampNumber(Number(config?.width ?? 20), 1, 2048)
   const height = clampNumber(Number(config?.height ?? 8), 1, 2048)
@@ -17,7 +17,8 @@ export function createBulletEntity(
   const scriptConfig = {
     speed: clampNumber(Number(config?.speed ?? 420), 1, 10000),
     life: clampNumber(Number(config?.life ?? 2), 0.05, 120),
-    maxDistance: clampNumber(Number(config?.maxDistance ?? 560), 1, 200000)
+    maxDistance: clampNumber(Number(config?.maxDistance ?? 560), 1, 200000),
+    damage: clampNumber(Number(config?.damage ?? 18), 0, 100000)
   }
   const bullet = new Entity(`bullet_${Math.random().toString(36).slice(2, 8)}`, 'Bullet')
   bullet.addComponent(new TransformComponent(x, y, 1, 1, angle, 0.5, 0.5))

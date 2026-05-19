@@ -603,7 +603,9 @@ export class ScriptRuntime {
           const transform = source.getComponent<TransformComponent>('Transform')
           const collider = source.getComponent<ColliderComponent>('Collider')
           if (!transform || !collider || !this.activeScene) return null
-          return findFirstEntityOverlap(this.activeScene, source.id, transform, collider, matcher ?? null) ?? null
+          const hit = findFirstEntityOverlap(this.activeScene, source.id, transform, collider, matcher ?? null) ?? null
+          if (hit && this.pendingRemovals.has(hit.id)) return null
+          return hit
         },
         isTouching: (left: Entity, right: Entity) => {
           const leftTransform = left.getComponent<TransformComponent>('Transform')
@@ -664,7 +666,7 @@ export class ScriptRuntime {
         },
         spawnBullet: (
           source?: Entity,
-          options?: { angle?: number; targetX?: number; targetY?: number; speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number }
+          options?: { angle?: number; targetX?: number; targetY?: number; speed?: number; life?: number; maxDistance?: number; width?: number; height?: number; tint?: number; damage?: number }
         ) => {
           const base = source ?? entity
           const transform = base.getComponent<TransformComponent>('Transform')
@@ -679,7 +681,8 @@ export class ScriptRuntime {
             maxDistance: Number(options?.maxDistance),
             width: Number(options?.width),
             height: Number(options?.height),
-            tint: Number(options?.tint)
+            tint: Number(options?.tint),
+            damage: Number(options?.damage)
           })
           this.pendingSpawns.push(spawned)
           return spawned

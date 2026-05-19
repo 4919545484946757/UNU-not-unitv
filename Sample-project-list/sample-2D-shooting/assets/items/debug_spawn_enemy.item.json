@@ -1,0 +1,17 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:debug_spawn_enemy",
+  "namespace": "sample-2D-shooting",
+  "name": "debug_spawn_enemy",
+  "displayName": "??-????",
+  "type": "debugTool",
+  "maxStack": 1,
+  "description": "??????????????? Enemy?",
+  "script": "assets/items/scripts/debug_spawn_enemy.js",
+  "tags": [
+    "debug",
+    "tool"
+  ],
+  "attributes": {}
+}

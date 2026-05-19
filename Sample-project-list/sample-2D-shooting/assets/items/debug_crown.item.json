@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:debug_crown",
+  "namespace": "sample-2D-shooting",
+  "name": "debug_crown",
+  "displayName": "??-??",
+  "type": "equipment",
+  "equipSlot": "helmet",
+  "maxStack": 1,
+  "description": "?????????????",
+  "script": "assets/items/scripts/debug_crown.js",
+  "tags": [
+    "armor",
+    "helmet"
+  ],
+  "attributes": {
+    "moveSpeedMultiplier": 1,
+    "immuneDamage": true
+  }
+}

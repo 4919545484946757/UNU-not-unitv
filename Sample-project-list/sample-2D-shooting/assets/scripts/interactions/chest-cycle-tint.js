@@ -1,3 +1,28 @@
+﻿const NS = 'sample-2D-shooting'
+const itemId = (name) => `${NS}:${name}`
+
+const ITEM_DEFS = {
+  [itemId('bandage')]: { displayName: '绷带' },
+  [itemId('medkit')]: { displayName: '医疗包' },
+  [itemId('scp_500')]: { displayName: 'SCP-500' },
+  [itemId('light_helmet')]: { displayName: '轻型头盔' },
+  [itemId('light_chest')]: { displayName: '轻型胸甲' },
+  [itemId('light_leggings')]: { displayName: '轻型腿甲' },
+  [itemId('light_boots')]: { displayName: '轻型靴' },
+  [itemId('heavy_helmet')]: { displayName: '重型头盔' },
+  [itemId('heavy_chest')]: { displayName: '重型胸甲' },
+  [itemId('heavy_leggings')]: { displayName: '重型腿甲' },
+  [itemId('heavy_boots')]: { displayName: '重型靴' },
+  [itemId('debug_crown')]: { displayName: '调试-王冠' },
+  [itemId('auto_rifle')]: { displayName: '自动步枪' },
+  [itemId('precision_rifle')]: { displayName: '精确步枪' },
+  [itemId('sniper_rifle')]: { displayName: '狙击步枪' },
+  [itemId('shotgun')]: { displayName: '霰弹枪' },
+  [itemId('access_card')]: { displayName: '门禁卡' },
+  [itemId('debug_spawn_enemy')]: { displayName: '调试-生成敌人' },
+  [itemId('debug_teleport')]: { displayName: '调试-传送' }
+}
+
 const parseConfig = (ctx) => {
   try {
     const raw = String(ctx.entity.getComponent('Script')?.sourceCode || '').trim()
@@ -23,9 +48,16 @@ const parseColor = (value) => {
 
 export default {
   onInteract(ctx) {
+    if (isPlayerDebugToolInteract(ctx)) return
     openContainerPanel(ctx)
     cycleChestTint(ctx)
   }
+}
+
+function isPlayerDebugToolInteract(ctx) {
+  const player = ctx.scene.getEntityById('player_001') || ctx.api.findEntityByName('Player')
+  if (!player) return false
+  return ctx.api.getState(player).__suppressInteractAtTime === ctx.api.time
 }
 
 function openContainerPanel(ctx) {
@@ -42,19 +74,20 @@ function openContainerPanel(ctx) {
 
   const panelState = ctx.api.getState(panel)
   const chestState = ctx.api.getState(ctx.entity)
-  if (!Array.isArray(chestState.containerItems)) chestState.containerItems = defaultChestItems(ctx.entity.id)
+  if (!Array.isArray(chestState.inventoryItems)) chestState.inventoryItems = defaultChestItems(ctx.entity.id)
   if (!Array.isArray(panelState.bagItems)) panelState.bagItems = defaultBagItems()
   panelState.open = true
   panelState.activeChestId = ctx.entity.id
   panelState.activeChestName = ctx.entity.name || ctx.entity.id
-  panelState.chestItems = normalizeItems(chestState.containerItems, 30)
+  panelState.chestItems = normalizeItems(chestState.inventoryItems, 30)
   ui.enabled = true
   ctx.api.ui.postMessage({
     type: 'container-state',
     chestId: panelState.activeChestId,
     chestName: panelState.activeChestName,
     chestItems: panelState.chestItems,
-    bagItems: normalizeItems(panelState.bagItems, 24)
+    bagItems: normalizeItems(panelState.bagItems, 24),
+    itemDefs: ITEM_DEFS
   }, panel)
   ctx.api.log(`[${ctx.entity.id}] open container`)
 }
@@ -82,16 +115,24 @@ function cycleChestTint(ctx) {
 }
 
 function normalizeItems(items, count) {
-  const next = Array.isArray(items) ? items.map((item) => String(item || '')).slice(0, count) : []
+  const next = Array.isArray(items) ? items.map((item) => normalizeItemId(item)).slice(0, count) : []
   while (next.length < count) next.push('')
   return next
 }
 
+function normalizeItemId(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (raw.includes(':')) return raw
+  const legacy = Object.entries(ITEM_DEFS).find(([, item]) => item.displayName === raw)
+  return legacy?.[0] || itemId(raw)
+}
+
 function defaultChestItems(seed) {
   const sets = [
-    ['铁矿', '木材', '金币', '绷带', '', '', '', '蓝宝石', '', '', '火药', '', '', '', '', '苹果', '', '', '皮革', '', '', '', '钥匙', '', '', '', '卷轴', '', '', '短剑'],
-    ['草药', '', '银币', '', '火把', '', '布料', '', '', '苹果', '', '', '', '宝石', '', '', '', '面包', '', '', '铁矿', '', '', '', '', '护符', '', '', '', ''],
-    ['箭矢', '炸弹', '', '', '药水', '', '', '', '木材', '', '', '皮革', '', '', '', '卷轴', '', '', '', '金币', '', '', '', '', '回城石', '', '', '', '', '']
+    [itemId('bandage'), itemId('medkit'), itemId('heavy_helmet'), itemId('heavy_chest'), itemId('heavy_leggings'), itemId('heavy_boots'), '', itemId('bandage'), '', '', itemId('scp_500'), itemId('debug_crown'), '', '', '', itemId('bandage'), '', '', itemId('auto_rifle'), itemId('precision_rifle'), itemId('sniper_rifle'), itemId('shotgun'), itemId('medkit'), '', itemId('access_card'), itemId('debug_spawn_enemy'), itemId('debug_teleport'), '', '', ''],
+    [itemId('bandage'), '', itemId('light_helmet'), itemId('light_chest'), itemId('light_leggings'), itemId('light_boots'), '', '', '', '', '', '', itemId('medkit'), '', '', '', '', '', itemId('auto_rifle'), '', '', '', itemId('scp_500'), itemId('shotgun'), '', '', '', '', '', ''],
+    ['', itemId('bandage'), '', '', itemId('medkit'), '', itemId('heavy_chest'), '', '', '', itemId('heavy_boots'), '', '', '', '', itemId('bandage'), '', '', itemId('sniper_rifle'), '', itemId('debug_crown'), itemId('precision_rifle'), '', itemId('shotgun'), itemId('scp_500'), '', '', '', '', '']
   ]
   const index = Math.abs(String(seed || '').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)) % sets.length
   return sets[index].slice()
@@ -99,9 +140,9 @@ function defaultChestItems(seed) {
 
 function defaultBagItems() {
   return [
-    '药水', '钥匙', '矿石', '火把', '苹果', '短剑',
-    '布料', '木材', '护符', '', '', '',
-    '', '', '', '', '', '',
-    '弓', '炸弹', '卷轴', '面包', '宝石', '回城石'
+    itemId('bandage'), itemId('bandage'), itemId('medkit'), itemId('heavy_helmet'), itemId('heavy_chest'), itemId('heavy_leggings'),
+    itemId('heavy_boots'), itemId('debug_crown'), itemId('scp_500'), itemId('debug_teleport'), '', '',
+    itemId('light_helmet'), itemId('light_chest'), itemId('light_leggings'), itemId('light_boots'), itemId('access_card'), itemId('debug_spawn_enemy'),
+    itemId('auto_rifle'), itemId('precision_rifle'), itemId('sniper_rifle'), itemId('shotgun'), itemId('medkit'), itemId('scp_500')
   ]
 }

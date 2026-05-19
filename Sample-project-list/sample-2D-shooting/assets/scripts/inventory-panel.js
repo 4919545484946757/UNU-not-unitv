@@ -1,23 +1,42 @@
+﻿const NS = 'sample-2D-shooting'
+const itemId = (name) => `${NS}:${name}`
+
+const ITEM_DEFS = {
+  [itemId('bandage')]: { displayName: '绷带', type: 'consumable', heal: 20 },
+  [itemId('medkit')]: { displayName: '医疗包', type: 'consumable', heal: 55 },
+  [itemId('scp_500')]: { displayName: 'SCP-500', type: 'consumable', heal: 'full' },
+  [itemId('light_helmet')]: { displayName: '轻型头盔', type: 'equipment', equipSlot: 'helmet', percentReduction: 0.05, moveSpeedMultiplier: 0.98 },
+  [itemId('light_chest')]: { displayName: '轻型胸甲', type: 'equipment', equipSlot: 'chest', percentReduction: 0.07, moveSpeedMultiplier: 0.97 },
+  [itemId('light_leggings')]: { displayName: '轻型腿甲', type: 'equipment', equipSlot: 'leggings', percentReduction: 0.05, moveSpeedMultiplier: 0.98 },
+  [itemId('light_boots')]: { displayName: '轻型靴', type: 'equipment', equipSlot: 'boots', percentReduction: 0.03, moveSpeedMultiplier: 0.99 },
+  [itemId('heavy_helmet')]: { displayName: '重型头盔', type: 'equipment', equipSlot: 'helmet', flatReduction: 2, moveSpeedMultiplier: 0.93 },
+  [itemId('heavy_chest')]: { displayName: '重型胸甲', type: 'equipment', equipSlot: 'chest', flatReduction: 4, moveSpeedMultiplier: 0.88 },
+  [itemId('heavy_leggings')]: { displayName: '重型腿甲', type: 'equipment', equipSlot: 'leggings', flatReduction: 3, moveSpeedMultiplier: 0.9 },
+  [itemId('heavy_boots')]: { displayName: '重型靴', type: 'equipment', equipSlot: 'boots', flatReduction: 2, moveSpeedMultiplier: 0.92 },
+  [itemId('debug_crown')]: { displayName: '调试-王冠', type: 'equipment', equipSlot: 'helmet', immuneDamage: true, moveSpeedMultiplier: 1 },
+  [itemId('auto_rifle')]: { displayName: '自动步枪', type: 'weapon', fireMode: 'auto', magazineSize: 30 },
+  [itemId('precision_rifle')]: { displayName: '精确步枪', type: 'weapon', fireMode: 'semi', magazineSize: 15 },
+  [itemId('sniper_rifle')]: { displayName: '狙击步枪', type: 'weapon', fireMode: 'semi', magazineSize: 5 },
+  [itemId('shotgun')]: { displayName: '霰弹枪', type: 'weapon', fireMode: 'semi', magazineSize: 7 },
+  [itemId('access_card')]: { displayName: '门禁卡', type: 'tool' },
+  [itemId('debug_spawn_enemy')]: { displayName: '调试-生成敌人', type: 'debugTool' },
+  [itemId('debug_teleport')]: { displayName: '调试-传送', type: 'debugTool' }
+}
+
 const DEFAULT_BAG_ITEMS = [
-  '药水', '钥匙', '矿石', '火把', '苹果', '短剑',
-  '布料', '木材', '护符', '', '', '',
-  '', '', '', '', '', '',
-  '弓', '炸弹', '卷轴', '面包', '宝石', '回城石'
+  itemId('bandage'), itemId('bandage'), itemId('medkit'), itemId('heavy_helmet'), itemId('heavy_chest'), itemId('heavy_leggings'),
+  itemId('heavy_boots'), itemId('debug_crown'), itemId('scp_500'), itemId('debug_teleport'), '', '',
+  itemId('light_helmet'), itemId('light_chest'), itemId('light_leggings'), itemId('light_boots'), itemId('access_card'), itemId('debug_spawn_enemy'),
+  itemId('auto_rifle'), itemId('precision_rifle'), itemId('sniper_rifle'), itemId('shotgun'), itemId('medkit'), itemId('scp_500')
 ]
 
 const DEFAULT_EQUIPMENT = {
-  helmet: '侦察头盔',
-  chest: '皮革胸甲',
-  leggings: '轻型护腿',
-  boots: '旅行者靴子'
+  helmet: itemId('light_helmet'),
+  chest: itemId('light_chest'),
+  leggings: itemId('light_leggings'),
+  boots: itemId('light_boots')
 }
-
-const EQUIPMENT_LABELS = {
-  helmet: '头盔',
-  chest: '胸甲',
-  leggings: '护腿',
-  boots: '靴子'
-}
+const EQUIPMENT_LABELS = { helmet: '头盔', chest: '胸甲', leggings: '护腿', boots: '靴子' }
 
 export default {
   onInit(ctx) {
@@ -70,6 +89,15 @@ export default {
       return
     }
 
+    if (type === 'use-item') {
+      applyIncomingInventoryState(state, payload)
+      const slotIndex = Number.isFinite(Number(payload.index)) ? Number(payload.index) : 17 + clampHotbar(state.selectedHotbar)
+      useItemFromSlot(ctx, state, slotIndex)
+      sendInventorySnapshot(ctx, state)
+      updateHeldHud(ctx, state)
+      return
+    }
+
     if (type === 'select-slot') {
       ctx.api.log(`[Inventory] selected slot ${payload.slotId || payload.index || ''}`)
     }
@@ -88,6 +116,12 @@ function updateInventory(ctx) {
       updateHeldHud(ctx, state)
       ctx.api.log(`[Inventory] hotbar ${index}: ${getHeldItemName(state)}`)
     }
+  }
+
+  if (ctx.api.input.wasActionPressed('use_item')) {
+    useItemFromSlot(ctx, state, 17 + clampHotbar(state.selectedHotbar))
+    sendInventorySnapshot(ctx, state)
+    updateHeldHud(ctx, state)
   }
 
   if (ctx.api.input.wasActionPressed('inventory')) {
@@ -111,54 +145,131 @@ function updateInventory(ctx) {
 function ensureInventoryState(ctx) {
   const state = ctx.api.getState(ctx.entity)
   if (!Array.isArray(state.items)) state.items = DEFAULT_BAG_ITEMS.slice()
+  else state.items = normalizeItems(state.items, 24)
+  const player = getPlayer(ctx)
+  if (player) {
+    const playerState = ctx.api.getState(player)
+    const inventoryData = player.getComponent?.('Inventory')?.data
+    if (!Array.isArray(playerState.inventoryItems)) playerState.inventoryItems = state.items.slice()
+    else state.items = normalizeItems(playerState.inventoryItems, 24)
+    if (!playerState.equipment || typeof playerState.equipment !== 'object') playerState.equipment = normalizeEquipment(inventoryData?.equipment || DEFAULT_EQUIPMENT)
+    if (!state.equipment || typeof state.equipment !== 'object') state.equipment = normalizeEquipment(playerState.equipment)
+  }
   if (!state.equipment || typeof state.equipment !== 'object') state.equipment = { ...DEFAULT_EQUIPMENT }
+  state.equipment = normalizeEquipment(state.equipment)
   if (!Number.isFinite(Number(state.selectedHotbar))) state.selectedHotbar = 1
   state.selectedHotbar = clampHotbar(state.selectedHotbar)
   return state
 }
 
 function applyIncomingInventoryState(state, payload) {
-  if (Array.isArray(payload.items)) {
-    const nextItems = payload.items.map((item) => String(item || '')).slice(0, 24)
-    while (nextItems.length < 24) nextItems.push('')
-    state.items = nextItems
-  }
+  if (Array.isArray(payload.items)) state.items = normalizeItems(payload.items, 24)
   if (payload.equipment && typeof payload.equipment === 'object') {
-    state.equipment = {
-      helmet: String(payload.equipment.helmet || ''),
-      chest: String(payload.equipment.chest || ''),
-      leggings: String(payload.equipment.leggings || ''),
-      boots: String(payload.equipment.boots || '')
-    }
+    state.equipment = normalizeEquipment(payload.equipment)
   }
   if (Number.isFinite(Number(payload.selectedHotbar))) state.selectedHotbar = clampHotbar(payload.selectedHotbar)
 }
 
+function normalizeEquipment(equipment = {}) {
+  return {
+    helmet: normalizeItemId(equipment.helmet),
+    chest: normalizeItemId(equipment.chest),
+    leggings: normalizeItemId(equipment.leggings),
+    boots: normalizeItemId(equipment.boots)
+  }
+}
+
+function normalizeItems(items, count) {
+  const next = items.map((item) => normalizeItemId(item)).slice(0, count)
+  while (next.length < count) next.push('')
+  return next
+}
+
+function normalizeItemId(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (raw.includes(':')) return raw
+  const legacy = Object.entries(ITEM_DEFS).find(([, item]) => item.displayName === raw)
+  return legacy?.[0] || itemId(raw)
+}
+
 function sendInventorySnapshot(ctx, state) {
+  syncPlayerInventory(ctx, state)
   ctx.api.ui.postMessage({
     type: 'inventory-state',
     selectedHotbar: clampHotbar(state.selectedHotbar),
-    items: Array.isArray(state.items) ? state.items : DEFAULT_BAG_ITEMS.slice(),
+    items: normalizeItems(Array.isArray(state.items) ? state.items : DEFAULT_BAG_ITEMS, 24),
+    itemDefs: ITEM_DEFS,
     equipment: state.equipment || { ...DEFAULT_EQUIPMENT },
     equipmentLabels: EQUIPMENT_LABELS,
     playerTexture: getPlayerTexture(ctx)
   })
 }
 
+function useItemFromSlot(ctx, state, index) {
+  const slot = Math.max(0, Math.min(23, Number(index) || 0))
+  const item = normalizeItemId(state.items?.[slot])
+  const def = item ? ITEM_DEFS[item] : null
+  if (!def || def.type !== 'consumable') {
+    ctx.api.log('[Inventory] 当前格子没有可使用药品')
+    return false
+  }
+  const player = getPlayer(ctx)
+  if (!player) return false
+  const playerState = ctx.api.getState(player)
+  const maxHealth = Math.max(1, Number(playerState.maxHealth || 100))
+  const before = Math.max(0, Math.min(maxHealth, Number(playerState.health ?? maxHealth)))
+  const next = def.heal === 'full' ? maxHealth : Math.min(maxHealth, before + Number(def.heal || 0))
+  playerState.maxHealth = maxHealth
+  playerState.health = next
+  const health = player.getComponent('Health')
+  if (health?.data) {
+    health.data.max = maxHealth
+    health.data.current = next
+  }
+  state.items[slot] = ''
+  syncPlayerInventory(ctx, state)
+  ctx.api.log(`[Inventory] 使用${def.displayName}: HP ${Math.round(before)} -> ${Math.round(next)}`)
+  return true
+}
+
 function updateHeldHud(ctx, state) {
   const hud = ctx.scene.getEntityById('ui_held_item_hud') || ctx.api.findEntityByName('HeldItemHUD')
   const ui = hud?.getComponent('UI')
   if (!ui) return
-  ui.text = `手持：${getHeldItemName(state)}`
+  const player = getPlayer(ctx)
+  const playerState = player ? ctx.api.getState(player) : { health: 100, maxHealth: 100 }
+  const health = Math.round(Number(playerState.health ?? playerState.maxHealth ?? 100))
+  const maxHealth = Math.round(Number(playerState.maxHealth ?? 100))
+  ui.text = `HP: ${health}/${maxHealth}\n手持: ${getHeldItemName(state)}`
+}
+
+function syncPlayerInventory(ctx, state) {
+  const player = getPlayer(ctx)
+  if (!player) return
+  const playerState = ctx.api.getState(player)
+  playerState.inventoryItems = normalizeItems(state.items || [], 24)
+  playerState.equipment = normalizeEquipment(state.equipment || DEFAULT_EQUIPMENT)
+  const inventoryData = player.getComponent?.('Inventory')?.data
+  if (inventoryData && typeof inventoryData === 'object') inventoryData.equipment = normalizeEquipment(playerState.equipment)
+}
+
+function getPlayer(ctx) {
+  return ctx.scene.getEntityById('player_001') || ctx.api.findEntityByName('Player')
 }
 
 function getHeldItemName(state) {
   const index = clampHotbar(state.selectedHotbar)
-  return String(state.items?.[17 + index] || '空手')
+  return getItemDisplayName(state.items?.[17 + index]) || '空手'
+}
+
+function getItemDisplayName(id) {
+  const normalized = normalizeItemId(id)
+  return normalized ? ITEM_DEFS[normalized]?.displayName || normalized : ''
 }
 
 function getPlayerTexture(ctx) {
-  const player = ctx.scene.getEntityById('player_001') || ctx.api.findEntityByName('Player')
+  const player = getPlayer(ctx)
   const sprite = player?.getComponent('Sprite')
   return String(sprite?.texturePath || '')
 }

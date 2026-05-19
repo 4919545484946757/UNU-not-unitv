@@ -547,6 +547,52 @@
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeCustomComponent(custom.type)">删除</button>
         </div>
         <div v-show="!isComponentCollapsed(`custom:${custom.type}`)" class="component-shell-content inline">
+          <div v-if="isInventoryComponent(custom)" class="inventory-editor">
+            <div class="inventory-editor-header">
+              <div>
+                <strong>Inventory Slots</strong>
+                <span>图形化编辑实体携带的物品 ID，超过面板高度后可滚动。</span>
+              </div>
+              <button class="small" :disabled="runtime.isPlaying" @click="appendInventorySlot(custom)">+ Slot</button>
+            </div>
+            <div class="inventory-meta-grid">
+              <label>
+                Owner Type
+                <input
+                  :value="inventoryOwnerType(custom)"
+                  :disabled="runtime.isPlaying"
+                  placeholder="Player / Enemy / Chest"
+                  @input="setInventoryOwnerType(custom, $event)"
+                />
+              </label>
+              <label>
+                Capacity
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  :value="inventoryCapacity(custom)"
+                  :disabled="runtime.isPlaying"
+                  @input="setInventoryCapacity(custom, $event)"
+                />
+              </label>
+            </div>
+            <div class="inventory-slot-grid" :style="{ gridTemplateColumns: `repeat(${inventoryGridColumns(custom)}, minmax(112px, 1fr))` }">
+              <label v-for="slot in inventorySlots(custom)" :key="slot.index" class="inventory-slot-card">
+                <span class="inventory-slot-index">#{{ slot.index + 1 }}</span>
+                <input
+                  :value="slot.value"
+                  :disabled="runtime.isPlaying"
+                  placeholder="project:item"
+                  @input="setInventorySlot(custom, slot.index, $event)"
+                />
+              </label>
+            </div>
+            <div class="row-inline inventory-actions">
+              <button class="small" :disabled="runtime.isPlaying" @click="trimEmptyInventorySlots(custom)">Trim Empty</button>
+              <span class="tips">示例格式：sample-2D-shooting:bow。空格子会保存为空字符串。</span>
+            </div>
+          </div>
           <label>
             Data (JSON)
             <textarea :value="formatCustomComponentData(custom)" @change="setCustomComponentData(custom, $event)"></textarea>
@@ -961,6 +1007,97 @@ function setCustomComponentData(component: CustomComponent, event: Event) {
   } catch {
     project.setStatus(`自定义组件 ${component.type} 的 JSON 暂未保存：格式不合法。`)
   }
+}
+
+type InventorySlotView = {
+  index: number
+  value: string
+}
+
+function isInventoryComponent(component: CustomComponent) {
+  return component.type === 'Inventory' || component.type.endsWith(':Inventory')
+}
+
+function inventoryData(component: CustomComponent) {
+  if (!component.data || typeof component.data !== 'object' || Array.isArray(component.data)) {
+    component.data = {}
+  }
+  return component.data
+}
+
+function inventoryRawItems(component: CustomComponent) {
+  const data = inventoryData(component)
+  return Array.isArray(data.items) ? data.items : []
+}
+
+function inventoryCapacity(component: CustomComponent) {
+  const data = inventoryData(component)
+  const explicit = Number(data.capacity)
+  const itemCount = inventoryRawItems(component).length
+  return Math.max(1, Number.isFinite(explicit) ? Math.floor(explicit) : Math.max(itemCount, 12))
+}
+
+function inventoryOwnerType(component: CustomComponent) {
+  const value = inventoryData(component).ownerType
+  return typeof value === 'string' ? value : ''
+}
+
+function normalizedInventoryItems(component: CustomComponent, capacity = inventoryCapacity(component)) {
+  const data = inventoryData(component)
+  const source = inventoryRawItems(component).map((item) => typeof item === 'string' ? item : String(item ?? ''))
+  const normalized = Array.from({ length: capacity }, (_, index) => source[index] || '')
+  data.items = normalized
+  data.capacity = capacity
+  return normalized
+}
+
+function inventorySlots(component: CustomComponent): InventorySlotView[] {
+  return normalizedInventoryItems(component).map((value, index) => ({ index, value }))
+}
+
+function inventoryGridColumns(component: CustomComponent) {
+  const data = inventoryData(component)
+  const customColumns = Number(data.columns)
+  if (Number.isFinite(customColumns) && customColumns > 0) {
+    return Math.min(8, Math.max(1, Math.floor(customColumns)))
+  }
+  return Math.min(6, Math.max(1, inventoryCapacity(component)))
+}
+
+function setInventoryOwnerType(component: CustomComponent, event: Event) {
+  if (runtime.isPlaying) return
+  inventoryData(component).ownerType = (event.target as HTMLInputElement).value.trim()
+  sceneStore.markDirty()
+}
+
+function setInventoryCapacity(component: CustomComponent, event: Event) {
+  if (runtime.isPlaying) return
+  const next = Math.max(1, Math.floor(Number((event.target as HTMLInputElement).value) || 1))
+  normalizedInventoryItems(component, next)
+  sceneStore.markDirty()
+}
+
+function setInventorySlot(component: CustomComponent, index: number, event: Event) {
+  if (runtime.isPlaying) return
+  const items = normalizedInventoryItems(component)
+  items[index] = (event.target as HTMLInputElement).value.trim()
+  inventoryData(component).items = items
+  sceneStore.markDirty()
+}
+
+function appendInventorySlot(component: CustomComponent) {
+  if (runtime.isPlaying) return
+  normalizedInventoryItems(component, inventoryCapacity(component) + 1)
+  sceneStore.markDirty()
+}
+
+function trimEmptyInventorySlots(component: CustomComponent) {
+  if (runtime.isPlaying) return
+  const items = normalizedInventoryItems(component)
+  let nextLength = items.length
+  while (nextLength > 1 && !items[nextLength - 1]) nextLength -= 1
+  normalizedInventoryItems(component, nextLength)
+  sceneStore.markDirty()
 }
 
 function setScriptEnabled(event: Event) {
@@ -2270,6 +2407,74 @@ h3 { margin: 0; }
 .custom-component-add span {
   color: #8fa3bf;
   font-size: 12px;
+}
+.inventory-editor {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(92, 138, 118, 0.26);
+  border-radius: 12px;
+  background: rgba(11, 17, 25, 0.34);
+}
+.inventory-editor-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+.inventory-editor-header strong {
+  display: block;
+  color: #e6f5ee;
+  font-size: 13px;
+}
+.inventory-editor-header span {
+  display: block;
+  overflow: hidden;
+  color: #8bb8a3;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inventory-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+.inventory-slot-grid {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-height: 260px;
+  padding: 6px;
+  border: 1px solid rgba(64, 78, 101, 0.56);
+  border-radius: 10px;
+  background: rgba(7, 11, 17, 0.48);
+  overflow: auto;
+}
+.inventory-slot-card {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid rgba(64, 91, 80, 0.56);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(20, 33, 28, 0.86), rgba(13, 19, 28, 0.86));
+}
+.inventory-slot-card input {
+  padding: 7px;
+  font-size: 12px;
+}
+.inventory-slot-index {
+  color: #7ed0a6;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+}
+.inventory-actions {
+  align-items: center;
 }
 @keyframes componentPanelIn {
   from {

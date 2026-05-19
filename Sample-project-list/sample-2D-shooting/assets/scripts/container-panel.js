@@ -1,16 +1,41 @@
+﻿const NS = 'sample-2D-shooting'
+const itemId = (name) => `${NS}:${name}`
+
+const ITEM_DEFS = {
+  [itemId('bandage')]: { displayName: '绷带', type: 'consumable', heal: 20 },
+  [itemId('medkit')]: { displayName: '医疗包', type: 'consumable', heal: 55 },
+  [itemId('scp_500')]: { displayName: 'SCP-500', type: 'consumable', heal: 'full' },
+  [itemId('light_helmet')]: { displayName: '轻型头盔', type: 'equipment', equipSlot: 'helmet' },
+  [itemId('light_chest')]: { displayName: '轻型胸甲', type: 'equipment', equipSlot: 'chest' },
+  [itemId('light_leggings')]: { displayName: '轻型腿甲', type: 'equipment', equipSlot: 'leggings' },
+  [itemId('light_boots')]: { displayName: '轻型靴', type: 'equipment', equipSlot: 'boots' },
+  [itemId('heavy_helmet')]: { displayName: '重型头盔', type: 'equipment', equipSlot: 'helmet' },
+  [itemId('heavy_chest')]: { displayName: '重型胸甲', type: 'equipment', equipSlot: 'chest' },
+  [itemId('heavy_leggings')]: { displayName: '重型腿甲', type: 'equipment', equipSlot: 'leggings' },
+  [itemId('heavy_boots')]: { displayName: '重型靴', type: 'equipment', equipSlot: 'boots' },
+  [itemId('debug_crown')]: { displayName: '调试-王冠', type: 'equipment', equipSlot: 'helmet' },
+  [itemId('auto_rifle')]: { displayName: '自动步枪', type: 'weapon' },
+  [itemId('precision_rifle')]: { displayName: '精确步枪', type: 'weapon' },
+  [itemId('sniper_rifle')]: { displayName: '狙击步枪', type: 'weapon' },
+  [itemId('shotgun')]: { displayName: '霰弹枪', type: 'weapon' },
+  [itemId('access_card')]: { displayName: '门禁卡', type: 'tool' },
+  [itemId('debug_spawn_enemy')]: { displayName: '调试-生成敌人', type: 'debugTool' },
+  [itemId('debug_teleport')]: { displayName: '调试-传送', type: 'debugTool' }
+}
+
 const DEFAULT_BAG_ITEMS = [
-  '药水', '钥匙', '矿石', '火把', '苹果', '短剑',
-  '布料', '木材', '护符', '', '', '',
-  '', '', '', '', '', '',
-  '弓', '炸弹', '卷轴', '面包', '宝石', '回城石'
+  itemId('bandage'), itemId('bandage'), itemId('medkit'), itemId('heavy_helmet'), itemId('heavy_chest'), itemId('heavy_leggings'),
+  itemId('heavy_boots'), itemId('debug_crown'), itemId('scp_500'), itemId('debug_teleport'), '', '',
+  itemId('light_helmet'), itemId('light_chest'), itemId('light_leggings'), itemId('light_boots'), itemId('access_card'), itemId('debug_spawn_enemy'),
+  itemId('auto_rifle'), itemId('precision_rifle'), itemId('sniper_rifle'), itemId('shotgun'), itemId('medkit'), itemId('scp_500')
 ]
 
 const DEFAULT_CHEST_ITEMS = [
-  '铁矿', '木材', '金币', '绷带', '', '',
-  '', '蓝宝石', '', '', '火药', '',
-  '', '', '', '苹果', '', '',
-  '皮革', '', '', '', '钥匙', '',
-  '', '', '卷轴', '', '', '短剑'
+  itemId('bandage'), itemId('medkit'), itemId('heavy_helmet'), itemId('heavy_chest'), itemId('heavy_leggings'), itemId('heavy_boots'),
+  '', itemId('bandage'), '', '', itemId('scp_500'), itemId('debug_crown'),
+  '', '', '', itemId('bandage'), '', '',
+  itemId('auto_rifle'), itemId('precision_rifle'), itemId('sniper_rifle'), itemId('shotgun'), itemId('medkit'), '',
+  itemId('access_card'), itemId('debug_spawn_enemy'), itemId('debug_teleport'), '', '', ''
 ]
 
 export default {
@@ -23,16 +48,12 @@ export default {
 
   onUpdate(ctx) {
     const state = ensurePanelState(ctx)
-    if (state.open && ctx.api.input.wasActionPressed('inventory')) {
-      closePanel(ctx, state)
-    }
+    if (state.open && ctx.api.input.wasActionPressed('inventory')) closePanel(ctx, state)
   },
 
   onPausedUpdate(ctx) {
     const state = ensurePanelState(ctx)
-    if (state.open && ctx.api.input.wasActionPressed('inventory')) {
-      closePanel(ctx, state)
-    }
+    if (state.open && ctx.api.input.wasActionPressed('inventory')) closePanel(ctx, state)
   },
 
   onHtmlMessage(ctx) {
@@ -62,33 +83,47 @@ export default {
 function ensurePanelState(ctx) {
   const state = ctx.api.getState(ctx.entity)
   if (!Array.isArray(state.bagItems)) state.bagItems = DEFAULT_BAG_ITEMS.slice()
+  else state.bagItems = normalizeItems(state.bagItems, 24)
+  const player = getPlayer(ctx)
+  if (player) {
+    const playerState = ctx.api.getState(player)
+    if (!Array.isArray(playerState.inventoryItems)) playerState.inventoryItems = state.bagItems.slice()
+    else state.bagItems = normalizeItems(playerState.inventoryItems, 24)
+  }
   if (!Array.isArray(state.chestItems)) state.chestItems = DEFAULT_CHEST_ITEMS.slice()
+  else state.chestItems = normalizeItems(state.chestItems, 30)
   if (typeof state.activeChestId !== 'string') state.activeChestId = ''
   return state
 }
 
 function applyIncomingState(state, payload) {
-  if (Array.isArray(payload.bagItems)) {
-    state.bagItems = normalizeItems(payload.bagItems, 24)
-  }
-  if (Array.isArray(payload.chestItems)) {
-    state.chestItems = normalizeItems(payload.chestItems, 30)
-  }
+  if (Array.isArray(payload.bagItems)) state.bagItems = normalizeItems(payload.bagItems, 24)
+  if (Array.isArray(payload.chestItems)) state.chestItems = normalizeItems(payload.chestItems, 30)
 }
 
 function normalizeItems(items, count) {
-  const next = items.map((item) => String(item || '')).slice(0, count)
+  const next = Array.isArray(items) ? items.map((item) => normalizeItemId(item)).slice(0, count) : []
   while (next.length < count) next.push('')
   return next
 }
 
+function normalizeItemId(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (raw.includes(':')) return raw
+  const legacy = Object.entries(ITEM_DEFS).find(([, item]) => item.displayName === raw)
+  return legacy?.[0] || itemId(raw)
+}
+
 function sendSnapshot(ctx, state) {
+  writePlayerInventory(ctx, state)
   ctx.api.ui.postMessage({
     type: 'container-state',
     chestId: state.activeChestId || '',
     chestName: state.activeChestName || 'Chest',
     chestItems: normalizeItems(state.chestItems || [], 30),
-    bagItems: normalizeItems(state.bagItems || [], 24)
+    bagItems: normalizeItems(state.bagItems || [], 24),
+    itemDefs: ITEM_DEFS
   })
 }
 
@@ -102,5 +137,16 @@ function writeActiveChestState(ctx, state) {
   const chest = state.activeChestId ? ctx.scene.getEntityById(state.activeChestId) : null
   if (!chest) return
   const chestState = ctx.api.getState(chest)
-  chestState.containerItems = normalizeItems(state.chestItems || [], 30)
+  chestState.inventoryItems = normalizeItems(state.chestItems || [], 30)
+}
+
+function writePlayerInventory(ctx, state) {
+  const player = getPlayer(ctx)
+  if (!player) return
+  const playerState = ctx.api.getState(player)
+  playerState.inventoryItems = normalizeItems(state.bagItems || [], 24)
+}
+
+function getPlayer(ctx) {
+  return ctx.scene.getEntityById('player_001') || ctx.api.findEntityByName('Player')
 }

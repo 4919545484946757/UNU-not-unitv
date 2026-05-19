@@ -1,0 +1,19 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:bandage",
+  "namespace": "sample-2D-shooting",
+  "name": "bandage",
+  "displayName": "??",
+  "type": "consumable",
+  "maxStack": 1,
+  "description": "??????????????????",
+  "script": "assets/items/scripts/bandage.js",
+  "tags": [
+    "medicine",
+    "healing"
+  ],
+  "attributes": {
+    "heal": 20
+  }
+}

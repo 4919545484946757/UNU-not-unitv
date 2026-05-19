@@ -10,6 +10,8 @@
     interact: ['Mouse2'],
     menu: ['Escape'],
     inventory: ['KeyE'],
+    use_item: ['KeyQ'],
+    reload: ['KeyR'],
     hotbar_1: ['Digit1'],
     hotbar_2: ['Digit2'],
     hotbar_3: ['Digit3'],

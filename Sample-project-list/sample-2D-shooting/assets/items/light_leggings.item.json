@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:light_leggings",
+  "namespace": "sample-2D-shooting",
+  "name": "light_leggings",
+  "displayName": "????",
+  "type": "equipment",
+  "equipSlot": "leggings",
+  "maxStack": 1,
+  "description": "?????????????????",
+  "script": "assets/items/scripts/light_leggings.js",
+  "tags": [
+    "armor",
+    "leggings"
+  ],
+  "attributes": {
+    "percentReduction": 0.05,
+    "moveSpeedMultiplier": 0.98
+  }
+}

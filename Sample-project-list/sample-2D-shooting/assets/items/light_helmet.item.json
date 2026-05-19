@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:light_helmet",
+  "namespace": "sample-2D-shooting",
+  "name": "light_helmet",
+  "displayName": "????",
+  "type": "equipment",
+  "equipSlot": "helmet",
+  "maxStack": 1,
+  "description": "?????????????????",
+  "script": "assets/items/scripts/light_helmet.js",
+  "tags": [
+    "armor",
+    "helmet"
+  ],
+  "attributes": {
+    "percentReduction": 0.05,
+    "moveSpeedMultiplier": 0.98
+  }
+}

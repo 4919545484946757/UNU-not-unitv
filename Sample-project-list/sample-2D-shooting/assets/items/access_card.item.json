@@ -1,0 +1,19 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:access_card",
+  "namespace": "sample-2D-shooting",
+  "name": "access_card",
+  "displayName": "???",
+  "type": "tool",
+  "maxStack": 1,
+  "description": "??????????",
+  "script": "assets/items/scripts/access_card.js",
+  "tags": [
+    "key",
+    "door"
+  ],
+  "attributes": {
+    "doorAccess": true
+  }
+}

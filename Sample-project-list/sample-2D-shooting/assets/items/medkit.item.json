@@ -1,0 +1,19 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:medkit",
+  "namespace": "sample-2D-shooting",
+  "name": "medkit",
+  "displayName": "???",
+  "type": "consumable",
+  "maxStack": 1,
+  "description": "????????????????",
+  "script": "assets/items/scripts/medkit.js",
+  "tags": [
+    "medicine",
+    "healing"
+  ],
+  "attributes": {
+    "heal": 55
+  }
+}

@@ -18,6 +18,149 @@ const readNumber = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+const ARMOR_SPEED = {
+  'sample-2D-shooting:light_helmet': 0.98,
+  'sample-2D-shooting:light_chest': 0.97,
+  'sample-2D-shooting:light_leggings': 0.98,
+  'sample-2D-shooting:light_boots': 0.99,
+  'sample-2D-shooting:heavy_helmet': 0.93,
+  'sample-2D-shooting:heavy_chest': 0.88,
+  'sample-2D-shooting:heavy_leggings': 0.9,
+  'sample-2D-shooting:heavy_boots': 0.92,
+  'sample-2D-shooting:debug_crown': 1
+}
+
+const getArmorMoveMultiplier = (ctx, entity) => {
+  const state = ctx.api.getState(entity)
+  const equipment = state.equipment && typeof state.equipment === 'object' ? state.equipment : {}
+  return Object.values(equipment).reduce((speed, item) => {
+    const multiplier = ARMOR_SPEED[String(item || '')] ?? 1
+    return speed * Math.max(0.25, Number(multiplier) || 1)
+  }, 1)
+}
+
+const NS = 'sample-2D-shooting'
+const itemId = (name) => `${NS}:${name}`
+const WEAPONS = {
+  [itemId('auto_rifle')]: { displayName: '自动步枪', fireMode: 'auto', magazineSize: 30, reserveAmmo: 180, fireInterval: 0.08, reloadTime: 1.55, bulletSpeed: 980, spread: 0.025, pellets: 1, damage: 18 },
+  [itemId('precision_rifle')]: { displayName: '精确步枪', fireMode: 'semi', magazineSize: 15, reserveAmmo: 90, fireInterval: 0.22, reloadTime: 1.65, bulletSpeed: 1180, spread: 0.01, maxSpread: 0.085, spreadPerRapidShot: 0.018, focusResetTime: 0.55, accurateShots: 2, pellets: 1, damage: 34 },
+  [itemId('sniper_rifle')]: { displayName: '狙击步枪', fireMode: 'semi', magazineSize: 5, reserveAmmo: 25, fireInterval: 0.95, reloadTime: 2.35, bulletSpeed: 1500, spread: 0, pellets: 1, damage: 95 },
+  [itemId('shotgun')]: { displayName: '霰弹枪', fireMode: 'semi', magazineSize: 7, reserveAmmo: 42, fireInterval: 0.34, reloadMode: 'shell', shellReloadInterval: 0.42, bulletSpeed: 840, spread: 0.18, pellets: 7, damage: 12 }
+}
+
+const defaultInventory = () => [
+  itemId('bandage'), itemId('bandage'), itemId('medkit'), itemId('heavy_helmet'), itemId('heavy_chest'), itemId('heavy_leggings'),
+  itemId('heavy_boots'), itemId('debug_crown'), itemId('scp_500'), '', '', '',
+  itemId('light_helmet'), itemId('light_chest'), itemId('light_leggings'), itemId('light_boots'), '', '',
+  itemId('auto_rifle'), itemId('precision_rifle'), itemId('sniper_rifle'), itemId('shotgun'), itemId('medkit'), itemId('scp_500')
+]
+
+const normalizeInventory = (items) => {
+  const next = Array.isArray(items) ? items.map((item) => String(item || '').trim()).slice(0, 24) : []
+  while (next.length < 24) next.push('')
+  return next
+}
+
+const selectedHotbar = (ctx) => {
+  const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
+  const panelState = panel ? ctx.api.getState(panel) : {}
+  return Math.max(1, Math.min(6, Math.round(Number(panelState.selectedHotbar) || 1)))
+}
+
+const heldWeapon = (ctx, entity) => {
+  const state = ctx.api.getState(entity)
+  if (!Array.isArray(state.inventoryItems)) state.inventoryItems = defaultInventory()
+  state.inventoryItems = normalizeInventory(state.inventoryItems)
+  const item = state.inventoryItems[17 + selectedHotbar(ctx)]
+  return WEAPONS[item] ? { id: item, config: WEAPONS[item] } : null
+}
+
+const weaponState = (ctx, entity, id, config) => {
+  const state = ctx.api.getState(entity)
+  if (!state.weaponAmmo || typeof state.weaponAmmo !== 'object') state.weaponAmmo = {}
+  if (!state.weaponAmmo[id]) {
+    state.weaponAmmo[id] = { magazine: config.magazineSize, reserve: config.reserveAmmo, cooldown: 0, reloadTimer: 0, reloading: false, rapidShots: 0, focusTimer: 0 }
+  }
+  return state.weaponAmmo[id]
+}
+
+const updateReload = (ctx, config, ammo) => {
+  ammo.cooldown = Math.max(0, Number(ammo.cooldown || 0) - ctx.api.delta)
+  ammo.focusTimer = Math.max(0, Number(ammo.focusTimer || 0) - ctx.api.delta)
+  if (ammo.focusTimer <= 0) ammo.rapidShots = 0
+  if (!ammo.reloading) return
+  ammo.reloadTimer = Number(ammo.reloadTimer || 0) - ctx.api.delta
+  if (ammo.reloadTimer > 0) return
+  if (config.reloadMode === 'shell') {
+    if (ammo.magazine < config.magazineSize && ammo.reserve > 0) {
+      ammo.magazine += 1
+      ammo.reserve -= 1
+      ammo.reloadTimer = ammo.magazine < config.magazineSize && ammo.reserve > 0 ? Number(config.shellReloadInterval || 0.42) : 0
+      ammo.reloading = ammo.reloadTimer > 0
+    } else ammo.reloading = false
+    return
+  }
+  const loaded = Math.min(config.magazineSize - ammo.magazine, ammo.reserve)
+  ammo.magazine += loaded
+  ammo.reserve -= loaded
+  ammo.reloading = false
+}
+
+const startReload = (ctx, config, ammo) => {
+  if (ammo.reloading || ammo.reserve <= 0 || ammo.magazine >= config.magazineSize) return
+  ammo.reloading = true
+  ammo.reloadTimer = config.reloadMode === 'shell' ? Number(config.shellReloadInterval || 0.42) : Number(config.reloadTime || 1.5)
+  ctx.api.log(`[Weapon] ${config.displayName} reload`)
+}
+
+const fireHeldWeapon = (ctx, entity) => {
+  const held = heldWeapon(ctx, entity)
+  if (!held) return
+  const { id, config } = held
+  const ammo = weaponState(ctx, entity, id, config)
+  updateReload(ctx, config, ammo)
+  if (ctx.api.input.wasActionPressed('reload')) startReload(ctx, config, ammo)
+  if (ammo.reloading || ammo.cooldown > 0) return
+  const pressed = config.fireMode === 'auto' ? ctx.api.input.isActionDown('fire') : ctx.api.input.wasActionPressed('fire')
+  if (!pressed) return
+  if (ammo.magazine <= 0) {
+    startReload(ctx, config, ammo)
+    return
+  }
+  ammo.magazine -= 1
+  ammo.cooldown = Number(config.fireInterval || 0.2)
+  if (config.fireMode === 'semi') {
+    ammo.rapidShots = Number(ammo.rapidShots || 0) + 1
+    ammo.focusTimer = Number(config.focusResetTime || 0.55)
+  }
+  const transform = entity.getTransform()
+  const mouse = ctx.api.input.getMousePosition()
+  const baseAngle = Math.atan2(mouse.y - (transform?.y || 0), mouse.x - (transform?.x || 0))
+  const pellets = Math.max(1, Math.round(Number(config.pellets || 1)))
+  for (let index = 0; index < pellets; index += 1) {
+    const fan = pellets > 1 ? ((index / (pellets - 1)) - 0.5) * Number(config.spread || 0) : 0
+    let spread = Number(config.spread || 0)
+    if (id === itemId('precision_rifle')) {
+      spread = Number(ammo.rapidShots || 0) <= Number(config.accurateShots || 2)
+        ? 0
+        : Math.min(Number(config.maxSpread || 0.08), Number(config.spread || 0) + (Number(ammo.rapidShots || 0) - Number(config.accurateShots || 2)) * Number(config.spreadPerRapidShot || 0.018))
+    }
+    const random = (Math.random() * 2 - 1) * (pellets > 1 ? Number(config.spread || 0) * 0.18 : spread)
+    const angle = baseAngle + fan + random
+    ctx.api.spawnBullet(entity, {
+      targetX: (transform?.x || 0) + Math.cos(angle) * 1000,
+      targetY: (transform?.y || 0) + Math.sin(angle) * 1000,
+      speed: Number(config.bulletSpeed || 900),
+      life: 1.8,
+      maxDistance: 1100,
+      width: id === itemId('sniper_rifle') ? 26 : 18,
+      height: 6,
+      tint: 15922687,
+      damage: Number(config.damage || 10)
+    })
+  }
+}
+
 const findGravityConfig = (ctx) => {
   for (const entity of ctx.scene.entities) {
     const script = entity.getComponent('Script')
@@ -94,7 +237,7 @@ export default {
     const moveSpeed = Number(cfg.moveSpeed ?? 190)
     const sprintSpeed = Number(cfg.sprintSpeed ?? 280)
     const jumpSpeed = resolveJumpSpeed(ctx, cfg)
-    const speed = ctx.api.input.isActionDown('sprint') ? sprintSpeed : moveSpeed
+    const speed = (ctx.api.input.isActionDown('sprint') ? sprintSpeed : moveSpeed) * getArmorMoveMultiplier(ctx, ctx.entity)
     const jumpGravity = resolveJumpGravity(ctx, cfg)
     state.__platformerGravityOverride = jumpGravity
     state.__platformerGravityScale = readNumber(cfg.gravityScale ?? cfg.jumpGravityScale, 1)
@@ -122,17 +265,6 @@ export default {
       state.__platformerGrounded = false
     }
 
-    if (!ctx.api.input.wasActionPressed(String(cfg.shootAction || 'fire'))) return
-    const mouse = ctx.api.input.getMousePosition()
-    ctx.api.spawnBullet(ctx.entity, {
-      targetX: mouse.x,
-      targetY: mouse.y,
-      speed: Number(cfg.bullet?.speed ?? 420),
-      life: Number(cfg.bullet?.life ?? 2),
-      maxDistance: Number(cfg.bullet?.maxDistance ?? 560),
-      width: Number(cfg.bullet?.width ?? 20),
-      height: Number(cfg.bullet?.height ?? 8),
-      tint: Number(cfg.bullet?.tint ?? 15922687)
-    })
+    fireHeldWeapon(ctx, ctx.entity)
   }
 }
