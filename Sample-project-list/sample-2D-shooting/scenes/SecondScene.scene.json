@@ -1525,7 +1525,7 @@
             "data": {
               "type": "Script",
               "scriptPath": "assets/scripts/enemy-chase-respawn.js",
-              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160,\n  \"maxHealth\": 120,\n  \"contactDamage\": 10,\n  \"contactDamageInterval\": 0.9\n}",
+              "sourceCode": "{\n  \"chaseSpeed\": 120,\n  \"respawnMinDistance\": 160,\n  \"maxHealth\": 50,\n  \"contactDamage\": 10,\n  \"contactDamageInterval\": 0.9\n}",
               "enabled": true,
               "instance": null,
               "initialized": false,
@@ -1558,8 +1558,8 @@
             "type": "Health",
             "data": {
               "type": "Health",
-              "max": 120,
-              "current": 120
+              "max": 50,
+              "current": 50
             }
           }
         ]
@@ -3252,6 +3252,66 @@
               "instance": null,
               "initialized": false,
               "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui_hotbar_preview",
+        "name": "HotbarPreview",
+        "sceneFolderPath": "UI/HUD",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 18,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 43,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "bottom"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": true,
+              "mode": "text",
+              "text": "▶[1] 自动步枪   [2] 精确步枪   [3] 狙击步枪   [4] 霰弹枪   [5] 医疗包   [6] SCP-500",
+              "fontSize": 15,
+              "textColor": 16777215,
+              "width": 720,
+              "height": 42,
+              "backgroundColor": 2830914,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 12,
+              "paddingY": 8,
+              "autoWidth": true,
+              "autoHeight": false,
+              "minWidth": 520,
+              "minHeight": 40,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]

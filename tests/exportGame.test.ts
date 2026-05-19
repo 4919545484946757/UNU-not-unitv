@@ -152,4 +152,79 @@ describe('exportGame service', () => {
       unresolvedAssets: 0
     })
   })
+
+  it('exports nested gameplay resources used by recent runtime systems', async () => {
+    const workspace = await makeTempExportDir()
+    const projectRoot = path.join(workspace, 'project')
+    const distRoot = path.join(workspace, 'dist')
+    const outputParent = path.join(workspace, 'out')
+    await fs.mkdir(path.join(projectRoot, 'assets/scripts/scenes/SecondScene'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, 'assets/scripts/interactions'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, 'assets/items/scripts'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, 'assets/ui'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, 'scenes'), { recursive: true })
+    await fs.mkdir(distRoot, { recursive: true })
+    await fs.writeFile(path.join(distRoot, 'index.html'), '<html><head><title>UNU</title></head><body><script src="/assets/index.js"></script></body></html>')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/ScriptRuntime.ts'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/InputState.ts'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/AudioRuntime.ts'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/scenes/SecondScene/gravity-system.js'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/interactions/door-switch-scene.js'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/items/items.registry.json'), '{"items":[]}')
+    await fs.writeFile(path.join(projectRoot, 'assets/items/scripts/debug_teleport.js'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/ui/inventory.html'), '<section>inventory</section>')
+    await fs.writeFile(path.join(projectRoot, 'scenes/MainScene.scene.json'), '{}')
+    await fs.writeFile(path.join(projectRoot, 'scenes/SecondScene.scene.json'), '{}')
+    await fs.writeFile(path.join(projectRoot, 'project.json'), JSON.stringify({
+      format: 'unu-project',
+      name: 'NestedGameplay',
+      startupScene: 'MainScene.scene.json',
+      sceneCatalog: [
+        { file: 'MainScene.scene.json', name: 'MainScene' },
+        { file: 'SecondScene.scene.json', name: 'SecondScene' }
+      ]
+    }))
+
+    const handler = createExportGameHandler({
+      resolveProjectRootPath: async (root) => root,
+      exists: async (target) => fs.access(target).then(() => true, () => false),
+      ensureProjectStructure: async () => undefined,
+      ensureProjectRuntimeScriptFiles: async () => undefined,
+      reconcileProjectSceneCatalog: async () => ({ sceneCount: 2, startupScene: 'MainScene.scene.json' }),
+      ensureProjectAssetIntegrity: async () => ({
+        repaired: false,
+        normalizedSceneFiles: 0,
+        normalizedFiles: 0,
+        copiedAssets: 0,
+        relinkedAssets: 0,
+        relinkedFiles: 0,
+        checkedAssetRefs: 8,
+        resolvedAssets: 8,
+        unresolvedAssets: 0,
+        unresolvedRefs: []
+      }),
+      chooseOutputDirectory: async () => outputParent,
+      resolveWebDistRoot: async () => distRoot,
+      copyIfExists: async (from, to) => {
+        const sourceExists = await fs.access(from).then(() => true, () => false)
+        if (!sourceExists) return
+        await fs.cp(from, to, { recursive: true, force: true })
+      },
+      now: () => new Date('2026-05-19T12:00:00.000Z')
+    })
+
+    const result = await handler({ projectRoot, projectName: 'NestedGameplay' })
+
+    expect(result?.ok).toBe(true)
+    await expect(fs.access(path.join(result!.outputDir, 'assets/scripts/scenes/SecondScene/gravity-system.js'))).resolves.toBeUndefined()
+    await expect(fs.access(path.join(result!.outputDir, 'assets/scripts/interactions/door-switch-scene.js'))).resolves.toBeUndefined()
+    await expect(fs.access(path.join(result!.outputDir, 'assets/items/items.registry.json'))).resolves.toBeUndefined()
+    await expect(fs.access(path.join(result!.outputDir, 'assets/items/scripts/debug_teleport.js'))).resolves.toBeUndefined()
+    await expect(fs.access(path.join(result!.outputDir, 'assets/ui/inventory.html'))).resolves.toBeUndefined()
+    const projectJson = JSON.parse(await fs.readFile(path.join(result!.outputDir, 'project.json'), 'utf-8'))
+    expect(projectJson.sceneCatalog).toEqual([
+      { file: 'MainScene.scene.json', name: 'MainScene' },
+      { file: 'SecondScene.scene.json', name: 'SecondScene' }
+    ])
+  })
 })

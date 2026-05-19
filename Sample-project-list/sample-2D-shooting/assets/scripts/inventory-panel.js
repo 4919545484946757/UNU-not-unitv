@@ -236,12 +236,25 @@ function useItemFromSlot(ctx, state, index) {
 function updateHeldHud(ctx, state) {
   const hud = ctx.scene.getEntityById('ui_held_item_hud') || ctx.api.findEntityByName('HeldItemHUD')
   const ui = hud?.getComponent('UI')
-  if (!ui) return
   const player = getPlayer(ctx)
   const playerState = player ? ctx.api.getState(player) : { health: 100, maxHealth: 100 }
   const health = Math.round(Number(playerState.health ?? playerState.maxHealth ?? 100))
   const maxHealth = Math.round(Number(playerState.maxHealth ?? 100))
-  ui.text = `HP: ${health}/${maxHealth}\n手持: ${getHeldItemName(state)}`
+  if (ui) ui.text = `HP: ${health}/${maxHealth}\n手持: ${getHeldItemName(state)}`
+  updateHotbarPreview(ctx, state)
+}
+
+function updateHotbarPreview(ctx, state) {
+  const hotbar = ctx.scene.getEntityById('ui_hotbar_preview') || ctx.api.findEntityByName('HotbarPreview')
+  const ui = hotbar?.getComponent('UI')
+  if (!ui) return
+  const selected = clampHotbar(state.selectedHotbar)
+  const parts = []
+  for (let index = 1; index <= 6; index += 1) {
+    const name = getItemDisplayName(state.items?.[17 + index]) || '空'
+    parts.push(`${index === selected ? '▶' : ' '}[${index}] ${name}`)
+  }
+  ui.text = parts.join('   ')
 }
 
 function syncPlayerInventory(ctx, state) {

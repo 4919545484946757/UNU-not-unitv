@@ -1,247 +1,40 @@
 # UNU Engine 新手教程
 
-中文 | [English](BEGINNER_TUTORIAL.en-US.md)
+[English](BEGINNER_TUTORIAL.en-US.md) | 中文
 
-更新时间：`2026-05-15`
+更新时间：`2026-05-19`  
+适用版本：`0.5.0`
 
-这份教程面向第一次打开 UNU Engine 的用户。你可以按顺序完成一次从启动器、示例项目、场景编辑、脚本编辑到 Web 导出的完整流程。
-
-## 1. 准备环境
-
-1. 安装 Node.js `18+`，建议使用 `20+`。
-2. 在项目根目录安装依赖：
+## 快速开始
 
 ```bash
 npm install
-```
-
-3. 启动开发版编辑器：
-
-```bash
 npm run dev
 ```
 
-如果你使用的是打包后的版本，直接运行安装后的 `UNU Engine` 即可。
+启动后先进入 Launcher，可打开历史项目、示例项目、本地项目，也可新建、重命名或删除项目。新建项目会在选择目录下创建同名子文件夹。
 
-## 2. 认识启动器
+## 示例项目
 
-启动后会先进入 Launcher。这里可以做几件事：
+- `2D Action Demo`：`Sample-project-list/sample-2D-shooting`，包含移动、疾跑、射击、Enemy 生命值、背包、容器、药品、护甲、枪械、调试道具、门禁卡、场景切换和底部物品栏预览。
+- `Snake`：`Sample-project-list/snake`，包含经典移动、得分、难度、暂停菜单、游戏结束菜单和快捷键重置。
 
-- 打开历史项目。
-- 打开本地已有项目目录。
-- 打开示例项目。
-- 新建项目。
-- 重命名或删除项目。
+## 常用流程
 
-新建项目时，如果填写项目名称和目录，UNU 会在目标目录下创建一个同名文件夹。例如项目名为 `MyGame`，目标目录为 `D:/Games`，最终路径会是 `D:/Games/MyGame/`。
+1. 在 Scene 树选择实体或类文件夹。
+2. 在 Inspector 编辑组件。
+3. 在 Scene View 移动、缩放、旋转或 Shift 多选批量操作。
+4. 在资源树管理图片、音频、脚本、HTML、物品和 Prefab。
+5. 保存后点击播放预览。
 
-## 3. 打开示例项目
+## 脚本
 
-推荐先打开示例项目。当前内置两个重点示例：`2D Action Demo` 和 `Snake`。`2D Action Demo` 使用 `Sample-project-list/sample-2D-shooting`，包含：
+项目脚本位于 `assets/scripts/`，包括 `ScriptRuntime.ts`、`InputState.ts`、`AudioRuntime.ts`、`shared/`、`interactions/` 与 `scenes/<SceneName>/`。保存脚本会热重载，错误会定位到资源树文件和行号。
 
-- Player 移动、疾跑、射击。
-- Enemy 追踪、被子弹击中后重生。
-- Door 右键交互切换场景。
-- Chest 右键交互循环切换材质颜色。
-- 双场景切换。
-- 背景图片跟随摄像机。
-- Tilemap 碰撞。
-- 项目内脚本运行时。
+## UI 与物品
 
-`Snake` 使用 `Sample-project-list/snake`，包含：
+UI 支持 Text、Markdown、Button、Slider 和 HTML Overlay。HTML UI 可链接 `assets/ui/*.html` 并通过 `window.UNU.emit(type, payload)` 与脚本通信。物品使用 `[项目名]:[物品英文名]` 命名空间，注册表位于 `assets/items/items.registry.json`。
 
-- 经典贪吃蛇移动、食物、得分和失败判定。
-- `Esc` 暂停菜单和游戏结束菜单。
-- 难度切换，对应不同速度。
-- 重置快捷键按钮。
-- 无外部图片依赖的彩色 Sprite 方块，便于学习脚本和 UI。
+## Web 导出
 
-## 4. 编辑器界面
-
-主界面可以粗略分成四块：
-
-- 左侧：场景树和资源树。场景树可在“文件树结构”和“图层列表视图”间切换；文件树结构中类文件夹可嵌套、重命名、复制/粘贴，并可把实体拖入对应分类。
-- 中间：Scene View，用于编辑和播放预览。
-- 右侧：Inspector、脚本编辑器、Timeline 等面板。
-- 顶部：项目、场景、实体、工具、播放、导出等菜单。
-
-保存、导入、导出、错误等状态默认会显示在底部 Console。旧的右上角消息弹窗代码仍保留，后续可作为提示层继续扩展。
-
-## 5. 基础编辑流程
-
-1. 在场景树中选择实体；如果处于“文件树结构”，也可以先展开类文件夹再选择实体。
-2. 在 Inspector 中编辑组件参数。
-3. 使用顶部工具栏新建实体、复制实体或删除实体。
-4. 在资源树中选择图片，绑定到 Sprite 或 Tilemap 材质。
-5. 使用 `Ctrl/Cmd + S` 保存场景。
-6. 点击播放按钮进入预览。
-7. 再次点击播放按钮可暂停或继续。
-8. 点击停止按钮退出播放态。
-
-播放态下会禁用一部分编辑工具，避免误操作场景。默认也不会显示碰撞箱、实体名称、Tilemap 网格等调试信息。需要调试时，打开播放按钮旁的调试播放选项。
-
-## 6. 示例项目操作
-
-打开 `2D Action Demo` 后，可以直接测试：
-
-- `W/A/S/D` 控制 Player 移动。
-- 同时按两个方向键时，移动方向会正确归一化。
-- 按住 `Shift` 疾跑，速度切换为 `280`。
-- 疾跑时行走动画会加速。
-- 鼠标左键射击。
-- 子弹飞出一定距离后自动销毁。
-- Enemy 被子弹击中后销毁并随机位置重生。
-- 鼠标右键点击可交互范围内的 Door 可切换场景。
-- 鼠标右键点击 Chest 可循环切换材质颜色。
-
-打开 `Snake` 后，可以测试：
-
-- `W/A/S/D` 或方向键控制移动。
-- `Esc` 打开菜单。
-- 撞墙或撞到自己后自动显示“游戏结束”菜单。
-- 点击“难度”循环切换简单、普通、困难。
-- 点击“重置快捷键”恢复默认按键。
-
-## 7. 编辑脚本
-
-UNU 的示例玩法逻辑已经放在项目内脚本中，而不是全部写死在编辑器通用代码里。
-
-常见脚本位置：
-
-```txt
-assets/scripts/ScriptRuntime.ts
-assets/scripts/InputState.ts
-assets/scripts/AudioRuntime.ts
-```
-
-打开方式：
-
-1. 在资源树中找到脚本文件。
-2. 双击文本文件，或右键选择打开脚本面板。
-3. 在脚本编辑器中修改代码。
-4. 保存文本资源。
-5. 重新播放或切换场景验证效果。
-
-脚本编辑器支持代码高亮、横向滚动、查找/替换、独立窗口和多种文本文件。保存脚本后会触发项目脚本热重载。
-
-## 8. 创建实体
-
-可以从场景树或顶部工具栏新建实体。新建时会打开弹窗，可设置：
-
-- 实体类型。
-- 实体 ID。
-- 实体名称。
-- 初始位置、尺寸等基础属性。
-
-当前常见类型包括：
-
-- Empty
-- Sprite
-- Player
-- Enemy
-- Bullet
-- Door
-- Chest
-- Tilemap
-- Camera
-- Background
-- UI Text
-- UI Button
-- HTML UI
-
-## 9. 使用 Tilemap 编辑器
-
-Tilemap 可以在 Inspector 中编辑，也可以打开图形化子窗口。
-
-图形化编辑器支持：
-
-- 鼠标滚轮缩放。
-- 鼠标中键拖动画面。
-- 点击格子后直接按数字键修改值。
-- 长按框选多选。
-- 按住 `Shift` 左键划过多选。
-- 多选后统一修改格子值。
-- 查看数值对应材质缩略图。
-- 将资源树中选中的图片快速绑定到指定 Tile 值。
-
-Tilemap 的 Collision 层使用 `0/1` 表示是否阻挡。Player 和 Enemy 都会通过 `isBlockedRect` 检测阻挡。
-
-## 10. 输入映射与改键
-
-顶部工具栏的项目操作中提供“输入映射/改键”入口，可编辑项目 `InputState.ts` 中的动作映射。项目脚本也可以在游戏内通过 `ctx.api.input.setActionBindings`、`resetActionBindings` 和 `getPressedBindings` 实现自己的改键菜单。
-
-2D Action Demo 和 Snake 示例都包含游戏内重置快捷键按钮。
-
-## 11. 编辑 UI
-
-UI 组件支持：
-
-- 多行文本。
-- 多行输入框。
-- 基础 Markdown 排版。
-- DOM Overlay 形式的 HTML UI。
-
-如果你需要复杂排版，优先尝试 HTML UI；如果只是游戏提示、标题、按钮文字，使用普通 UI Text 更轻量。
-
-## 12. 图片预览
-
-资源树中的图片可以双击或右键预览。图片预览弹窗支持：
-
-- 鼠标滚轮缩放。
-- 左键拖拽视角。
-- 鼠标中键拖拽视角。
-- 拖动弹窗边缘调整大小。
-
-这对像素风素材检查很有用。
-
-## 13. 导出 Web 游戏
-
-在编辑器内选择导出 Web 游戏后，UNU 会生成一个独立目录。目录内包含项目资源、场景、运行时代码和启动脚本。
-
-导出后不要直接双击 `index.html`。浏览器会因为 `file://` 安全策略阻止模块脚本和样式加载。
-
-推荐启动方式：
-
-```txt
-PLAY_GAME.bat
-```
-
-它会启动本地 HTTP 服务并自动打开浏览器。
-
-## 14. 打包编辑器
-
-开发者可以使用：
-
-```bash
-npm run dist:win:installer
-```
-
-打包结果输出到 `release-fixed/`，包含：
-
-- NSIS 安装包。
-- Portable 便携版。
-- `win-unpacked` 解压目录。
-
-当前打包已处理应用图标、安装器图标、示例项目资源和 Web 导出所需的 `resources/dist`。
-
-## 15. 常见问题
-
-### 打开示例后资源丢失
-
-打包版会从 `resources/Sample-project-list` 复制示例到用户数据目录。如果你打开的是旧安装包生成过的缓存项目，可以删除旧缓存后重新打开示例，或使用最新安装包。
-
-### 导出 Web 后直接打开 index.html 失败
-
-这是浏览器安全策略，不是导出失败。请运行 `PLAY_GAME.bat`。
-
-### Windows 安装后图标没刷新
-
-Windows 可能缓存旧快捷方式图标。先卸载旧版，再安装新版；必要时删除旧桌面快捷方式。
-
-### 播放态看不到碰撞箱
-
-默认隐藏调试信息。打开播放按钮旁的调试播放选项即可。
-
-
-
-
+导出目录包含 `index.html`、`project.json`、`assets/`、`scenes/`、`prefabs/`、`PLAY_GAME.bat`、`PLAY_GAME.ps1` 和 `export-report.json`。请运行 `PLAY_GAME.bat`，不要直接打开 `index.html`。

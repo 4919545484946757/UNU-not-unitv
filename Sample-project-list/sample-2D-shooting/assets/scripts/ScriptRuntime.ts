@@ -73,7 +73,7 @@ const defaultEnemyInventory = (seed) => {
 }
 
 const isEntityDeathPending = (ctx, entity) => Boolean(ctx.api.getState(entity).__deathPending)
-const ensureEnemyHealth = (ctx, entity, options = {}) => ensureHealth(ctx, entity, { max: Number(options.max ?? 120) })
+const ensureEnemyHealth = (ctx, entity, options = {}) => ensureHealth(ctx, entity, { max: Number(options.max ?? 50) })
 
 const ensureEntityInventory = (ctx, entity, options = {}) => {
   const state = ctx.api.getState(entity)
@@ -350,7 +350,6 @@ const useInventoryItem = (ctx, entity, slotIndex) => {
 const updatePlayerHud = (ctx, player) => {
   const hud = ctx.scene.getEntityById('ui_held_item_hud') || ctx.api.findEntityByName('HeldItemHUD')
   const ui = hud?.getComponent('UI')
-  if (!ui) return
   const playerState = ensureHealth(ctx, player)
   const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
   const panelState = panel ? ctx.api.getState(panel) : {}
@@ -361,7 +360,22 @@ const updatePlayerHud = (ctx, player) => {
   const weapon = ITEM_DEFS[item]
   const ammo = weapon?.type === 'weapon' ? getWeaponState(ctx, player, item) : null
   const ammoText = ammo ? `\n弹药: ${ammo.magazine}/${ammo.reserve}${ammo.reloading ? ' 换弹中' : ''}` : ''
-  ui.text = `HP: ${Math.round(playerState.health)}/${Math.round(playerState.maxHealth)}\n手持: ${itemName}${ammoText}`
+  if (ui) ui.text = `HP: ${Math.round(playerState.health)}/${Math.round(playerState.maxHealth)}\n手持: ${itemName}${ammoText}`
+  updateHotbarPreview(ctx, inventory, hotbar)
+}
+
+const updateHotbarPreview = (ctx, inventory, selectedHotbar) => {
+  const hotbarEntity = ctx.scene.getEntityById('ui_hotbar_preview') || ctx.api.findEntityByName('HotbarPreview')
+  const ui = hotbarEntity?.getComponent('UI')
+  if (!ui) return
+  const hotbar = Math.max(1, Math.min(6, Math.round(Number(selectedHotbar) || 1)))
+  const parts = []
+  for (let index = 1; index <= 6; index += 1) {
+    const item = String(inventory?.[17 + index] || '').trim()
+    const name = item ? ITEM_DEFS[item]?.displayName || item : '空'
+    parts.push(`${index === hotbar ? '▶' : ' '}[${index}] ${name}`)
+  }
+  ui.text = parts.join('   ')
 }
 
 const parseInteractionDefinition = (ctx) => {
@@ -652,7 +666,7 @@ export default {
         })
         if (spawnedEnemy) {
           ensureEntityInventory(ctx, spawnedEnemy, { count: 12, defaults: defaultEnemyInventory(spawnedEnemy.id) })
-          ensureEnemyHealth(ctx, spawnedEnemy, { max: Number(cfg.enemyHealth ?? 120) })
+          ensureEnemyHealth(ctx, spawnedEnemy, { max: Number(cfg.enemyHealth ?? 50) })
           ctx.api.log(`[${spawnedEnemy.id}] respawn`)
         }
       }
@@ -661,7 +675,7 @@ export default {
       onInit(ctx) {
         ensureEntityInventory(ctx, ctx.entity, { count: 12, defaults: defaultEnemyInventory(ctx.entity.id) })
         const cfg = parseConfig(ctx)
-        ensureEnemyHealth(ctx, ctx.entity, { max: Number(cfg.maxHealth ?? 120) })
+        ensureEnemyHealth(ctx, ctx.entity, { max: Number(cfg.maxHealth ?? 50) })
       },
       onUpdate(ctx) {
         const player = ctx.api.findEntityByName('Player')
