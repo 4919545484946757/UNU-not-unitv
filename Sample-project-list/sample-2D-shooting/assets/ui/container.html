@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --panel: rgba(18, 24, 35, 0.96);
+      --panel-strong: rgba(27, 36, 52, 0.98);
+      --line: #40506b;
+      --gold: #d8aa4a;
+      --blue: #78d6ff;
+      --text: #edf5ff;
+      --muted: #9fb0c8;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+      user-select: none;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .panel {
+      width: min(100%, calc(var(--unu-ui-width, 100vw) - 20px));
+      height: min(100%, calc(var(--unu-ui-height, 100vh) - 20px));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1.22fr) auto minmax(0, 1fr);
+      gap: clamp(6px, 1.2vh, 10px);
+      padding: clamp(8px, 1.6vh, 14px);
+      box-sizing: border-box;
+      overflow: hidden;
+      border: 2px solid rgba(216, 170, 74, 0.58);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 12% 6%, rgba(216, 170, 74, 0.15), transparent 30%),
+        linear-gradient(180deg, rgba(19, 27, 39, 0.98), rgba(9, 13, 20, 0.98));
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(16px, 2.6vh, 22px);
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #192234;
+      color: var(--text);
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--gold);
+      color: #fff2c9;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(216, 170, 74, 0.72), transparent);
+    }
+
+    .section {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 6px;
+      min-height: 0;
+      overflow: hidden;
+      padding: clamp(6px, 1.1vh, 10px);
+      border-radius: 14px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      box-sizing: border-box;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .grid {
+      display: grid;
+      gap: clamp(4px, 0.9vh, 7px);
+      min-height: 0;
+    }
+
+    .grid.chest {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-rows: repeat(5, minmax(26px, 1fr));
+    }
+
+    .grid.bag {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(26px, 1fr));
+    }
+
+    .slot {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 3px;
+      min-width: 0;
+      min-height: 0;
+      padding: clamp(3px, 0.8vh, 6px);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      cursor: grab;
+      box-sizing: border-box;
+    }
+
+    .slot:active {
+      cursor: grabbing;
+    }
+
+    .slot.drag-over {
+      border-color: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(120, 214, 255, 0.55), 0 0 18px rgba(120, 214, 255, 0.22);
+    }
+
+    .slot:hover {
+      border-color: var(--gold);
+      box-shadow: inset 0 0 0 1px rgba(216, 170, 74, 0.35), 0 0 18px rgba(216, 170, 74, 0.16);
+    }
+
+    .slot-label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 10px;
+      line-height: 1;
+      min-width: 0;
+    }
+
+    .slot-item {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      min-height: 0;
+      overflow: hidden;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.045);
+      color: var(--text);
+      font-size: clamp(10px, 1.8vh, 12px);
+      line-height: 1.15;
+    }
+
+    .slot.empty .slot-item {
+      color: #5f6e86;
+      border: 1px dashed rgba(255, 255, 255, 0.1);
+      background: transparent;
+    }
+
+    .hotkey {
+      color: var(--blue);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="panel">
+    <div class="topbar">
+      <div>
+        <h1 id="title">箱子容器</h1>
+        <div class="hint">拖拽物品交换 · E 或关闭按钮退出</div>
+      </div>
+      <button data-unu-action="close">关闭</button>
+    </div>
+
+    <section class="section">
+      <div class="section-title">
+        <span>箱子格子 5 x 6</span>
+        <span id="chestCount"></span>
+      </div>
+      <div class="grid chest" id="chestGrid"></div>
+    </section>
+
+    <div class="divider"></div>
+
+    <section class="section">
+      <div class="section-title">
+        <span>背包格子 4 x 6</span>
+        <span>可与箱子互相拖拽</span>
+      </div>
+      <div class="grid bag" id="bagGrid"></div>
+    </section>
+  </main>
+
+  <script>
+    let chestItems = new Array(30).fill('');
+    let bagItems = new Array(24).fill('');
+    let chestName = 'Chest';
+    let dragSlotId = '';
+
+    function makeSlot({ id, label, item, hotkey }) {
+      const slot = document.createElement('div');
+      slot.className = `slot ${item ? '' : 'empty'}`;
+      slot.draggable = true;
+      slot.dataset.slot = id;
+      slot.innerHTML = `
+        <div class="slot-label"><span>${label}</span>${hotkey ? `<span class="hotkey">${hotkey}</span>` : ''}</div>
+        <div class="slot-item">${item || '空'}</div>
+      `;
+      slot.addEventListener('dragstart', () => { dragSlotId = id; });
+      slot.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        slot.classList.add('drag-over');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+      slot.addEventListener('drop', () => {
+        slot.classList.remove('drag-over');
+        moveSlotItem(dragSlotId, id);
+        dragSlotId = '';
+      });
+      return slot;
+    }
+
+    function render() {
+      document.getElementById('title').textContent = `${chestName || 'Chest'} 容器`;
+      document.getElementById('chestCount').textContent = `${chestItems.filter(Boolean).length}/30`;
+      renderGrid('chestGrid', 'chest', chestItems, 0);
+      renderGrid('bagGrid', 'bag', bagItems, 1);
+    }
+
+    function renderGrid(rootId, kind, items, hotbarStart) {
+      const root = document.getElementById(rootId);
+      root.innerHTML = '';
+      items.forEach((item, index) => {
+        const hotbar = kind === 'bag' && index >= 18 ? index - 17 : 0;
+        root.appendChild(makeSlot({
+          id: `${kind}:${index}`,
+          label: `${kind === 'chest' ? '箱' : '包'} ${index + 1}`,
+          item,
+          hotkey: hotbar ? String(hotbarStart + hotbar - 1) : ''
+        }));
+      });
+    }
+
+    function moveSlotItem(fromId, toId) {
+      if (!fromId || !toId || fromId === toId) return;
+      const from = readSlot(fromId);
+      const to = readSlot(toId);
+      writeSlot(fromId, to);
+      writeSlot(toId, from);
+      render();
+      window.UNU?.emit('container-changed', { chestItems, bagItems });
+    }
+
+    function readSlot(slotId) {
+      if (slotId.startsWith('chest:')) return chestItems[Number(slotId.slice(6))] || '';
+      if (slotId.startsWith('bag:')) return bagItems[Number(slotId.slice(4))] || '';
+      return '';
+    }
+
+    function writeSlot(slotId, value) {
+      if (slotId.startsWith('chest:')) chestItems[Number(slotId.slice(6))] = String(value || '');
+      if (slotId.startsWith('bag:')) bagItems[Number(slotId.slice(4))] = String(value || '');
+    }
+
+    function normalizeItems(items, count) {
+      const next = Array.isArray(items) ? items.map((item) => String(item || '')).slice(0, count) : [];
+      while (next.length < count) next.push('');
+      return next;
+    }
+
+    window.UNU?.onMessage((message) => {
+      if (message?.type !== 'container-state') return;
+      chestItems = normalizeItems(message.chestItems, 30);
+      bagItems = normalizeItems(message.bagItems, 24);
+      chestName = String(message.chestName || 'Chest');
+      render();
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'KeyE') window.UNU?.emit('close', {});
+    });
+
+    render();
+    window.UNU?.emit('ready', {});
+  </script>
+</body>
+</html>

@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    :root {
+      --panel: rgba(21, 27, 39, 0.94);
+      --panel-strong: rgba(32, 41, 58, 0.98);
+      --line: #40506b;
+      --gold: #d8aa4a;
+      --blue: #78d6ff;
+      --text: #edf5ff;
+      --muted: #9fb0c8;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+      user-select: none;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    .inventory {
+      width: min(100%, calc(var(--unu-ui-width, 100vw) - 20px));
+      height: min(100%, calc(var(--unu-ui-height, 100vh) - 20px));
+      padding: clamp(8px, 2vh, 16px);
+      border: 2px solid rgba(216, 170, 74, 0.55);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 18% 8%, rgba(120, 215, 255, 0.053), transparent 28%),
+        linear-gradient(180deg, rgba(18, 25, 36, 0.732), rgba(9, 13, 21, 0.605));
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+      display: grid;
+      grid-template-rows: auto minmax(120px, 0.9fr) minmax(0, 1.6fr);
+      gap: clamp(8px, 1.8vh, 14px);
+      box-sizing: border-box;
+      overflow: hidden;
+      backdrop-filter: blur(1px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 21px;
+      letter-spacing: 0.12em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #192234;
+      color: var(--text);
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--gold);
+      color: #fff2c9;
+    }
+
+    .upper {
+      display: grid;
+      grid-template-columns: minmax(96px, 132px) minmax(150px, 1fr) minmax(96px, 132px);
+      grid-template-rows: minmax(58px, 1fr) minmax(58px, 1fr);
+      gap: clamp(6px, 1.4vh, 10px);
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    @media (max-width: 560px) {
+      .inventory {
+        padding: 12px;
+      }
+
+      .upper {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 140px 76px 76px;
+      }
+
+      .preview {
+        grid-column: 1 / span 2;
+        grid-row: 1;
+      }
+    }
+
+    .preview {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      border: 1px solid rgba(120, 214, 255, 0.45);
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(120, 214, 255, 0.1), rgba(120, 214, 255, 0.02)),
+        repeating-linear-gradient(90deg, transparent 0 18px, rgba(255,255,255,0.03) 18px 19px);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .avatar-img {
+      width: 128px;
+      height: 128px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 18px 18px rgba(0,0,0,0.34));
+      transform: scale(1.35);
+    }
+
+    .avatar-fallback {
+      width: 82px;
+      height: 118px;
+      border-radius: 42px 42px 20px 20px;
+      background:
+        radial-gradient(circle at 50% 20%, #f6d38b 0 20px, transparent 21px),
+        linear-gradient(180deg, #5fb6ff 26px, #2d5c9a 72px, #26364f 72px);
+      box-shadow: 0 0 0 4px rgba(255,255,255,0.08), 0 18px 30px rgba(0,0,0,0.32);
+    }
+
+    .preview span {
+      position: absolute;
+      bottom: 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .slot {
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: var(--panel);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+      padding: clamp(5px, 1.2vh, 8px);
+      min-width: 0;
+      min-height: 0;
+      cursor: grab;
+    }
+
+    .slot:active {
+      cursor: grabbing;
+    }
+
+    .slot.drag-over {
+      border-color: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(120, 214, 255, 0.55), 0 0 18px rgba(120, 214, 255, 0.22);
+    }
+
+    .slot:hover,
+    .slot.selected {
+      border-color: var(--gold);
+      box-shadow: inset 0 0 0 1px rgba(216, 170, 74, 0.35), 0 0 18px rgba(216, 170, 74, 0.16);
+    }
+
+    .slot.hotbar.selected {
+      border-color: var(--blue);
+      box-shadow: inset 0 0 0 1px rgba(120, 214, 255, 0.55), 0 0 18px rgba(120, 214, 255, 0.22);
+    }
+
+    .slot-label {
+      color: var(--muted);
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .slot-item {
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--text);
+      font-size: 12px;
+      line-height: 1.2;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .slot.empty .slot-item {
+      color: #5f6e86;
+      border: 1px dashed rgba(255,255,255,0.1);
+      background: transparent;
+    }
+
+    .bag {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: clamp(5px, 1.1vh, 8px);
+      padding: clamp(7px, 1.5vh, 12px);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .bag-title {
+      display: flex;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-rows: repeat(4, minmax(34px, 1fr));
+      gap: clamp(4px, 1vh, 7px);
+      min-height: 0;
+    }
+
+    .grid .slot {
+      aspect-ratio: auto;
+      padding: clamp(4px, 1vh, 6px);
+      border-radius: 10px;
+    }
+
+    .grid .slot-item {
+      font-size: 11px;
+    }
+
+    .hotkey {
+      color: var(--blue);
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <main class="inventory" id="inventory">
+    <div class="topbar">
+      <div>
+        <h1>背包 / 容器</h1>
+        <div class="hint">E 关闭 · 1-6 切换手持物品 · 装备栏与背包之间可互相拖拽</div>
+      </div>
+      <button data-unu-action="close">关闭</button>
+    </div>
+
+    <section class="upper" id="equipment"></section>
+
+    <section class="bag">
+      <div class="bag-title">
+        <span>背包栏 4 x 6</span>
+        <span id="selectedText">当前手持：</span>
+      </div>
+      <div class="grid" id="bagGrid"></div>
+    </section>
+  </main>
+
+  <script>
+    let equipment = { helmet: '', chest: '', leggings: '', boots: '' };
+    let items = new Array(24).fill('');
+    let selectedHotbar = 1;
+    let dragSlotId = '';
+    let playerTexture = '';
+
+    function makeSlot({ id, label, item, hotkey, hotbar }) {
+      const slot = document.createElement('div');
+      slot.className = `slot ${item ? '' : 'empty'} ${hotbar ? 'hotbar' : ''} ${hotbar === selectedHotbar ? 'selected' : ''}`;
+      slot.draggable = true;
+      slot.dataset.slot = id;
+      slot.innerHTML = `
+        <div class="slot-label"><span style="display: none;">${label}</span>${hotkey ? `<span class="hotkey">${hotkey}</span>` : ''}</div>
+        <div class="slot-item">${item || '空'}</div>
+      `;
+      slot.addEventListener('dragstart', () => { dragSlotId = id; });
+      slot.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        slot.classList.add('drag-over');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+      slot.addEventListener('drop', () => {
+        slot.classList.remove('drag-over');
+        moveSlotItem(dragSlotId, id);
+        dragSlotId = '';
+      });
+      return slot;
+    }
+
+    function renderEquipment() {
+      const root = document.getElementById('equipment');
+      root.innerHTML = '';
+      root.appendChild(makeSlot({ id: 'equip:helmet', label: '头盔', item: equipment.helmet }));
+      const preview = document.createElement('div');
+      preview.className = 'preview';
+      preview.innerHTML = playerTexture
+        ? '<img class="avatar-img" data-player-preview alt="Player"><span></span>'
+        : '<div class="avatar-fallback"></div><span>角色预览图</span>';
+      root.appendChild(preview);
+      updatePlayerPreviewImage();
+      root.appendChild(makeSlot({ id: 'equip:leggings', label: '护腿', item: equipment.leggings }));
+      root.appendChild(makeSlot({ id: 'equip:chest', label: '胸甲', item: equipment.chest }));
+      root.appendChild(makeSlot({ id: 'equip:boots', label: '靴子', item: equipment.boots }));
+    }
+
+    function renderBag() {
+      const grid = document.getElementById('bagGrid');
+      grid.innerHTML = '';
+      items.forEach((item, index) => {
+        const row = Math.floor(index / 6);
+        const hotbar = row === 3 ? index - 17 : 0;
+        const slot = makeSlot({
+          id: `bag:${index}`,
+          label: `格 ${index + 1}`,
+          item,
+          hotkey: hotbar ? String(hotbar) : '',
+          hotbar
+        });
+        slot.addEventListener('click', () => {
+          if (hotbar) setHotbar(hotbar);
+          window.UNU?.emit('select-slot', { slotId: `bag:${index}`, index, item, hotbar });
+        });
+        grid.appendChild(slot);
+      });
+      document.getElementById('selectedText').textContent = `当前手持：${heldItemName()}`;
+    }
+
+    function moveSlotItem(fromId, toId) {
+      if (!fromId || !toId || fromId === toId) return;
+      const from = readSlot(fromId);
+      const to = readSlot(toId);
+      writeSlot(fromId, to);
+      writeSlot(toId, from);
+      renderAll();
+      emitInventoryChanged();
+    }
+
+    function readSlot(slotId) {
+      if (slotId.startsWith('equip:')) return equipment[slotId.slice(6)] || '';
+      if (slotId.startsWith('bag:')) return items[Number(slotId.slice(4))] || '';
+      return '';
+    }
+
+    function writeSlot(slotId, value) {
+      if (slotId.startsWith('equip:')) equipment[slotId.slice(6)] = String(value || '');
+      if (slotId.startsWith('bag:')) items[Number(slotId.slice(4))] = String(value || '');
+    }
+
+    function setHotbar(index, silent = false) {
+      selectedHotbar = Math.max(1, Math.min(6, Number(index) || 1));
+      renderBag();
+      if (!silent) emitInventoryChanged('select-hotbar');
+    }
+
+    function heldItemName() {
+      return items[17 + selectedHotbar] || '空手';
+    }
+
+    function emitInventoryChanged(type = 'inventory-changed') {
+      window.UNU?.emit(type, {
+        selectedHotbar,
+        items,
+        equipment,
+        heldItem: heldItemName()
+      });
+    }
+
+    function applyState(message) {
+      if (Array.isArray(message.items)) {
+        items = message.items.map((item) => String(item || '')).slice(0, 24);
+        while (items.length < 24) items.push('');
+      }
+      if (message.equipment && typeof message.equipment === 'object') {
+        equipment = {
+          helmet: String(message.equipment.helmet || ''),
+          chest: String(message.equipment.chest || ''),
+          leggings: String(message.equipment.leggings || ''),
+          boots: String(message.equipment.boots || '')
+        };
+      }
+      if (message.playerTexture) playerTexture = String(message.playerTexture || '');
+      if (Number.isFinite(Number(message.selectedHotbar))) selectedHotbar = Math.max(1, Math.min(6, Number(message.selectedHotbar) || 1));
+      renderAll();
+    }
+
+    function renderAll() {
+      renderEquipment();
+      renderBag();
+    }
+
+    async function updatePlayerPreviewImage() {
+      const img = document.querySelector('[data-player-preview]');
+      if (!img || !playerTexture) return;
+      img.removeAttribute('src');
+      img.src = await assetUrl(playerTexture);
+    }
+
+    async function assetUrl(path) {
+      const normalized = String(path || '').replace(/\\/g, '/');
+      if (!normalized) return '';
+      if (/^(file|https?|data|blob):/i.test(normalized)) return normalized;
+      if (window.UNU?.assetUrl) return await window.UNU.assetUrl(normalized);
+      return normalized.startsWith('assets/') ? '../' + normalized.slice('assets/'.length) : normalized;
+    }
+
+    window.addEventListener('keydown', (event) => {
+      if (/^[1-6]$/.test(event.key)) setHotbar(Number(event.key));
+      if (event.code === 'KeyE') window.UNU?.emit('close', {});
+    });
+
+    window.UNU?.onMessage((message) => {
+      if (message?.type === 'inventory-state') applyState(message);
+      if (message?.type === 'set-hotbar') setHotbar(message.index, true);
+      if (message?.type === 'set-player-preview') {
+        playerTexture = String(message.texturePath || '');
+        renderEquipment();
+      }
+    });
+
+    renderAll();
+    window.UNU?.emit('ready', { selectedHotbar });
+  </script>
+</body>
+</html>

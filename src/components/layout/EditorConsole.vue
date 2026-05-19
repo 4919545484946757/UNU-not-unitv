@@ -6,7 +6,7 @@
         <button :class="{ active: activeTab === 'log' }" @click="activeTab = 'log'">命令日志</button>
         <button :class="{ active: activeTab === 'performance' }" @click="activeTab = 'performance'">性能检测</button>
       </div>
-      <div class="meta">{{ activeTab === 'log' ? `${consoleStore.messages.length} messages` : `${runtime.fps} FPS` }}</div>
+      <div class="meta">{{ activeTab === 'log' ? consoleMetaText : `${runtime.fps} FPS` }}</div>
       <button v-if="activeTab === 'log'" @click="consoleStore.clear()">Clear</button>
     </div>
 
@@ -43,7 +43,10 @@
         <span v-if="item.source" class="source">
           {{ item.source }}<template v-if="item.line">:{{ item.line }}</template><template v-if="item.column">:{{ item.column }}</template>
         </span>
-        <span class="message">{{ item.message }}</span>
+        <span class="message">
+          <span v-if="item.repeatCount > 1" class="repeat-badge" :title="`首次：${item.createdAt}，最后：${item.lastAt}`">×{{ item.repeatCount }}</span>
+          {{ item.message }}
+        </span>
       </div>
       <div v-if="consoleStore.messages.length === 0" class="empty">Script logs, warnings, errors, and debug command results appear here.</div>
     </div>
@@ -81,12 +84,19 @@ const commandHistory = ref<string[]>([])
 const historyIndex = ref(-1)
 
 watch(
-  () => consoleStore.messages.length,
+  () => [consoleStore.messages.length, consoleStore.revision] as const,
   async () => {
     await nextTick()
     if (scrollRef.value) scrollRef.value.scrollTop = scrollRef.value.scrollHeight
   }
 )
+
+const consoleMetaText = computed(() => {
+  const collapsed = consoleStore.messages.reduce((sum, item) => sum + Math.max(0, item.repeatCount - 1), 0)
+  return collapsed > 0
+    ? `${consoleStore.messages.length} messages · ${collapsed} folded`
+    : `${consoleStore.messages.length} messages`
+})
 
 const performanceItems = computed(() => {
   const budget = 16.67
@@ -522,6 +532,22 @@ button:hover {
 
 .message {
   min-width: 0;
+}
+
+.repeat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 1px solid #3d4d66;
+  border-radius: 999px;
+  background: rgba(86, 182, 194, 0.14);
+  color: #9de7f0;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .empty {

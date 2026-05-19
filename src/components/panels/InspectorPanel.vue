@@ -444,8 +444,8 @@
           </template>
           <label>Font Size <input type="number" min="8" max="96" :value="ui.fontSize" @input="setNumber('ui', 'fontSize', $event)" /></label>
           <label>Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /></label>
-          <label>Width <input type="number" min="10" :value="ui.width" @input="setNumber('ui', 'width', $event)" /></label>
-          <label>Height <input type="number" min="10" :value="ui.height" @input="setNumber('ui', 'height', $event)" /></label>
+          <label>Width <input :value="ui.width" placeholder="760 或 80%" @input="setUiSize('width', $event)" /></label>
+          <label>Height <input :value="ui.height" placeholder="480 或 70%" @input="setUiSize('height', $event)" /></label>
           <label class="checkbox-row">
             <input type="checkbox" :checked="ui.autoWidth" @change="setChecked('ui', 'autoWidth', $event)" />
             Auto Width
@@ -454,8 +454,8 @@
             <input type="checkbox" :checked="ui.autoHeight" @change="setChecked('ui', 'autoHeight', $event)" />
             Auto Height
           </label>
-          <label>Min Width <input type="number" min="1" :value="ui.minWidth || 1" @input="setNumber('ui', 'minWidth', $event)" /></label>
-          <label>Min Height <input type="number" min="1" :value="ui.minHeight || 1" @input="setNumber('ui', 'minHeight', $event)" /></label>
+          <label>Min Width <input :value="ui.minWidth || 1" placeholder="1 或 20%" @input="setUiSize('minWidth', $event)" /></label>
+          <label>Min Height <input :value="ui.minHeight || 1" placeholder="1 或 20%" @input="setUiSize('minHeight', $event)" /></label>
           <label>Background (Hex) <input :value="`0x${Number(ui.backgroundColor).toString(16)}`" @input="setHexNumber('ui', 'backgroundColor', $event)" /></label>
           <label>Anchor X <input type="number" min="0" max="1" step="0.01" :value="ui.anchorX" @input="setNumber('ui', 'anchorX', $event)" /></label>
           <label>Anchor Y <input type="number" min="0" max="1" step="0.01" :value="ui.anchorY" @input="setNumber('ui', 'anchorY', $event)" /></label>
@@ -1089,6 +1089,23 @@ function setNumber(group: InspectorComponentGroup, key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = Number((event.target as HTMLInputElement).value)
   markDirtyIfUpdated(setInspectorNumberField(inspectorComponents(), group, key, value))
+}
+
+function setUiSize(key: 'width' | 'height' | 'minWidth' | 'minHeight', event: Event) {
+  if (runtime.isPlaying) return
+  if (!ui.value) return
+  const raw = (event.target as HTMLInputElement).value.trim()
+  const nextValue = parseUiSizeInput(raw)
+  if (nextValue === null) return
+  Reflect.set(ui.value, key, nextValue)
+  sceneStore.markDirty()
+}
+
+function parseUiSizeInput(raw: string) {
+  if (!raw) return 1
+  if (/^\d+(\.\d+)?%$/.test(raw)) return raw
+  const value = Number(raw)
+  return Number.isFinite(value) ? Math.max(1, value) : null
 }
 
 function formatRotationDegrees(rotationRadians: number) {

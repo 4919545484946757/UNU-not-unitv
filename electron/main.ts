@@ -2500,9 +2500,14 @@ app.whenReady().then(() => {
   ipcMain.handle('unu:read-text-asset', async (_event, payload: { projectRoot: string; relativePath: string }) => {
     if (!payload.projectRoot || !payload.relativePath) return null
     const projectRoot = await resolveProjectRootPath(payload.projectRoot)
-    const filePath = path.join(projectRoot, payload.relativePath)
+    const relativePath = normalizeSafeRelativePath(payload.relativePath)
+    if (!relativePath) return null
+    const filePath = resolveProjectChildPath(projectRoot, relativePath)
+    if (!filePath) return null
+    const stat = await fs.stat(filePath).catch(() => null)
+    if (!stat || !stat.isFile()) return null
     const content = await fs.readFile(filePath, 'utf-8')
-    return { filePath, name: path.basename(filePath), relativePath: payload.relativePath, content }
+    return { filePath, name: path.basename(filePath), relativePath, content }
   })
 
   ipcMain.handle('unu:rename-project', async (_event, payload: { projectRoot: string; nextName: string }) => {

@@ -44,7 +44,13 @@ interface CameraViewState {
   zoom: number
 }
 type CachedWorldNodeKind = 'sprite' | 'tilemap' | 'empty'
-type CachedHtmlUiNode = { signature: string; node: HTMLDivElement; iframe: HTMLIFrameElement | null }
+type CachedHtmlUiNode = {
+  signature: string
+  node: HTMLDivElement
+  iframe: HTMLIFrameElement | null
+  objectUrl: string | null
+  scriptObjectUrls: string[]
+}
 
 const EMPTY_ENTITY_EDITOR_SIZE = 40
 const UI_FONT_FAMILY = 'Microsoft YaHei, SimHei, Noto Sans CJK SC, Segoe UI, PingFang SC, sans-serif'
@@ -109,10 +115,14 @@ export class PixiRenderer {
     this.resizeAndRedraw()
   }
   private readonly htmlUiMessageHandler = (event: MessageEvent) => {
-    const data = event.data as { source?: string; entityId?: string; type?: string; payload?: unknown } | null
+    const data = event.data as { source?: string; entityId?: string; type?: string; payload?: unknown; requestId?: string } | null
     if (!data || data.source !== 'unu-html-ui' || !data.entityId) return
     const cached = this.htmlUiNodeCache.get(data.entityId)
     if (!cached?.iframe || event.source !== cached.iframe.contentWindow) return
+    if (data.type === '__unu_asset_url') {
+      void this.resolveHtmlUiAssetUrl(data.entityId, String(data.requestId || ''), data.payload)
+      return
+    }
     if (!this.currentScene) return
     const entity = this.currentScene.getEntityById(data.entityId)
     const ui = entity?.getComponent<UIComponent>('UI')
@@ -124,7 +134,6 @@ export class PixiRenderer {
     this.consumeGameCommandRequest()
     if (!this.isPlaying) void this.renderScene(this.currentScene)
   }
-
   constructor(private readonly options: PixiRendererOptions) {}
 
   async init(scene: Scene | null) {
@@ -936,6 +945,7 @@ export class PixiRenderer {
     }
     for (const [id, cached] of this.htmlUiNodeCache.entries()) {
       if (activeHtmlUiIds.has(id)) continue
+      this.revokeHtmlUiObjectUrl(cached)
       cached.node.remove()
       this.htmlUiNodeCache.delete(id)
     }
@@ -1013,8 +1023,8 @@ export class PixiRenderer {
   }
 
   private resolveUiMetrics(ui: UIComponent): UiMetrics {
-    const explicitWidth = Math.max(1, Number(ui.width || 1))
-    const explicitHeight = Math.max(1, Number(ui.height || 1))
+    const explicitWidth = this.resolveUiSizeValue(ui.width, 'width', 1)
+    const explicitHeight = this.resolveUiSizeValue(ui.height, 'height', 1)
     const paddingX = Math.max(0, Number(ui.paddingX ?? 14))
     const paddingY = Math.max(0, Number(ui.paddingY ?? 8))
     const fontSize = Math.max(10, Number(ui.fontSize || 20))
@@ -1022,14 +1032,29 @@ export class PixiRenderer {
     const longest = Math.max(1, ...lines.map((line) => stripInlineMarkdown(line).length || 1))
     const contentWidth = Math.ceil(longest * fontSize * 0.62)
     const contentHeight = Math.ceil(Math.max(1, lines.length) * fontSize * 1.25)
-    const minWidth = Math.max(1, Number(ui.minWidth || 1))
-    const minHeight = Math.max(1, Number(ui.minHeight || 1))
+    const minWidth = this.resolveUiSizeValue(ui.minWidth, 'width', 1)
+    const minHeight = this.resolveUiSizeValue(ui.minHeight, 'height', 1)
     const autoWidth = ui.autoWidth || ui.mode === 'button'
     const autoHeight = ui.autoHeight || ui.mode === 'button'
     return {
       width: Math.max(minWidth, autoWidth ? Math.max(explicitWidth, contentWidth + paddingX * 2) : explicitWidth),
       height: Math.max(minHeight, autoHeight ? Math.max(explicitHeight, contentHeight + paddingY * 2) : explicitHeight)
     }
+  }
+
+  private resolveUiSizeValue(value: unknown, axis: 'width' | 'height', fallback: number) {
+    const viewportSize = axis === 'width'
+      ? this.options.container.clientWidth
+      : this.options.container.clientHeight
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      const percentMatch = trimmed.match(/^(\d+(?:\.\d+)?)%$/)
+      if (percentMatch) return Math.max(1, viewportSize * Number(percentMatch[1]) / 100)
+      const parsed = Number(trimmed)
+      return Number.isFinite(parsed) ? Math.max(1, parsed) : fallback
+    }
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? Math.max(1, parsed) : fallback
   }
 
   private resolveUiPosition(
@@ -1433,7 +1458,7 @@ export class PixiRenderer {
         event.stopPropagation()
       })
       this.htmlUiLayer.appendChild(node)
-      cached = { signature: '', node, iframe: null }
+      cached = { signature: '', node, iframe: null, objectUrl: null, scriptObjectUrls: [] }
       this.htmlUiNodeCache.set(entity.id, cached)
     }
 
@@ -1460,6 +1485,7 @@ export class PixiRenderer {
       event.stopPropagation()
     }
     if (cached.signature !== signature) {
+      this.revokeHtmlUiObjectUrl(cached)
       cached.iframe = null
       node.replaceChildren()
       const rawHtml = externalHtml ?? ui.text
@@ -1468,15 +1494,31 @@ export class PixiRenderer {
       if (useIframe) {
         const iframe = document.createElement('iframe')
         iframe.className = 'unu-html-ui-frame'
+        iframe.setAttribute('allowtransparency', 'true')
         iframe.sandbox.add('allow-forms', 'allow-modals', 'allow-popups', 'allow-pointer-lock')
-        if (ui.htmlAllowScripts) iframe.sandbox.add('allow-scripts')
-        iframe.srcdoc = this.buildHtmlUiDocument(entity, ui, html)
+        if (ui.htmlAllowScripts) {
+          // Scriptable HTML UI needs the iframe to keep the parent's blob origin so
+          // extracted blob scripts can load. The bridge still only exposes postMessage.
+          iframe.sandbox.add('allow-scripts', 'allow-same-origin')
+        }
+        const documentHtml = this.buildHtmlUiDocument(entity, ui, html)
+        if (ui.htmlAllowScripts) {
+          // Inline scripts are blocked by the editor CSP even inside blob iframes.
+          // Convert them to blob script URLs, then allow only blob-loaded scripts via CSP.
+          const scriptableHtml = this.prepareScriptableHtmlUiDocument(documentHtml, cached)
+          cached.objectUrl = URL.createObjectURL(new Blob([scriptableHtml], { type: 'text/html' }))
+          iframe.src = cached.objectUrl
+        } else {
+          iframe.srcdoc = documentHtml
+        }
         Object.assign(iframe.style, {
           width: '100%',
           height: '100%',
           border: '0',
           display: 'block',
           background: 'transparent',
+          backgroundColor: 'transparent',
+          colorScheme: 'normal',
           pointerEvents: this.isPlaying && ui.interactable ? 'auto' : 'none'
         })
         node.appendChild(iframe)
@@ -1507,10 +1549,28 @@ export class PixiRenderer {
       borderRadius: ui.mode === 'button' ? '10px' : '0',
       border: ui.mode === 'button' ? '1px solid rgba(255,255,255,0.28)' : '0',
       background: ui.mode === 'button' ? hexToRgba(ui.backgroundColor, 0.95) : 'transparent',
-      pointerEvents: !this.isPlaying || ui.interactable ? 'auto' : 'none',
+      pointerEvents: this.resolveHtmlUiPointerEvents(ui),
       cursor: ui.mode === 'button' && ui.interactable ? 'pointer' : 'default'
     })
-    if (cached.iframe) cached.iframe.style.pointerEvents = this.isPlaying && ui.interactable ? 'auto' : 'none'
+    if (cached.iframe) {
+      cached.iframe.width = String(Math.max(1, Math.round(metrics.width)))
+      cached.iframe.height = String(Math.max(1, Math.round(metrics.height)))
+      Object.assign(cached.iframe.style, {
+        width: `${Math.max(1, metrics.width)}px`,
+        height: `${Math.max(1, metrics.height)}px`,
+        pointerEvents: this.isPlaying && ui.interactable ? 'auto' : 'none'
+      })
+      this.postHtmlMessageToEntity(entity.id, {
+        type: '__unu_resize',
+        width: Math.max(1, metrics.width),
+        height: Math.max(1, metrics.height)
+      })
+    }
+  }
+
+  private resolveHtmlUiPointerEvents(ui: UIComponent) {
+    if (!this.isPlaying) return 'auto'
+    return ui.interactable ? 'auto' : 'none'
   }
 
   private async resolveHtmlUiSource(relativePath: string) {
@@ -1538,6 +1598,40 @@ export class PixiRenderer {
     }
   }
 
+  private async resolveHtmlUiAssetUrl(entityId: string, requestId: string, payload: unknown) {
+    const cached = this.htmlUiNodeCache.get(entityId)
+    if (!cached?.iframe || !requestId) return
+    const path = typeof payload === 'string'
+      ? payload
+      : payload && typeof payload === 'object' && 'path' in payload
+        ? String((payload as { path?: unknown }).path || '')
+        : ''
+    const dataUrl = await this.readHtmlUiAssetDataUrl(path)
+    cached.iframe.contentWindow?.postMessage({
+      source: 'unu-game-ui',
+      entityId,
+      assetRequestId: requestId,
+      assetUrl: dataUrl || ''
+    }, '*')
+  }
+
+  private async readHtmlUiAssetDataUrl(relativePath: string) {
+    const normalized = String(relativePath || '').replace(/\\/g, '/').trim()
+    if (!normalized) return ''
+    if (/^(https?|data|blob):/i.test(normalized)) return normalized
+    const project = useProjectStore()
+    if (!window.unu?.readAssetDataUrl || !project.rootPath || project.isMemoryProject) return normalized
+    try {
+      const result = await window.unu.readAssetDataUrl({
+        projectRoot: project.rootPath,
+        relativePath: normalized
+      })
+      return result?.dataUrl || ''
+    } catch {
+      return ''
+    }
+  }
+
   private buildHtmlUiDocument(entity: Scene['entities'][number], ui: UIComponent, html: string) {
     const project = useProjectStore()
     const bridge = ui.htmlBridgeEnabled ? `
@@ -1545,6 +1639,8 @@ export class PixiRenderer {
 (() => {
   const entityId = ${JSON.stringify(entity.id)};
   const listeners = new Set();
+  const pendingAssetRequests = new Map();
+  let assetRequestCounter = 0;
   window.UNU = {
     entityId,
     emit(type, payload) {
@@ -1554,11 +1650,29 @@ export class PixiRenderer {
       if (typeof callback !== 'function') return () => {};
       listeners.add(callback);
       return () => listeners.delete(callback);
+    },
+    assetUrl(path) {
+      return new Promise((resolve) => {
+        const requestId = String(++assetRequestCounter);
+        pendingAssetRequests.set(requestId, resolve);
+        window.parent.postMessage({ source: 'unu-html-ui', entityId, type: '__unu_asset_url', requestId, payload: { path } }, '*');
+      });
     }
   };
   window.addEventListener('message', (event) => {
     const data = event.data || {};
+    if (data.source === 'unu-game-ui' && data.entityId === entityId && data.assetRequestId) {
+      const resolve = pendingAssetRequests.get(String(data.assetRequestId));
+      pendingAssetRequests.delete(String(data.assetRequestId));
+      if (resolve) resolve(String(data.assetUrl || ''));
+      return;
+    }
     if (data.source !== 'unu-game-ui' || data.entityId !== entityId) return;
+    if (data.message && data.message.type === '__unu_resize') {
+      document.documentElement.style.setProperty('--unu-ui-width', String(data.message.width || 0) + 'px');
+      document.documentElement.style.setProperty('--unu-ui-height', String(data.message.height || 0) + 'px');
+      window.dispatchEvent(new CustomEvent('unu:resize', { detail: data.message }));
+    }
     for (const callback of Array.from(listeners)) {
       try { callback(data.message); } catch (error) { console.error(error); }
     }
@@ -1574,14 +1688,20 @@ export class PixiRenderer {
 })();
 </script>` : ''
     const baseHref = this.getHtmlUiBaseHref(project.rootPath, ui.htmlSourcePath)
+    const transparentFrameStyle = `
+<style data-unu-frame-defaults>
+  :root { --unu-ui-width: 100vw; --unu-ui-height: 100vh; }
+  html, body { width: 100%; height: 100%; margin: 0; background: transparent !important; }
+</style>`
     const hasDocument = /<html[\s>]/i.test(html) || /<!doctype/i.test(html)
     if (hasDocument) {
-      const withBase = baseHref && !/<base[\s>]/i.test(html)
+      let withBase = baseHref && !/<base[\s>]/i.test(html)
         ? html.replace(/<head([^>]*)>/i, `<head$1><base href="${baseHref}">`)
         : html
-      return withBase.includes('</body>')
-        ? withBase.replace('</body>', `${bridge}</body>`)
-        : `${withBase}${bridge}`
+      withBase = /<head[\s>]/i.test(withBase)
+        ? withBase.replace(/<head([^>]*)>/i, `<head$1>${transparentFrameStyle}`)
+        : `${transparentFrameStyle}${withBase}`
+      return this.injectHtmlUiBridgeBeforeUserScripts(withBase, bridge)
     }
     return `<!doctype html>
 <html>
@@ -1594,8 +1714,19 @@ export class PixiRenderer {
     * { box-sizing: border-box; }
   </style>
 </head>
-<body>${html || '&nbsp;'}${bridge}</body>
+<body>${bridge}${html || '&nbsp;'}</body>
 </html>`
+  }
+
+  private injectHtmlUiBridgeBeforeUserScripts(html: string, bridge: string) {
+    if (!bridge) return html
+    if (/<body[^>]*>/i.test(html)) {
+      return html.replace(/<body([^>]*)>/i, `<body$1>${bridge}`)
+    }
+    if (/<script\b/i.test(html)) {
+      return html.replace(/<script\b/i, `${bridge}<script`)
+    }
+    return `${bridge}${html}`
   }
 
   private getHtmlUiBaseHref(projectRoot: string, htmlSourcePath: string) {
@@ -1605,6 +1736,26 @@ export class PixiRenderer {
     if (!root) return folder ? `${folder}/` : ''
     const path = [root, folder].filter(Boolean).join('/')
     return `file:///${path.replace(/^\/+/, '')}/`
+  }
+
+  private revokeHtmlUiObjectUrl(cached: CachedHtmlUiNode) {
+    if (cached.objectUrl) URL.revokeObjectURL(cached.objectUrl)
+    cached.objectUrl = null
+    for (const scriptUrl of cached.scriptObjectUrls) URL.revokeObjectURL(scriptUrl)
+    cached.scriptObjectUrls = []
+  }
+
+  private prepareScriptableHtmlUiDocument(html: string, cached: CachedHtmlUiNode) {
+    return html.replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (full, attrs, code) => {
+      const attrText = String(attrs || '')
+      if (/\bsrc\s*=/i.test(attrText)) return full
+      const typeMatch = attrText.match(/\btype\s*=\s*(['"]?)([^'"\s>]+)\1/i)
+      const scriptType = String(typeMatch?.[2] || '').toLowerCase()
+      if (scriptType && !['text/javascript', 'application/javascript', 'module'].includes(scriptType)) return full
+      const scriptUrl = URL.createObjectURL(new Blob([String(code || '')], { type: 'text/javascript' }))
+      cached.scriptObjectUrls.push(scriptUrl)
+      return `<script${attrText} src="${scriptUrl}"></script>`
+    })
   }
 
   private postHtmlMessageToEntity(entityId: string, message: unknown) {
@@ -1823,7 +1974,8 @@ export class PixiRenderer {
           const centerX = global.x - this.dragOffset.x
           const centerY = global.y - this.dragOffset.y
           if (transform.positionMode === 'viewport') {
-            this.setTransformFromViewportPosition(transform, centerX, centerY, ui.width, ui.height)
+            const metrics = this.resolveUiMetrics(ui)
+            this.setTransformFromViewportPosition(transform, centerX, centerY, metrics.width, metrics.height)
           } else {
             const viewportWidth = this.options.container.clientWidth
             const viewportHeight = this.options.container.clientHeight
@@ -2577,6 +2729,7 @@ export class PixiRenderer {
     this.worldNodeCache.clear()
     for (const cached of this.uiNodeCache.values()) cached.node.destroy({ children: true })
     this.uiNodeCache.clear()
+    for (const cached of this.htmlUiNodeCache.values()) this.revokeHtmlUiObjectUrl(cached)
     this.htmlUiNodeCache.clear()
   }
 

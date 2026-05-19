@@ -432,6 +432,7 @@ export class InputState {
   }
 
   private readonly handleMouseDown = (event: MouseEvent) => {
+    if (isHtmlUiEvent(event)) return
     this.mouseX = event.clientX
     this.mouseY = event.clientY
     this.mousePressedThisFrame.add(event.button)
@@ -439,6 +440,10 @@ export class InputState {
   }
 
   private readonly handleMouseUp = (event: MouseEvent) => {
+    if (isHtmlUiEvent(event)) {
+      this.mouseButtons.delete(event.button)
+      return
+    }
     this.mouseX = event.clientX
     this.mouseY = event.clientY
     if (this.mouseButtons.has(event.button)) {
@@ -448,13 +453,25 @@ export class InputState {
   }
 
   private readonly handleMouseMove = (event: MouseEvent) => {
+    if (isHtmlUiEvent(event)) return
     this.mouseX = event.clientX
     this.mouseY = event.clientY
   }
 
   private readonly handleContextMenu = (event: MouseEvent) => {
+    if (isHtmlUiEvent(event)) return
     event.preventDefault()
   }
+}
+
+function isHtmlUiEvent(event: Event) {
+  const path = typeof event.composedPath === 'function' ? event.composedPath() : []
+  return path.some((target) => {
+    if (!(target instanceof HTMLElement)) return false
+    return target.classList.contains('unu-html-ui-layer') ||
+      target.classList.contains('unu-html-ui-node') ||
+      target.classList.contains('unu-html-ui-frame')
+  })
 }
 
 function normalizeInputActionMap(value: unknown) {

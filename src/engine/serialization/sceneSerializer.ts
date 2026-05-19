@@ -274,8 +274,8 @@ export function deserializeEntity(entityData: SerializedEntity) {
             String(data.text ?? 'UI Text'),
             Number(data.fontSize ?? 20),
             Number(data.textColor ?? 0xffffff),
-            Number(data.width ?? 180),
-            Number(data.height ?? 48),
+            normalizeUiSizeValue(data.width, 180),
+            normalizeUiSizeValue(data.height, 48),
             Number(data.backgroundColor ?? 0x2b3242),
             Number(data.anchorX ?? 0.5),
             Number(data.anchorY ?? 0.5),
@@ -293,8 +293,8 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.paddingY ?? 8),
             Boolean(data.autoWidth ?? false),
             Boolean(data.autoHeight ?? false),
-            Number(data.minWidth ?? 1),
-            Number(data.minHeight ?? 1),
+            normalizeUiSizeValue(data.minWidth, 1),
+            normalizeUiSizeValue(data.minHeight, 1),
             String(data.htmlSourcePath ?? ''),
             Boolean(data.htmlUseIframe ?? true),
             Boolean(data.htmlAllowScripts ?? true),
@@ -361,6 +361,17 @@ function normalizeSceneFolderPath(value: unknown) {
     .map((part) => part.trim())
     .filter(Boolean)
     .join('/')
+}
+
+function normalizeUiSizeValue(value: unknown, fallback: number) {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (/^\d+(\.\d+)?%$/.test(trimmed)) return trimmed
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : fallback
+  }
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
 }
 
 export function entityToData(entity: Entity): EntityData {

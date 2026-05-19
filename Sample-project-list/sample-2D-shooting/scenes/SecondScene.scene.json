@@ -1096,7 +1096,11 @@
               "autoWidth": false,
               "autoHeight": false,
               "minWidth": 1,
-              "minHeight": 1
+              "minHeight": 1,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -1569,7 +1573,11 @@
               "autoWidth": false,
               "autoHeight": false,
               "minWidth": 1,
-              "minHeight": 1
+              "minHeight": 1,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -1625,7 +1633,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -1681,7 +1693,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -1749,7 +1765,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -1817,7 +1837,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -1885,7 +1909,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -1953,7 +1981,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -2009,7 +2041,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -2065,7 +2101,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2133,7 +2173,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2201,7 +2245,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2269,7 +2317,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 260,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -2325,7 +2377,11 @@
               "autoWidth": false,
               "autoHeight": false,
               "minWidth": 220,
-              "minHeight": 48
+              "minHeight": 48,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           }
         ]
@@ -2381,7 +2437,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2449,7 +2509,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2517,7 +2581,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2585,7 +2653,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2653,7 +2725,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2721,7 +2797,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2789,7 +2869,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2857,7 +2941,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2925,7 +3013,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -2993,7 +3085,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -3061,7 +3157,11 @@
               "autoWidth": true,
               "autoHeight": true,
               "minWidth": 220,
-              "minHeight": 36
+              "minHeight": 36,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
             }
           },
           {
@@ -3070,6 +3170,210 @@
               "type": "Script",
               "scriptPath": "assets/scripts/pause-menu-action.js",
               "sourceCode": "{\n  \"action\": \"bindKey\",\n  \"target\": \"sprint\",\n  \"label\": \"疾跑\"\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui_held_item_hud",
+        "name": "HeldItemHUD",
+        "sceneFolderPath": "UI/HUD",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 18,
+              "y": 18,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 42,
+              "positionMode": "viewport",
+              "viewportHorizontal": "right",
+              "viewportVertical": "bottom"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": true,
+              "mode": "text",
+              "text": "手持：弓",
+              "fontSize": 18,
+              "textColor": 16777215,
+              "width": 190,
+              "height": 42,
+              "backgroundColor": 2830914,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": false,
+              "markdownEnabled": false,
+              "renderMode": "pixi",
+              "onClickScriptPath": "",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 12,
+              "paddingY": 8,
+              "autoWidth": true,
+              "autoHeight": false,
+              "minWidth": 120,
+              "minHeight": 40,
+              "htmlSourcePath": "",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui_container_panel",
+        "name": "ContainerPanel_HTML",
+        "sceneFolderPath": "UI",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 45,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": "82%",
+              "height": "86%",
+              "backgroundColor": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "html",
+              "onClickScriptPath": "assets/scripts/container-panel.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 0,
+              "paddingY": 0,
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 360,
+              "minHeight": 360,
+              "htmlSourcePath": "assets/ui/container.html",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/container-panel.js",
+              "sourceCode": "",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          }
+        ]
+      },
+      {
+        "id": "ui_inventory_panel",
+        "name": "InventoryPanel_HTML",
+        "sceneFolderPath": "UI",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 45,
+              "positionMode": "viewport",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "UI",
+            "data": {
+              "type": "UI",
+              "enabled": false,
+              "mode": "text",
+              "text": "",
+              "fontSize": 16,
+              "textColor": 16777215,
+              "width": 760,
+              "height": 650,
+              "backgroundColor": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "interactable": true,
+              "markdownEnabled": false,
+              "renderMode": "html",
+              "onClickScriptPath": "assets/scripts/inventory-panel.js",
+              "sliderValue": 1,
+              "sliderMin": 0,
+              "sliderMax": 1,
+              "parentId": "",
+              "layout": "none",
+              "layoutGap": 8,
+              "paddingX": 0,
+              "paddingY": 0,
+              "autoWidth": false,
+              "autoHeight": false,
+              "minWidth": 1,
+              "minHeight": 1,
+              "htmlSourcePath": "assets/ui/inventory.html",
+              "htmlUseIframe": true,
+              "htmlAllowScripts": true,
+              "htmlBridgeEnabled": true
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/inventory-panel.js",
+              "sourceCode": "",
               "enabled": true,
               "instance": null,
               "initialized": false,

@@ -3,6 +3,7 @@ import { Component } from '../core/Component'
 export type UIMode = 'text' | 'button' | 'slider'
 export type UIRenderMode = 'pixi' | 'html'
 export type UILayoutMode = 'none' | 'vertical' | 'horizontal'
+export type UISizeValue = number | string
 
 export class UIComponent extends Component {
   readonly type = 'UI'
@@ -13,8 +14,8 @@ export class UIComponent extends Component {
     public text = 'UI Text',
     public fontSize = 20,
     public textColor = 0xffffff,
-    public width = 180,
-    public height = 48,
+    public width: UISizeValue = 180,
+    public height: UISizeValue = 48,
     public backgroundColor = 0x2b3242,
     public anchorX = 0.5,
     public anchorY = 0.5,
@@ -32,8 +33,8 @@ export class UIComponent extends Component {
     public paddingY = 8,
     public autoWidth = false,
     public autoHeight = false,
-    public minWidth = 1,
-    public minHeight = 1,
+    public minWidth: UISizeValue = 1,
+    public minHeight: UISizeValue = 1,
     public htmlSourcePath = '',
     public htmlUseIframe = true,
     public htmlAllowScripts = true,
