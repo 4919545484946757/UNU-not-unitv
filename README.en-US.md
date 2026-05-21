@@ -15,12 +15,8 @@ UNU Engine Starter is a desktop 2D game editor and runtime built with `Vue 3 + P
 - [Script API Cheat Sheet](docs/SCRIPT_API.en-US.md) / [中文](docs/SCRIPT_API.zh-CN.md)
 - [Web Export Capabilities](docs/EXPORT_WEB.en-US.md) / [中文](docs/EXPORT_WEB.zh-CN.md)
 - [Architecture And Domain Model](docs/ARCHITECTURE.en-US.md) / [中文](docs/ARCHITECTURE.zh-CN.md)
-- [Renderer Architecture Split](docs/RENDERER_ARCHITECTURE.en-US.md) / [中文](docs/RENDERER_ARCHITECTURE.zh-CN.md)
-- [Runtime Architecture Split](docs/RUNTIME_ARCHITECTURE.en-US.md) / [中文](docs/RUNTIME_ARCHITECTURE.zh-CN.md)
-- [UI Panel Architecture Split](docs/UI_PANEL_ARCHITECTURE.en-US.md) / [中文](docs/UI_PANEL_ARCHITECTURE.zh-CN.md)
 - [Sample And Asset Governance](docs/SAMPLE_GOVERNANCE.en-US.md) / [中文](docs/SAMPLE_GOVERNANCE.zh-CN.md)
 - [Roadmap](docs/ROADMAP.en-US.md) / [中文](docs/ROADMAP.zh-CN.md)
-- [Optimization Plan](docs/OPTIMIZATION_PLAN.en-US.md) / [中文](docs/OPTIMIZATION_PLAN.zh-CN.md)
 
 ## Core Features
 

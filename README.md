@@ -1,4 +1,4 @@
-# UNU Engine Starter
+﻿# UNU Engine Starter
 
 中文 | [English](README.en-US.md)
 
@@ -15,12 +15,8 @@ UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌�
 - [脚本 API 提示文档](docs/SCRIPT_API.zh-CN.md) / [English](docs/SCRIPT_API.en-US.md)
 - [Web 导出能力说明](docs/EXPORT_WEB.zh-CN.md) / [English](docs/EXPORT_WEB.en-US.md)
 - [架构与领域模型](docs/ARCHITECTURE.zh-CN.md) / [English](docs/ARCHITECTURE.en-US.md)
-- [Renderer 架构拆分](docs/RENDERER_ARCHITECTURE.zh-CN.md) / [English](docs/RENDERER_ARCHITECTURE.en-US.md)
-- [Runtime 架构拆分](docs/RUNTIME_ARCHITECTURE.zh-CN.md) / [English](docs/RUNTIME_ARCHITECTURE.en-US.md)
-- [UI 面板拆分](docs/UI_PANEL_ARCHITECTURE.zh-CN.md) / [English](docs/UI_PANEL_ARCHITECTURE.en-US.md)
 - [样例与资源治理](docs/SAMPLE_GOVERNANCE.zh-CN.md) / [English](docs/SAMPLE_GOVERNANCE.en-US.md)
 - [路线图](docs/ROADMAP.zh-CN.md) / [English](docs/ROADMAP.en-US.md)
-- [小优化计划](docs/OPTIMIZATION_PLAN.zh-CN.md) / [English](docs/OPTIMIZATION_PLAN.en-US.md)
 
 ## 当前核心能力
 

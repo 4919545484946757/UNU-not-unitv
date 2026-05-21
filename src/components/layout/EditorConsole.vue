@@ -68,6 +68,7 @@
 </template>
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
+import { CustomComponent } from '../../engine/components/CustomComponent'
 import { useConsoleStore } from '../../stores/console'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
@@ -147,8 +148,184 @@ function parseValue(raw: string) {
   if (text === 'true') return true
   if (text === 'false') return false
   if (text === 'null') return null
+  if ((text.startsWith('{') && text.endsWith('}')) || (text.startsWith('[') && text.endsWith(']'))) {
+    try {
+      return JSON.parse(text)
+    } catch {
+      return text
+    }
+  }
   if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text)
   return text
+}
+
+function parseCommandOptions(args: string[]) {
+  const joined = args.join(' ').trim()
+  if (!joined) return {} as Record<string, unknown>
+  if (joined.startsWith('{')) {
+    const parsed = JSON.parse(joined)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  }
+  const result: Record<string, unknown> = {}
+  for (const arg of args) {
+    const index = arg.indexOf('=')
+    if (index <= 0) continue
+    result[arg.slice(0, index).trim()] = parseValue(arg.slice(index + 1))
+  }
+  return result
+}
+
+function normalizeInventoryItems(items: unknown, capacity: number) {
+  const next = Array.isArray(items) ? items.map((item) => String(item || '').trim()) : []
+  while (next.length < capacity) next.push('')
+  return next
+}
+
+function ensureInventoryComponent(entity: any) {
+  let inventory = entity.getComponent?.('Inventory') as CustomComponent | undefined
+  if (!inventory) {
+    inventory = entity.addComponent?.(new CustomComponent('Inventory', {
+      ownerType: entity.name || entity.id || 'Entity',
+      capacity: 24,
+      items: []
+    }))
+  }
+  if (!inventory) throw new Error('Unable to create Inventory component.')
+  if (!inventory.data || typeof inventory.data !== 'object') inventory.data = {}
+  const capacity = Math.max(1, Number(inventory.data.capacity ?? 24))
+  inventory.data.items = normalizeInventoryItems(inventory.data.items, capacity)
+  inventory.data.capacity = Math.max(capacity, (inventory.data.items as string[]).length)
+  return inventory
+}
+
+function markSceneChanged() {
+  if (!runtime.isPlaying) sceneStore.markDirty()
+}
+
+function syncInventoryRuntimeMirror(entity: any, inventory: CustomComponent) {
+  const items = Array.isArray(inventory.data.items) ? inventory.data.items.map((item) => String(item || '')) : []
+  ;(entity as any).__unuConsoleInventoryItems = items.slice()
+}
+
+function describeInventory(entity: any) {
+  const inventory = ensureInventoryComponent(entity)
+  const items = inventory.data.items as string[]
+  const rows = items.map((item, index) => `${String(index + 1).padStart(2, '0')}: ${item || '-'}`)
+  return `${entity.name} (${entity.id}) Inventory\ncapacity: ${inventory.data.capacity}\n${rows.join('\n')}`
+}
+
+function giveItem(entity: any, itemId: string, quantityRaw = '1', optionArgs: string[] = []) {
+  const item = String(itemId || '').trim()
+  if (!item) throw new Error('Usage: give <entity> <namespace:item> [quantity] [slot=1 replace=true ...props]')
+  const quantity = Math.max(1, Math.min(999, Math.floor(Number(quantityRaw || 1))))
+  if (!Number.isFinite(quantity)) throw new Error('Quantity must be a number.')
+  const options = parseCommandOptions(optionArgs)
+  const slotOption = Number(options.slot)
+  const replace = options.replace === true || String(options.replace || '').toLowerCase() === 'true'
+  const meta = { ...options }
+  delete meta.slot
+  delete meta.replace
+
+  const inventory = ensureInventoryComponent(entity)
+  const items = inventory.data.items as string[]
+  const itemMeta = inventory.data.itemMeta && typeof inventory.data.itemMeta === 'object' && !Array.isArray(inventory.data.itemMeta)
+    ? inventory.data.itemMeta as Record<string, unknown>
+    : {}
+  inventory.data.itemMeta = itemMeta
+
+  const placed: number[] = []
+  const putAt = (index: number) => {
+    while (items.length <= index) items.push('')
+    if (!replace && items[index]) return false
+    items[index] = item
+    if (Object.keys(meta).length) itemMeta[String(index)] = { ...meta }
+    else delete itemMeta[String(index)]
+    placed.push(index)
+    return true
+  }
+
+  if (Number.isFinite(slotOption) && slotOption > 0) {
+    let index = Math.floor(slotOption) - 1
+    for (let count = 0; count < quantity; count += 1) {
+      while (index < items.length && !putAt(index)) index += 1
+      if (index >= items.length) putAt(index)
+      index += 1
+    }
+  } else {
+    for (let count = 0; count < quantity; count += 1) {
+      let index = items.findIndex((value) => !value)
+      if (index < 0) index = items.length
+      putAt(index)
+    }
+  }
+
+  inventory.data.capacity = Math.max(Number(inventory.data.capacity || 0), items.length)
+  syncInventoryRuntimeMirror(entity, inventory)
+  markSceneChanged()
+  return placed
+}
+
+function takeItem(entity: any, itemOrSlot: string, quantityRaw = '1') {
+  const inventory = ensureInventoryComponent(entity)
+  const items = inventory.data.items as string[]
+  const itemMeta = inventory.data.itemMeta && typeof inventory.data.itemMeta === 'object' && !Array.isArray(inventory.data.itemMeta)
+    ? inventory.data.itemMeta as Record<string, unknown>
+    : {}
+  const slotMatch = /^slot[:=](\d+)$/i.exec(String(itemOrSlot || '').trim())
+  const quantity = Math.max(1, Math.min(999, Math.floor(Number(quantityRaw || 1))))
+  const removed: Array<{ index: number; item: string }> = []
+  if (slotMatch) {
+    const index = Number(slotMatch[1]) - 1
+    if (index >= 0 && items[index]) {
+      removed.push({ index, item: items[index] })
+      items[index] = ''
+      delete itemMeta[String(index)]
+    }
+  } else {
+    const target = String(itemOrSlot || '').trim()
+    if (!target) throw new Error('Usage: take <entity> <namespace:item|slot=1> [quantity]')
+    for (let index = 0; index < items.length && removed.length < quantity; index += 1) {
+      if (items[index] !== target) continue
+      removed.push({ index, item: items[index] })
+      items[index] = ''
+      delete itemMeta[String(index)]
+    }
+  }
+  inventory.data.itemMeta = itemMeta
+  syncInventoryRuntimeMirror(entity, inventory)
+  markSceneChanged()
+  return removed
+}
+
+function clearInventory(entity: any) {
+  const inventory = ensureInventoryComponent(entity)
+  const capacity = Math.max(1, Number(inventory.data.capacity || 24))
+  inventory.data.items = normalizeInventoryItems([], capacity)
+  inventory.data.itemMeta = {}
+  syncInventoryRuntimeMirror(entity, inventory)
+  markSceneChanged()
+}
+
+function getHealthData(entity: any) {
+  let health = entity.getComponent?.('Health') as CustomComponent | undefined
+  if (!health) {
+    health = entity.addComponent?.(new CustomComponent('Health', { max: 100, current: 100 }))
+  }
+  if (!health) throw new Error('Unable to create Health component.')
+  if (!health.data || typeof health.data !== 'object') health.data = {}
+  const max = Math.max(1, Number(health.data.max ?? 100))
+  const current = Math.max(0, Math.min(max, Number(health.data.current ?? max)))
+  health.data.max = max
+  health.data.current = current
+  return health.data as Record<string, unknown>
+}
+
+function setEntityHealth(entity: any, value: number) {
+  const data = getHealthData(entity)
+  const max = Math.max(1, Number(data.max || 100))
+  data.current = Math.max(0, Math.min(max, Number(value)))
+  markSceneChanged()
+  return data
 }
 
 function getComponentValue(entity: any, path: string) {
@@ -209,6 +386,13 @@ function executeCommand(command: string, args: string[]) {
       '\ttp <id/name> <x> <y>\tMove entity',
       '\tget <id/name> <Component.prop>\tRead component value',
       '\tset <id/name> <Component.prop> <value>\tSet component value',
+      '\tinv <id/name>\tList entity inventory',
+      '\tgive <id/name> <namespace:item> [qty] [slot=1 replace=true ...props]\tAdd items',
+      '\ttake <id/name> <namespace:item|slot=1> [qty]\tRemove items',
+      '\tclearinv <id/name>\tClear inventory',
+      '\thp <id/name> [value]\tRead or set health',
+      '\theal <id/name> <amount|full>\tHeal entity',
+      '\tdamage <id/name> <amount>\tDamage entity',
       '\tremove <id/name>\tRemove entity'
     ].join('\n'))
     return
@@ -313,6 +497,64 @@ function executeCommand(command: string, args: string[]) {
     if (!entity) throw new Error('Entity not found.')
     if (!setComponentValue(entity, args[1] || '', parseValue(args.slice(2).join(' ')))) throw new Error('Set failed. Use Component.prop, for example Transform.x')
     writeCommandResult(`Set ${entity.name}.${args[1]} = ${args.slice(2).join(' ')}`)
+    return
+  }
+  if (command === 'inv' || command === 'inventory') {
+    const entity = findEntity(args.join(' '))
+    if (!entity) throw new Error('Entity not found.')
+    writeCommandResult(describeInventory(entity))
+    return
+  }
+  if (command === 'give') {
+    const entity = findEntity(args[0])
+    if (!entity) throw new Error('Entity not found.')
+    const itemId = args[1] || ''
+    const quantity = args[2] || '1'
+    const placed = giveItem(entity, itemId, quantity, args.slice(3))
+    writeCommandResult(`Gave ${placed.length} x ${itemId} to ${entity.name} (${entity.id}) at slots ${placed.map((index) => index + 1).join(', ')}`)
+    return
+  }
+  if (command === 'take') {
+    const entity = findEntity(args[0])
+    if (!entity) throw new Error('Entity not found.')
+    const removed = takeItem(entity, args[1] || '', args[2] || '1')
+    writeCommandResult(`Removed ${removed.length} item(s) from ${entity.name} (${entity.id})${removed.length ? `: ${removed.map((item) => `#${item.index + 1} ${item.item}`).join(', ')}` : ''}`)
+    return
+  }
+  if (command === 'clearinv' || command === 'clearinventory') {
+    const entity = findEntity(args.join(' '))
+    if (!entity) throw new Error('Entity not found.')
+    clearInventory(entity)
+    writeCommandResult(`Cleared inventory: ${entity.name} (${entity.id})`)
+    return
+  }
+  if (command === 'hp' || command === 'health') {
+    const entity = findEntity(args[0])
+    if (!entity) throw new Error('Entity not found.')
+    const data = args.length > 1 ? setEntityHealth(entity, Number(args[1])) : getHealthData(entity)
+    writeCommandResult(`${entity.name} HP ${Math.round(Number(data.current || 0))}/${Math.round(Number(data.max || 0))}`)
+    return
+  }
+  if (command === 'heal') {
+    const entity = findEntity(args[0])
+    if (!entity) throw new Error('Entity not found.')
+    const data = getHealthData(entity)
+    const max = Number(data.max || 100)
+    const next = String(args[1] || '').toLowerCase() === 'full'
+      ? max
+      : Number(data.current || 0) + Math.max(0, Number(args[1] || 0))
+    setEntityHealth(entity, next)
+    writeCommandResult(`${entity.name} HP ${Math.round(Number(data.current || 0))}/${Math.round(max)}`)
+    return
+  }
+  if (command === 'damage') {
+    const entity = findEntity(args[0])
+    if (!entity) throw new Error('Entity not found.')
+    const data = getHealthData(entity)
+    const max = Number(data.max || 100)
+    const next = Number(data.current || 0) - Math.max(0, Number(args[1] || 0))
+    setEntityHealth(entity, next)
+    writeCommandResult(`${entity.name} HP ${Math.round(Number(data.current || 0))}/${Math.round(max)}`)
     return
   }
   if (command === 'remove' || command === 'delete') {
