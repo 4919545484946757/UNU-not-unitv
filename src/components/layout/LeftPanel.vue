@@ -25,7 +25,7 @@
       </div>
     </section>
 
-    <div v-if="editor.showAssetBrowserPanel" class="horizontal-resizer" @mousedown.prevent="startBrowserResize"></div>
+    <div v-if="editor.showAssetBrowserPanel" class="horizontal-resizer" @pointerdown.prevent="startBrowserResize"></div>
 
     <section v-if="editor.showAssetBrowserPanel" class="browser-panel">
       <div class="scroll-inner">
@@ -51,22 +51,23 @@ let cleanup: (() => void) | null = null
 
 const panelStyle = computed(() => ({
   gridTemplateRows: editor.showAssetBrowserPanel
-    ? `40px minmax(0, 1fr) 6px ${editor.assetBrowserHeight}px`
-    : '40px minmax(0, 1fr)'
+    ? `${editor.compactUi ? 30 : 40}px minmax(0, 1fr) 6px ${editor.assetBrowserHeight}px`
+    : `${editor.compactUi ? 30 : 40}px minmax(0, 1fr)`
 }))
 
-function startBrowserResize(event: MouseEvent) {
+function startBrowserResize(event: PointerEvent) {
   const startY = event.clientY
   const startHeight = editor.assetBrowserHeight
 
-  const onMove = (moveEvent: MouseEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const delta = moveEvent.clientY - startY
     editor.setAssetBrowserHeight(startHeight - delta)
   }
 
   const onUp = () => {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
     document.body.classList.remove('is-resizing-panels')
     cleanup = null
   }
@@ -74,8 +75,9 @@ function startBrowserResize(event: MouseEvent) {
   cleanup?.()
   cleanup = onUp
   document.body.classList.add('is-resizing-panels')
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
 }
 
 onBeforeUnmount(() => cleanup?.())
@@ -124,6 +126,7 @@ onBeforeUnmount(() => cleanup?.())
   position: relative;
   background: #151a22;
   cursor: row-resize;
+  touch-action: none;
 }
 .horizontal-resizer::after {
   content: '';

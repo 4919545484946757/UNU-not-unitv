@@ -4,10 +4,18 @@ const MIN_LEFT_PANEL_WIDTH = 220
 const MAX_LEFT_PANEL_WIDTH = 640
 const MIN_RIGHT_PANEL_WIDTH = 240
 const MAX_RIGHT_PANEL_WIDTH = 720
+const COMPACT_MIN_LEFT_PANEL_WIDTH = 128
+const COMPACT_MAX_LEFT_PANEL_WIDTH = 420
+const COMPACT_MIN_RIGHT_PANEL_WIDTH = 140
+const COMPACT_MAX_RIGHT_PANEL_WIDTH = 460
 const MIN_BROWSER_PANEL_HEIGHT = 140
 const MAX_BROWSER_PANEL_HEIGHT = 420
 const MIN_CONSOLE_HEIGHT = 96
 const MAX_CONSOLE_HEIGHT = 420
+const COMPACT_MIN_BROWSER_PANEL_HEIGHT = 84
+const COMPACT_MAX_BROWSER_PANEL_HEIGHT = 260
+const COMPACT_MIN_CONSOLE_HEIGHT = 68
+const COMPACT_MAX_CONSOLE_HEIGHT = 260
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -29,10 +37,12 @@ export const useEditorStore = defineStore('editor', {
     rightPanelWidth: 340,
     assetBrowserHeight: 220,
     consoleHeight: 170,
+    compactUi: false,
     showLeftPanel: true,
     showRightPanel: true,
     showAssetBrowserPanel: true,
-    showBottomPanel: true
+    showBottomPanel: true,
+    hideChromeDuringPlay: false
   }),
   actions: {
     setTool(tool: 'select' | 'move' | 'scale' | 'rotate' | 'pan') {
@@ -107,23 +117,42 @@ export const useEditorStore = defineStore('editor', {
     toggleGrid() {
       this.showGrid = !this.showGrid
     },
+    setCompactUi(compact: boolean) {
+      this.compactUi = compact
+      this.setLeftPanelWidth(this.leftPanelWidth)
+      this.setRightPanelWidth(this.rightPanelWidth)
+      this.setAssetBrowserHeight(this.assetBrowserHeight)
+      this.setConsoleHeight(this.consoleHeight)
+    },
     setLeftPanelWidth(width: number) {
-      this.leftPanelWidth = Math.min(MAX_LEFT_PANEL_WIDTH, Math.max(MIN_LEFT_PANEL_WIDTH, Math.round(width)))
+      const min = this.compactUi ? COMPACT_MIN_LEFT_PANEL_WIDTH : MIN_LEFT_PANEL_WIDTH
+      const max = this.compactUi ? COMPACT_MAX_LEFT_PANEL_WIDTH : MAX_LEFT_PANEL_WIDTH
+      this.leftPanelWidth = Math.min(max, Math.max(min, Math.round(width)))
     },
     setRightPanelWidth(width: number) {
-      this.rightPanelWidth = Math.min(MAX_RIGHT_PANEL_WIDTH, Math.max(MIN_RIGHT_PANEL_WIDTH, Math.round(width)))
+      const min = this.compactUi ? COMPACT_MIN_RIGHT_PANEL_WIDTH : MIN_RIGHT_PANEL_WIDTH
+      const max = this.compactUi ? COMPACT_MAX_RIGHT_PANEL_WIDTH : MAX_RIGHT_PANEL_WIDTH
+      this.rightPanelWidth = Math.min(max, Math.max(min, Math.round(width)))
     },
     setAssetBrowserHeight(height: number) {
-      this.assetBrowserHeight = Math.min(MAX_BROWSER_PANEL_HEIGHT, Math.max(MIN_BROWSER_PANEL_HEIGHT, Math.round(height)))
+      const min = this.compactUi ? COMPACT_MIN_BROWSER_PANEL_HEIGHT : MIN_BROWSER_PANEL_HEIGHT
+      const max = this.compactUi ? COMPACT_MAX_BROWSER_PANEL_HEIGHT : MAX_BROWSER_PANEL_HEIGHT
+      this.assetBrowserHeight = Math.min(max, Math.max(min, Math.round(height)))
     },
     setConsoleHeight(height: number) {
-      this.consoleHeight = Math.min(MAX_CONSOLE_HEIGHT, Math.max(MIN_CONSOLE_HEIGHT, Math.round(height)))
+      const min = this.compactUi ? COMPACT_MIN_CONSOLE_HEIGHT : MIN_CONSOLE_HEIGHT
+      const max = this.compactUi ? COMPACT_MAX_CONSOLE_HEIGHT : MAX_CONSOLE_HEIGHT
+      this.consoleHeight = Math.min(max, Math.max(min, Math.round(height)))
     },
     setPanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom', visible: boolean) {
       if (panel === 'left') this.showLeftPanel = visible
       else if (panel === 'right') this.showRightPanel = visible
       else if (panel === 'assets') this.showAssetBrowserPanel = visible
       else if (panel === 'bottom') this.showBottomPanel = visible
+      window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
+    },
+    setHideChromeDuringPlay(visible: boolean) {
+      this.hideChromeDuringPlay = visible
       window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
     },
     togglePanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom') {

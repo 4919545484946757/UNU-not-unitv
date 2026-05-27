@@ -319,6 +319,14 @@ export class PixiRenderer {
     this.app.stage.hitArea = this.app.screen
   }
 
+  private getViewportAutoScale() {
+    const width = Math.max(1, this.options.container.clientWidth || this.lastViewportWidth || 1)
+    const height = Math.max(1, this.options.container.clientHeight || this.lastViewportHeight || 1)
+    if (width >= 560 && height >= 360) return 1
+    const fitScale = Math.min(width / 960, height / 540)
+    return Math.max(0.35, Math.min(1, fitScale))
+  }
+
   private resizeAndRedraw() {
     this.resizeToContainer()
     if (this.currentScene && this.isPlaying) {
@@ -2267,7 +2275,7 @@ export class PixiRenderer {
     return {
       x: transform.x,
       y: transform.y,
-      zoom: Math.max(0.1, Math.min(5, camera.zoom || 1))
+      zoom: Math.max(0.1, Math.min(5, camera.zoom || 1)) * this.getViewportAutoScale()
     }
   }
 
@@ -2424,7 +2432,7 @@ export class PixiRenderer {
       }
     }
 
-    const zoom = Math.max(0.1, Math.min(5, camera.zoom || 1))
+    const zoom = Math.max(0.1, Math.min(5, camera.zoom || 1)) * this.getViewportAutoScale()
     let camX = cameraTransform.x
     let camY = cameraTransform.y
     if (camera.boundsEnabled) {
@@ -2460,11 +2468,12 @@ export class PixiRenderer {
   }
 
   private resetCameraTransform() {
-    this.world.scale.set(1)
+    const zoom = this.getViewportAutoScale()
+    this.world.scale.set(zoom)
     this.world.position.set(0, 0)
-    this.playHintOverlay.scale.set(1)
+    this.playHintOverlay.scale.set(zoom)
     this.playHintOverlay.position.set(0, 0)
-    this.overlay.scale.set(1)
+    this.overlay.scale.set(zoom)
     this.overlay.position.set(0, 0)
   }
 

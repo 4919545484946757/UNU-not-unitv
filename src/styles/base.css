@@ -3,6 +3,14 @@
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: #0e1014;
   color: #e6e8ec;
+  --unu-compact-font-size: 12px;
+  --unu-compact-control-font-size: 11px;
+  --unu-compact-control-height: 28px;
+  --unu-compact-panel-padding: 8px;
+  --unu-safe-top: env(safe-area-inset-top, 0px);
+  --unu-safe-right: env(safe-area-inset-right, 0px);
+  --unu-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --unu-safe-left: env(safe-area-inset-left, 0px);
 }
 
 * {
@@ -20,6 +28,19 @@ body {
   background: #0e1014;
 }
 
+html.unu-android-editor body,
+html.unu-android-editor #app {
+  padding:
+    var(--unu-safe-top)
+    var(--unu-safe-right)
+    var(--unu-safe-bottom)
+    var(--unu-safe-left);
+}
+
+html.unu-android-editor #app {
+  background: #0e1014;
+}
+
 button, input, select {
   font: inherit;
 }
@@ -32,4 +53,167 @@ button, input, select {
 ::-webkit-scrollbar-thumb {
   background: #2a3040;
   border-radius: 999px;
+}
+
+html.unu-android-editor {
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+html.unu-android-phone-compact {
+  --unu-compact-font-size: 11px;
+  --unu-compact-control-font-size: 10px;
+  --unu-compact-control-height: 24px;
+  --unu-compact-panel-padding: 6px;
+}
+
+html.unu-android-phone-compact body {
+  font-size: var(--unu-compact-font-size);
+}
+
+html.unu-android-phone-compact .toolbar {
+  grid-template-columns: 112px minmax(0, 1fr) 82px !important;
+  gap: 4px !important;
+  align-items: start !important;
+  padding: 4px 6px !important;
+}
+
+html.unu-android-phone-compact .brand {
+  font-size: 11px !important;
+  letter-spacing: 0.04em !important;
+}
+
+html.unu-android-phone-compact .project-meta {
+  font-size: 9px !important;
+  margin-top: 1px !important;
+}
+
+html.unu-android-phone-compact .toolbar-actions {
+  gap: 3px !important;
+}
+
+html.unu-android-phone-compact .tool-group {
+  gap: 2px !important;
+}
+
+html.unu-android-phone-compact button,
+html.unu-android-phone-compact input,
+html.unu-android-phone-compact select,
+html.unu-android-phone-compact textarea {
+  font-size: var(--unu-compact-control-font-size) !important;
+}
+
+html.unu-android-phone-compact .toolbar button,
+html.unu-android-phone-compact .action-menu-button,
+html.unu-android-phone-compact .view-menu-button {
+  min-height: var(--unu-compact-control-height) !important;
+  height: var(--unu-compact-control-height) !important;
+  padding: 2px 6px !important;
+  border-bottom-width: 2px !important;
+  border-radius: 6px !important;
+}
+
+html.unu-android-phone-compact .status-toggle {
+  min-width: 72px !important;
+  white-space: normal !important;
+  line-height: 1.15 !important;
+}
+
+html.unu-android-phone-compact .action-menu,
+html.unu-android-phone-compact .view-menu,
+html.unu-android-phone-compact .status-filter-menu {
+  max-width: min(92vw, 220px) !important;
+  max-height: min(76vh, 320px) !important;
+  padding: 6px !important;
+  border-radius: 8px !important;
+}
+
+html.unu-android-phone-compact .view-menu {
+  min-width: 160px !important;
+}
+
+html.unu-android-phone-compact .action-menu-item,
+html.unu-android-phone-compact .filter-row {
+  padding: 5px 6px !important;
+  font-size: 10px !important;
+}
+
+html.unu-android-phone-compact .left-panel,
+html.unu-android-phone-compact .right-panel,
+html.unu-android-phone-compact .panel,
+html.unu-android-phone-compact .inspector,
+html.unu-android-phone-compact .timeline-panel,
+html.unu-android-phone-compact .script-editor-panel,
+html.unu-android-phone-compact .console {
+  font-size: var(--unu-compact-font-size) !important;
+}
+
+html.unu-android-phone-compact .panel-body,
+html.unu-android-phone-compact .panel-content,
+html.unu-android-phone-compact .group,
+html.unu-android-phone-compact .subgroup,
+html.unu-android-phone-compact .frame-editor,
+html.unu-android-phone-compact .event-track,
+html.unu-android-phone-compact .state-machine-block,
+html.unu-android-phone-compact .event-card,
+html.unu-android-phone-compact .transition-item,
+html.unu-android-phone-compact .state-editor {
+  gap: 6px !important;
+  padding: var(--unu-compact-panel-padding) !important;
+  border-radius: 8px !important;
+}
+
+html.unu-android-phone-compact .tabbar,
+html.unu-android-phone-compact .panel-tabs,
+html.unu-android-phone-compact .tabs,
+html.unu-android-phone-compact .viewport-header,
+html.unu-android-phone-compact .console-header {
+  min-height: 26px !important;
+  padding: 3px 6px !important;
+  gap: 4px !important;
+}
+
+html.unu-android-phone-compact .tabbar button,
+html.unu-android-phone-compact .panel-tabs button,
+html.unu-android-phone-compact .tabs button {
+  padding: 3px 6px !important;
+  min-height: 22px !important;
+}
+
+html.unu-android-phone-compact .right-panel {
+  grid-template-rows: 30px minmax(0, 1fr) !important;
+}
+
+html.unu-android-phone-compact .tree-panel,
+html.unu-android-phone-compact .browser-panel,
+html.unu-android-phone-compact .content {
+  padding: 6px !important;
+}
+
+html.unu-android-phone-compact .viewport-header {
+  font-size: 10px !important;
+}
+
+html.unu-android-phone-compact .editor-console {
+  grid-template-rows: 24px minmax(0, 1fr) 28px !important;
+}
+
+html.unu-android-phone-compact .console-line {
+  grid-template-columns: 38px 28px minmax(42px, auto) minmax(0, 1fr) !important;
+  gap: 4px !important;
+  padding: 5px 6px !important;
+  font-size: 10px !important;
+}
+
+html.unu-android-phone-compact .console-input {
+  padding: 4px 6px !important;
+}
+
+html.unu-android-phone-compact .asset-browser {
+  gap: 6px !important;
+}
+
+html.unu-android-phone-compact .android-window-overlay {
+  inset: 4px !important;
+  border-radius: 8px !important;
 }

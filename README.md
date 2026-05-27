@@ -26,6 +26,7 @@ npm run dev
 | Console 命令 | [CONSOLE_COMMANDS.zh-CN.md](docs/CONSOLE_COMMANDS.zh-CN.md) | [CONSOLE_COMMANDS.en-US.md](docs/CONSOLE_COMMANDS.en-US.md) |
 | 脚本 API | [SCRIPT_API.zh-CN.md](docs/SCRIPT_API.zh-CN.md) | [SCRIPT_API.en-US.md](docs/SCRIPT_API.en-US.md) |
 | Web 导出 | [EXPORT_WEB.zh-CN.md](docs/EXPORT_WEB.zh-CN.md) | [EXPORT_WEB.en-US.md](docs/EXPORT_WEB.en-US.md) |
+| Android APK | [ANDROID_APK.zh-CN.md](docs/ANDROID_APK.zh-CN.md) | [ANDROID_APK.en-US.md](docs/ANDROID_APK.en-US.md) |
 | 架构与领域模型 | [ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md) | [ARCHITECTURE.en-US.md](docs/ARCHITECTURE.en-US.md) |
 | 渲染器拆分 | [RENDERER_ARCHITECTURE.zh-CN.md](docs/RENDERER_ARCHITECTURE.zh-CN.md) | [RENDERER_ARCHITECTURE.en-US.md](docs/RENDERER_ARCHITECTURE.en-US.md) |
 | Runtime 架构 | [RUNTIME_ARCHITECTURE.zh-CN.md](docs/RUNTIME_ARCHITECTURE.zh-CN.md) | [RUNTIME_ARCHITECTURE.en-US.md](docs/RUNTIME_ARCHITECTURE.en-US.md) |
@@ -130,6 +131,9 @@ npm run test
 npm run assets:audit
 npm run assets:sync-public
 npm run build
+npm run android:sync
+npm run android:apk
+npm run android:editor:apk
 npm run dist:win
 npm run dist:win:installer
 ```
@@ -142,6 +146,9 @@ npm run dist:win:installer
 | `npm run assets:audit` | 检查重复资源和资源治理问题。 |
 | `npm run assets:sync-public` | 同步导出/runtime 所需公共资源。 |
 | `npm run build` | 构建 Web 前端和 Electron main/preload。 |
+| `npm run android:sync` | 构建 Android 游戏运行模式并同步到 Capacitor Android 工程。 |
+| `npm run android:apk` | 生成 Android Debug APK，需要 JDK 17/21 与 Android SDK。 |
+| `npm run android:editor:apk` | 生成 Android 编辑器 Debug APK，内置示例项目并启用移动端 `window.unu` 兼容桥。 |
 | `npm run dist:win` | 生成 Windows 解压目录包。 |
 | `npm run dist:win:installer` | 生成 Windows 安装包。 |
 
@@ -152,6 +159,19 @@ npm run dist:win:installer
 当前 Web 导出会复制项目所需的 scenes、assets、prefabs、HTML UI、项目脚本、场景级脚本、物品注册表、物品脚本、图片、音频和导出 runtime，并生成 `project.json`、`export-report.json`、`PLAY_GAME.bat` 等文件。
 
 导出后的 Web 游戏请通过 `PLAY_GAME.bat` 或本地 HTTP 服务启动，不要直接双击 `index.html`。现代浏览器会限制 `file://` 下的脚本、样式和资源加载，直接打开可能出现 CORS 或资源缺失错误。
+
+## Android APK
+
+当前 Android 移植采用 `Capacitor + Android WebView`。`android:apk` 会直接进入游戏运行模式；`android:editor:apk` 会进入编辑器模式，并默认打包 `Sample-project-list/sample-2D-shooting` 示例。编辑器模式已支持启动器、打开内置项目、资源读取、场景/脚本保存、素材导入、Prefab、内嵌脚本/Tilemap 编辑窗口，以及通过 Capacitor Filesystem 导出真实目录。
+
+生成 Debug APK：
+
+```bash
+npm run android:apk
+npm run android:editor:apk
+```
+
+APK 输出位置通常为 `android/app/build/outputs/apk/debug/app-debug.apk`。如果遇到 `Unsupported class file major version 69`，请将 Java 从 25 切换到 JDK 17 或 21。更多说明见 [Android APK 构建说明](docs/ANDROID_APK.zh-CN.md)。
 
 ## 当前工程约定
 

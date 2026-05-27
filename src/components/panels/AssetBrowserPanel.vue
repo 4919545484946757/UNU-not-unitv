@@ -1,5 +1,5 @@
 <template>
-  <div class="asset-browser">
+  <div class="asset-browser" :class="{ compact: editor.compactUi }">
     <div class="path-bar" aria-label="当前素材目录">
       <span class="path-label">当前目录</span>
       <template v-for="(crumb, index) in pathCrumbs" :key="crumb.path">
@@ -154,6 +154,8 @@ async function handleDoubleClick(path: string, type: AssetType) {
   display: grid;
   gap: 10px;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .path-bar {
@@ -167,6 +169,7 @@ async function handleDoubleClick(path: string, type: AssetType) {
   border-radius: 8px;
   background: #151b27;
   font-size: 12px;
+  min-height: 0;
 }
 
 .path-label {
@@ -217,10 +220,14 @@ async function handleDoubleClick(path: string, type: AssetType) {
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
   gap: 10px;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  align-content: start;
 }
 
 .thumb {
   min-width: 0;
+  min-height: 0;
   text-align: left;
   border: 1px solid #293243;
   background: #1a2030;
@@ -294,5 +301,58 @@ async function handleDoubleClick(path: string, type: AssetType) {
   margin-top: 3px;
   font-size: 11px;
   color: #7d8da6;
+}
+
+.asset-browser.compact {
+  gap: 6px;
+}
+
+.asset-browser.compact .path-bar {
+  gap: 2px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+
+.asset-browser.compact .path-label {
+  display: none;
+}
+
+.asset-browser.compact .path-crumb {
+  max-width: 74px;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.asset-browser.compact .grid {
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 6px;
+}
+
+.asset-browser.compact .thumb {
+  display: grid;
+  gap: 3px;
+  padding: 5px;
+  border-radius: 7px;
+}
+
+.asset-browser.compact .preview {
+  height: 38px;
+  border-radius: 5px;
+}
+
+.asset-browser.compact .asset-kind {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+}
+
+.asset-browser.compact .label {
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.asset-browser.compact .sub-label {
+  display: none;
 }
 </style>

@@ -53,6 +53,15 @@
             <input type="checkbox" :checked="editor.showBottomPanel" @change="setPanelVisible('bottom', $event)" />
             <span>下方命令/监测面板</span>
           </label>
+          <label class="filter-row">
+            <input
+              type="checkbox"
+              :checked="editor.hideChromeDuringPlay"
+              @change="setHideChromeDuringPlay($event)"
+            />
+            <span>专注播放模式</span>
+          </label>
+          <div class="menu-tip">播放/调试播放时仅保留 Scene View，停止后恢复当前布局。</div>
           <div class="menu-actions">
             <button type="button" @click="setAllPanelsVisible(true)">全部显示</button>
             <button type="button" @click="setAllPanelsVisible(false)">全部隐藏</button>
@@ -221,6 +230,10 @@ onBeforeUnmount(() => {
 
 function setPanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom', event: Event) {
   editor.setPanelVisible(panel, (event.target as HTMLInputElement).checked)
+}
+
+function setHideChromeDuringPlay(event: Event) {
+  editor.setHideChromeDuringPlay((event.target as HTMLInputElement).checked)
 }
 
 function setAllPanelsVisible(visible: boolean) {

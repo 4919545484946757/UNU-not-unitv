@@ -26,6 +26,7 @@ The app opens in the project launcher. From there you can open recent projects, 
 | Console Commands | [CONSOLE_COMMANDS.zh-CN.md](docs/CONSOLE_COMMANDS.zh-CN.md) | [CONSOLE_COMMANDS.en-US.md](docs/CONSOLE_COMMANDS.en-US.md) |
 | Script API | [SCRIPT_API.zh-CN.md](docs/SCRIPT_API.zh-CN.md) | [SCRIPT_API.en-US.md](docs/SCRIPT_API.en-US.md) |
 | Web Export | [EXPORT_WEB.zh-CN.md](docs/EXPORT_WEB.zh-CN.md) | [EXPORT_WEB.en-US.md](docs/EXPORT_WEB.en-US.md) |
+| Android APK | [ANDROID_APK.zh-CN.md](docs/ANDROID_APK.zh-CN.md) | [ANDROID_APK.en-US.md](docs/ANDROID_APK.en-US.md) |
 | Architecture And Domain Model | [ARCHITECTURE.zh-CN.md](docs/ARCHITECTURE.zh-CN.md) | [ARCHITECTURE.en-US.md](docs/ARCHITECTURE.en-US.md) |
 | Renderer Split | [RENDERER_ARCHITECTURE.zh-CN.md](docs/RENDERER_ARCHITECTURE.zh-CN.md) | [RENDERER_ARCHITECTURE.en-US.md](docs/RENDERER_ARCHITECTURE.en-US.md) |
 | Runtime Architecture | [RUNTIME_ARCHITECTURE.zh-CN.md](docs/RUNTIME_ARCHITECTURE.zh-CN.md) | [RUNTIME_ARCHITECTURE.en-US.md](docs/RUNTIME_ARCHITECTURE.en-US.md) |
@@ -130,6 +131,9 @@ npm run test
 npm run assets:audit
 npm run assets:sync-public
 npm run build
+npm run android:sync
+npm run android:apk
+npm run android:editor:apk
 npm run dist:win
 npm run dist:win:installer
 ```
@@ -142,6 +146,9 @@ npm run dist:win:installer
 | `npm run assets:audit` | Checks duplicate assets and asset governance issues. |
 | `npm run assets:sync-public` | Syncs public resources needed by export/runtime. |
 | `npm run build` | Builds the Web frontend and Electron main/preload. |
+| `npm run android:sync` | Builds Android game-runtime mode and syncs it into the Capacitor Android project. |
+| `npm run android:apk` | Builds an Android Debug APK; requires JDK 17/21 and Android SDK. |
+| `npm run android:editor:apk` | Builds an Android editor Debug APK with the built-in sample and mobile `window.unu` compatibility bridge. |
 | `npm run dist:win` | Creates a Windows unpacked build. |
 | `npm run dist:win:installer` | Creates a Windows installer build. |
 
@@ -152,6 +159,19 @@ npm run dist:win:installer
 Current Web export copies required scenes, assets, prefabs, HTML UI, project scripts, scene scripts, item registries, item scripts, images, audio, and the export runtime. It writes `project.json`, `export-report.json`, `PLAY_GAME.bat`, and related launch files.
 
 Run exported Web games through `PLAY_GAME.bat` or a local HTTP server. Do not open `index.html` directly. Modern browsers restrict script, CSS, and asset loading under `file://`, which can cause CORS or missing-resource errors.
+
+## Android APK
+
+The current Android port uses `Capacitor + Android WebView`. `android:apk` enters game runtime mode directly; `android:editor:apk` enters editor mode and bundles `Sample-project-list/sample-2D-shooting` by default. Editor mode now supports the launcher, opening the built-in project, asset loading, scene/script saves, asset import, Prefabs, embedded script/Tilemap editor windows, and real directory export through Capacitor Filesystem.
+
+Build a Debug APK:
+
+```bash
+npm run android:apk
+npm run android:editor:apk
+```
+
+The APK is usually written to `android/app/build/outputs/apk/debug/app-debug.apk`. If you see `Unsupported class file major version 69`, switch Java from 25 to JDK 17 or 21. See the [Android APK Build Guide](docs/ANDROID_APK.en-US.md) for details.
 
 ## Project Conventions
 

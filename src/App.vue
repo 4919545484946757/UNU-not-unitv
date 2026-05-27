@@ -4,27 +4,38 @@
   <CodeEditorWindow v-else-if="isCodeEditorWindow" />
   <LauncherView v-else-if="showLauncher" @open-project="openProjectFromLauncher" />
   <EditorLayout v-else @return-launcher="returnToLauncher" />
+  <div v-if="androidCodeEditorVisible" class="android-window-overlay">
+    <CodeEditorWindow />
+  </div>
+  <div v-if="androidTilemapEditorVisible" class="android-window-overlay">
+    <TilemapEditorWindow />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import GamePlayer from './components/game/GamePlayer.vue'
 import LauncherView from './components/launcher/LauncherView.vue'
 import EditorLayout from './components/layout/EditorLayout.vue'
 import CodeEditorWindow from './components/windows/CodeEditorWindow.vue'
 import TilemapEditorWindow from './components/windows/TilemapEditorWindow.vue'
 import { createFallbackProject } from './engine/project/projectFallback'
+import { installAndroidEditorBridge } from './platform/androidEditorBridge'
 import { useAssetStore } from './stores/assets'
 import { useProjectStore } from './stores/project'
 import { useRuntimeStore } from './stores/runtime'
 import { useSceneStore } from './stores/scene'
 import { useSelectionStore } from './stores/selection'
 
-const isTilemapEditorWindow = new URLSearchParams(window.location.search).get('tilemapEditor') === '1'
-const isCodeEditorWindow = new URLSearchParams(window.location.search).get('codeEditor') === '1'
+installAndroidEditorBridge()
+
+const isAndroidEditorMode = import.meta.env.VITE_UNU_ANDROID_EDITOR === '1'
+const isTilemapEditorWindow = !isAndroidEditorMode && new URLSearchParams(window.location.search).get('tilemapEditor') === '1'
+const isCodeEditorWindow = !isAndroidEditorMode && new URLSearchParams(window.location.search).get('codeEditor') === '1'
 const isGameExport =
   new URLSearchParams(window.location.search).get('game') === '1' ||
-  window.__UNU_GAME_EXPORT__ === true
+  window.__UNU_GAME_EXPORT__ === true ||
+  (import.meta.env.VITE_UNU_ANDROID === '1' && !isAndroidEditorMode)
 const isElectronMode = !!window.unu
 const showLauncher = ref(!isGameExport && !isTilemapEditorWindow && !isCodeEditorWindow && isElectronMode)
 
@@ -33,6 +44,49 @@ const project = useProjectStore()
 const runtime = useRuntimeStore()
 const scene = useSceneStore()
 const selection = useSelectionStore()
+const androidCodeEditorVisible = ref(false)
+const androidTilemapEditorVisible = ref(false)
+
+function refreshAndroidUiClasses() {
+  const compactPhone = isAndroidEditorMode && Math.min(window.innerWidth, window.innerHeight) <= 540
+  document.documentElement.classList.toggle('unu-android-editor', isAndroidEditorMode)
+  document.documentElement.classList.toggle('unu-android-phone-compact', compactPhone)
+}
+
+function handleAndroidCodeEditorOpen() {
+  androidCodeEditorVisible.value = true
+}
+
+function handleAndroidCodeEditorClose() {
+  androidCodeEditorVisible.value = false
+}
+
+function handleAndroidTilemapEditorOpen() {
+  androidTilemapEditorVisible.value = true
+}
+
+function handleAndroidTilemapEditorClose() {
+  androidTilemapEditorVisible.value = false
+}
+
+onMounted(() => {
+  if (!isAndroidEditorMode) return
+  refreshAndroidUiClasses()
+  window.addEventListener('resize', refreshAndroidUiClasses)
+  window.addEventListener('unu-android-code-editor-open', handleAndroidCodeEditorOpen)
+  window.addEventListener('unu-android-code-editor-close', handleAndroidCodeEditorClose)
+  window.addEventListener('unu-android-tilemap-editor-open', handleAndroidTilemapEditorOpen)
+  window.addEventListener('unu-android-tilemap-editor-close', handleAndroidTilemapEditorClose)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', refreshAndroidUiClasses)
+  document.documentElement.classList.remove('unu-android-editor', 'unu-android-phone-compact')
+  window.removeEventListener('unu-android-code-editor-open', handleAndroidCodeEditorOpen)
+  window.removeEventListener('unu-android-code-editor-close', handleAndroidCodeEditorClose)
+  window.removeEventListener('unu-android-tilemap-editor-open', handleAndroidTilemapEditorOpen)
+  window.removeEventListener('unu-android-tilemap-editor-close', handleAndroidTilemapEditorClose)
+})
 
 function buildProjectHealthMessage(
   scanned: {
@@ -113,3 +167,16 @@ if (showLauncher.value) {
   void window.unu?.setMainWindowPreset?.('launcher')
 }
 </script>
+
+<style scoped>
+.android-window-overlay {
+  position: fixed;
+  inset: 10px;
+  z-index: 9999;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0b1020;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+</style>

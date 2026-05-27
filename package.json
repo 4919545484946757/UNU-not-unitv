@@ -8,6 +8,15 @@
     "dev": "concurrently -k \"vite\" \"vite build --config vite.electron.config.ts --watch\" \"wait-on tcp:5173 dist-electron/main.js dist-electron/preload.js && electron .\"",
     "dev:electron": "vite build --config vite.electron.config.ts --watch",
     "build": "vite build && vite build --config vite.electron.config.ts",
+    "android:prepare": "node scripts/prepare-android-game.cjs",
+    "android:build-web": "npm run android:prepare && vite build --mode android",
+    "android:editor:build-web": "npm run android:prepare && vite build --mode android-editor",
+    "android:add": "npm run android:build-web && cap add android",
+    "android:sync": "npm run android:build-web && cap sync android",
+    "android:editor:sync": "npm run android:editor:build-web && cap sync android",
+    "android:open": "npm run android:sync && cap open android",
+    "android:apk": "npm run android:sync && cd android && gradlew assembleDebug",
+    "android:editor:apk": "npm run android:editor:sync && cd android && gradlew assembleDebug",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "dist:win": "npm run build && electron-builder --config electron-builder.json --win dir",
@@ -18,11 +27,15 @@
     "start:electron": "wait-on tcp:5173 dist-electron/main.js dist-electron/preload.js && electron ."
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/filesystem": "^8.1.2",
     "pinia": "^3.0.3",
     "pixi.js": "^8.9.1",
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
     "@types/node": "^22.15.3",
     "@vitejs/plugin-vue": "^5.2.4",
     "concurrently": "^9.1.2",

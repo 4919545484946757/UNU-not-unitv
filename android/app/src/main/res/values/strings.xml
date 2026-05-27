@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">UNU Engine</string>
+    <string name="title_activity_main">UNU Engine</string>
+    <string name="package_name">com.unu.engine</string>
+    <string name="custom_url_scheme">com.unu.engine</string>
+</resources>

@@ -1,25 +1,25 @@
 ﻿<template>
   <div class="editor-shell">
-    <TopToolbar @return-launcher="emit('return-launcher')" />
+    <TopToolbar v-if="showEditorChrome" @return-launcher="emit('return-launcher')" />
     <EntityCreateDialog />
     <SceneListDialog />
     <KeymapDialog />
     <div ref="mainRef" class="editor-main" :style="mainStyle">
-      <LeftPanel v-if="editor.showLeftPanel" />
-      <div v-if="editor.showLeftPanel" class="resizer left-resizer" @mousedown.prevent="startResize('left', $event)"></div>
+      <LeftPanel v-if="showLeftPanel" />
+      <div v-if="showLeftPanel" class="resizer left-resizer" @pointerdown.prevent="startResize('left', $event)"></div>
       <div ref="centerStackRef" class="center-stack" :style="centerStackStyle">
         <CenterViewport />
-        <div v-if="editor.showBottomPanel" class="console-resizer" @mousedown.prevent="startConsoleResize"></div>
-        <EditorConsole v-if="editor.showBottomPanel" />
+        <div v-if="showBottomPanel" class="console-resizer" @pointerdown.prevent="startConsoleResize"></div>
+        <EditorConsole v-if="showBottomPanel" />
       </div>
-      <div v-if="editor.showRightPanel" class="resizer right-resizer" @mousedown.prevent="startResize('right', $event)"></div>
-      <RightPanel v-if="editor.showRightPanel" />
+      <div v-if="showRightPanel" class="resizer right-resizer" @pointerdown.prevent="startResize('right', $event)"></div>
+      <RightPanel v-if="showRightPanel" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import TopToolbar from './TopToolbarCompact.vue'
 import EntityCreateDialog from '../common/EntityCreateDialog.vue'
 import KeymapDialog from '../common/KeymapDialog.vue'
@@ -45,50 +45,92 @@ const emit = defineEmits<{
 const RESIZER_WIDTH = 6
 const MIN_CENTER_WIDTH = 320
 const MIN_SCENE_VIEW_HEIGHT = 180
+const COMPACT_MIN_CENTER_WIDTH = 140
+const COMPACT_MIN_SCENE_VIEW_HEIGHT = 112
+const COMPACT_LEFT_PANEL_WIDTH = 148
+const COMPACT_RIGHT_PANEL_WIDTH = 156
+const COMPACT_CONSOLE_HEIGHT = 88
+const isAndroidEditorMode = import.meta.env.VITE_UNU_ANDROID_EDITOR === '1'
 const mainRef = ref<HTMLDivElement | null>(null)
 const centerStackRef = ref<HTMLDivElement | null>(null)
 const centerStackHeight = ref(0)
+const compactViewport = ref(false)
 let cleanup: (() => void) | null = null
 let centerStackObserver: ResizeObserver | null = null
 
+const minCenterWidth = computed(() => (compactViewport.value ? COMPACT_MIN_CENTER_WIDTH : MIN_CENTER_WIDTH))
+const minSceneViewHeight = computed(() => (compactViewport.value ? COMPACT_MIN_SCENE_VIEW_HEIGHT : MIN_SCENE_VIEW_HEIGHT))
+const minLeftPanelWidth = computed(() => (compactViewport.value ? 128 : 220))
+const minRightPanelWidth = computed(() => (compactViewport.value ? 140 : 240))
+const maxLeftPanelWidth = computed(() => (compactViewport.value ? 420 : 640))
+const maxRightPanelWidth = computed(() => (compactViewport.value ? 460 : 720))
+const focusSceneView = computed(() => runtime.isPlaying && editor.hideChromeDuringPlay)
+const showEditorChrome = computed(() => !focusSceneView.value)
+const showLeftPanel = computed(() => editor.showLeftPanel && !focusSceneView.value)
+const showRightPanel = computed(() => editor.showRightPanel && !focusSceneView.value)
+const showBottomPanel = computed(() => editor.showBottomPanel && !focusSceneView.value)
+
 const mainStyle = computed(() => {
   const columns = [
-    ...(editor.showLeftPanel ? [`${editor.leftPanelWidth}px`, `${RESIZER_WIDTH}px`] : []),
+    ...(showLeftPanel.value ? [`${editor.leftPanelWidth}px`, `${RESIZER_WIDTH}px`] : []),
     'minmax(0, 1fr)',
-    ...(editor.showRightPanel ? [`${RESIZER_WIDTH}px`, `${editor.rightPanelWidth}px`] : [])
+    ...(showRightPanel.value ? [`${RESIZER_WIDTH}px`, `${editor.rightPanelWidth}px`] : [])
   ]
   return { gridTemplateColumns: columns.join(' ') }
 })
 
 const effectiveConsoleHeight = computed(() => {
   const available = centerStackHeight.value || window.innerHeight
-  const maxByLayout = Math.max(96, available - MIN_SCENE_VIEW_HEIGHT - 6)
+  const minConsole = compactViewport.value ? 68 : 96
+  const maxByLayout = Math.max(minConsole, available - minSceneViewHeight.value - 6)
   return Math.min(editor.consoleHeight, maxByLayout)
 })
 
 const centerStackStyle = computed(() => ({
-  gridTemplateRows: editor.showBottomPanel
-    ? `minmax(${MIN_SCENE_VIEW_HEIGHT}px, 1fr) 6px ${effectiveConsoleHeight.value}px`
+  gridTemplateRows: showBottomPanel.value
+    ? `minmax(${minSceneViewHeight.value}px, 1fr) 6px ${effectiveConsoleHeight.value}px`
     : 'minmax(0, 1fr)'
 }))
 
+watch(focusSceneView, () => {
+  requestAnimationFrame(() => {
+    window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
+  })
+})
+
 function clampPanelWidths(nextLeft: number, nextRight: number) {
   const mainWidth = mainRef.value?.clientWidth ?? window.innerWidth
-  const maxLeft = Math.max(220, mainWidth - RESIZER_WIDTH * 2 - editor.rightPanelWidth - MIN_CENTER_WIDTH)
-  const maxRight = Math.max(240, mainWidth - RESIZER_WIDTH * 2 - editor.leftPanelWidth - MIN_CENTER_WIDTH)
+  const maxLeft = Math.max(
+    minLeftPanelWidth.value,
+    mainWidth - RESIZER_WIDTH * 2 - editor.rightPanelWidth - minCenterWidth.value
+  )
+  const maxRight = Math.max(
+    minRightPanelWidth.value,
+    mainWidth - RESIZER_WIDTH * 2 - editor.leftPanelWidth - minCenterWidth.value
+  )
 
   return {
-    left: Math.max(220, Math.min(Math.min(640, maxLeft), nextLeft)),
-    right: Math.max(240, Math.min(Math.min(720, maxRight), nextRight))
+    left: Math.max(minLeftPanelWidth.value, Math.min(Math.min(maxLeftPanelWidth.value, maxLeft), nextLeft)),
+    right: Math.max(minRightPanelWidth.value, Math.min(Math.min(maxRightPanelWidth.value, maxRight), nextRight))
   }
 }
 
-function startResize(side: 'left' | 'right', event: MouseEvent) {
+function refreshCompactViewport() {
+  const compact = isAndroidEditorMode && Math.min(window.innerWidth, window.innerHeight) <= 540
+  compactViewport.value = compact
+  editor.setCompactUi(compact)
+  if (!compact) return
+  if (editor.leftPanelWidth > COMPACT_LEFT_PANEL_WIDTH) editor.setLeftPanelWidth(COMPACT_LEFT_PANEL_WIDTH)
+  if (editor.rightPanelWidth > COMPACT_RIGHT_PANEL_WIDTH) editor.setRightPanelWidth(COMPACT_RIGHT_PANEL_WIDTH)
+  if (editor.consoleHeight > COMPACT_CONSOLE_HEIGHT) editor.setConsoleHeight(COMPACT_CONSOLE_HEIGHT)
+}
+
+function startResize(side: 'left' | 'right', event: PointerEvent) {
   const startX = event.clientX
   const startLeft = editor.leftPanelWidth
   const startRight = editor.rightPanelWidth
 
-  const onMove = (moveEvent: MouseEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const delta = moveEvent.clientX - startX
     if (side === 'left') {
       const next = clampPanelWidths(startLeft + delta, editor.rightPanelWidth)
@@ -100,8 +142,9 @@ function startResize(side: 'left' | 'right', event: MouseEvent) {
   }
 
   const onUp = () => {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
     document.body.classList.remove('is-resizing-panels')
     window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
     cleanup = null
@@ -110,22 +153,24 @@ function startResize(side: 'left' | 'right', event: MouseEvent) {
   cleanup?.()
   cleanup = onUp
   document.body.classList.add('is-resizing-panels')
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
 }
 
-function startConsoleResize(event: MouseEvent) {
+function startConsoleResize(event: PointerEvent) {
   const startY = event.clientY
   const startHeight = editor.consoleHeight
 
-  const onMove = (moveEvent: MouseEvent) => {
+  const onMove = (moveEvent: PointerEvent) => {
     const delta = moveEvent.clientY - startY
     editor.setConsoleHeight(startHeight - delta)
   }
 
   const onUp = () => {
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
+    window.removeEventListener('pointermove', onMove)
+    window.removeEventListener('pointerup', onUp)
+    window.removeEventListener('pointercancel', onUp)
     document.body.classList.remove('is-resizing-panels')
     window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
     cleanup = null
@@ -134,8 +179,9 @@ function startConsoleResize(event: MouseEvent) {
   cleanup?.()
   cleanup = onUp
   document.body.classList.add('is-resizing-panels')
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
+  window.addEventListener('pointermove', onMove)
+  window.addEventListener('pointerup', onUp)
+  window.addEventListener('pointercancel', onUp)
 }
 
 function isTypingTarget(target: EventTarget | null) {
@@ -240,7 +286,9 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
 }
 
 onMounted(() => {
+  refreshCompactViewport()
   window.addEventListener('keydown', handleGlobalShortcut)
+  window.addEventListener('resize', refreshCompactViewport)
   window.addEventListener('beforeunload', handleBeforeUnload)
   centerStackObserver = new ResizeObserver((entries) => {
     const height = entries[0]?.contentRect.height || centerStackRef.value?.clientHeight || 0
@@ -257,6 +305,7 @@ onBeforeUnmount(() => {
   centerStackObserver?.disconnect()
   centerStackObserver = null
   window.removeEventListener('keydown', handleGlobalShortcut)
+  window.removeEventListener('resize', refreshCompactViewport)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>
@@ -272,7 +321,8 @@ onBeforeUnmount(() => {
 
 .editor-main {
   display: grid;
-  height: calc(100% - 52px);
+  flex: 1;
+  height: auto;
   gap: 1px;
   background: #1a1f29;
   min-height: 0;
@@ -296,6 +346,7 @@ onBeforeUnmount(() => {
   position: relative;
   background: #151a22;
   cursor: row-resize;
+  touch-action: none;
   min-height: 0;
   z-index: 6;
 }
@@ -319,6 +370,7 @@ onBeforeUnmount(() => {
   position: relative;
   background: #151a22;
   cursor: col-resize;
+  touch-action: none;
   min-height: 0;
   z-index: 5;
 }

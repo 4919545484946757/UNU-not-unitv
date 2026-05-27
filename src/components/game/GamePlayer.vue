@@ -20,6 +20,7 @@ const project = useProjectStore()
 const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 let renderer: PixiRenderer | null = null
+const gameBasePath = normalizeGameBasePath(import.meta.env.VITE_UNU_GAME_BASE || './')
 
 type ExportProject = {
   name?: string
@@ -57,9 +58,16 @@ function installExportFileBridge() {
   }
 }
 
+function normalizeGameBasePath(value: string) {
+  const raw = String(value || './').replace(/\\/g, '/').trim()
+  if (!raw || raw === '.') return './'
+  const withPrefix = raw.startsWith('./') || raw.startsWith('../') || raw.startsWith('/') ? raw : `./${raw}`
+  return withPrefix.endsWith('/') ? withPrefix : `${withPrefix}/`
+}
+
 function normalizeFetchPath(relativePath: string) {
   const normalized = String(relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '')
-  return `./${normalized}`
+  return `${gameBasePath}${normalized}`
 }
 
 function normalizeSceneFileReference(value: unknown) {
@@ -88,7 +96,7 @@ function resolveStartupSceneFile(projectJson: ExportProject, sceneFiles: string[
 }
 
 async function loadExportScenes() {
-  const projectResponse = await fetch('./project.json')
+  const projectResponse = await fetch(normalizeFetchPath('project.json'))
   if (!projectResponse.ok) throw new Error('未找到导出的 project.json')
   const projectJson = await projectResponse.json() as ExportProject
   const catalogFiles = (projectJson.sceneCatalog || [])
