@@ -56,7 +56,7 @@ export default {
   },
 
   onUiClick(ctx) {
-    cycleNextHeldItem(ctx)
+    selectHotbarFromUiPointer(ctx)
   },
 
   onHtmlMessage(ctx) {
@@ -186,6 +186,37 @@ function cycleNextHeldItem(ctx) {
   ctx.api.log(`[Inventory] hotbar ${next}: ${getHeldItemName(state)}`)
 }
 
+function selectHotbarFromUiPointer(ctx) {
+  const panel = getInventoryPanel(ctx)
+  if (!panel) return
+  const state = ensureInventoryState(ctx, panel)
+  const pointer = ctx.event?.pointer || {}
+  const width = Math.max(1, Number(pointer.width || 0))
+  const localX = Number(pointer.localX)
+  if (!Number.isFinite(localX) || width <= 1) {
+    cycleNextHeldItem(ctx)
+    return
+  }
+  const hitWidth = resolveHotbarTextHitWidth(ctx, state, width)
+  const ratio = Math.max(0, Math.min(0.999999, (localX + hitWidth / 2) / hitWidth))
+  const next = Math.max(1, Math.min(6, Math.floor(ratio * 6) + 1))
+  state.selectedHotbar = next
+  sendInventorySnapshot(ctx, state, panel)
+  updateHeldHud(ctx, state)
+  ctx.api.log(`[Inventory] hotbar ${next}: ${getHeldItemName(state)}`)
+}
+
+function resolveHotbarTextHitWidth(ctx, state, fullWidth) {
+  const ui = ctx.event?.ui || ctx.entity.getComponent?.('UI') || {}
+  const fontSize = Math.max(10, Number(ui.fontSize || 15))
+  const text = buildHotbarPreviewText(state)
+  const ascii = (text.match(/[\x00-\x7f]/g) || []).length
+  const nonAscii = Math.max(0, text.length - ascii)
+  const estimatedTextWidth = Math.ceil(ascii * fontSize * 0.58 + nonAscii * fontSize * 0.95)
+  const paddingX = Math.max(0, Number(ui.paddingX || 0)) * 2
+  return Math.max(1, Math.min(fullWidth, estimatedTextWidth + paddingX))
+}
+
 function applyIncomingInventoryState(state, payload) {
   if (Array.isArray(payload.items)) state.items = normalizeItems(payload.items, 24)
   if (payload.equipment && typeof payload.equipment === 'object') {
@@ -272,13 +303,17 @@ function updateHotbarPreview(ctx, state) {
   const hotbar = ctx.scene.getEntityById('ui_hotbar_preview') || ctx.api.findEntityByName('HotbarPreview')
   const ui = hotbar?.getComponent('UI')
   if (!ui) return
+  ui.text = buildHotbarPreviewText(state)
+}
+
+function buildHotbarPreviewText(state) {
   const selected = clampHotbar(state.selectedHotbar)
   const parts = []
   for (let index = 1; index <= 6; index += 1) {
     const name = getItemDisplayName(state.items?.[17 + index]) || '空'
     parts.push(`${index === selected ? '▶' : ' '}[${index}] ${name}`)
   }
-  ui.text = parts.join('   ')
+  return parts.join('   ')
 }
 
 function syncPlayerInventory(ctx, state) {
@@ -287,6 +322,7 @@ function syncPlayerInventory(ctx, state) {
   const playerState = ctx.api.getState(player)
   playerState.inventoryItems = normalizeItems(state.items || [], 24)
   playerState.equipment = normalizeEquipment(state.equipment || DEFAULT_EQUIPMENT)
+  playerState.selectedHotbar = clampHotbar(state.selectedHotbar)
   const inventoryData = player.getComponent?.('Inventory')?.data
   if (inventoryData && typeof inventoryData === 'object') inventoryData.equipment = normalizeEquipment(playerState.equipment)
 }

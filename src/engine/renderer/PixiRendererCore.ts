@@ -56,6 +56,12 @@ const EMPTY_ENTITY_EDITOR_SIZE = 40
 const UI_FONT_FAMILY = 'Microsoft YaHei, SimHei, Noto Sans CJK SC, Segoe UI, PingFang SC, sans-serif'
 const UI_MONO_FONT_FAMILY = 'Consolas, Microsoft YaHei, SimHei, monospace'
 
+function estimateUiTextWidth(text: string, fontSize: number) {
+  const ascii = (text.match(/[\x00-\x7f]/g) || []).length
+  const nonAscii = Math.max(0, text.length - ascii)
+  return ascii * fontSize * 0.58 + nonAscii * fontSize * 0.95
+}
+
 export class PixiRenderer {
   private app!: Application
   private readonly root = new Container()
@@ -351,7 +357,7 @@ export class PixiRenderer {
     const nextSceneTemplate = this.resolveSceneTemplateByName(normalized)
     if (!nextSceneTemplate) {
       runtimeStore.stopLoading()
-      useProjectStore().setStatus(`鍦烘櫙鍒囨崲澶辫触锛氭湭鎵惧埌鍦烘櫙 ${normalized}`)
+      useProjectStore().setStatus(`场景切换失败：未找到场景 ${normalized}`)
       return false
     }
 
@@ -376,7 +382,7 @@ export class PixiRenderer {
     this.drawSelectionGizmo()
     void this.renderScene(this.playScene)
     window.setTimeout(() => runtimeStore.stopLoading(), 180)
-    useProjectStore().setStatus(`宸插垏鎹㈠満鏅細${this.playScene.name}`)
+    useProjectStore().setStatus(`已切换场景：${this.playScene.name}`)
     return true
   }
 
@@ -653,11 +659,11 @@ export class PixiRenderer {
   async hotReloadProjectRuntimeFiles(changedPath = '') {
     await this.refreshProjectRuntimeFiles()
     const projectStore = useProjectStore()
-    const label = changedPath ? changedPath.replace(/\\/g, '/') : '椤圭洰鑴氭湰'
+    const label = changedPath ? changedPath.replace(/\\/g, '/') : '项目脚本'
     if (this.currentScene && this.isPlaying) {
       this.scriptRuntime.reloadSceneScripts(this.currentScene)
       void this.audioRuntime.syncScene(this.currentScene)
-      projectStore.setStatus(`鑴氭湰鐑噸杞藉畬鎴愶細${label}`)
+      projectStore.setStatus(`脚本热重载完成：${label}`)
       return
     }
     projectStore.setStatus(`Scripts reloaded: ${label}. Changes apply on next play.`)
@@ -1142,7 +1148,7 @@ export class PixiRenderer {
 
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) {
-        if ((ui.mode === 'button' || ui.mode === 'slider') && ui.interactable) {
+        if ((ui.mode === 'button' || ui.mode === 'slider') && ui.interactable && this.shouldHandleUiPointer(transform, ui, metrics, event)) {
           this.inputState.consumePrimaryPointerPress()
           event.stopPropagation()
         }
@@ -1186,13 +1192,19 @@ export class PixiRenderer {
     if (ui.mode === 'button' && ui.interactable) {
       node.on('pointertap', (event: FederatedPointerEvent) => {
         if (!this.isPlaying) return
+        if (!this.shouldHandleUiPointer(transform, ui, metrics, event)) return
         this.inputState.consumePrimaryPointerPress()
         event.stopPropagation()
         useProjectStore().setStatus(`UI clicked: ${ui.text}`)
         if (this.currentScene) {
+          const local = this.resolveUiLocalPoint(transform, metrics, ui, event)
           this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
             x: event.global.x,
-            y: event.global.y
+            y: event.global.y,
+            localX: local.x,
+            localY: local.y,
+            width: metrics.width,
+            height: metrics.height
           })
           this.consumeGameCommandRequest()
           void this.renderScene(this.currentScene)
@@ -1265,6 +1277,39 @@ export class PixiRenderer {
     }
 
     return node
+  }
+
+  private shouldHandleUiPointer(transform: TransformComponent, ui: UIComponent, metrics: UiMetrics, event: FederatedPointerEvent) {
+    if (ui.mode !== 'button') return true
+    const local = this.resolveUiLocalPoint(transform, metrics, ui, event)
+    const halfHeight = metrics.height / 2
+    if (local.y < -halfHeight || local.y > halfHeight) return false
+    const transparentButton = Number(ui.backgroundColor || 0) === 0
+    const hitWidth = transparentButton ? this.resolveUiTextHitWidth(ui, metrics) : metrics.width
+    return local.x >= -hitWidth / 2 && local.x <= hitWidth / 2
+  }
+
+  private resolveUiLocalPoint(transform: TransformComponent, metrics: UiMetrics, ui: UIComponent, event: FederatedPointerEvent) {
+    const uiPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
+    const dx = event.global.x - uiPosition.x
+    const dy = event.global.y - uiPosition.y
+    const cos = Math.cos(-transform.rotation)
+    const sin = Math.sin(-transform.rotation)
+    const scaleX = Math.abs(transform.scaleX) > 0.0001 ? transform.scaleX : 1
+    const scaleY = Math.abs(transform.scaleY) > 0.0001 ? transform.scaleY : 1
+    return {
+      x: (dx * cos - dy * sin) / scaleX,
+      y: (dx * sin + dy * cos) / scaleY
+    }
+  }
+
+  private resolveUiTextHitWidth(ui: UIComponent, metrics: UiMetrics) {
+    const fontSize = Math.max(10, Number(ui.fontSize || 20))
+    const text = String(ui.text || '')
+    const lines = text.split(/\r?\n/)
+    const longest = lines.reduce((max, line) => Math.max(max, estimateUiTextWidth(line, fontSize)), 1)
+    const paddingX = Math.max(0, Number(ui.paddingX || 0)) * 2
+    return Math.max(1, Math.min(metrics.width, Math.ceil(longest + paddingX)))
   }
 
   private createSliderUiContent(ui: UIComponent, metrics: UiMetrics) {
@@ -2322,7 +2367,7 @@ export class PixiRenderer {
       const texture = await this.loadTextureFromDataUrl(dataUrl)
       this.configurePixelTextureSampling(texture)
       this.textureCache.set(texturePath, texture)
-      project.setStatus(`宸插姞杞借创鍥撅細${texturePath}`)
+      project.setStatus(`已加载贴图：${texturePath}`)
       return texture
     }
 
@@ -2336,7 +2381,7 @@ export class PixiRenderer {
       if (fromPublic) {
         this.configurePixelTextureSampling(fromPublic)
         this.textureCache.set(texturePath, fromPublic)
-        project.setStatus(`宸插姞杞借创鍥撅細${texturePath}`)
+        project.setStatus(`已加载贴图：${texturePath}`)
         return fromPublic
       }
     }
@@ -2352,7 +2397,7 @@ export class PixiRenderer {
       if (image.complete) return
       return new Promise<void>((resolve, reject) => {
         image.onload = () => resolve()
-        image.onerror = () => reject(new Error('鍥剧墖瑙ｇ爜澶辫触'))
+        image.onerror = () => reject(new Error('图片解码失败'))
       })
     })
     return Texture.from(image)
@@ -2368,7 +2413,7 @@ export class PixiRenderer {
     } catch {
       await new Promise<void>((resolve, reject) => {
         image.onload = () => resolve()
-        image.onerror = () => reject(new Error('鍥剧墖鍔犺浇澶辫触'))
+        image.onerror = () => reject(new Error('图片加载失败'))
       }).catch(() => undefined)
     }
     if (!image.complete || !image.naturalWidth || !image.naturalHeight) return null

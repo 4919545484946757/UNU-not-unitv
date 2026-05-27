@@ -131,7 +131,9 @@ const applyArmorDamageReduction = (ctx, player, amount) => {
 const getSelectedHotbarIndex = (ctx) => {
   const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
   const panelState = panel ? ctx.api.getState(panel) : {}
-  return Math.max(1, Math.min(6, Math.round(Number(panelState.selectedHotbar) || 1)))
+  const player = ctx.scene.getEntityById('player_001') || ctx.api.findEntityByName('Player')
+  const playerState = player ? ctx.api.getState(player) : {}
+  return clampHotbar(panelState.selectedHotbar ?? playerState.selectedHotbar ?? 1)
 }
 
 const getHeldSlotIndex = (ctx) => 17 + getSelectedHotbarIndex(ctx)
@@ -139,6 +141,53 @@ const getHeldSlotIndex = (ctx) => 17 + getSelectedHotbarIndex(ctx)
 const getHeldItemId = (ctx, player) => {
   const inventory = ensureEntityInventory(ctx, player, { count: 24, defaults: defaultPlayerInventory() })
   return String(inventory[getHeldSlotIndex(ctx)] || '').trim()
+}
+
+const clampHotbar = (value) => Math.max(1, Math.min(6, Math.round(Number(value) || 1)))
+
+const getInventoryPanel = (ctx) => ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
+
+const syncInventoryPanelFromPlayer = (ctx, player, options = {}) => {
+  const panel = getInventoryPanel(ctx)
+  const playerState = ctx.api.getState(player)
+  const inventory = ensureEntityInventory(ctx, player, { count: 24, defaults: defaultPlayerInventory() })
+  const panelState = panel ? ctx.api.getState(panel) : null
+  const panelHotbar = Number(panelState?.selectedHotbar)
+  const playerHotbar = Number(playerState.selectedHotbar)
+  playerState.selectedHotbar = clampHotbar(
+    options.preferPlayerHotbar
+      ? playerHotbar
+      : Number.isFinite(panelHotbar)
+        ? panelHotbar
+        : playerHotbar
+  )
+  if (panel) {
+    panelState.selectedHotbar = playerState.selectedHotbar
+    panelState.items = normalizeInventoryItems(inventory, 24)
+    if (playerState.equipment && typeof playerState.equipment === 'object') {
+      panelState.equipment = normalizeEquipment(playerState.equipment)
+    }
+  }
+  return { inventory, selectedHotbar: playerState.selectedHotbar }
+}
+
+const syncHotbarSelectionFromInput = (ctx, player) => {
+  const playerState = ctx.api.getState(player)
+  let changed = false
+  for (let index = 1; index <= 6; index += 1) {
+    if (ctx.api.input.wasActionPressed(`hotbar_${index}`)) {
+      playerState.selectedHotbar = index
+      changed = true
+      break
+    }
+  }
+  const synced = syncInventoryPanelFromPlayer(ctx, player, { preferPlayerHotbar: changed })
+  if (changed) {
+    const item = String(synced.inventory[17 + synced.selectedHotbar] || '').trim()
+    const name = item ? ITEM_DEFS[item]?.displayName || item : '空手'
+    ctx.api.log(`[Inventory] hotbar ${synced.selectedHotbar}: ${name}`)
+  }
+  return changed
 }
 
 const getWeaponState = (ctx, player, weaponId) => {
@@ -344,6 +393,7 @@ const useInventoryItem = (ctx, entity, slotIndex) => {
   const before = ensureHealth(ctx, entity).health
   const health = healEntity(ctx, entity, def.heal)
   inventory[index] = ''
+  syncInventoryPanelFromPlayer(ctx, entity)
   ctx.api.log(`[Inventory] used ${def.displayName}: HP ${Math.round(before)} -> ${Math.round(health.health)}`)
   return true
 }
@@ -601,6 +651,10 @@ export default {
           if (!ctx.api.isBlockedRect(transform.x + offsetX, nextY + offsetY, halfWidth, halfHeight)) transform.y = nextY
         }
 
+        syncHotbarSelectionFromInput(ctx, ctx.entity)
+        if (ctx.api.input.wasActionPressed('use_item')) {
+          useInventoryItem(ctx, ctx.entity, getHeldSlotIndex(ctx))
+        }
         if (!updateDebugToolSystem(ctx, ctx.entity)) updateWeaponSystem(ctx, ctx.entity)
         updatePlayerHud(ctx, ctx.entity)
       }

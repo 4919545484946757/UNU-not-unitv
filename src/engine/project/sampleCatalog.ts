@@ -12,9 +12,9 @@ export interface SampleProjectEntry {
 
 export const fallbackSampleProjectCatalog: SampleProjectEntry[] = [
   {
-    id: 'action-2d',
-    title: '2D Action Demo',
-    description: 'Current demo: movement, shooting, enemy chase/respawn, scene switch, interaction, and animation state machine.',
+    id: 'sample-2D-shooting',
+    title: 'sample-2D-shooting',
+    description: '2D shooting sample from Sample-project-list: movement, shooting, inventory, container UI, scene switching, and project-local scripts.',
     available: true,
     rootPath: 'Sample-project-list/sample-2D-shooting',
     manifestPath: 'Sample-project-list/sample-2D-shooting/manifest.json',
@@ -32,18 +32,6 @@ export const fallbackSampleProjectCatalog: SampleProjectEntry[] = [
     projectFile: 'project.json',
     entryScene: 'Snake.scene.json',
     tags: ['2d', 'arcade', 'snake', 'ui', 'input']
-  },
-  {
-    id: 'platformer-2d',
-    title: '2D Platformer (Coming Soon)',
-    description: 'Planned: jump feel, platform collision, traps, and collectible gameplay.',
-    available: false
-  },
-  {
-    id: 'rpg-topdown',
-    title: 'Topdown RPG (Coming Soon)',
-    description: 'Planned: quest flow, dialogue system, area transitions, and save/load.',
-    available: false
   }
 ]
 

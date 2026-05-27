@@ -1081,7 +1081,7 @@ export class ScriptRuntime {
     return true
   }
 
-  handleUiClick(scene: Scene, entity: Entity, ui: UIComponent, pointer?: { x: number; y: number }) {
+  handleUiClick(scene: Scene, entity: Entity, ui: UIComponent, pointer?: { x: number; y: number; localX?: number; localY?: number; width?: number; height?: number }) {
     this.activeScene = scene
     const boundPath = normalizeScriptPath(ui.onClickScriptPath || '')
     if (boundPath) {

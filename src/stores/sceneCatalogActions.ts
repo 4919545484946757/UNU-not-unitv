@@ -238,7 +238,7 @@ export const sceneCatalogActions = {
   },  createNewScene(name = 'MainScene', force = false) {
     const project = useProjectStore()
     const selection = useSelectionStore()
-    if (!force && !this.confirmDiscardUnsaved('鏂板缓鍦烘櫙')) {
+    if (!force && !this.confirmDiscardUnsaved('新建场景')) {
       project.setStatus('Scene operation updated')
       return
     }

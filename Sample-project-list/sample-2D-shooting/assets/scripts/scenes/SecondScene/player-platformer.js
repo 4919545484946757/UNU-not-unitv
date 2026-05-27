@@ -64,7 +64,36 @@ const normalizeInventory = (items) => {
 const selectedHotbar = (ctx) => {
   const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
   const panelState = panel ? ctx.api.getState(panel) : {}
-  return Math.max(1, Math.min(6, Math.round(Number(panelState.selectedHotbar) || 1)))
+  const player = ctx.scene.getEntityById('player_001') || ctx.api.findEntityByName('Player')
+  const playerState = player ? ctx.api.getState(player) : {}
+  return clampHotbar(panelState.selectedHotbar ?? playerState.selectedHotbar ?? 1)
+}
+
+const clampHotbar = (value) => Math.max(1, Math.min(6, Math.round(Number(value) || 1)))
+
+const syncHotbarSelectionFromInput = (ctx, entity) => {
+  const state = ctx.api.getState(entity)
+  let changed = false
+  for (let index = 1; index <= 6; index += 1) {
+    if (ctx.api.input.wasActionPressed(`hotbar_${index}`)) {
+      state.selectedHotbar = index
+      changed = true
+      break
+    }
+  }
+  const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
+  const panelState = panel ? ctx.api.getState(panel) : null
+  const panelHotbar = Number(panelState?.selectedHotbar)
+  const playerHotbar = Number(state.selectedHotbar)
+  state.selectedHotbar = clampHotbar(changed
+    ? playerHotbar
+    : Number.isFinite(panelHotbar)
+      ? panelHotbar
+      : playerHotbar)
+  if (panel) {
+    panelState.selectedHotbar = state.selectedHotbar
+    if (Array.isArray(state.inventoryItems)) panelState.items = normalizeInventory(state.inventoryItems)
+  }
 }
 
 const heldWeapon = (ctx, entity) => {
@@ -265,6 +294,7 @@ export default {
       state.__platformerGrounded = false
     }
 
+    syncHotbarSelectionFromInput(ctx, ctx.entity)
     fireHeldWeapon(ctx, ctx.entity)
   }
 }

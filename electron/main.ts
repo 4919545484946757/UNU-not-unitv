@@ -503,7 +503,7 @@ async function resolveSampleProjectListRoot() {
 async function readSampleProjectManifest(sampleRoot: string, sampleDirName: string, sampleListRoot: string) {
   const manifestPath = path.join(sampleRoot, 'manifest.json')
   const projectPath = path.join(sampleRoot, 'project.json')
-  if (!(await exists(projectPath))) return null
+  if (!(await exists(projectPath)) || !(await exists(manifestPath))) return null
   let manifest: Record<string, any> = {}
   if (await exists(manifestPath)) {
     try {
@@ -530,6 +530,17 @@ async function readSampleProjectManifest(sampleRoot: string, sampleDirName: stri
     entryScene: String(manifest.entryScene || project.startupScene || ''),
     tags: Array.isArray(manifest.tags) ? manifest.tags.map((item: unknown) => String(item)) : []
   }
+}
+
+function sortSampleProjectEntries(left: any, right: any) {
+  const order = ['sample-2D-shooting', 'snake']
+  const leftIndex = order.indexOf(String(left?.id || left?.title || ''))
+  const rightIndex = order.indexOf(String(right?.id || right?.title || ''))
+  if (leftIndex !== -1 || rightIndex !== -1) {
+    return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) -
+      (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex)
+  }
+  return String(left?.title || '').localeCompare(String(right?.title || ''))
 }
 
 function makeDefaultProjectName() {
@@ -2075,7 +2086,7 @@ app.whenReady().then(() => {
     )
     return samples
       .filter(Boolean)
-      .sort((a: any, b: any) => String(a.title).localeCompare(String(b.title)))
+      .sort(sortSampleProjectEntries)
   })
 
   ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {

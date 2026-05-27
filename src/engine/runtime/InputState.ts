@@ -92,6 +92,8 @@ export class InputState {
   private readonly virtualMouseButtons = new Set<number>()
   private readonly virtualMousePressedThisFrame = new Set<number>()
   private readonly virtualMouseReleasedThisFrame = new Set<number>()
+  private readonly mobileControlKeys = new Set<string>()
+  private readonly mobileControlMouseButtons = new Set<number>()
   private mouseX = 0
   private mouseY = 0
   private touchStartedThisFrame = false
@@ -536,6 +538,7 @@ export class InputState {
 
   private readonly handleMouseUp = (event: MouseEvent) => {
     if (this.shouldIgnoreSyntheticMouse()) return
+    if (event.button === 0) this.primaryPointerConsumedUntilRelease = false
     if (isHtmlUiEvent(event)) {
       this.mouseButtons.delete(event.button)
       return
@@ -648,9 +651,10 @@ export class InputState {
     root.style.display = 'none'
     root.appendChild(createMobileControlPad('left', config.left || []))
     root.appendChild(createMobileControlPad('right', config.right || []))
-    root.addEventListener('touchstart', this.handleMobileControlPress, { passive: false })
-    root.addEventListener('touchend', this.handleMobileControlRelease, { passive: false })
-    root.addEventListener('touchcancel', this.handleMobileControlRelease, { passive: false })
+    window.addEventListener('touchstart', this.handleMobileControlTouchScan, { passive: false })
+    window.addEventListener('touchmove', this.handleMobileControlTouchScan, { passive: false })
+    window.addEventListener('touchend', this.handleMobileControlTouchScan, { passive: false })
+    window.addEventListener('touchcancel', this.handleMobileControlTouchScan, { passive: false })
     root.addEventListener('mousedown', this.handleMobileControlPress)
     root.addEventListener('mouseup', this.handleMobileControlRelease)
     root.addEventListener('mouseleave', this.handleMobileControlRelease)
@@ -661,8 +665,13 @@ export class InputState {
   private unmountMobileControls() {
     const root = this.mobileControlsRoot
     if (!root) return
+    window.removeEventListener('touchstart', this.handleMobileControlTouchScan)
+    window.removeEventListener('touchmove', this.handleMobileControlTouchScan)
+    window.removeEventListener('touchend', this.handleMobileControlTouchScan)
+    window.removeEventListener('touchcancel', this.handleMobileControlTouchScan)
     root.remove()
     this.mobileControlsRoot = null
+    this.releaseMobileControlState()
   }
 
   private readonly handleMobileControlPress = (event: Event) => {
@@ -688,11 +697,56 @@ export class InputState {
     if (Number.isFinite(mouse)) this.releaseVirtualMouse(mouse)
   }
 
+  private readonly handleMobileControlTouchScan = (event: TouchEvent) => {
+    if (!this.mobileControlsRoot || this.mobileControlsRoot.style.display === 'none') return
+    const nextKeys = new Set<string>()
+    const nextMouseButtons = new Set<number>()
+    for (let index = 0; index < event.touches.length; index += 1) {
+      const touch = event.touches[index]
+      const button = findMobileControlButtonAt(this.mobileControlsRoot, touch.clientX, touch.clientY)
+      if (!button) continue
+      const key = button.dataset.key || ''
+      const mouse = Number(button.dataset.mouse)
+      if (key) nextKeys.add(key)
+      if (Number.isFinite(mouse)) nextMouseButtons.add(mouse)
+    }
+    this.applyMobileControlState(nextKeys, nextMouseButtons)
+    if (nextKeys.size || nextMouseButtons.size) {
+      event.preventDefault()
+      this.lastTouchAt = Date.now()
+    }
+  }
+
+  private applyMobileControlState(nextKeys: Set<string>, nextMouseButtons: Set<number>) {
+    for (const key of nextKeys) {
+      if (!this.mobileControlKeys.has(key)) this.pressVirtualKey(key)
+    }
+    for (const key of Array.from(this.mobileControlKeys)) {
+      if (!nextKeys.has(key)) this.releaseVirtualKey(key)
+    }
+    for (const button of nextMouseButtons) {
+      if (!this.mobileControlMouseButtons.has(button)) this.pressVirtualMouse(button)
+    }
+    for (const button of Array.from(this.mobileControlMouseButtons)) {
+      if (!nextMouseButtons.has(button)) this.releaseVirtualMouse(button)
+    }
+    this.mobileControlKeys.clear()
+    this.mobileControlMouseButtons.clear()
+    for (const key of nextKeys) this.mobileControlKeys.add(key)
+    for (const button of nextMouseButtons) this.mobileControlMouseButtons.add(button)
+  }
+
+  private releaseMobileControlState() {
+    this.applyMobileControlState(new Set(), new Set())
+  }
+
   private releaseAllVirtualControls() {
     for (const key of this.virtualKeys) this.virtualKeysReleasedThisFrame.add(key)
     for (const button of this.virtualMouseButtons) this.virtualMouseReleasedThisFrame.add(button)
     this.virtualKeys.clear()
     this.virtualMouseButtons.clear()
+    this.mobileControlKeys.clear()
+    this.mobileControlMouseButtons.clear()
   }
 }
 
@@ -767,6 +821,14 @@ function findMobileControlButton(event: Event) {
   return path.find((target): target is HTMLButtonElement =>
     target instanceof HTMLButtonElement && target.closest('.unu-mobile-controls') !== null
   ) ?? null
+}
+
+function findMobileControlButtonAt(root: HTMLElement, clientX: number, clientY: number) {
+  const buttons = Array.from(root.querySelectorAll('button')) as HTMLButtonElement[]
+  return buttons.find((button) => {
+    const rect = button.getBoundingClientRect()
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+  }) ?? null
 }
 
 function isAndroidRuntime() {
