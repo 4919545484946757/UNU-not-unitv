@@ -75,6 +75,8 @@ export default {
       applyIncomingState(state, payload)
       writeActiveChestState(ctx, state)
       sendSnapshot(ctx, state)
+      syncInventoryPanelState(ctx, state)
+      updateHotbarPreview(ctx, state)
       ctx.api.log(`[Container] ${state.activeChestId || 'chest'} changed`)
     }
   }
@@ -125,6 +127,31 @@ function sendSnapshot(ctx, state) {
     bagItems: normalizeItems(state.bagItems || [], 24),
     itemDefs: ITEM_DEFS
   })
+}
+
+function syncInventoryPanelState(ctx, state) {
+  const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
+  if (!panel) return
+  const panelState = ctx.api.getState(panel)
+  panelState.items = normalizeItems(state.bagItems || [], 24)
+  if (!Number.isFinite(Number(panelState.selectedHotbar))) panelState.selectedHotbar = 1
+}
+
+function updateHotbarPreview(ctx, state) {
+  const hotbar = ctx.scene.getEntityById('ui_hotbar_preview') || ctx.api.findEntityByName('HotbarPreview')
+  const ui = hotbar?.getComponent('UI')
+  if (!ui) return
+  const panel = ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML')
+  const panelState = panel ? ctx.api.getState(panel) : {}
+  const selected = Math.max(1, Math.min(6, Math.round(Number(panelState.selectedHotbar) || 1)))
+  const items = normalizeItems(state.bagItems || [], 24)
+  const parts = []
+  for (let index = 1; index <= 6; index += 1) {
+    const item = String(items[17 + index] || '').trim()
+    const name = item ? ITEM_DEFS[item]?.displayName || item : '空'
+    parts.push(`${index === selected ? '▶' : ' '}[${index}] ${name}`)
+  }
+  ui.text = parts.join('   ')
 }
 
 function closePanel(ctx, state) {

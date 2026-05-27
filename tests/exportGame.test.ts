@@ -60,6 +60,7 @@ describe('exportGame service', () => {
   it('validates required Web export files and startup scene', async () => {
     const outputDir = await makeTempExportDir()
     await fs.mkdir(path.join(outputDir, 'scenes'), { recursive: true })
+    await fs.mkdir(path.join(outputDir, 'assets/scripts'), { recursive: true })
     await Promise.all([
       fs.writeFile(path.join(outputDir, 'index.html'), '<!doctype html>'),
       fs.writeFile(path.join(outputDir, 'project.json'), '{}'),
@@ -67,12 +68,15 @@ describe('exportGame service', () => {
       fs.writeFile(path.join(outputDir, 'PLAY_GAME.ps1'), ''),
       fs.writeFile(path.join(outputDir, 'EXPORT_README.md'), '# Export'),
       fs.writeFile(path.join(outputDir, 'export-report.json'), '{}'),
-      fs.writeFile(path.join(outputDir, 'scenes/MainScene.scene.json'), '{}')
+      fs.writeFile(path.join(outputDir, 'scenes/MainScene.scene.json'), '{}'),
+      fs.writeFile(path.join(outputDir, 'assets/scripts/ScriptRuntime.ts'), 'export default {}'),
+      fs.writeFile(path.join(outputDir, 'assets/scripts/InputState.ts'), 'export default {}'),
+      fs.writeFile(path.join(outputDir, 'assets/scripts/AudioRuntime.ts'), 'export default {}')
     ])
 
     await expect(validateExportOutput(outputDir, { startupScene: 'MainScene.scene.json' })).resolves.toEqual({
       ok: true,
-      checked: 7
+      checked: 10
     })
   })
 
@@ -96,11 +100,14 @@ describe('exportGame service', () => {
     const projectRoot = path.join(workspace, 'project')
     const distRoot = path.join(workspace, 'dist')
     const outputParent = path.join(workspace, 'out')
-    await fs.mkdir(path.join(projectRoot, 'assets'), { recursive: true })
+    await fs.mkdir(path.join(projectRoot, 'assets/scripts'), { recursive: true })
     await fs.mkdir(path.join(projectRoot, 'scenes'), { recursive: true })
     await fs.mkdir(distRoot, { recursive: true })
     await fs.writeFile(path.join(distRoot, 'index.html'), '<html><head><title>UNU</title></head><body><script src="/assets/index.js"></script></body></html>')
     await fs.writeFile(path.join(projectRoot, 'assets/texture.txt'), 'asset')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/ScriptRuntime.ts'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/InputState.ts'), 'export default {}')
+    await fs.writeFile(path.join(projectRoot, 'assets/scripts/AudioRuntime.ts'), 'export default {}')
     await fs.writeFile(path.join(projectRoot, 'scenes/MainScene.scene.json'), '{}')
     await fs.writeFile(path.join(projectRoot, 'project.json'), JSON.stringify({
       format: 'unu-project',
@@ -148,7 +155,7 @@ describe('exportGame service', () => {
       format: 'unu-web-export',
       projectName: 'Demo',
       startupScene: 'MainScene.scene.json',
-      assetCount: 1,
+      assetCount: 4,
       unresolvedAssets: 0
     })
   })

@@ -21,8 +21,6 @@ async function copyIfExists(source, target, name) {
   const to = path.join(target, name)
   const stat = await fs.stat(from).catch(() => null)
   if (!stat) return
-  const existing = await fs.stat(to).catch(() => null)
-  if (existing) return
   await fs.cp(from, to, { recursive: true, force: true })
 }
 

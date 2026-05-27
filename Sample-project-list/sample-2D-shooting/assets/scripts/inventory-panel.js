@@ -55,6 +55,10 @@ export default {
     updateInventory(ctx)
   },
 
+  onUiClick(ctx) {
+    cycleNextHeldItem(ctx)
+  },
+
   onHtmlMessage(ctx) {
     const ui = ctx.entity.getComponent('UI')
     const state = ensureInventoryState(ctx)
@@ -142,8 +146,8 @@ function updateInventory(ctx) {
   }
 }
 
-function ensureInventoryState(ctx) {
-  const state = ctx.api.getState(ctx.entity)
+function ensureInventoryState(ctx, owner = ctx.entity) {
+  const state = ctx.api.getState(owner)
   if (!Array.isArray(state.items)) state.items = DEFAULT_BAG_ITEMS.slice()
   else state.items = normalizeItems(state.items, 24)
   const player = getPlayer(ctx)
@@ -160,6 +164,26 @@ function ensureInventoryState(ctx) {
   if (!Number.isFinite(Number(state.selectedHotbar))) state.selectedHotbar = 1
   state.selectedHotbar = clampHotbar(state.selectedHotbar)
   return state
+}
+
+function cycleNextHeldItem(ctx) {
+  const panel = getInventoryPanel(ctx)
+  if (!panel) return
+  const state = ensureInventoryState(ctx, panel)
+  const current = clampHotbar(state.selectedHotbar)
+  let next = current
+  for (let offset = 1; offset <= 6; offset += 1) {
+    const candidate = ((current - 1 + offset) % 6) + 1
+    if (normalizeItemId(state.items?.[17 + candidate])) {
+      next = candidate
+      break
+    }
+  }
+  if (next === current) next = (current % 6) + 1
+  state.selectedHotbar = next
+  sendInventorySnapshot(ctx, state, panel)
+  updateHeldHud(ctx, state)
+  ctx.api.log(`[Inventory] hotbar ${next}: ${getHeldItemName(state)}`)
 }
 
 function applyIncomingInventoryState(state, payload) {
@@ -193,7 +217,7 @@ function normalizeItemId(value) {
   return legacy?.[0] || itemId(raw)
 }
 
-function sendInventorySnapshot(ctx, state) {
+function sendInventorySnapshot(ctx, state, target = ctx.entity) {
   syncPlayerInventory(ctx, state)
   ctx.api.ui.postMessage({
     type: 'inventory-state',
@@ -203,7 +227,7 @@ function sendInventorySnapshot(ctx, state) {
     equipment: state.equipment || { ...DEFAULT_EQUIPMENT },
     equipmentLabels: EQUIPMENT_LABELS,
     playerTexture: getPlayerTexture(ctx)
-  })
+  }, target)
 }
 
 function useItemFromSlot(ctx, state, index) {
@@ -296,4 +320,8 @@ function closeContainerPanel(ctx) {
   const ui = panel?.getComponent('UI')
   if (ui) ui.enabled = false
   if (panel) ctx.api.getState(panel).open = false
+}
+
+function getInventoryPanel(ctx) {
+  return ctx.scene.getEntityById('ui_inventory_panel') || ctx.api.findEntityByName('InventoryPanel_HTML') || ctx.entity
 }

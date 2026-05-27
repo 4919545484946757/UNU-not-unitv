@@ -32,6 +32,8 @@ export type ExportGameReport = {
   resolvedAssets: number
   unresolvedAssets: number
   unresolvedRefs: unknown[]
+  runtimeAssetChecked: number
+  runtimeAssetMissing: string[]
 }
 
 export type ExportGameDependencies = {
@@ -87,6 +89,7 @@ export function createExportGameHandler(deps: ExportGameDependencies) {
     await deps.copyIfExists(path.join(projectRoot, 'scenes'), path.join(outputDir, 'scenes'))
     await deps.copyIfExists(path.join(projectRoot, 'prefabs'), path.join(outputDir, 'prefabs'))
     const exportProject = await writeNormalizedExportProjectFile(projectRoot, outputDir, projectName)
+    const runtimeValidation = await validateRuntimeAssets(outputDir)
 
     const indexPath = path.join(outputDir, 'index.html')
     await patchExportIndexHtml(indexPath, projectName)
@@ -105,7 +108,8 @@ export function createExportGameHandler(deps: ExportGameDependencies) {
       sceneSnapshotWritten: sceneSnapshot.written,
       sceneSnapshotFiles: sceneSnapshot.fileNames,
       assetCount,
-      integrity
+      integrity,
+      runtimeValidation
     })
     const reportPath = path.join(outputDir, 'export-report.json')
     await fs.writeFile(reportPath, JSON.stringify(report, null, 2), 'utf-8')
@@ -141,6 +145,7 @@ export function createExportReport(input: {
   sceneSnapshotFiles: string[]
   assetCount: number
   integrity: Awaited<ReturnType<ExportGameDependencies['ensureProjectAssetIntegrity']>>
+  runtimeValidation?: { checked: number; missing: string[] }
 }): ExportGameReport {
   return {
     format: 'unu-web-export',
@@ -166,7 +171,9 @@ export function createExportReport(input: {
     checkedAssetRefs: input.integrity.checkedAssetRefs,
     resolvedAssets: input.integrity.resolvedAssets,
     unresolvedAssets: input.integrity.unresolvedAssets,
-    unresolvedRefs: input.integrity.unresolvedRefs
+    unresolvedRefs: input.integrity.unresolvedRefs,
+    runtimeAssetChecked: input.runtimeValidation?.checked ?? 0,
+    runtimeAssetMissing: input.runtimeValidation?.missing ?? []
   }
 }
 
@@ -194,10 +201,14 @@ export async function validateExportOutput(outputDir: string, report?: Partial<E
       missing.push(`scenes/${report.startupScene}`)
     }
   }
+  const runtimeValidation = await validateRuntimeAssets(outputDir)
+  if (runtimeValidation.missing.length) {
+    missing.push(...runtimeValidation.missing)
+  }
   if (missing.length) {
     throw new Error(`Invalid Web export output. Missing: ${missing.join(', ')}`)
   }
-  return { ok: true, checked: required.length + (report?.startupScene ? 1 : 0) }
+  return { ok: true, checked: required.length + (report?.startupScene ? 1 : 0) + runtimeValidation.checked }
 }
 
 function makeExportFolderName(projectName: string | undefined, now = new Date()) {
@@ -420,10 +431,20 @@ try {
 async function collectSceneFileNames(projectRoot: string) {
   const scenesDir = path.join(projectRoot, 'scenes')
   try {
-    const entries = await fs.readdir(scenesDir, { withFileTypes: true })
-    return entries
-      .filter((entry) => entry.isFile() && entry.name.endsWith('.scene.json'))
-      .map((entry) => entry.name)
+    const files: string[] = []
+    const visit = async (currentDir: string) => {
+      const entries = await fs.readdir(currentDir, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = path.join(currentDir, entry.name)
+        if (entry.isDirectory()) {
+          await visit(fullPath)
+        } else if (entry.isFile() && entry.name.endsWith('.scene.json')) {
+          files.push(normalizePath(path.relative(scenesDir, fullPath)))
+        }
+      }
+    }
+    await visit(scenesDir)
+    return files
       .sort((a, b) => a.localeCompare(b))
   } catch {
     return []
@@ -431,7 +452,30 @@ async function collectSceneFileNames(projectRoot: string) {
 }
 
 function parseSceneBaseName(fileName: string) {
-  return fileName.replace(/\.scene\.json$/i, '')
+  return path.basename(fileName).replace(/\.scene\.json$/i, '')
+}
+
+async function validateRuntimeAssets(outputDir: string) {
+  const candidates = [
+    'assets/scripts/ScriptRuntime.ts',
+    'assets/scripts/InputState.ts',
+    'assets/scripts/AudioRuntime.ts'
+  ]
+  let checked = 0
+  const missing: string[] = []
+  for (const relativePath of candidates) {
+    checked += 1
+    try {
+      await fs.access(path.join(outputDir, relativePath))
+    } catch {
+      missing.push(relativePath)
+    }
+  }
+  return { checked, missing }
+}
+
+function normalizePath(input: string) {
+  return input.replace(/\\/g, '/')
 }
 
 function sanitizeProjectName(input?: string) {

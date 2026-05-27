@@ -1,4 +1,4 @@
-import 'pixi.js/unsafe-eval'
+﻿import 'pixi.js/unsafe-eval'
 import { Application, Container, FederatedPointerEvent, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js'
 import { AnimationComponent } from '../components/AnimationComponent'
 import { AudioComponent } from '../components/AudioComponent'
@@ -261,7 +261,7 @@ export class PixiRenderer {
         }
         const animationStart = collectPerformance ? performance.now() : 0
         applySceneAnimation(this.currentScene, delta, (event) => {
-          projectStore.setStatus(`动画事件：${event.name} @ frame ${event.frame}`)
+          projectStore.setStatus(`Animation event: ${event.name} @ frame ${event.frame}`)
         }, this.inputState)
         const animationEnd = collectPerformance ? performance.now() : 0
         const audioStart = collectPerformance ? performance.now() : 0
@@ -351,7 +351,7 @@ export class PixiRenderer {
     const nextSceneTemplate = this.resolveSceneTemplateByName(normalized)
     if (!nextSceneTemplate) {
       runtimeStore.stopLoading()
-      useProjectStore().setStatus(`场景切换失败：未找到场景 ${normalized}`)
+      useProjectStore().setStatus(`鍦烘櫙鍒囨崲澶辫触锛氭湭鎵惧埌鍦烘櫙 ${normalized}`)
       return false
     }
 
@@ -376,7 +376,7 @@ export class PixiRenderer {
     this.drawSelectionGizmo()
     void this.renderScene(this.playScene)
     window.setTimeout(() => runtimeStore.stopLoading(), 180)
-    useProjectStore().setStatus(`已切换场景：${this.playScene.name}`)
+    useProjectStore().setStatus(`宸插垏鎹㈠満鏅細${this.playScene.name}`)
     return true
   }
 
@@ -476,6 +476,7 @@ export class PixiRenderer {
     if (!scene) {
       this.isPlaying = false
       this.isPaused = false
+      this.inputState.setMobileControlsVisible(false)
       for (const cachedScene of this.playSceneCache.values()) {
         this.scriptRuntime.destroyScene(cachedScene)
       }
@@ -496,6 +497,7 @@ export class PixiRenderer {
     if (!isPlaying) {
       this.isPlaying = false
       this.isPaused = false
+      this.inputState.setMobileControlsVisible(false)
       for (const cachedScene of this.playSceneCache.values()) {
         this.scriptRuntime.destroyScene(cachedScene)
       }
@@ -534,6 +536,7 @@ export class PixiRenderer {
 
     this.isPlaying = true
     this.isPaused = isPaused
+    this.inputState.setMobileControlsVisible(true)
     this.app.stage.cursor = 'default'
     this.audioRuntime.setPaused(isPaused)
     if (this.currentScene) {
@@ -650,14 +653,14 @@ export class PixiRenderer {
   async hotReloadProjectRuntimeFiles(changedPath = '') {
     await this.refreshProjectRuntimeFiles()
     const projectStore = useProjectStore()
-    const label = changedPath ? changedPath.replace(/\\/g, '/') : '项目脚本'
+    const label = changedPath ? changedPath.replace(/\\/g, '/') : '椤圭洰鑴氭湰'
     if (this.currentScene && this.isPlaying) {
       this.scriptRuntime.reloadSceneScripts(this.currentScene)
       void this.audioRuntime.syncScene(this.currentScene)
-      projectStore.setStatus(`脚本热重载完成：${label}`)
+      projectStore.setStatus(`鑴氭湰鐑噸杞藉畬鎴愶細${label}`)
       return
     }
-    projectStore.setStatus(`脚本已重新载入：${label}，下次播放生效`)
+    projectStore.setStatus(`Scripts reloaded: ${label}. Changes apply on next play.`)
   }
 
   setSelection(entityId: string) {
@@ -729,7 +732,9 @@ export class PixiRenderer {
 
   private installViewportWheelInteractions() {
     this.wheelHandler = (event: WheelEvent) => {
-      if (this.isPlaying) return
+      if (this.isPlaying) {
+        return
+      }
       event.preventDefault()
       this.zoomViewportAt(event.clientX, event.clientY, event.deltaY)
     }
@@ -1136,7 +1141,13 @@ export class PixiRenderer {
     node.cursor = (ui.mode === 'button' || ui.mode === 'slider') && ui.interactable ? 'pointer' : 'default'
 
     node.on('pointerdown', (event: FederatedPointerEvent) => {
-      if (this.isPlaying) return
+      if (this.isPlaying) {
+        if ((ui.mode === 'button' || ui.mode === 'slider') && ui.interactable) {
+          this.inputState.consumePrimaryPointerPress()
+          event.stopPropagation()
+        }
+        return
+      }
       if (this.shouldStartPan(event)) {
         this.startPan(event.global.x, event.global.y)
         event.stopPropagation()
@@ -1157,8 +1168,9 @@ export class PixiRenderer {
     if (ui.mode === 'button') {
       const buttonBg = new Graphics()
       buttonBg.roundRect(-metrics.width / 2, -metrics.height / 2, metrics.width, metrics.height, 10)
-      buttonBg.fill({ color: ui.backgroundColor, alpha: 0.95 })
-      buttonBg.stroke({ color: 0xffffff, alpha: 0.25, width: 1.5 })
+      const bgAlpha = ui.backgroundColor === 0 ? 0 : 0.95
+      buttonBg.fill({ color: ui.backgroundColor, alpha: bgAlpha })
+      buttonBg.stroke({ color: 0xffffff, alpha: bgAlpha > 0 ? 0.25 : 0, width: 1.5 })
       node.addChild(buttonBg)
     }
 
@@ -1174,7 +1186,9 @@ export class PixiRenderer {
     if (ui.mode === 'button' && ui.interactable) {
       node.on('pointertap', (event: FederatedPointerEvent) => {
         if (!this.isPlaying) return
-        useProjectStore().setStatus(`UI 按钮点击：${ui.text}`)
+        this.inputState.consumePrimaryPointerPress()
+        event.stopPropagation()
+        useProjectStore().setStatus(`UI clicked: ${ui.text}`)
         if (this.currentScene) {
           this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
             x: event.global.x,
@@ -1217,6 +1231,7 @@ export class PixiRenderer {
         void this.renderScene(this.currentScene)
       }
       const updateSlider = (event: FederatedPointerEvent) => {
+        this.inputState.consumePrimaryPointerPress()
         updateSliderFromScreen(event.global.x, event.global.y)
         event.stopPropagation()
       }
@@ -1473,7 +1488,8 @@ export class PixiRenderer {
     const node = cached.node
     node.onclick = (event) => {
       if (!this.isPlaying || ui.mode !== 'button' || !ui.interactable) return
-      useProjectStore().setStatus(`HTML UI 按钮点击：${stripInlineMarkdown(ui.text)}`)
+      this.inputState.consumePrimaryPointerPress()
+      useProjectStore().setStatus(`UI clicked: ${ui.text}`)
       if (this.currentScene) {
         this.scriptRuntime.handleUiClick(this.currentScene, entity, ui, {
           x: event.clientX,
@@ -1601,7 +1617,7 @@ export class PixiRenderer {
       })
       return result?.content ?? null
     } catch (error) {
-      project.setStatus(`HTML UI 文件读取失败：${normalized}`)
+      project.setStatus(`HTML UI file read failed: ${normalized}`)
       return null
     }
   }
@@ -2306,7 +2322,7 @@ export class PixiRenderer {
       const texture = await this.loadTextureFromDataUrl(dataUrl)
       this.configurePixelTextureSampling(texture)
       this.textureCache.set(texturePath, texture)
-      project.setStatus(`已加载贴图：${texturePath}`)
+      project.setStatus(`宸插姞杞借创鍥撅細${texturePath}`)
       return texture
     }
 
@@ -2320,7 +2336,7 @@ export class PixiRenderer {
       if (fromPublic) {
         this.configurePixelTextureSampling(fromPublic)
         this.textureCache.set(texturePath, fromPublic)
-        project.setStatus(`已加载贴图：${texturePath}`)
+        project.setStatus(`宸插姞杞借创鍥撅細${texturePath}`)
         return fromPublic
       }
     }
@@ -2336,7 +2352,7 @@ export class PixiRenderer {
       if (image.complete) return
       return new Promise<void>((resolve, reject) => {
         image.onload = () => resolve()
-        image.onerror = () => reject(new Error('图片解码失败'))
+        image.onerror = () => reject(new Error('鍥剧墖瑙ｇ爜澶辫触'))
       })
     })
     return Texture.from(image)
@@ -2352,7 +2368,7 @@ export class PixiRenderer {
     } catch {
       await new Promise<void>((resolve, reject) => {
         image.onload = () => resolve()
-        image.onerror = () => reject(new Error('图片加载失败'))
+        image.onerror = () => reject(new Error('鍥剧墖鍔犺浇澶辫触'))
       }).catch(() => undefined)
     }
     if (!image.complete || !image.naturalWidth || !image.naturalHeight) return null
@@ -2653,7 +2669,7 @@ export class PixiRenderer {
 
       if (this.playDebugEnabled) {
         const hint = new Text({
-          text: '右键交互',
+          text: '鍙抽敭浜や簰',
           style: { fill: '#ffe9b3', fontSize: 12, fontWeight: '700' }
         })
         hint.x = boxX

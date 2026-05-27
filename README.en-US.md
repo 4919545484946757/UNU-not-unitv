@@ -4,8 +4,8 @@
 
 UNU Engine Starter is a desktop 2D game editor and runtime built with `Vue 3 + Pinia + PixiJS 8 + Electron`. The project aims to provide a full practical loop: create projects, edit scenes, write scripts, preview gameplay, debug performance, export Web games, and package the editor for Windows.
 
-- Documentation updated: `2026-05-21`
-- Project version: `0.5.0`
+- Documentation updated: `2026-05-27`
+- Project version: `1.0.0`
 - Current focus: desktop 2D game editor + exportable Web game runtime
 - Sample project source of truth: `Sample-project-list/`
 

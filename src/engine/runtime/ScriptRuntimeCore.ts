@@ -29,6 +29,10 @@ interface RuntimeInput {
   getAxis: (axis: 'horizontal' | 'vertical') => number
   getMoveVector: (normalized?: boolean) => { x: number; y: number }
   getMousePosition: () => { x: number; y: number }
+  wasTouchPressed?: () => boolean
+  isTouchActive?: () => boolean
+  isAndroidDevice?: () => boolean
+  consumePrimaryPointerPress?: () => void
 }
 
 interface RuntimeAudio {
@@ -269,7 +273,11 @@ export class ScriptRuntime {
     getPressedBindings: () => [],
     getAxis: () => 0,
     getMoveVector: () => ({ x: 0, y: 0 }),
-    getMousePosition: () => ({ x: 0, y: 0 })
+    getMousePosition: () => ({ x: 0, y: 0 }),
+    wasTouchPressed: () => false,
+    isTouchActive: () => false,
+    isAndroidDevice: () => false,
+    consumePrimaryPointerPress: () => undefined
   }
   private audioAdapter: {
     playOneShot: (clipPath: string, options?: { group?: AudioGroup; volume?: number; loop?: boolean; muted?: boolean; playbackRate?: number; fadeIn?: number; fadeOut?: number }) => Promise<void>
@@ -459,6 +467,7 @@ export class ScriptRuntime {
     this.activeScene = scene
     this.sceneElapsed.set(scene.id, this.getSceneElapsed(scene) + delta)
     if (input) this.input = input
+    this.processTouchInteractableSelection(scene)
     this.processInteractableSelection(scene)
     for (const entity of scene.entities) {
       if (this.pendingRemovals.has(entity.id)) continue
@@ -1048,17 +1057,28 @@ export class ScriptRuntime {
 
   private processInteractableSelection(scene: Scene) {
     if (!this.input.wasActionPressed('interact')) return
+    this.tryActivateInteractableAtPointer(scene)
+  }
+
+  private processTouchInteractableSelection(scene: Scene) {
+    if (!this.input.wasTouchPressed?.()) return
+    const activated = this.tryActivateInteractableAtPointer(scene)
+    if (activated) this.input.consumePrimaryPointerPress?.()
+  }
+
+  private tryActivateInteractableAtPointer(scene: Scene) {
     const playerTransform = this.findPlayerTransform(scene)
-    if (!playerTransform) return
+    if (!playerTransform) return false
     const pointer = this.input.getMousePosition()
     const target = this.pickInteractableAtPointer(scene, pointer.x, pointer.y, playerTransform)
-    if (!target) return
+    if (!target) return false
 
     const script = target.entity.getComponent<ScriptComponent>('Script')
     const hooks = script?.instance as ScriptHooks | null
     if (script?.enabled && hooks?.onInteract) {
       this.invokeHook(hooks, 'onInteract', target.entity, 0)
     }
+    return true
   }
 
   handleUiClick(scene: Scene, entity: Entity, ui: UIComponent, pointer?: { x: number; y: number }) {

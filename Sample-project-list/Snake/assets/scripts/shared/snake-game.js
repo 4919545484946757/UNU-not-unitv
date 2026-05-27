@@ -159,6 +159,19 @@ function resetGame(ctx, state) {
 function updateDirection(ctx, state) {
   const input = ctx.api.input
   let requested = null
+  if (input.wasTouchPressed && input.wasTouchPressed()) {
+    const pointer = input.getMousePosition()
+    const headWorld = gridToWorld(state.snake[0])
+    const dx = pointer.x - headWorld.x
+    const dy = pointer.y - headWorld.y
+    const forward = state.nextDir || state.dir || { x: 1, y: 0 }
+    const side = forward.x * dy - forward.y * dx
+    if (Math.abs(side) > 0.001) {
+      requested = side < 0
+        ? { x: forward.y, y: -forward.x }
+        : { x: -forward.y, y: forward.x }
+    }
+  }
   if (input.wasActionPressed('move_up') || input.isActionDown('move_up')) requested = { x: 0, y: -1 }
   else if (input.wasActionPressed('move_down') || input.isActionDown('move_down')) requested = { x: 0, y: 1 }
   else if (input.wasActionPressed('move_left') || input.isActionDown('move_left')) requested = { x: -1, y: 0 }

@@ -18,5 +18,23 @@
     hotbar_4: ['Digit4'],
     hotbar_5: ['Digit5'],
     hotbar_6: ['Digit6']
+  },
+  mobileControls: {
+    enabled: true,
+    left: [
+      { label: 'W', key: 'KeyW', className: 'up' },
+      { label: 'A', key: 'KeyA', className: 'left' },
+      { label: 'S', key: 'KeyS', className: 'down' },
+      { label: 'D', key: 'KeyD', className: 'right' }
+    ],
+    right: [
+      { label: 'Shift', key: 'ShiftLeft' },
+      { label: 'Space', key: 'Space' },
+      { label: 'R', key: 'KeyR' },
+      { label: 'Esc', key: 'Escape' },
+      { label: 'E', key: 'KeyE' },
+      { label: 'Use', mouse: 0 },
+      { label: 'Right', mouse: 2 }
+    ]
   }
 }

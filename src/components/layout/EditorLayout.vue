@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="editor-shell">
+  <div class="editor-shell" :class="{ 'focus-scene-view': focusSceneView }">
     <TopToolbar v-if="showEditorChrome" @return-launcher="emit('return-launcher')" />
     <EntityCreateDialog />
     <SceneListDialog />

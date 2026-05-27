@@ -455,6 +455,25 @@ export const useAssetStore = defineStore('assets', {
       this.hydrateTree(result.tree)
       project.setStatus(buildProjectHealthMessage(result, `资源依赖检查完成：${result.name}`))
     },
+    async flushDirtyTextAssetsBeforeExport() {
+      const project = useProjectStore()
+      if (!window.unu?.saveTextAsset || !project.rootPath || project.isMemoryProject) return 0
+      const dirtyPaths = Object.keys(this.textDirtyPaths).filter((path) => this.textDirtyPaths[path])
+      let savedCount = 0
+      for (const relativePath of dirtyPaths) {
+        const content = this.textDrafts[relativePath]
+        if (content === undefined) continue
+        await window.unu.saveTextAsset({
+          projectRoot: project.rootPath,
+          filePath: relativePath,
+          content,
+          suggestedName: relativePath.split('/').pop() || 'Asset.txt'
+        })
+        this.textDirtyPaths[relativePath] = false
+        savedCount += 1
+      }
+      return savedCount
+    },
     async exportGame() {
       const project = useProjectStore()
       if (!window.unu?.exportGame) {
@@ -467,6 +486,7 @@ export const useAssetStore = defineStore('assets', {
       }
 
       project.setStatus('正在导出 Web 游戏...')
+      const flushedTextAssets = await this.flushDirtyTextAssetsBeforeExport()
       const { useSceneStore } = await import('./scene')
       const scene = useSceneStore()
       const currentScene = scene.currentScene
@@ -493,7 +513,7 @@ export const useAssetStore = defineStore('assets', {
         return
       }
       project.setStatus(
-        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}，启动场景 ${result.startupScene || '未设置'}）。请通过 PLAY_GAME.bat 或本地 HTTP 服务运行，不要直接双击 index.html。`
+        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}，启动场景 ${result.startupScene || '未设置'}${flushedTextAssets > 0 ? `，已同步未保存文本 ${flushedTextAssets} 个` : ''}）。请通过 PLAY_GAME.bat 或本地 HTTP 服务运行，不要直接双击 index.html。`
       )
     },
     async importImages() {

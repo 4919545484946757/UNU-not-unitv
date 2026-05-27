@@ -253,9 +253,10 @@ const updateWeaponSystem = (ctx, player) => {
 }
 
 const updateDebugToolSystem = (ctx, player) => {
-  if (!ctx.api.input.wasActionPressed('interact')) return false
   const item = getHeldItemId(ctx, player)
   if (item !== itemId('debug_spawn_enemy') && item !== itemId('debug_teleport')) return false
+  if (!ctx.api.input.wasActionPressed('fire')) return false
+  ctx.api.input.consumePrimaryPointerPress?.()
   ctx.api.getState(player).__suppressInteractAtTime = ctx.api.time
   const pointer = ctx.api.input.getMousePosition()
   if (item === itemId('debug_teleport')) {

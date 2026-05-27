@@ -28,17 +28,19 @@ body {
   background: #0e1014;
 }
 
-html.unu-android-editor body,
-html.unu-android-editor #app {
-  padding:
-    var(--unu-safe-top)
-    var(--unu-safe-right)
-    var(--unu-safe-bottom)
-    var(--unu-safe-left);
-}
-
 html.unu-android-editor #app {
   background: #0e1014;
+}
+
+html.unu-android-editor .toolbar {
+  padding-top: calc(8px + var(--unu-safe-top));
+}
+
+html.unu-android-editor .android-window-overlay {
+  top: calc(10px + var(--unu-safe-top));
+  right: calc(10px + var(--unu-safe-right));
+  bottom: calc(10px + var(--unu-safe-bottom));
+  left: calc(10px + var(--unu-safe-left));
 }
 
 button, input, select {
@@ -75,7 +77,7 @@ html.unu-android-phone-compact .toolbar {
   grid-template-columns: 112px minmax(0, 1fr) 82px !important;
   gap: 4px !important;
   align-items: start !important;
-  padding: 4px 6px !important;
+  padding: calc(4px + var(--unu-safe-top)) 6px 4px !important;
 }
 
 html.unu-android-phone-compact .brand {
@@ -194,6 +196,10 @@ html.unu-android-phone-compact .viewport-header {
   font-size: 10px !important;
 }
 
+html.unu-android-editor .editor-shell.focus-scene-view .viewport-shell {
+  padding-top: var(--unu-safe-top);
+}
+
 html.unu-android-phone-compact .editor-console {
   grid-template-rows: 24px minmax(0, 1fr) 28px !important;
 }
@@ -214,6 +220,68 @@ html.unu-android-phone-compact .asset-browser {
 }
 
 html.unu-android-phone-compact .android-window-overlay {
-  inset: 4px !important;
+  top: calc(4px + var(--unu-safe-top)) !important;
+  right: calc(4px + var(--unu-safe-right)) !important;
+  bottom: calc(4px + var(--unu-safe-bottom)) !important;
+  left: calc(4px + var(--unu-safe-left)) !important;
   border-radius: 8px !important;
+}
+
+.unu-mobile-controls {
+  --unu-mobile-button-size: clamp(48px, 9.75vw, 66px);
+  --unu-mobile-button-gap: clamp(5px, 0.9vw, 8px);
+  position: fixed;
+  inset: auto 0 calc(12px + var(--unu-safe-bottom)) 0;
+  z-index: 90;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  pointer-events: none;
+  padding: 0 calc(12px + var(--unu-safe-right)) 0 calc(12px + var(--unu-safe-left));
+}
+
+.unu-mobile-pad {
+  pointer-events: auto;
+  display: grid;
+  gap: var(--unu-mobile-button-gap);
+  opacity: 0.78;
+}
+
+.unu-mobile-pad-left {
+  grid-template-columns: repeat(3, var(--unu-mobile-button-size));
+}
+
+.unu-mobile-pad-right {
+  grid-template-columns: repeat(2, var(--unu-mobile-button-size));
+  grid-auto-rows: var(--unu-mobile-button-size);
+}
+
+.unu-mobile-pad-left .up { grid-column: 2; }
+.unu-mobile-pad-left .left { grid-column: 1; }
+.unu-mobile-pad-left .down { grid-column: 2; }
+.unu-mobile-pad-left .right { grid-column: 3; }
+
+.unu-mobile-controls button {
+  min-width: var(--unu-mobile-button-size);
+  height: var(--unu-mobile-button-size);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(12, 15, 22, 0.62);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.unu-android-phone-compact .unu-mobile-controls {
+  --unu-mobile-button-size: clamp(44px, 12.75vw, 59px);
+  --unu-mobile-button-gap: 5px;
+  padding: 0 calc(8px + var(--unu-safe-right)) 0 calc(8px + var(--unu-safe-left));
+}
+
+.unu-mobile-controls button:active {
+  transform: translateY(1px) scale(0.97);
+  background: rgba(86, 147, 255, 0.7);
 }
