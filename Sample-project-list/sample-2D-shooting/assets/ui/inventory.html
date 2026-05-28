@@ -427,6 +427,7 @@
     let selectedHotbar = 1;
     let dragSlotId = '';
     let playerTexture = '';
+    const assetUrlCache = new Map();
 
     function makeSlot({ id, label, item, hotkey, hotbar }) {
       const slot = document.createElement('div');
@@ -577,15 +578,23 @@
     async function updatePlayerPreviewImage() {
       const img = document.querySelector('[data-player-preview]');
       if (!img || !playerTexture) return;
-      img.removeAttribute('src');
-      img.src = await assetUrl(playerTexture);
+      const url = await assetUrl(playerTexture);
+      if (url && img.dataset.texturePath === playerTexture && img.getAttribute('src') === url) return;
+      if (!url) return;
+      img.dataset.texturePath = playerTexture;
+      img.src = url;
     }
 
     async function assetUrl(path) {
       const normalized = String(path || '').replace(/\\/g, '/');
       if (!normalized) return '';
       if (/^(file|https?|data|blob):/i.test(normalized)) return normalized;
-      if (window.UNU?.assetUrl) return await window.UNU.assetUrl(normalized);
+      if (assetUrlCache.has(normalized)) return assetUrlCache.get(normalized);
+      if (window.UNU?.assetUrl) {
+        const resolved = await window.UNU.assetUrl(normalized);
+        if (resolved) assetUrlCache.set(normalized, resolved);
+        return resolved;
+      }
       return normalized.startsWith('assets/') ? '../' + normalized.slice('assets/'.length) : normalized;
     }
 
@@ -598,8 +607,12 @@
       if (message?.type === 'inventory-state') applyState(message);
       if (message?.type === 'set-hotbar') setHotbar(message.index, true);
       if (message?.type === 'set-player-preview') {
-        playerTexture = String(message.texturePath || '');
-        renderEquipment();
+        const nextTexture = String(message.texturePath || '');
+        if (nextTexture === playerTexture) return;
+        const hadPreview = Boolean(document.querySelector('[data-player-preview]'));
+        playerTexture = nextTexture;
+        if (hadPreview && playerTexture) updatePlayerPreviewImage();
+        else renderEquipment();
       }
     });
 

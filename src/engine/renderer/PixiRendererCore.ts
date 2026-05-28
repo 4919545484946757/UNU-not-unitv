@@ -110,6 +110,7 @@ export class PixiRenderer {
   private readonly worldNodeCache = new Map<string, { kind: CachedWorldNodeKind; signature: string; node: Container }>()
   private readonly uiNodeCache = new Map<string, { signature: string; node: Container }>()
   private readonly htmlUiNodeCache = new Map<string, CachedHtmlUiNode>()
+  private readonly htmlUiAssetDataUrlCache = new Map<string, string>()
   private wheelHandler: ((event: WheelEvent) => void) | null = null
   private auxClickHandler: ((event: MouseEvent) => void) | null = null
   private lastViewportWidth = 0
@@ -1690,12 +1691,18 @@ export class PixiRenderer {
     if (/^(https?|data|blob):/i.test(normalized)) return normalized
     const project = useProjectStore()
     if (!window.unu?.readAssetDataUrl || !project.rootPath || project.isMemoryProject) return normalized
+    const cacheKey = `${project.rootPath}|${normalized}`
+    if (this.htmlUiAssetDataUrlCache.has(cacheKey)) {
+      return this.htmlUiAssetDataUrlCache.get(cacheKey) || ''
+    }
     try {
       const result = await window.unu.readAssetDataUrl({
         projectRoot: project.rootPath,
         relativePath: normalized
       })
-      return result?.dataUrl || ''
+      const dataUrl = result?.dataUrl || ''
+      if (dataUrl) this.htmlUiAssetDataUrlCache.set(cacheKey, dataUrl)
+      return dataUrl
     } catch {
       return ''
     }

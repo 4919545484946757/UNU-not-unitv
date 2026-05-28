@@ -149,9 +149,15 @@ const fireHeldWeapon = (ctx, entity) => {
   const ammo = weaponState(ctx, entity, id, config)
   updateReload(ctx, config, ammo)
   if (ctx.api.input.wasActionPressed('reload')) startReload(ctx, config, ammo)
-  if (ammo.reloading || ammo.cooldown > 0) return
   const pressed = config.fireMode === 'auto' ? ctx.api.input.isActionDown('fire') : ctx.api.input.wasActionPressed('fire')
   if (!pressed) return
+  if (ammo.reloading) {
+    if (config.reloadMode !== 'shell' || ammo.magazine <= 0 || ammo.cooldown > 0) return
+    ammo.reloading = false
+    ammo.reloadTimer = 0
+    ctx.api.log(`[Weapon] ${config.displayName} reload interrupted`)
+  }
+  if (ammo.cooldown > 0) return
   if (ammo.magazine <= 0) {
     startReload(ctx, config, ammo)
     return

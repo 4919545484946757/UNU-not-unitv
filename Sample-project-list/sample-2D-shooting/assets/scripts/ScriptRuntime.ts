@@ -248,14 +248,20 @@ const updateWeaponReload = (ctx, player, weaponId, weapon, ammo) => {
 }
 
 const fireWeapon = (ctx, player, weaponId, weapon, ammo) => {
-  if (ammo.reloading || ammo.cooldown > 0) return false
+  const auto = weapon.fireMode === 'auto'
+  const firePressed = auto ? ctx.api.input.isActionDown('fire') : ctx.api.input.wasActionPressed('fire')
+  if (!firePressed) return false
+  if (ammo.reloading) {
+    if (weapon.reloadMode !== 'shell' || ammo.magazine <= 0 || ammo.cooldown > 0) return false
+    ammo.reloading = false
+    ammo.reloadTimer = 0
+    ctx.api.log(`[Weapon] ${weapon.displayName} reload interrupted`)
+  }
+  if (ammo.cooldown > 0) return false
   if (ammo.magazine <= 0) {
     startReload(ctx, player, weaponId, weapon, ammo)
     return false
   }
-  const auto = weapon.fireMode === 'auto'
-  const firePressed = auto ? ctx.api.input.isActionDown('fire') : ctx.api.input.wasActionPressed('fire')
-  if (!firePressed) return false
   ammo.magazine -= 1
   ammo.cooldown = Number(weapon.fireInterval || 0.2)
   if (weapon.fireMode === 'semi') {
