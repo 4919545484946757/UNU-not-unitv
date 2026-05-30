@@ -4,6 +4,42 @@ const MAIN = ['Continue', 'Reset', 'Settings', 'Exit']
 const SETTINGS = ['SettingsTitle', 'Difficulty', 'VolumeText', 'VolumeSlider', 'Hotkeys', 'Done']
 const HOTKEY_BUTTON_SUFFIXES = ['KeyMoveLeft', 'KeyMoveRight', 'KeyMoveUp', 'KeyMoveDown', 'KeyJump', 'KeySprint', 'KeyFire', 'KeyInteract', 'KeyMenu']
 const HOTKEYS = ['HotkeysTitle', 'HotkeysInfo', ...HOTKEY_BUTTON_SUFFIXES, 'ResetHotkeys', 'Done']
+const MENU_LAYOUTS = {
+  main: {
+    Backdrop: { y: 0, width: 300, height: 300, fontSize: 14 },
+    Title: { y: -108, width: 250, height: 32, fontSize: 24 },
+    Continue: { y: -54, width: 220, height: 34, fontSize: 16 },
+    Reset: { y: -12, width: 220, height: 34, fontSize: 16 },
+    Settings: { y: 30, width: 220, height: 34, fontSize: 16 },
+    Exit: { y: 72, width: 220, height: 34, fontSize: 16 }
+  },
+  settings: {
+    Backdrop: { y: 0, width: 320, height: 330, fontSize: 14 },
+    SettingsTitle: { y: -118, width: 260, height: 30, fontSize: 22 },
+    Difficulty: { y: -72, width: 230, height: 32, fontSize: 15 },
+    VolumeText: { y: -34, width: 230, height: 28, fontSize: 14 },
+    VolumeSlider: { y: 0, width: 240, height: 28, fontSize: 14 },
+    Hotkeys: { y: 42, width: 230, height: 32, fontSize: 15 },
+    Done: { y: 86, width: 230, height: 32, fontSize: 15 }
+  },
+  hotkeys: {
+    Backdrop: { y: 0, width: 390, height: 315, fontSize: 12 },
+    HotkeysTitle: { y: -130, width: 270, height: 24, fontSize: 18 },
+    HotkeysInfo: { y: -104, width: 340, height: 22, fontSize: 10 },
+    KeyMoveLeft: { x: -88, y: -72 },
+    KeyMoveRight: { x: 88, y: -72 },
+    KeyMoveUp: { x: -88, y: -46 },
+    KeyMoveDown: { x: 88, y: -46 },
+    KeyJump: { x: -88, y: -20 },
+    KeySprint: { x: 88, y: -20 },
+    KeyFire: { x: -88, y: 6 },
+    KeyInteract: { x: 88, y: 6 },
+    KeyMenu: { x: 0, y: 32 },
+    ResetHotkeys: { x: -78, y: 82, width: 150, height: 26, fontSize: 11 },
+    Done: { x: 78, y: 82, width: 150, height: 26, fontSize: 12 }
+  }
+}
+const HOTKEY_BUTTON_LAYOUT = { width: 165, height: 22, fontSize: 11 }
 
 function parseConfigFromEntity(entity) {
   const script = entity?.getComponent('Script')
@@ -38,6 +74,29 @@ function findUi(ctx, suffix) {
 function setUi(ctx, suffix, enabled) {
   const ui = findUi(ctx, suffix)
   if (ui) ui.enabled = enabled
+}
+
+function applyMenuLayout(ctx, page) {
+  const layout = MENU_LAYOUTS[page] || MENU_LAYOUTS.main
+  for (const suffix of [...COMMON, ...MAIN, ...SETTINGS, ...HOTKEYS]) {
+    const entity = findEntity(ctx, suffix)
+    const transform = entity?.getTransform?.()
+    const ui = entity?.getComponent?.('UI')
+    const patch = layout[suffix] || (page === 'hotkeys' && HOTKEY_BUTTON_SUFFIXES.includes(suffix) ? HOTKEY_BUTTON_LAYOUT : null)
+    if (!transform || !ui || !patch) continue
+    transform.x = Number(patch.x ?? 0)
+    transform.y = Number(patch.y ?? transform.y)
+    transform.positionMode = 'viewport'
+    transform.viewportHorizontal = 'center'
+    transform.viewportVertical = 'middle'
+    if (patch.width !== undefined) ui.width = patch.width
+    if (patch.height !== undefined) ui.height = patch.height
+    if (patch.fontSize !== undefined) ui.fontSize = patch.fontSize
+    ui.autoWidth = false
+    ui.autoHeight = false
+    ui.minWidth = 1
+    ui.minHeight = 1
+  }
 }
 
 function getHotkeyBindings(ctx) {
@@ -95,6 +154,7 @@ function showPage(ctx, page) {
   state.page = page
   if (page !== 'hotkeys') state.waitingAction = ''
   for (const suffix of [...COMMON, ...MAIN, ...SETTINGS, ...HOTKEYS]) setUi(ctx, suffix, false)
+  applyMenuLayout(ctx, page)
   setUi(ctx, 'Backdrop', true)
   setUi(ctx, 'Title', page === 'main')
   const pageItems = page === 'settings' ? SETTINGS : page === 'hotkeys' ? ['HotkeysTitle', 'HotkeysInfo', ...getHotkeyBindings(ctx).map((item) => item[0]), 'ResetHotkeys', 'Done'] : MAIN

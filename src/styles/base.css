@@ -37,10 +37,11 @@ html.unu-android-editor .toolbar {
 }
 
 html.unu-android-editor .android-window-overlay {
-  top: calc(10px + var(--unu-safe-top));
-  right: calc(10px + var(--unu-safe-right));
-  bottom: calc(10px + var(--unu-safe-bottom));
-  left: calc(10px + var(--unu-safe-left));
+  top: var(--unu-safe-top);
+  right: var(--unu-safe-right);
+  bottom: var(--unu-safe-bottom);
+  left: var(--unu-safe-left);
+  border-radius: 0;
 }
 
 button, input, select {
@@ -220,11 +221,11 @@ html.unu-android-phone-compact .asset-browser {
 }
 
 html.unu-android-phone-compact .android-window-overlay {
-  top: calc(4px + var(--unu-safe-top)) !important;
-  right: calc(4px + var(--unu-safe-right)) !important;
-  bottom: calc(4px + var(--unu-safe-bottom)) !important;
-  left: calc(4px + var(--unu-safe-left)) !important;
-  border-radius: 8px !important;
+  top: var(--unu-safe-top) !important;
+  right: var(--unu-safe-right) !important;
+  bottom: var(--unu-safe-bottom) !important;
+  left: var(--unu-safe-left) !important;
+  border-radius: 0 !important;
 }
 
 .unu-mobile-controls {

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
@@ -24,6 +25,27 @@ import java.nio.charset.StandardCharsets;
 
 @CapacitorPlugin(name = "UnuAndroidFiles")
 public class UnuAndroidFilesPlugin extends Plugin {
+    @PluginMethod
+    public void setOrientation(PluginCall call) {
+        String orientation = call.getString("orientation", "unspecified");
+        int requestedOrientation;
+        if ("portrait".equals(orientation)) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        } else if ("landscape".equals(orientation)) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+        } else {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+        }
+        try {
+            getActivity().setRequestedOrientation(requestedOrientation);
+            JSObject ret = new JSObject();
+            ret.put("ok", true);
+            call.resolve(ret);
+        } catch (Exception error) {
+            call.reject("Failed to set orientation: " + error.getMessage());
+        }
+    }
+
     @PluginMethod
     public void pickDirectory(PluginCall call) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);

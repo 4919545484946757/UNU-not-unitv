@@ -31,6 +31,10 @@
       @dragenter.prevent="isDragOver = true"
       @dragleave.prevent="isDragOver = false"
       @drop.prevent="handleDrop"
+      @pointerdown="onViewportPointerDown"
+      @pointermove="onViewportPointerMove"
+      @pointerup="onViewportPointerUp"
+      @pointercancel="onViewportPointerUp"
     >
       <div v-if="runtime.isLoading" class="loading-layer">
         <div class="loading-card">
@@ -70,6 +74,8 @@ let lastRuntimeSyncAt = 0
 let disposeProjectScriptChanged: (() => void) | null = null
 let scriptHotReloadTimer = 0
 let scriptHotReloading = false
+const activeTouchPointers = new Map<number, { x: number; y: number }>()
+let pinchDistance = 0
 
 const scenePathTitle = computed(() => project.currentScenePath || '内存场景')
 const scenePathDisplay = computed(() => {
@@ -350,7 +356,50 @@ async function handleDrop(event: DragEvent) {
   project.setStatus(`已拖入图片并创建实体：${path.split('/').pop() || path}`)
 }
 
+function touchDistance() {
+  const points = Array.from(activeTouchPointers.values())
+  if (points.length < 2) return 0
+  return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)
+}
+
+function touchCenter() {
+  const points = Array.from(activeTouchPointers.values())
+  return {
+    x: (points[0].x + points[1].x) / 2,
+    y: (points[0].y + points[1].y) / 2
+  }
+}
+
+function onViewportPointerDown(event: PointerEvent) {
+  if (event.pointerType !== 'touch') return
+  activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+  if (activeTouchPointers.size >= 2) {
+    pinchDistance = touchDistance()
+    event.preventDefault()
+  }
+}
+
+function onViewportPointerMove(event: PointerEvent) {
+  if (event.pointerType !== 'touch' || !activeTouchPointers.has(event.pointerId)) return
+  activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+  if (activeTouchPointers.size < 2) return
+  const nextDistance = touchDistance()
+  if (pinchDistance > 0 && nextDistance > 0) {
+    const center = touchCenter()
+    renderer?.zoomViewportByFactor(center.x, center.y, nextDistance / pinchDistance)
+  }
+  pinchDistance = nextDistance
+  event.preventDefault()
+}
+
+function onViewportPointerUp(event: PointerEvent) {
+  if (event.pointerType !== 'touch') return
+  activeTouchPointers.delete(event.pointerId)
+  pinchDistance = activeTouchPointers.size >= 2 ? touchDistance() : 0
+}
+
 onBeforeUnmount(() => {
+  activeTouchPointers.clear()
   disposeProjectScriptChanged?.()
   disposeProjectScriptChanged = null
   if (scriptHotReloadTimer) window.clearTimeout(scriptHotReloadTimer)
@@ -413,6 +462,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  touch-action: none;
 }
 
 .viewport-canvas :deep(canvas) {

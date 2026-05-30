@@ -173,10 +173,21 @@ if (showLauncher.value) {
   position: fixed;
   inset: 10px;
   z-index: 9999;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
   border: 1px solid rgba(148, 163, 184, 0.45);
   border-radius: 14px;
   overflow: hidden;
   background: #0b1020;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.android-window-overlay :deep(.code-window),
+.android-window-overlay :deep(.tilemap-window) {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
 }
 </style>

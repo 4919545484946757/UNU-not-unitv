@@ -22,10 +22,11 @@
       <section
         ref="viewportRef"
         class="viewport"
-        @mousedown="onViewportMouseDown"
-        @mousemove="onViewportMouseMove"
-        @mouseup="onViewportMouseUp($event)"
-        @mouseleave="onViewportMouseUp()"
+        @pointerdown="onViewportPointerDown"
+        @pointermove="onViewportPointerMove"
+        @pointerup="onViewportPointerUp($event)"
+        @pointercancel="onViewportPointerUp($event)"
+        @pointerleave="onViewportPointerLeave"
         @wheel.prevent="onViewportWheel"
       >
         <div class="canvas" :style="canvasStyle">
@@ -36,8 +37,8 @@
             class="cell"
             :class="{ selected: isCellSelected(index), collision: mode === 'collision' && Number(value) > 0 }"
             :style="mode === 'tiles' ? tileCellStyle(Number(value)) : undefined"
-            @mousedown.left="onCellMouseDown($event, index)"
-            @mouseenter="onCellMouseEnter(index)"
+            @pointerdown="onCellPointerDown($event, index)"
+            @pointerenter="onCellPointerEnter(index)"
           >
             {{ value }}
           </button>
@@ -119,6 +120,8 @@ const marqueeActive = ref(false)
 const marqueeStart = ref({ x: 0, y: 0 })
 const marqueeEnd = ref({ x: 0, y: 0 })
 const marqueeBaseSelection = ref<number[]>([])
+const activePointers = new Map<number, { x: number; y: number }>()
+let pinchDistance = 0
 const cellSize = computed(() => {
   const count = cols.value * rows.value
   if (count >= 1800) return 20
@@ -234,7 +237,7 @@ function tileCellStyle(value: number): CSSProperties {
       backgroundPosition: 'center',
       backgroundRepeat: 'no-repeat',
       imageRendering: 'pixelated' as CSSProperties['imageRendering'],
-      borderColor: '#6ed6ff',
+      borderColor: 'rgba(148, 163, 184, 0.35)',
       color: '#ffffff',
       textShadow: '0 1px 2px #000, 0 0 3px #000'
     }
@@ -312,11 +315,49 @@ function resetView() {
   zoom.value = 1
 }
 
-function viewportPoint(event: MouseEvent) {
+function viewportPoint(event: MouseEvent | PointerEvent) {
   const target = viewportRef.value
   if (!target) return { x: 0, y: 0 }
   const rect = target.getBoundingClientRect()
   return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+}
+
+function isMouseMiddleButton(event: PointerEvent) {
+  return event.pointerType === 'mouse' && event.button === 1
+}
+
+function isPrimaryPointerButton(event: PointerEvent) {
+  return event.pointerType !== 'mouse' || event.button === 0
+}
+
+function pointerDistance() {
+  const points = Array.from(activePointers.values())
+  if (points.length < 2) return 0
+  return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y)
+}
+
+function pointerCenter() {
+  const points = Array.from(activePointers.values())
+  return {
+    x: (points[0].x + points[1].x) / 2,
+    y: (points[0].y + points[1].y) / 2
+  }
+}
+
+function zoomAtViewportPoint(clientX: number, clientY: number, factor: number) {
+  const target = viewportRef.value
+  if (!target || !Number.isFinite(factor) || factor <= 0) return
+  const rect = target.getBoundingClientRect()
+  const cursorX = clientX - rect.left
+  const cursorY = clientY - rect.top
+  const previousZoom = zoom.value || 1
+  const nextZoom = Math.max(0.4, Math.min(4, previousZoom * factor))
+  if (Math.abs(nextZoom - previousZoom) < 0.0001) return
+  const beforeWorldX = (cursorX - panX.value) / previousZoom
+  const beforeWorldY = (cursorY - panY.value) / previousZoom
+  zoom.value = nextZoom
+  panX.value = cursorX - beforeWorldX * nextZoom
+  panY.value = cursorY - beforeWorldY * nextZoom
 }
 
 function clearLongPressTimer() {
@@ -352,13 +393,26 @@ function updateMarqueeSelection() {
   setSelectedIndices([...marqueeBaseSelection.value, ...hits], true)
 }
 
-function onViewportMouseDown(event: MouseEvent) {
-  if (event.button === 1) {
+function onViewportPointerDown(event: PointerEvent) {
+  if (event.cancelable) event.preventDefault()
+  viewportRef.value?.setPointerCapture?.(event.pointerId)
+  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+  if (activePointers.size >= 2) {
+    clearLongPressTimer()
+    marqueeActive.value = false
+    dragging.value = false
+    mouseDownLeft.value = false
+    shiftSelecting.value = false
+    pendingClickIndex.value = -1
+    pinchDistance = pointerDistance()
+    return
+  }
+  if (isMouseMiddleButton(event)) {
     dragging.value = true
     dragOrigin.value = { x: event.clientX, y: event.clientY, panX: panX.value, panY: panY.value }
     return
   }
-  if (event.button !== 0) return
+  if (!isPrimaryPointerButton(event)) return
   const target = event.target as HTMLElement | null
   if (!target?.classList?.contains('cell')) pendingClickIndex.value = -1
   mouseDownLeft.value = true
@@ -379,7 +433,29 @@ function onViewportMouseDown(event: MouseEvent) {
   }, 220)
 }
 
-function onViewportMouseMove(event: MouseEvent) {
+function onViewportPointerMove(event: PointerEvent) {
+  if (activePointers.has(event.pointerId)) activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+  if (activePointers.size >= 2) {
+    if (event.cancelable) event.preventDefault()
+    const nextDistance = pointerDistance()
+    if (pinchDistance > 0 && nextDistance > 0) {
+      const center = pointerCenter()
+      zoomAtViewportPoint(center.x, center.y, nextDistance / pinchDistance)
+    }
+    pinchDistance = nextDistance
+    return
+  }
+  if (event.cancelable && (dragging.value || marqueeActive.value || mouseDownLeft.value)) event.preventDefault()
+  if (event.pointerType !== 'mouse' && mouseDownLeft.value && !dragging.value && !marqueeActive.value && !shiftSelecting.value) {
+    const point = viewportPoint(event)
+    const distance = Math.hypot(point.x - pointerDown.value.x, point.y - pointerDown.value.y)
+    if (distance > 8) {
+      clearLongPressTimer()
+      dragging.value = true
+      pendingClickIndex.value = -1
+      dragOrigin.value = { x: event.clientX, y: event.clientY, panX: panX.value, panY: panY.value }
+    }
+  }
   if (dragging.value) {
     const dx = event.clientX - dragOrigin.value.x
     const dy = event.clientY - dragOrigin.value.y
@@ -393,16 +469,24 @@ function onViewportMouseMove(event: MouseEvent) {
   }
 }
 
-function onViewportMouseUp(event?: MouseEvent) {
+function onViewportPointerUp(event?: PointerEvent) {
+  if (event?.cancelable) event.preventDefault()
+  if (event) {
+    viewportRef.value?.releasePointerCapture?.(event.pointerId)
+    activePointers.delete(event.pointerId)
+    pinchDistance = activePointers.size >= 2 ? pointerDistance() : 0
+    if (activePointers.size > 0) return
+  }
+  const wasDragging = dragging.value
   dragging.value = false
-  if (event && event.button === 1) return
+  if (event && isMouseMiddleButton(event)) return
   if (!mouseDownLeft.value && !marqueeActive.value && !shiftSelecting.value) return
 
   clearLongPressTimer()
   if (marqueeActive.value) {
     updateMarqueeSelection()
     marqueeActive.value = false
-  } else if (!shiftSelecting.value && pendingClickIndex.value >= 0) {
+  } else if (!wasDragging && !shiftSelecting.value && pendingClickIndex.value >= 0) {
     selectCell(pendingClickIndex.value)
   }
   mouseDownLeft.value = false
@@ -410,19 +494,13 @@ function onViewportMouseUp(event?: MouseEvent) {
   pendingClickIndex.value = -1
 }
 
+function onViewportPointerLeave(event: PointerEvent) {
+  if (event.pointerType === 'mouse') onViewportPointerUp(event)
+}
+
 function onViewportWheel(event: WheelEvent) {
-  const target = viewportRef.value
-  if (!target) return
-  const rect = target.getBoundingClientRect()
-  const cursorX = event.clientX - rect.left
-  const cursorY = event.clientY - rect.top
-  const beforeWorldX = (cursorX - panX.value) / zoom.value
-  const beforeWorldY = (cursorY - panY.value) / zoom.value
   const delta = event.deltaY < 0 ? 1.1 : 0.9
-  const nextZoom = Math.max(0.4, Math.min(4, zoom.value * delta))
-  zoom.value = nextZoom
-  panX.value = cursorX - beforeWorldX * nextZoom
-  panY.value = cursorY - beforeWorldY * nextZoom
+  zoomAtViewportPoint(event.clientX, event.clientY, delta)
 }
 
 function applyMaterialValueToSelected(value: number) {
@@ -459,8 +537,10 @@ function onWindowKeyDown(event: KeyboardEvent) {
   }
 }
 
-function onCellMouseDown(event: MouseEvent, index: number) {
+function onCellPointerDown(event: PointerEvent, index: number) {
+  if (!isPrimaryPointerButton(event)) return
   pendingClickIndex.value = index
+  if (event.pointerType !== 'mouse' && event.cancelable) event.preventDefault()
   if (event.shiftKey) {
     shiftSelecting.value = true
     mouseDownLeft.value = true
@@ -468,7 +548,7 @@ function onCellMouseDown(event: MouseEvent, index: number) {
   }
 }
 
-function onCellMouseEnter(index: number) {
+function onCellPointerEnter(index: number) {
   if (!mouseDownLeft.value || !shiftSelecting.value) return
   addSelection(index)
 }
@@ -482,31 +562,38 @@ async function closeWindow() {
 }
 
 let removeInitListener: (() => void) | null = null
-const onWindowMouseUp = () => onViewportMouseUp()
+const onWindowPointerUp = (event: PointerEvent) => onViewportPointerUp(event)
 onMounted(() => {
   removeInitListener = window.unu?.onTilemapEditorInit?.((payload) => {
     applyInitPayload(payload)
   }) || null
   window.addEventListener('keydown', onWindowKeyDown)
-  window.addEventListener('mouseup', onWindowMouseUp)
+  window.addEventListener('pointerup', onWindowPointerUp)
+  window.addEventListener('pointercancel', onWindowPointerUp)
 })
 
 onBeforeUnmount(() => {
   clearLongPressTimer()
+  activePointers.clear()
   removeInitListener?.()
   removeInitListener = null
   window.removeEventListener('keydown', onWindowKeyDown)
-  window.removeEventListener('mouseup', onWindowMouseUp)
+  window.removeEventListener('pointerup', onWindowPointerUp)
+  window.removeEventListener('pointercancel', onWindowPointerUp)
 })
 </script>
 
 <style scoped>
 .tilemap-window {
-  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   background: #0d1320;
   color: #dce7f6;
+}
+
+.android-window-overlay .tilemap-window {
+  height: 100%;
 }
 .toolbar {
   display: flex;
@@ -559,6 +646,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   position: relative;
   overflow: hidden;
+  touch-action: none;
   background: radial-gradient(circle at 20% 10%, #162640 0%, #0b1220 60%, #080d16 100%);
 }
 .marquee {
@@ -585,6 +673,9 @@ onBeforeUnmount(() => {
   color: #f2f8ff;
   font-size: 11px;
   cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 .cell.selected {
   outline: 2px solid #6ed6ff;
@@ -688,5 +779,47 @@ onBeforeUnmount(() => {
   padding: 4px 8px;
   font-size: 11px;
   cursor: pointer;
+}
+
+@media (max-width: 700px), (max-height: 460px) {
+  .tilemap-window {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .toolbar {
+    align-items: start;
+    padding: 8px;
+  }
+
+  .toolbar-right {
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .content {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .sidebar {
+    max-height: 38dvh;
+    border-left: 0;
+    border-top: 1px solid #2a374f;
+    padding: 8px;
+  }
+
+  .material-row {
+    grid-template-columns: 38px 34px minmax(0, 1fr);
+  }
+
+  .material-row .mini {
+    grid-column: 1 / -1;
+  }
+
+  .preview {
+    width: 32px;
+    height: 32px;
+  }
 }
 </style>

@@ -590,12 +590,16 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .code-window {
-  height: 100vh;
+  height: 100dvh;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   background: #0f141d;
   color: #dbe4ee;
   font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+.android-window-overlay .code-window {
+  height: 100%;
 }
 header,
 footer {

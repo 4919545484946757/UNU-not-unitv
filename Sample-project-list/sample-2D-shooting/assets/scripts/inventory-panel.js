@@ -138,10 +138,14 @@ function updateInventory(ctx) {
   }
 
   if (ui.enabled) {
-    const playerTexture = getPlayerTexture(ctx)
-    if (playerTexture && playerTexture !== state.lastPlayerTexture) {
-      state.lastPlayerTexture = playerTexture
-      ctx.api.ui.postMessage({ type: 'set-player-preview', texturePath: playerTexture })
+    const playerPreview = getPlayerPreview(ctx)
+    if (playerPreview.texturePath && (
+      playerPreview.texturePath !== state.lastPlayerTexture ||
+      playerPreview.flipX !== state.lastPlayerFlipX
+    )) {
+      state.lastPlayerTexture = playerPreview.texturePath
+      state.lastPlayerFlipX = playerPreview.flipX
+      ctx.api.ui.postMessage({ type: 'set-player-preview', ...playerPreview })
     }
   }
 }
@@ -250,6 +254,7 @@ function normalizeItemId(value) {
 
 function sendInventorySnapshot(ctx, state, target = ctx.entity) {
   syncPlayerInventory(ctx, state)
+  const playerPreview = getPlayerPreview(ctx)
   ctx.api.ui.postMessage({
     type: 'inventory-state',
     selectedHotbar: clampHotbar(state.selectedHotbar),
@@ -257,7 +262,8 @@ function sendInventorySnapshot(ctx, state, target = ctx.entity) {
     itemDefs: ITEM_DEFS,
     equipment: state.equipment || { ...DEFAULT_EQUIPMENT },
     equipmentLabels: EQUIPMENT_LABELS,
-    playerTexture: getPlayerTexture(ctx)
+    playerTexture: playerPreview.texturePath,
+    playerFlipX: playerPreview.flipX
   }, target)
 }
 
@@ -342,9 +348,17 @@ function getItemDisplayName(id) {
 }
 
 function getPlayerTexture(ctx) {
+  return getPlayerPreview(ctx).texturePath
+}
+
+function getPlayerPreview(ctx) {
   const player = getPlayer(ctx)
   const sprite = player?.getComponent('Sprite')
-  return String(sprite?.texturePath || '')
+  const transform = player?.getTransform?.()
+  return {
+    texturePath: String(sprite?.texturePath || ''),
+    flipX: Number(transform?.scaleX || 1) < 0
+  }
 }
 
 function clampHotbar(value) {

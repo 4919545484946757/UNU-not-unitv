@@ -124,12 +124,13 @@
     }
 
     .avatar-img {
+      --avatar-face: 1;
       width: 128px;
       height: 128px;
       object-fit: contain;
       image-rendering: pixelated;
       filter: drop-shadow(0 18px 18px rgba(0,0,0,0.34));
-      transform: scale(1.35);
+      transform: scale(1.35) scaleX(var(--avatar-face));
     }
 
     .avatar-fallback {
@@ -322,7 +323,7 @@
       .avatar-img {
         width: 78px;
         height: 78px;
-        transform: scale(1.2);
+        transform: scale(1.2) scaleX(var(--avatar-face));
       }
 
       .avatar-fallback {
@@ -427,6 +428,7 @@
     let selectedHotbar = 1;
     let dragSlotId = '';
     let playerTexture = '';
+    let playerFlipX = false;
     const assetUrlCache = new Map();
 
     function makeSlot({ id, label, item, hotkey, hotbar }) {
@@ -560,6 +562,7 @@
       }
       if (message.itemDefs && typeof message.itemDefs === 'object') itemDefs = message.itemDefs;
       if (message.playerTexture) playerTexture = String(message.playerTexture || '');
+      playerFlipX = Boolean(message.playerFlipX);
       if (Number.isFinite(Number(message.selectedHotbar))) selectedHotbar = Math.max(1, Math.min(6, Number(message.selectedHotbar) || 1));
       renderAll();
     }
@@ -579,6 +582,7 @@
       const img = document.querySelector('[data-player-preview]');
       if (!img || !playerTexture) return;
       const url = await assetUrl(playerTexture);
+      img.style.setProperty('--avatar-face', playerFlipX ? '-1' : '1');
       if (url && img.dataset.texturePath === playerTexture && img.getAttribute('src') === url) return;
       if (!url) return;
       img.dataset.texturePath = playerTexture;
@@ -608,9 +612,11 @@
       if (message?.type === 'set-hotbar') setHotbar(message.index, true);
       if (message?.type === 'set-player-preview') {
         const nextTexture = String(message.texturePath || '');
-        if (nextTexture === playerTexture) return;
+        const nextFlipX = Boolean(message.flipX);
+        if (nextTexture === playerTexture && nextFlipX === playerFlipX) return;
         const hadPreview = Boolean(document.querySelector('[data-player-preview]'));
         playerTexture = nextTexture;
+        playerFlipX = nextFlipX;
         if (hadPreview && playerTexture) updatePlayerPreviewImage();
         else renderEquipment();
       }

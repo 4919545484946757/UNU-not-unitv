@@ -1,5 +1,7 @@
 ﻿import { registerPlugin } from '@capacitor/core'
 import type { AssetNode, AssetType } from '../engine/assets/types'
+import { Scene } from '../engine/core/Scene'
+import { serializeScene } from '../engine/serialization/sceneSerializer'
 
 type MobileManifestFile = {
   path: string
@@ -25,6 +27,7 @@ type UnuAndroidFilesPlugin = {
   pickFiles: (payload?: { accept?: string; multiple?: boolean }) => Promise<{ files: AndroidPickedFile[] } | null>
   openFileManager: (payload?: { title?: string; uri?: string }) => Promise<{ ok: boolean; error?: string }>
   writeFileToTree: (payload: { treeUri: string; path: string; mimeType?: string; data: string; base64?: boolean }) => Promise<{ uri: string }>
+  setOrientation: (payload: { orientation: 'portrait' | 'landscape' | 'unspecified' }) => Promise<{ ok: boolean; error?: string }>
 }
 
 const UnuAndroidFiles = registerPlugin<UnuAndroidFilesPlugin>('UnuAndroidFiles')
@@ -77,6 +80,10 @@ const codeEditorClosedCallbacks = new Set<(payload: unknown) => void>()
 const tilemapEditorInitCallbacks = new Set<(payload: unknown) => void>()
 const tilemapEditorApplyCallbacks = new Set<(payload: unknown) => void>()
 
+async function setAndroidOrientation(orientation: 'portrait' | 'landscape' | 'unspecified') {
+  return UnuAndroidFiles.setOrientation({ orientation }).catch((error: unknown) => ({ ok: false, error: String(error) }))
+}
+
 export function installAndroidEditorBridge() {
   if (window.unu || import.meta.env.VITE_UNU_ANDROID_EDITOR !== '1') return
 
@@ -87,29 +94,38 @@ export function installAndroidEditorBridge() {
       const pickedParent = payload?.parentDir ? null : await pickAndroidDirectory('选择项目存放目录').catch(() => null)
       const parentDir = payload?.parentDir || pickedParent?.dirPath || ''
       const rootPath = `android://workspace/${name}`
-      const project = await readProjectJson(DEFAULT_ROOT).catch(() => ({ name }))
-      project.name = name
-      if (parentDir) project.androidParentDir = parentDir
-      await writeOverlayText(rootPath, 'project.json', JSON.stringify(project, null, 2))
-      rememberWorkspace(rootPath, name, DEFAULT_ROOT, parentDir)
+      const files = createBlankProjectFiles(name)
+      for (const file of files) {
+        await writeOverlayText(rootPath, file.path, file.content)
+      }
+      if (parentDir?.startsWith('content://')) {
+        for (const file of files) {
+          await UnuAndroidFiles.writeFileToTree({
+            treeUri: parentDir,
+            path: `${name}/${file.path}`,
+            mimeType: mimeFromPath(file.path),
+            data: file.content,
+            base64: false
+          })
+        }
+      }
+      rememberWorkspace(rootPath, name, '', parentDir)
       return { rootPath, name, parentDir, created: true }
     },
     pickDirectory: async (payload) => {
       const picked = await pickAndroidDirectory(payload?.title || '选择目录').catch(() => null)
-      if (picked) return picked
-      const rootPath = getLastWorkspaceRoot() || DEFAULT_ROOT
-      return { dirPath: rootPath, name: rootName(rootPath) }
+      return picked
     },
     pickProjectFolder: async () => {
       const picked = await pickAndroidDirectory('选择工程目录').catch(() => null)
       if (picked) {
         const name = sanitizeName(picked.name || 'Android Project')
         const rootPath = `android://workspace/${name}`
-        rememberWorkspace(rootPath, name, DEFAULT_ROOT, picked.dirPath)
+        await ensureWorkspaceProjectFiles(rootPath, name)
+        rememberWorkspace(rootPath, name, '', picked.dirPath)
         return { rootPath, name }
       }
-      const rootPath = getLastWorkspaceRoot() || DEFAULT_ROOT
-      return { rootPath, name: rootName(rootPath) }
+      return null
     },
     listSampleProjects: async () => [
       ...ANDROID_SAMPLE_PROJECTS.map((sample) => ({
@@ -122,15 +138,6 @@ export function installAndroidEditorBridge() {
         projectFile: 'project.json',
         entryScene: sample.entryScene,
         tags: [...sample.tags]
-      })),
-      ...listWorkspaces().map((item) => ({
-        id: item.rootPath,
-        title: item.name,
-        description: 'Android 本地工作区项目。',
-        available: true,
-        rootPath: item.rootPath,
-        projectFile: 'project.json',
-        tags: ['android', 'workspace']
       }))
     ],
     scanProject: async (projectRoot) => {
@@ -223,8 +230,9 @@ export function installAndroidEditorBridge() {
     readAssetDataUrl: async ({ projectRoot, relativePath }) => {
       const rootPath = normalizeRoot(projectRoot)
       const normalized = normalizeRelativePath(relativePath)
-      const overlay = localStorage.getItem(fileKey(rootPath, normalized)) || localStorage.getItem(fileKey(DEFAULT_ROOT, normalized))
+      const overlay = localStorage.getItem(fileKey(rootPath, normalized))
       if (overlay?.startsWith('data:')) return { dataUrl: overlay }
+      if (!getAndroidSample(rootPath)) return null
       const response = await fetch(resolveBundlePath(normalized, rootPath))
       if (!response.ok) return null
       const blob = await response.blob()
@@ -324,6 +332,7 @@ export function installAndroidEditorBridge() {
     onProjectScriptChanged: () => () => undefined,
     exportGame: async (payload) => exportProjectBundle(normalizeRoot(payload.projectRoot), payload.projectName, payload.sceneFiles),
     openTilemapEditor: async (payload) => {
+      await setAndroidOrientation('portrait')
       tilemapEditorSession = payload
       window.dispatchEvent(new Event('unu-android-tilemap-editor-open'))
       queueMicrotask(() => tilemapEditorInitCallbacks.forEach((callback) => callback(payload)))
@@ -336,9 +345,11 @@ export function installAndroidEditorBridge() {
     closeTilemapEditor: async () => {
       tilemapEditorSession = null
       window.dispatchEvent(new Event('unu-android-tilemap-editor-close'))
+      await setAndroidOrientation('landscape')
       return { ok: true }
     },
     openCodeEditor: async (payload) => {
+      await setAndroidOrientation('portrait')
       codeEditorSession = payload
       window.dispatchEvent(new Event('unu-android-code-editor-open'))
       queueMicrotask(() => codeEditorInitCallbacks.forEach((callback) => callback(payload)))
@@ -353,9 +364,10 @@ export function installAndroidEditorBridge() {
       codeEditorSession = null
       codeEditorClosedCallbacks.forEach((callback) => callback(payload))
       window.dispatchEvent(new Event('unu-android-code-editor-close'))
+      await setAndroidOrientation('landscape')
       return { ok: true }
     },
-    setMainWindowPreset: async () => ({ ok: true }),
+    setMainWindowPreset: async (preset) => setAndroidOrientation(preset === 'launcher' ? 'portrait' : 'landscape'),
     onTilemapEditorInit: (callback) => {
       tilemapEditorInitCallbacks.add(callback)
       if (tilemapEditorSession) queueMicrotask(() => callback(tilemapEditorSession))
@@ -383,6 +395,9 @@ export function installAndroidEditorBridge() {
 
 async function loadManifest(rootPath = DEFAULT_ROOT) {
   const normalizedRoot = normalizeRoot(rootPath)
+  if (!getAndroidSample(normalizedRoot)) {
+    return { files: [] } as MobileManifest
+  }
   if (!manifestCache.has(normalizedRoot)) {
     manifestCache.set(normalizedRoot, fetch(resolveBundlePath('unu-mobile-manifest.json', normalizedRoot))
       .then((response) => {
@@ -448,6 +463,7 @@ async function readText(rootPath: string, relativePath: string) {
   const normalized = normalizeRelativePath(relativePath)
   const stored = localStorage.getItem(fileKey(rootPath, normalized))
   if (stored !== null) return stored
+  if (!getAndroidSample(rootPath)) throw new Error(`Android workspace asset not found: ${normalized}`)
   const response = await fetch(resolveBundlePath(normalized, rootPath))
   if (!response.ok) throw new Error(`Android asset not found: ${normalized}`)
   return response.text()
@@ -620,6 +636,7 @@ async function writeExportFile(rootPath: string, exportRoot: string, relativePat
     await writeExportText(`${exportRoot}/${normalized}`, await readText(rootPath, normalized), treeUri)
     return
   }
+  if (!getAndroidSample(rootPath)) throw new Error(`Android workspace binary asset not found: ${normalized}`)
   const response = await fetch(resolveBundlePath(normalized, rootPath))
   if (!response.ok) throw new Error(`Failed to export Android asset: ${normalized}`)
   const dataUrl = await blobToDataUrl(await response.blob())
@@ -693,6 +710,46 @@ async function ensureAndroidParentDirectory(path: string) {
   if (parent) await writeAndroidDirectory(parent)
 }
 
+function createBlankProjectFiles(name: string) {
+  const now = new Date().toISOString()
+  const scene = new Scene('scene_main', 'MainScene')
+  const project = {
+    format: 'unu-project',
+    version: 1,
+    name,
+    createdAt: now,
+    updatedAt: now,
+    sceneCatalogVersion: 1,
+    sceneCatalog: [
+      {
+        file: 'MainScene.scene.json',
+        name: 'MainScene',
+        scriptRoot: 'assets/scripts/scenes/MainScene'
+      }
+    ],
+    startupScene: 'MainScene.scene.json',
+    scriptRoots: {
+      shared: 'assets/scripts/shared',
+      scenes: 'assets/scripts/scenes',
+      interactions: 'assets/scripts/interactions'
+    }
+  }
+  return [
+    { path: 'project.json', content: JSON.stringify(project, null, 2) },
+    { path: 'scenes/MainScene.scene.json', content: serializeScene(scene) },
+    { path: 'assets/README.md', content: '# Assets\n\nPlace images, audio, scripts, and other project assets here.\n' },
+    { path: 'prefabs/README.md', content: '# Prefabs\n\nReusable entity prefabs can be saved here.\n' }
+  ]
+}
+
+async function ensureWorkspaceProjectFiles(rootPath: string, name: string) {
+  const existing = await readProjectJson(rootPath).catch(() => null)
+  if (existing) return
+  for (const file of createBlankProjectFiles(name)) {
+    await writeOverlayText(rootPath, file.path, file.content)
+  }
+}
+
 function normalizeAndroidFsPath(path: string) {
   return normalizeRelativePath(path)
 }
@@ -738,7 +795,7 @@ function timestampForPath() {
 function resolveBundlePath(relativePath: string, rootPath = DEFAULT_ROOT) {
   const base = normalizeGameBasePath(import.meta.env.VITE_UNU_GAME_BASE || './android-game/')
   const sample = getAndroidSample(rootPath)
-  return `${base}${sample.bundleBase}${normalizeRelativePath(relativePath)}`
+  return `${base}${sample?.bundleBase || ''}${normalizeRelativePath(relativePath)}`
 }
 
 function normalizeGameBasePath(value: string) {
@@ -753,14 +810,27 @@ function normalizeRoot(value?: string) {
 }
 
 function getAndroidSample(rootPath?: string) {
-  const normalizedRoot = normalizeRoot(rootPath)
-  const workspaceSource = getWorkspaceSourceRoot(normalizedRoot)
-  return ANDROID_SAMPLE_PROJECTS.find((sample) => sample.rootPath === (workspaceSource || normalizedRoot)) || ANDROID_SAMPLE_PROJECTS[0]
+  const bundleRoot = resolveWorkspaceBundleRoot(normalizeRoot(rootPath))
+  return ANDROID_SAMPLE_PROJECTS.find((sample) => sample.rootPath === bundleRoot)
 }
 
 function isAndroidSampleRoot(rootPath?: string) {
   const normalizedRoot = normalizeRoot(rootPath)
   return ANDROID_SAMPLE_PROJECTS.some((sample) => sample.rootPath === normalizedRoot)
+}
+
+function resolveWorkspaceBundleRoot(rootPath: string) {
+  let cursor = normalizeRoot(rootPath)
+  const visited = new Set<string>()
+  for (let depth = 0; depth < 8; depth += 1) {
+    if (isAndroidSampleRoot(cursor)) return cursor
+    if (visited.has(cursor)) return cursor
+    visited.add(cursor)
+    const source = getWorkspaceSourceRoot(cursor)
+    if (!source) return cursor
+    cursor = normalizeRoot(source)
+  }
+  return cursor
 }
 
 function normalizeRelativePath(value?: string) {
@@ -861,7 +931,17 @@ function allLocalStorageKeys() {
 
 function listWorkspaces() {
   try {
-    return JSON.parse(localStorage.getItem('unu:android:workspaces') || '[]') as Array<{ rootPath: string; name: string; sourceRoot?: string; parentDir?: string }>
+    const parsed = JSON.parse(localStorage.getItem('unu:android:workspaces') || '[]') as Array<{ rootPath: string; name: string; sourceRoot?: string; parentDir?: string }>
+    return parsed.map((item) => {
+      const rootPath = String(item.rootPath || '')
+      const sourceRoot = String(item.sourceRoot || '')
+      const ownProject = localStorage.getItem(fileKey(rootPath, 'project.json'))
+      const isSampleDerived = ownProject ? /"sampleManifest"\s*:/.test(ownProject) : false
+      return {
+        ...item,
+        sourceRoot: ownProject && sourceRoot === DEFAULT_ROOT && !isSampleDerived ? '' : sourceRoot
+      }
+    })
   } catch {
     return []
   }
@@ -873,7 +953,7 @@ function rememberWorkspace(rootPath: string, name: string, sourceRoot?: string, 
     {
       rootPath,
       name,
-      sourceRoot: sourceRoot || previous?.sourceRoot || DEFAULT_ROOT,
+      sourceRoot: sourceRoot ?? previous?.sourceRoot ?? '',
       parentDir: parentDir || previous?.parentDir || ''
     },
     ...listWorkspaces().filter((item) => item.rootPath !== rootPath)

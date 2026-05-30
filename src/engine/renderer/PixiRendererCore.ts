@@ -777,11 +777,16 @@ export class PixiRenderer {
   }
 
   private zoomViewportAt(clientX: number, clientY: number, deltaY: number) {
+    const factor = deltaY < 0 ? 1.12 : 1 / 1.12
+    this.zoomViewportByFactor(clientX, clientY, factor)
+  }
+
+  zoomViewportByFactor(clientX: number, clientY: number, factor: number) {
+    if (this.isPlaying) return
     const rect = this.options.container.getBoundingClientRect()
     const pointerX = clientX - rect.left
     const pointerY = clientY - rect.top
     const previousScale = this.world.scale.x || 1
-    const factor = deltaY < 0 ? 1.12 : 1 / 1.12
     const nextScale = Math.max(0.15, Math.min(8, previousScale * factor))
     if (Math.abs(nextScale - previousScale) < 0.0001) return
 
