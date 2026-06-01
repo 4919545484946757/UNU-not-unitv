@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen, session, shell } from 'electron'
 import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import path from 'node:path'
@@ -518,17 +518,35 @@ async function resolveProjectRootPath(projectRoot: string) {
       path.join(app.getAppPath(), normalized)
     ]
     const target = path.join(app.getPath('userData'), 'bundled-samples', path.basename(normalized))
+    const cacheMarkerPath = path.join(target, '.unu-sample-cache.json')
+    const source = await firstExistingPath(sourceCandidates)
+    const expectedCacheKey = JSON.stringify({
+      appVersion: app.getVersion(),
+      source: normalized
+    })
+    let currentCacheKey = ''
+    try {
+      const marker = JSON.parse(await fs.readFile(cacheMarkerPath, 'utf-8'))
+      currentCacheKey = JSON.stringify({
+        appVersion: String(marker.appVersion || ''),
+        source: String(marker.source || '')
+      })
+    } catch {
+      currentCacheKey = ''
+    }
     const targetReady =
       await exists(path.join(target, 'project.json')) &&
       await exists(path.join(target, 'scenes')) &&
       await exists(path.join(target, 'assets'))
-    if (!targetReady) {
-      const source = await firstExistingPath(sourceCandidates)
-      if (source) {
-        await fs.mkdir(path.dirname(target), { recursive: true })
-        await fs.rm(target, { recursive: true, force: true })
-        await fs.cp(source, target, { recursive: true, force: true })
-      }
+    if (source && (!targetReady || currentCacheKey !== expectedCacheKey)) {
+      await fs.mkdir(path.dirname(target), { recursive: true })
+      await fs.rm(target, { recursive: true, force: true })
+      await fs.cp(source, target, { recursive: true, force: true })
+      await fs.writeFile(cacheMarkerPath, JSON.stringify({
+        appVersion: app.getVersion(),
+        source: normalized,
+        refreshedAt: new Date().toISOString()
+      }, null, 2), 'utf-8')
     }
     if (await exists(target)) return target
   }
@@ -2303,6 +2321,15 @@ app.whenReady().then(() => {
 
   ipcMain.handle('unu:get-project-info', async (_event, projectRoot: string) => {
     return readProjectInfo(projectRoot)
+  })
+
+  ipcMain.handle('unu:clear-application-data', async () => {
+    const userDataPath = app.getPath('userData')
+    await fs.rm(path.join(userDataPath, 'bundled-samples'), { recursive: true, force: true })
+    await session.defaultSession.clearStorageData({
+      storages: ['localstorage', 'indexdb', 'cachestorage', 'serviceworkers']
+    }).catch(() => undefined)
+    return { ok: true, cleared: ['bundled-samples', 'localStorage', 'indexedDB', 'cacheStorage', 'serviceWorkers'], restartRequired: true }
   })
 
   ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {

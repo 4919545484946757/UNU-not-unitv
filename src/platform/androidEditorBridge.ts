@@ -47,6 +47,8 @@ async function openAndroidFileManager(uri?: string) {
 
 const DEFAULT_ROOT = 'android://sample-2D-shooting'
 const DEFAULT_PROJECT_NAME = 'sample-2D-shooting'
+const ANDROID_DATA_SCHEMA_VERSION = '1.1.2'
+const ANDROID_DATA_SCHEMA_KEY = 'unu:android:dataSchemaVersion'
 const TEXT_EXTENSIONS = /\.(scene\.json|prefab\.json|anim\.json|atlas\.json|item\.json|json|js|ts|html|css|md|txt)$/i
 const ANDROID_SAMPLE_PROJECTS = [
   {
@@ -89,6 +91,7 @@ async function setAndroidOrientation(orientation: 'portrait' | 'landscape' | 'un
 
 export function installAndroidEditorBridge() {
   if (window.unu || import.meta.env.VITE_UNU_ANDROID_EDITOR !== '1') return
+  migrateAndroidEditorStorage()
 
   window.unu = {
     version: 'android-editor',
@@ -143,6 +146,10 @@ export function installAndroidEditorBridge() {
         tags: [...sample.tags]
       }))
     ],
+    clearApplicationData: async () => {
+      const removed = clearAndroidEditorStorage({ includeWorkspaces: true })
+      return { ok: true, cleared: [`localStorage:${removed}`], restartRequired: true }
+    },
     scanProject: async (projectRoot) => {
       const rootPath = normalizeRoot(projectRoot)
       const projectJson = await readProjectJson(rootPath)
@@ -1001,6 +1008,35 @@ function allLocalStorageKeys() {
   const keys: string[] = []
   for (let index = 0; index < localStorage.length; index++) keys.push(localStorage.key(index) || '')
   return keys.filter(Boolean)
+}
+
+function migrateAndroidEditorStorage() {
+  const current = localStorage.getItem(ANDROID_DATA_SCHEMA_KEY) || ''
+  if (current === ANDROID_DATA_SCHEMA_VERSION) return
+  clearAndroidEditorStorage({ includeWorkspaces: false })
+  localStorage.setItem(ANDROID_DATA_SCHEMA_KEY, ANDROID_DATA_SCHEMA_VERSION)
+}
+
+function clearAndroidEditorStorage(options: { includeWorkspaces: boolean }) {
+  const sampleRoots = new Set(ANDROID_SAMPLE_PROJECTS.map((sample) => sample.rootPath))
+  let removed = 0
+  for (const key of allLocalStorageKeys()) {
+    const isSampleOverlay = Array.from(sampleRoots).some((rootPath) => (
+      key.startsWith(fileKey(rootPath, '')) ||
+      key.startsWith(folderKey(rootPath, ''))
+    ))
+    const isAndroidEditorState = key === ANDROID_DATA_SCHEMA_KEY ||
+      key === 'unu:android:lastWorkspace' ||
+      key === 'unu:android:workspaces' ||
+      key.startsWith('unu:android:')
+    const isLauncherState = key.startsWith('unu-launcher-') || key.startsWith('unu-input-bindings')
+    if (isSampleOverlay || (options.includeWorkspaces && (isAndroidEditorState || isLauncherState))) {
+      localStorage.removeItem(key)
+      removed += 1
+    }
+  }
+  localStorage.setItem(ANDROID_DATA_SCHEMA_KEY, ANDROID_DATA_SCHEMA_VERSION)
+  return removed
 }
 
 function listWorkspaces() {

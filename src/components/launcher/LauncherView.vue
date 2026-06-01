@@ -8,6 +8,9 @@
     <div class="actions">
       <button @click="pickProjectFolder">打开本地项目</button>
       <button class="primary" @click="openCreateDialog">新建项目</button>
+      <button class="ghost danger-text" :disabled="clearingData" @click="clearApplicationData">
+        {{ clearingData ? '清理中...' : '清理应用数据' }}
+      </button>
     </div>
 
     <section class="samples">
@@ -147,6 +150,7 @@ const emit = defineEmits<{
 const HISTORY_KEY = 'unu-launcher-history-v1'
 const MAX_HISTORY = 24
 const loading = ref(false)
+const clearingData = ref(false)
 const history = ref<HistoryProject[]>([])
 const samples = ref<SampleProjectEntry[]>(fallbackSampleProjectCatalog)
 
@@ -370,6 +374,28 @@ async function deleteProject(item: HistoryProject) {
   }
 }
 
+async function clearApplicationData() {
+  const ok = window.confirm('将清理内置示例缓存、启动器历史和编辑器本地缓存。Android 上等同于应用内清除存储；Windows 上会清理 AppData 中的示例缓存。清理后会刷新页面。是否继续？')
+  if (!ok) return
+  clearingData.value = true
+  try {
+    if (window.unu?.clearApplicationData) {
+      const result = await window.unu.clearApplicationData()
+      if (!result?.ok) {
+        window.alert(result?.error ? `清理失败：${result.error}` : '清理失败')
+        return
+      }
+    }
+    localStorage.clear()
+    window.location.reload()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    window.alert(`清理失败：${message}`)
+  } finally {
+    clearingData.value = false
+  }
+}
+
 onMounted(() => {
   void refreshSamples()
   void refreshHistory()
@@ -434,6 +460,11 @@ button.primary {
 
 button.ghost {
   background: transparent;
+}
+
+button.danger-text {
+  color: #ffb4be;
+  border-color: #6e3340;
 }
 
 button.danger {

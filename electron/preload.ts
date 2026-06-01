@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('unu', {
   pickProjectFolder: () => ipcRenderer.invoke('unu:pick-project-folder'),
   listSampleProjects: () => ipcRenderer.invoke('unu:list-sample-projects'),
   getProjectInfo: (projectRoot: string) => ipcRenderer.invoke('unu:get-project-info', projectRoot),
+  clearApplicationData: () => ipcRenderer.invoke('unu:clear-application-data'),
   scanProject: (projectRoot: string) => ipcRenderer.invoke('unu:scan-project', projectRoot),
   saveScene: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) =>
     ipcRenderer.invoke('unu:save-scene', payload),

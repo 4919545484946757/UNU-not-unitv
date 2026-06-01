@@ -60,6 +60,7 @@ declare global {
         tags?: string[]
       }>>
       getProjectInfo?: (projectRoot: string) => Promise<{ rootPath: string; name: string }>
+      clearApplicationData?: () => Promise<{ ok: boolean; cleared?: string[]; restartRequired?: boolean; error?: string }>
       scanProject?: (projectRoot: string) => Promise<{
         rootPath: string
         name: string

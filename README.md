@@ -5,7 +5,7 @@
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时。项目目标不是只做一个编辑器壳子，而是形成“创建项目、编辑场景、编写脚本、预览玩法、调试性能、导出 Web 游戏、打包 Windows 应用”的完整闭环。
 
 - 文档更新时间：`2026-06-01`
-- 项目版本：`1.1.1`
+- 项目版本：`1.1.2`
 - 当前定位：桌面端 2D 游戏编辑器 + Android 编辑器 APK + 可导出 Web 游戏运行包
 - 示例项目真源：`Sample-project-list/`
 
@@ -38,6 +38,7 @@ npm run dev
 - 背包角色预览支持玩家向右移动时的翻转显示。
 - 大蘑菇图集动画统一删除各状态片段的最后一帧，并同步所有场景内大蘑菇实体的状态机帧段。
 - 大蘑菇移动朝向按素材默认朝右处理：向右移动保持原贴图方向，向左移动时水平翻转贴图。
+- 大蘑菇运行时图集引用改为 ASCII 资源路径，避免打包到 APK/WebView/Web 导出后中文图集文件名导致贴图加载失败。
 - 同步示例项目多个场景中的背包、容器、热栏、暂停菜单等 UI 尺寸，修复 SecondScene UI 显示不一致。
 - 优化手机小屏下暂停菜单与按键绑定菜单的尺寸和按钮排版。
 - 霰弹枪逐发上弹时支持在弹仓仍有子弹的情况下中断上弹并直接开火。
@@ -45,12 +46,13 @@ npm run dev
 - 修复音频 `data:`/`blob:` 媒体资源被 CSP 拦截的问题，并为播放状态下的 BGM/音效增加自动播放失败后的用户手势重试。
 - Web 游戏导出补齐媒体 CSP 兜底；Android 编辑器 APK 会内置纯游戏运行时，导出的 Web 包不再只是一份项目资源包。
 - Windows / Android 打包会从 `Sample-project-list/` 和同步后的 `public/android-game` 取当前示例项目，避免发布产物夹带旧版示例缓存。
+- 1.1.2 起会自动刷新 Windows AppData 中的内置示例缓存，并在 Android 版本变化时清理旧内置示例 overlay；启动器新增“清理应用数据”入口，可主动清除 AppData / Android 本地存储缓存。
 
 ### 打包产物
 
-- Windows 安装包：`release-fixed/UNU Engine Setup 1.1.1.exe`
-- Windows 便携版：`release-fixed/UNU Engine 1.1.1.exe`
-- Android 编辑器 Debug APK：`release-fixed/UNU Engine Editor 1.1.1-debug.apk`
+- Windows 安装包：`release-fixed/UNU Engine Setup 1.1.2.exe`
+- Windows 便携版：`release-fixed/UNU Engine 1.1.2.exe`
+- Android 编辑器 Debug APK：`release-fixed/UNU Engine Editor 1.1.2-debug.apk`
 
 ## 文档导航
 
@@ -208,7 +210,7 @@ npm run android:editor:apk
 
 APK 输出位置通常为 `android/app/build/outputs/apk/debug/app-debug.apk`。如果遇到 `Unsupported class file major version 69`，请将 Java 从 25 切换到 JDK 17 或 21。更多说明见 [Android APK 构建说明](docs/ANDROID_APK.zh-CN.md)。
 
-1.1.1 版本发布包额外复制为 `release-fixed/UNU Engine Editor 1.1.1-debug.apk`。
+1.1.2 版本发布包额外复制为 `release-fixed/UNU Engine Editor 1.1.2-debug.apk`。
 
 ## 当前工程约定
 
