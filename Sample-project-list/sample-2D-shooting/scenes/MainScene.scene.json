@@ -5254,6 +5254,46 @@
             }
           }
         ]
+      },
+      {
+        "id": "sample_bgm_main",
+        "name": "BGM_MainScene",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": -1000,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "Audio",
+            "data": {
+              "type": "Audio",
+              "enabled": true,
+              "clipPath": "assets/audio/背景音乐1.mp3",
+              "group": "bgm",
+              "volume": 0.46,
+              "loop": true,
+              "playOnStart": true,
+              "playing": false,
+              "muted": false,
+              "playbackRate": 1,
+              "fadeIn": 0.6,
+              "fadeOut": 0.35
+            }
+          }
+        ]
       }
     ]
   }

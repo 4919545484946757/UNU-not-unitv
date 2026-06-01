@@ -23,6 +23,26 @@ const resolveEnemyMatcher = (cfg) => {
 
 const ITEM_NS = 'sample-2D-shooting'
 const itemId = (name) => `${ITEM_NS}:${name}`
+const AUDIO_CLIPS = {
+  reload: 'assets/audio/换弹.mp3',
+  lightShot: 'assets/audio/轻型枪射击.mp3',
+  heavyShot: 'assets/audio/重型枪械射击.mp3'
+}
+
+const playOneShotAudio = (ctx, clipPath, options = {}) => {
+  if (!clipPath || !ctx?.api?.audio?.playOneShot) return
+  void ctx.api.audio.playOneShot(clipPath, {
+    group: 'sfx',
+    volume: 1,
+    ...options
+  })
+}
+
+const getWeaponShotAudio = (weaponId) => (
+  weaponId === itemId('sniper_rifle') || weaponId === itemId('shotgun')
+    ? AUDIO_CLIPS.heavyShot
+    : AUDIO_CLIPS.lightShot
+)
 const ITEM_DEFS = {
   [itemId('bandage')]: { displayName: '绷带', type: 'consumable', heal: 20 },
   [itemId('medkit')]: { displayName: '医疗包', type: 'consumable', heal: 55 },
@@ -225,6 +245,7 @@ const startReload = (ctx, player, weaponId, weapon, ammo) => {
   ammo.reloadTimer = weapon.reloadMode === 'shell'
     ? Number(weapon.shellReloadInterval || 0.42)
     : Number(weapon.reloadTime || 1.5)
+  playOneShotAudio(ctx, AUDIO_CLIPS.reload, { volume: weapon.reloadMode === 'shell' ? 0.65 : 0.8 })
   ctx.api.log(`[Weapon] ${weapon.displayName} reload`)
 }
 
@@ -239,6 +260,7 @@ const updateWeaponReload = (ctx, player, weaponId, weapon, ammo) => {
     if (ammo.magazine < weapon.magazineSize && ammo.reserve > 0) {
       ammo.magazine += 1
       ammo.reserve -= 1
+      playOneShotAudio(ctx, AUDIO_CLIPS.reload, { volume: 0.55 })
       if (ammo.magazine < weapon.magazineSize && ammo.reserve > 0) {
         ammo.reloadTimer = Number(weapon.shellReloadInterval || 0.42)
       } else {
@@ -254,6 +276,7 @@ const updateWeaponReload = (ctx, player, weaponId, weapon, ammo) => {
   ammo.magazine += loaded
   ammo.reserve -= loaded
   ammo.reloading = false
+  if (loaded > 0) playOneShotAudio(ctx, AUDIO_CLIPS.reload, { volume: 0.75 })
 }
 
 const fireWeapon = (ctx, player, weaponId, weapon, ammo) => {
@@ -273,6 +296,9 @@ const fireWeapon = (ctx, player, weaponId, weapon, ammo) => {
   }
   ammo.magazine -= 1
   ammo.cooldown = Number(weapon.fireInterval || 0.2)
+  playOneShotAudio(ctx, getWeaponShotAudio(weaponId), {
+    volume: weaponId === itemId('shotgun') ? 0.95 : weaponId === itemId('sniper_rifle') ? 1 : 0.72
+  })
   if (weapon.fireMode === 'semi') {
     ammo.rapidShots = Number(ammo.rapidShots || 0) + 1
     ammo.focusTimer = Number(weapon.focusResetTime || 0.55)
