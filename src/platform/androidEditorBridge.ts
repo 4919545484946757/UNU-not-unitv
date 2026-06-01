@@ -74,11 +74,14 @@ const ANDROID_SAMPLE_PROJECTS = [
 const manifestCache = new Map<string, Promise<MobileManifest>>()
 let codeEditorSession: unknown = null
 let tilemapEditorSession: unknown = null
+let spriteAtlasEditorSession: unknown = null
 const codeEditorInitCallbacks = new Set<(payload: unknown) => void>()
 const codeEditorApplyCallbacks = new Set<(payload: unknown) => void>()
 const codeEditorClosedCallbacks = new Set<(payload: unknown) => void>()
 const tilemapEditorInitCallbacks = new Set<(payload: unknown) => void>()
 const tilemapEditorApplyCallbacks = new Set<(payload: unknown) => void>()
+const spriteAtlasEditorInitCallbacks = new Set<(payload: unknown) => void>()
+const spriteAtlasEditorApplyCallbacks = new Set<(payload: unknown) => void>()
 
 async function setAndroidOrientation(orientation: 'portrait' | 'landscape' | 'unspecified') {
   return UnuAndroidFiles.setOrientation({ orientation }).catch((error: unknown) => ({ ok: false, error: String(error) }))
@@ -367,6 +370,23 @@ export function installAndroidEditorBridge() {
       await setAndroidOrientation('landscape')
       return { ok: true }
     },
+    openSpriteAtlasEditor: async (payload) => {
+      await setAndroidOrientation('portrait')
+      spriteAtlasEditorSession = payload
+      window.dispatchEvent(new Event('unu-android-sprite-atlas-editor-open'))
+      queueMicrotask(() => spriteAtlasEditorInitCallbacks.forEach((callback) => callback(payload)))
+      return { ok: true }
+    },
+    submitSpriteAtlasEditorUpdate: async (payload) => {
+      spriteAtlasEditorApplyCallbacks.forEach((callback) => callback(payload))
+      return { ok: true }
+    },
+    closeSpriteAtlasEditor: async () => {
+      spriteAtlasEditorSession = null
+      window.dispatchEvent(new Event('unu-android-sprite-atlas-editor-close'))
+      await setAndroidOrientation('landscape')
+      return { ok: true }
+    },
     setMainWindowPreset: async (preset) => setAndroidOrientation(preset === 'launcher' ? 'portrait' : 'landscape'),
     onTilemapEditorInit: (callback) => {
       tilemapEditorInitCallbacks.add(callback)
@@ -389,6 +409,15 @@ export function installAndroidEditorBridge() {
     onCodeEditorClosed: (callback) => {
       codeEditorClosedCallbacks.add(callback)
       return () => codeEditorClosedCallbacks.delete(callback)
+    },
+    onSpriteAtlasEditorInit: (callback) => {
+      spriteAtlasEditorInitCallbacks.add(callback)
+      if (spriteAtlasEditorSession) queueMicrotask(() => callback(spriteAtlasEditorSession))
+      return () => spriteAtlasEditorInitCallbacks.delete(callback)
+    },
+    onSpriteAtlasEditorApply: (callback) => {
+      spriteAtlasEditorApplyCallbacks.add(callback)
+      return () => spriteAtlasEditorApplyCallbacks.delete(callback)
     }
   }
 }
@@ -533,36 +562,43 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
     rootPath,
     outputDir: exportTreeUri ? `${pickedOutput?.name || 'Android Directory'}/${exportName}` : exportRoot,
     files: [] as string[],
+    runtimeFiles: [] as string[],
     warnings: [] as string[]
   }
   try {
+    const runtimeExport = await writeEmbeddedGameRuntime(exportRoot, exportTreeUri).catch((error) => {
+      report.warnings.push(`未能写入 Android 内置游戏运行时：${String(error)}`)
+      return 0
+    })
+    const projectExportRoot = runtimeExport > 0 ? `${exportRoot}/android-game` : exportRoot
+    report.runtimeFiles = runtimeExport > 0 ? ['index.html', 'android-runtime manifest embedded'] : []
     if (!exportTreeUri) {
-      await writeAndroidDirectory(`${exportRoot}/assets`)
-      await writeAndroidDirectory(`${exportRoot}/scenes`)
-      await writeAndroidDirectory(`${exportRoot}/prefabs`)
+      await writeAndroidDirectory(`${projectExportRoot}/assets`)
+      await writeAndroidDirectory(`${projectExportRoot}/scenes`)
+      await writeAndroidDirectory(`${projectExportRoot}/prefabs`)
     }
 
     for (const item of manifest.files) {
       const path = normalizeRelativePath(item.path)
       if (!path || path === 'unu-mobile-manifest.json') continue
-      await writeExportFile(rootPath, exportRoot, path, exportTreeUri)
+      await writeExportFile(rootPath, projectExportRoot, path, exportTreeUri)
       report.files.push(path)
     }
 
     for (const path of overlayFilePaths(rootPath)) {
       if (!path || path.startsWith('.unu-trash/')) continue
-      await writeExportFile(rootPath, exportRoot, path, exportTreeUri)
+      await writeExportFile(rootPath, projectExportRoot, path, exportTreeUri)
       if (!report.files.includes(path)) report.files.push(path)
     }
 
     for (const scene of sceneFiles || []) {
       const path = `scenes/${sanitizeFileName(scene.fileName || 'Scene.scene.json')}`
-      await writeExportText(`${exportRoot}/${path}`, scene.content, exportTreeUri)
+      await writeExportText(`${projectExportRoot}/${path}`, scene.content, exportTreeUri)
       if (!report.files.includes(path)) report.files.push(path)
     }
 
     const projectPayload = await readText(rootPath, 'project.json').catch(() => JSON.stringify({ name: projectName || rootName(rootPath) }, null, 2))
-    await writeExportText(`${exportRoot}/project.json`, projectPayload, exportTreeUri)
+    await writeExportText(`${projectExportRoot}/project.json`, projectPayload, exportTreeUri)
     if (!report.files.includes('project.json')) report.files.push('project.json')
 
     report.files.sort()
@@ -573,8 +609,9 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
         '# UNU Android Web Export',
         '',
         'This directory was generated from the Android editor build.',
-        'It contains project resources in their normal relative paths.',
-        'To make it directly runnable as a desktop Web export, copy these project files into a desktop UNU Web export runtime or re-export from the desktop editor.',
+        runtimeExport > 0
+          ? 'It includes a standalone Web game runtime and the project files under android-game/. Serve this folder over HTTP and open index.html.'
+          : 'It contains project resources in their normal relative paths. The standalone runtime was not available in this APK build.',
         '',
         `Project: ${report.projectName}`,
         `Exported At: ${report.exportedAt}`
@@ -585,7 +622,7 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
     return {
       ok: true,
       outputDir: report.outputDir,
-      indexPath: `${report.outputDir}/project.json`,
+      indexPath: runtimeExport > 0 ? `${report.outputDir}/index.html` : `${report.outputDir}/project.json`,
       reportPath: `${report.outputDir}/export-report.json`,
       sceneCount: report.files.filter((path) => path.endsWith('.scene.json')).length,
       assetCount: report.files.length
@@ -618,6 +655,39 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
       error: 'Directory export failed; downloaded JSON bundle fallback.'
     }
   }
+}
+
+async function writeEmbeddedGameRuntime(exportRoot: string, treeUri = '') {
+  const manifestResponse = await fetch('./android-runtime/unu-runtime-manifest.json')
+  if (!manifestResponse.ok) return 0
+  const manifest = await manifestResponse.json() as { files?: string[] }
+  const files = Array.isArray(manifest.files) ? manifest.files.map(normalizeRelativePath).filter(Boolean) : []
+  let written = 0
+  for (const path of files) {
+    if (path === 'unu-runtime-manifest.json') continue
+    const response = await fetch(`./android-runtime/${path}`)
+    if (!response.ok) continue
+    const targetPath = `${exportRoot}/${path}`
+    if (isRuntimeTextLike(path)) {
+      const text = path === 'index.html' ? patchAndroidRuntimeIndex(await response.text()) : await response.text()
+      await writeExportText(targetPath, text, treeUri)
+    } else {
+      const dataUrl = await blobToDataUrl(await response.blob())
+      await writeExportBase64(targetPath, dataUrlToBase64(dataUrl), treeUri, mimeFromDataUrl(dataUrl))
+    }
+    written += 1
+  }
+  return written
+}
+
+function patchAndroidRuntimeIndex(html: string) {
+  let next = html
+    .replace(/(src|href)="\/assets\//g, '$1="./assets/')
+    .replace(/<title>.*?<\/title>/i, '<title>UNU Web Game</title>')
+  if (!next.includes('__UNU_GAME_EXPORT__')) {
+    next = next.replace(/<head([^>]*)>/i, '<head$1>\n    <script>window.__UNU_GAME_EXPORT__ = true;</script>')
+  }
+  return next
 }
 
 async function writeExportFile(rootPath: string, exportRoot: string, relativePath: string, treeUri = '') {
@@ -858,6 +928,10 @@ function classifyAssetType(filePath: string): AssetType {
 
 function isTextLike(path: string) {
   return TEXT_EXTENSIONS.test(path)
+}
+
+function isRuntimeTextLike(path: string) {
+  return /\.(html|js|mjs|css|json|svg|txt|webmanifest)$/i.test(path)
 }
 
 function fileKey(rootPath: string, relativePath: string) {

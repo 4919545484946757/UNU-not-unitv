@@ -11,6 +11,9 @@
   <div v-if="androidTilemapEditorVisible" class="android-window-overlay">
     <TilemapEditorWindow />
   </div>
+  <div v-if="androidSpriteAtlasEditorVisible" class="android-window-overlay">
+    <SpriteAtlasEditorWindow />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -53,6 +56,7 @@ const scene = useSceneStore()
 const selection = useSelectionStore()
 const androidCodeEditorVisible = ref(false)
 const androidTilemapEditorVisible = ref(false)
+const androidSpriteAtlasEditorVisible = ref(false)
 const openingProject = ref(false)
 let removeSpriteAtlasEditorListener: (() => void) | null = null
 
@@ -98,6 +102,14 @@ function handleAndroidTilemapEditorOpen() {
 
 function handleAndroidTilemapEditorClose() {
   androidTilemapEditorVisible.value = false
+}
+
+function handleAndroidSpriteAtlasEditorOpen() {
+  androidSpriteAtlasEditorVisible.value = true
+}
+
+function handleAndroidSpriteAtlasEditorClose() {
+  androidSpriteAtlasEditorVisible.value = false
 }
 
 async function applySpriteAtlasEditorPayload(raw: unknown) {
@@ -188,6 +200,8 @@ onMounted(() => {
   window.addEventListener('unu-android-code-editor-close', handleAndroidCodeEditorClose)
   window.addEventListener('unu-android-tilemap-editor-open', handleAndroidTilemapEditorOpen)
   window.addEventListener('unu-android-tilemap-editor-close', handleAndroidTilemapEditorClose)
+  window.addEventListener('unu-android-sprite-atlas-editor-open', handleAndroidSpriteAtlasEditorOpen)
+  window.addEventListener('unu-android-sprite-atlas-editor-close', handleAndroidSpriteAtlasEditorClose)
 })
 
 onBeforeUnmount(() => {
@@ -199,6 +213,8 @@ onBeforeUnmount(() => {
   window.removeEventListener('unu-android-code-editor-close', handleAndroidCodeEditorClose)
   window.removeEventListener('unu-android-tilemap-editor-open', handleAndroidTilemapEditorOpen)
   window.removeEventListener('unu-android-tilemap-editor-close', handleAndroidTilemapEditorClose)
+  window.removeEventListener('unu-android-sprite-atlas-editor-open', handleAndroidSpriteAtlasEditorOpen)
+  window.removeEventListener('unu-android-sprite-atlas-editor-close', handleAndroidSpriteAtlasEditorClose)
 })
 
 function buildProjectHealthMessage(

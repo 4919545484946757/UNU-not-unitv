@@ -1,6 +1,6 @@
 {
   "name": "unu-engine-starter",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
@@ -10,7 +10,7 @@
     "build": "vite build && vite build --config vite.electron.config.ts",
     "android:prepare": "node scripts/prepare-android-game.cjs",
     "android:build-web": "npm run android:prepare && vite build --mode android",
-    "android:editor:build-web": "npm run android:prepare && vite build --mode android-editor",
+    "android:editor:build-web": "npm run android:prepare && node scripts/build-android-editor-web.cjs",
     "android:add": "npm run android:build-web && cap add android",
     "android:sync": "npm run android:build-web && cap sync android",
     "android:editor:sync": "npm run android:editor:build-web && cap sync android",

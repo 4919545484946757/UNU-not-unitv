@@ -516,8 +516,11 @@ export const useAssetStore = defineStore('assets', {
         project.setStatus(`导出 Web 游戏失败：${result.error || '未知错误'}`)
         return
       }
+      const runHint = result.launchScript
+        ? '请通过 PLAY_GAME.bat 或本地 HTTP 服务运行，不要直接双击 index.html。'
+        : '请通过本地 HTTP 服务打开 index.html，不要直接双击文件运行。'
       project.setStatus(
-        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}，启动场景 ${result.startupScene || '未设置'}${flushedTextAssets > 0 ? `，已同步未保存文本 ${flushedTextAssets} 个` : ''}）。请通过 PLAY_GAME.bat 或本地 HTTP 服务运行，不要直接双击 index.html。`
+        `Web 游戏已导出：${result.outputDir}（场景 ${result.sceneCount ?? 0}，资源 ${result.assetCount ?? 0}，启动场景 ${result.startupScene || '未设置'}${flushedTextAssets > 0 ? `，已同步未保存文本 ${flushedTextAssets} 个` : ''}）。${runHint}`
       )
     },
     async importImages() {

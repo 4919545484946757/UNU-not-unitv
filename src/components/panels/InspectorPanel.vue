@@ -1947,8 +1947,8 @@ async function applySelectedImage() {
 }
 
 async function openSpriteAtlasEditorForSelection() {
-  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath || project.isMemoryProject) {
-    project.setStatus('精灵图集编辑器需要在 Electron 本地工程中使用。')
+  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath) {
+    project.setStatus('精灵图集编辑器需要在支持文件接口的工程中使用。')
     return
   }
   const payload = {

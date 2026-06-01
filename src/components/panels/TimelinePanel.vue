@@ -870,7 +870,7 @@ async function openAnimationAsset() {
 }
 
 async function openAtlasEditor() {
-  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath || project.isMemoryProject) {
+  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath) {
     project.setStatus('精灵图集编辑器需要在 Electron 本地工程中使用。')
     return
   }

@@ -862,7 +862,8 @@ function updateMushroomNeutral(ctx) {
     const baseScale = Math.max(0.001, Math.abs(Number(state.baseScaleX ?? (transform.scaleX || 1))))
     state.baseScaleX = baseScale
     const movingRight = dx > 0
-    transform.scaleX = movingRight ? -baseScale : baseScale
+    const defaultFacesRight = String(cfg.defaultFacing || 'right').toLowerCase() !== 'left'
+    transform.scaleX = movingRight === defaultFacesRight ? baseScale : -baseScale
   }
 
   if (Number(state.actionLock || 0) > 0) {

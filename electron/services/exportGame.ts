@@ -249,6 +249,10 @@ async function patchExportIndexHtml(indexPath: string, projectName?: string) {
   html = html
     .replace(/(src|href)="\/assets\//g, '$1="./assets/')
     .replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(projectName || 'UNU Game')}</title>`)
+    .replace(/(<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]+content=["'])([^"']*)(["'][^>]*>)/i, (_match, prefix, content, suffix) => {
+      const policy = String(content)
+      return `${prefix}${policy.includes('media-src') ? policy : `${policy}; media-src 'self' data: blob:`}${suffix}`
+    })
   if (!html.includes('__UNU_GAME_EXPORT__')) {
     html = html.replace(
       /<head([^>]*)>/i,
