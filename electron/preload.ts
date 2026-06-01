@@ -1,7 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
+const windowRoleArg = process.argv.find((arg) => arg.startsWith('--unu-window-role='))
+const windowRole = windowRoleArg ? windowRoleArg.slice('--unu-window-role='.length) : 'main'
+
 contextBridge.exposeInMainWorld('unu', {
   version: '0.9.0',
+  windowRole,
   createProject: (payload?: { projectName?: string; parentDir?: string }) => ipcRenderer.invoke('unu:create-project-v2', payload),
   pickDirectory: (payload?: { title?: string; defaultPath?: string }) => ipcRenderer.invoke('unu:pick-directory', payload),
   saveProjectAs: (payload: {
@@ -14,6 +18,7 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.invoke('unu:save-project-as', payload),
   pickProjectFolder: () => ipcRenderer.invoke('unu:pick-project-folder'),
   listSampleProjects: () => ipcRenderer.invoke('unu:list-sample-projects'),
+  getProjectInfo: (projectRoot: string) => ipcRenderer.invoke('unu:get-project-info', projectRoot),
   scanProject: (projectRoot: string) => ipcRenderer.invoke('unu:scan-project', projectRoot),
   saveScene: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) =>
     ipcRenderer.invoke('unu:save-scene', payload),
@@ -68,6 +73,9 @@ contextBridge.exposeInMainWorld('unu', {
   openCodeEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-code-editor', payload),
   submitCodeEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:code-editor-update', payload),
   closeCodeEditor: () => ipcRenderer.invoke('unu:close-code-editor'),
+  openSpriteAtlasEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-sprite-atlas-editor', payload),
+  submitSpriteAtlasEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:sprite-atlas-editor-update', payload),
+  closeSpriteAtlasEditor: () => ipcRenderer.invoke('unu:close-sprite-atlas-editor'),
   setMainWindowPreset: (preset: 'launcher' | 'editor') => ipcRenderer.invoke('unu:set-main-window-preset', preset),
   onTilemapEditorInit: (callback: (payload: unknown) => void) => {
     const listener = (_event: unknown, payload: unknown) => callback(payload)
@@ -93,5 +101,15 @@ contextBridge.exposeInMainWorld('unu', {
     const listener = (_event: unknown, payload: unknown) => callback(payload)
     ipcRenderer.on('unu:code-editor-closed', listener)
     return () => ipcRenderer.removeListener('unu:code-editor-closed', listener)
+  },
+  onSpriteAtlasEditorInit: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:sprite-atlas-editor-init', listener)
+    return () => ipcRenderer.removeListener('unu:sprite-atlas-editor-init', listener)
+  },
+  onSpriteAtlasEditorApply: (callback: (payload: unknown) => void) => {
+    const listener = (_event: unknown, payload: unknown) => callback(payload)
+    ipcRenderer.on('unu:sprite-atlas-editor-apply', listener)
+    return () => ipcRenderer.removeListener('unu:sprite-atlas-editor-apply', listener)
   }
 })

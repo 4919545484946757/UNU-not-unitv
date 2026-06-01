@@ -19,7 +19,7 @@
           <div><strong>Script</strong><span>脚本路径与实体配置</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Script')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('script')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('script')" class="component-shell-content">
       <ScriptInspector
         :script="script"
         :selected-script-asset-path="selectedScriptAssetPath"
@@ -43,7 +43,7 @@
           <button class="collapse-toggle" type="button">{{ isComponentCollapsed('transform') ? '▸' : '▾' }}</button>
           <div><strong>Transform</strong><span>位置、缩放与旋转</span></div>
         </div>
-        <div v-show="!isComponentCollapsed('transform')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('transform')" class="component-shell-content">
       <TransformInspector
         :transform="transform"
         :rotation-degrees="formatRotationDegrees(transform.rotation)"
@@ -62,7 +62,7 @@
           <div><strong>Sprite</strong><span>贴图、尺寸与颜色</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Sprite')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('sprite')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('sprite')" class="component-shell-content">
       <SpriteInspector
         :sprite="sprite"
         :selected-image-path="selectedImageAssetPath"
@@ -73,6 +73,7 @@
         @set-hex="(key, event) => setHexNumber('sprite', key, event)"
         @set-checked="(key, event) => setChecked('sprite', key, event)"
         @apply-selected-image="void applySelectedImage()"
+        @open-atlas-editor="void openSpriteAtlasEditorForSelection()"
       />
         </div>
       </section>
@@ -83,7 +84,7 @@
           <div><strong>Background</strong><span>背景跟随与适配</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Background')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('background')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('background')" class="component-shell-content">
       <BackgroundInspector
         :background="background"
         :selected-image-path="selectedImageAssetPath"
@@ -101,7 +102,7 @@
           <div><strong>Animation</strong><span>序列帧与状态机</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Animation')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('animation')" class="component-shell-content inline">
+        <div v-if="!isComponentCollapsed('animation')" class="component-shell-content inline">
         <template v-if="animation">
           <label>FPS <input type="number" min="1" :value="animation.fps" @input="setNumber('animation', 'fps', $event)" /></label>
           <label>Animation Asset <input :value="animation.animationAssetPath" readonly /></label>
@@ -251,7 +252,7 @@
           <div><strong>Collider</strong><span>碰撞箱与触发器</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Collider')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('collider')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('collider')" class="component-shell-content">
           <ColliderInspector
             :collider="collider"
             :collision-layers="collisionLayers"
@@ -269,7 +270,7 @@
           <div><strong>Interactable</strong><span>交互距离与交互行为</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Interactable')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('interactable')" class="component-shell-content inline">
+        <div v-if="!isComponentCollapsed('interactable')" class="component-shell-content inline">
         <template v-if="interactable">
           <label class="checkbox-row">
             <input type="checkbox" :checked="interactable.enabled" @change="setChecked('interactable', 'enabled', $event)" />
@@ -336,7 +337,7 @@
           <div><strong>Tilemap</strong><span>Tile 数据与碰撞编辑</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Tilemap')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('tilemap')" class="component-shell-content inline">
+        <div v-if="!isComponentCollapsed('tilemap')" class="component-shell-content inline">
         <template v-if="tilemap">
           <label class="checkbox-row">
             <input type="checkbox" :checked="tilemap.enabled" @change="setChecked('tilemap', 'enabled', $event)" />
@@ -392,7 +393,7 @@
           <div><strong>UI</strong><span>文本、按钮与布局</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('UI')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('ui')" class="component-shell-content inline">
+        <div v-if="!isComponentCollapsed('ui')" class="component-shell-content inline">
         <template v-if="ui">
           <label class="checkbox-row">
             <input type="checkbox" :checked="ui.enabled" @change="setChecked('ui', 'enabled', $event)" />
@@ -501,7 +502,7 @@
           <div><strong>Audio</strong><span>音频资源与播放设置</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Audio')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('audio')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('audio')" class="component-shell-content">
           <AudioInspector
             :audio="audio"
             :selected-audio-path="selectedAudioAssetPath"
@@ -521,7 +522,7 @@
           <div><strong>Camera</strong><span>缩放、跟随和平滑</span></div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('Camera')">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed('camera')" class="component-shell-content">
+        <div v-if="!isComponentCollapsed('camera')" class="component-shell-content">
           <CameraInspector
             :camera="camera"
             @set-number="(key, event) => setNumber('camera', key, event)"
@@ -546,7 +547,7 @@
           </div>
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeCustomComponent(custom.type)">删除</button>
         </div>
-        <div v-show="!isComponentCollapsed(`custom:${custom.type}`)" class="component-shell-content inline">
+        <div v-if="!isComponentCollapsed(`custom:${custom.type}`)" class="component-shell-content inline">
           <div v-if="isInventoryComponent(custom)" class="inventory-editor">
             <div class="inventory-editor-header">
               <div>
@@ -702,7 +703,18 @@ const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camer
 const audio = computed(() => entity.value?.getComponent<AudioComponent>('Audio') ?? null)
 const ui = computed(() => entity.value?.getComponent<UIComponent>('UI') ?? null)
 const tilemap = computed(() => entity.value?.getComponent<TilemapComponent>('Tilemap') ?? null)
-const collapsedComponents = ref<Record<string, boolean>>({})
+const defaultCollapsedComponents: Record<string, boolean> = {
+  script: true,
+  animation: true,
+  collider: true,
+  interactable: true,
+  tilemap: true,
+  ui: true,
+  audio: true,
+  camera: true
+}
+
+const collapsedComponents = ref<Record<string, boolean>>({ ...defaultCollapsedComponents })
 const customComponentName = ref('')
 
 type BuiltinComponentId = 'script' | 'transform' | 'sprite' | 'background' | 'animation' | 'collider' | 'interactable' | 'tilemap' | 'ui' | 'audio' | 'camera'
@@ -758,6 +770,7 @@ const selectedScriptAssetPath = computed(() => {
   return ''
 })
 const selectedImageAssetPath = computed(() => assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : '')
+const selectedAtlasAssetPath = computed(() => assets.selectedAsset?.type === 'atlas' ? assets.selectedAsset.path : '')
 const selectedAudioAssetPath = computed(() => assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : '')
 
 const canOpenScriptAsset = computed(() => {
@@ -903,7 +916,10 @@ function componentShellClass(id: string) {
 }
 
 function isComponentCollapsed(id: string) {
-  return Boolean(collapsedComponents.value[id])
+  if (Object.prototype.hasOwnProperty.call(collapsedComponents.value, id)) {
+    return Boolean(collapsedComponents.value[id])
+  }
+  return id.startsWith('custom:')
 }
 
 function toggleComponentCollapsed(id: string) {
@@ -1928,6 +1944,24 @@ async function applySelectedImage() {
     sprite.value.height = Math.max(24, Math.round(imageSize.height * fitScale))
   }
   sceneStore.markDirty()
+}
+
+async function openSpriteAtlasEditorForSelection() {
+  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath || project.isMemoryProject) {
+    project.setStatus('精灵图集编辑器需要在 Electron 本地工程中使用。')
+    return
+  }
+  const payload = {
+    projectRoot: project.rootPath,
+    imagePath: selectedImageAssetPath.value || (sprite.value?.texturePath && !sprite.value.texturePath.startsWith('atlas://') ? sprite.value.texturePath : undefined),
+    atlasPath: selectedAtlasAssetPath.value || animation.value?.sourceAtlasPath || undefined
+  }
+  if (!payload.imagePath && !payload.atlasPath) {
+    project.setStatus('请先选择图片或 .atlas.json，或让 Sprite 绑定一张普通图片。')
+    return
+  }
+  const result = await window.unu.openSpriteAtlasEditor(payload)
+  if (!result?.ok) project.setStatus(`打开精灵图集编辑器失败：${result?.error || '未知错误'}`)
 }
 
 function appendSelectedImageToAnimation() {

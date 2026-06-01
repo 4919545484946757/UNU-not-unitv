@@ -11,9 +11,33 @@ const __dirname = path.dirname(__filename)
 let mainWindow: BrowserWindow | null = null
 let tilemapEditorWindow: BrowserWindow | null = null
 let codeEditorWindow: BrowserWindow | null = null
+let spriteAtlasEditorWindow: BrowserWindow | null = null
 let tilemapEditorSession: any = null
 let codeEditorSession: any = null
+let spriteAtlasEditorSession: any = null
 const projectScriptWatchers = new Map<number, { watcher: fsSync.FSWatcher; timer: NodeJS.Timeout | null; projectRoot: string }>()
+const ASSET_TREE_MAX_NODES = 5000
+const ASSET_TREE_IGNORED_DIRS = new Set([
+  '.git',
+  '.gradle',
+  '.idea',
+  '.nuxt',
+  '.output',
+  '.unu-trash',
+  '.vite',
+  '.vscode',
+  'android',
+  'build',
+  'coverage',
+  'dist',
+  'dist-electron',
+  'ios',
+  'node_modules',
+  'out',
+  'release',
+  'release-fixed',
+  'target'
+])
 
 function normalizePath(inputPath: string) {
   return inputPath.split(path.sep).join('/')
@@ -30,6 +54,42 @@ function inferAssetType(fileName: string) {
   if (fileName.endsWith('.prefab.json')) return 'prefab'
   if (['.json'].includes(ext)) return 'animation'
   return 'script'
+}
+
+function shouldSkipAssetTreeEntry(entry: fsSync.Dirent) {
+  if (!entry.isDirectory()) return false
+  return ASSET_TREE_IGNORED_DIRS.has(entry.name.toLowerCase())
+}
+
+function attachWindowDiagnostics(win: BrowserWindow, label: string) {
+  win.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`[UNU][${label}] renderer gone`, details)
+    if (win.isDestroyed()) return
+    const reason = `${details.reason || 'unknown'} (${details.exitCode ?? 'n/a'})`
+    const html = encodeURIComponent(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0f16; color: #d9e3f1; font: 14px/1.6 "Segoe UI", sans-serif; }
+    main { width: min(560px, calc(100vw - 48px)); border: 1px solid #2b3a50; border-radius: 8px; background: #121a27; padding: 24px; }
+    h1 { margin: 0 0 12px; font-size: 20px; }
+    code { color: #9bd0ff; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>UNU Engine 页面进程已退出</h1>
+    <p>窗口仍然可用，但编辑器页面已经断开。退出原因：<code>${reason}</code></p>
+    <p>请关闭该窗口后重新打开；详细原因已写入主进程日志。</p>
+  </main>
+</body>
+</html>`)
+    void win.loadURL(`data:text/html;charset=utf-8,${html}`).catch(() => null)
+  })
+  win.webContents.on('unresponsive', () => {
+    console.warn(`[UNU][${label}] renderer unresponsive`)
+  })
 }
 
 async function ensureProjectStructure(projectRoot: string) {
@@ -498,6 +558,56 @@ async function resolveSampleProjectListRoot() {
     path.join(process.cwd(), 'Sample-project-list'),
     path.resolve(__dirname, '..', 'Sample-project-list')
   ])
+}
+
+async function readProjectInfo(projectRoot: string) {
+  const resolvedProjectRoot = await resolveProjectRootPath(projectRoot)
+  if (!resolvedProjectRoot || resolvedProjectRoot === 'sample-project') {
+    return { rootPath: resolvedProjectRoot, name: resolvedProjectRoot || '' }
+  }
+  const projectFile = path.join(resolvedProjectRoot, 'project.json')
+  let name = path.basename(resolvedProjectRoot)
+  if (await exists(projectFile)) {
+    try {
+      const projectJson = JSON.parse(await fs.readFile(projectFile, 'utf-8'))
+      if (typeof projectJson?.name === 'string' && projectJson.name.trim()) {
+        name = projectJson.name.trim()
+      }
+    } catch {
+      // Keep the directory name if the metadata is unreadable.
+    }
+  }
+  return { rootPath: resolvedProjectRoot, name }
+}
+
+async function scanProject(projectRoot: string) {
+  if (!projectRoot) return { rootPath: '', name: '', tree: [] }
+  const resolvedProjectRoot = await resolveProjectRootPath(projectRoot)
+  await ensureProjectStructure(resolvedProjectRoot)
+  await ensureProjectRuntimeScriptFiles(resolvedProjectRoot)
+  const projectName = path.basename(resolvedProjectRoot)
+  const reconcile = await reconcileProjectSceneCatalog(resolvedProjectRoot, projectName)
+  const integrity = await ensureProjectAssetIntegrity(resolvedProjectRoot)
+  const assetTree = await buildProjectAssetTree(resolvedProjectRoot)
+  return {
+    rootPath: resolvedProjectRoot,
+    name: projectName,
+    tree: assetTree.tree,
+    assetTreeTruncated: assetTree.truncated,
+    sceneCatalogRepaired: reconcile.repaired,
+    sceneCount: reconcile.sceneCount,
+    sceneCreatedByReference: reconcile.createdByReference,
+    assetIntegrityRepaired: integrity.repaired,
+    normalizedSceneFiles: integrity.normalizedSceneFiles,
+    normalizedFiles: integrity.normalizedFiles,
+    copiedAssets: integrity.copiedAssets,
+    relinkedAssets: integrity.relinkedAssets,
+    relinkedFiles: integrity.relinkedFiles,
+    checkedAssetRefs: integrity.checkedAssetRefs,
+    resolvedAssets: integrity.resolvedAssets,
+    unresolvedAssets: integrity.unresolvedAssets,
+    unresolvedRefs: integrity.unresolvedRefs
+  }
 }
 
 async function readSampleProjectManifest(sampleRoot: string, sampleDirName: string, sampleListRoot: string) {
@@ -1502,32 +1612,75 @@ function createSampleIconPng(kind: 'player' | 'enemy' | 'chest') {
   return image.toPNG()
 }
 
-async function buildAssetNodes(currentPath: string, projectRoot: string) {
-  const entries = await fs.readdir(currentPath, { withFileTypes: true })
-  const visibleEntries = entries.filter((entry) => entry.name !== '.unu-trash')
+async function buildAssetNodes(currentPath: string, projectRoot: string, scanState = { count: 0, truncated: false }) {
+  if (scanState.count >= ASSET_TREE_MAX_NODES) {
+    scanState.truncated = true
+    return []
+  }
+  const entries = await fs.readdir(currentPath, { withFileTypes: true }).catch(() => [])
+  const visibleEntries = entries.filter((entry) => !shouldSkipAssetTreeEntry(entry))
   const sorted = visibleEntries.sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name))
 
-  return Promise.all(
-    sorted.map(async (entry) => {
-      const absolutePath = path.join(currentPath, entry.name)
-      const relativePath = normalizePath(path.relative(projectRoot, absolutePath)) || '.'
-      const isDirectory = entry.isDirectory()
-      const node = {
-        id: relativePath,
-        name: entry.name,
-        type: isDirectory ? 'folder' : inferAssetType(entry.name),
-        path: relativePath,
-        absolutePath,
-        children: [] as any[]
-      }
+  const nodes = []
+  for (const entry of sorted) {
+    if (scanState.count >= ASSET_TREE_MAX_NODES) {
+      scanState.truncated = true
+      break
+    }
+    const absolutePath = path.join(currentPath, entry.name)
+    const relativePath = normalizePath(path.relative(projectRoot, absolutePath)) || '.'
+    const isDirectory = entry.isDirectory()
+    if (!isDirectory && !entry.isFile()) continue
+    scanState.count += 1
+    const node = {
+      id: relativePath,
+      name: entry.name,
+      type: isDirectory ? 'folder' : inferAssetType(entry.name),
+      path: relativePath,
+      absolutePath,
+      children: [] as any[]
+    }
 
-      if (isDirectory) {
-        node.children = await buildAssetNodes(absolutePath, projectRoot)
-      }
+    if (isDirectory) {
+      node.children = await buildAssetNodes(absolutePath, projectRoot, scanState)
+    }
 
-      return node
+    nodes.push(node)
+  }
+  return nodes
+}
+
+async function buildProjectAssetTree(projectRoot: string) {
+  const scanState = { count: 0, truncated: false }
+  const rootNames = ['assets', 'scenes', 'prefabs']
+  const roots = []
+  for (const rootName of rootNames) {
+    const absolutePath = path.join(projectRoot, rootName)
+    const stat = await fs.stat(absolutePath).catch(() => null)
+    if (!stat?.isDirectory()) continue
+    scanState.count += 1
+    roots.push({
+      id: rootName,
+      name: rootName,
+      type: 'folder',
+      path: rootName,
+      absolutePath,
+      children: await buildAssetNodes(absolutePath, projectRoot, scanState)
     })
-  )
+  }
+  const projectFile = path.join(projectRoot, 'project.json')
+  const hasProjectFile = await exists(projectFile)
+  if (hasProjectFile && scanState.count < ASSET_TREE_MAX_NODES) {
+    roots.push({
+      id: 'project.json',
+      name: 'project.json',
+      type: inferAssetType('project.json'),
+      path: 'project.json',
+      absolutePath: projectFile,
+      children: []
+    })
+  }
+  return { tree: roots, truncated: scanState.truncated }
 }
 
 async function moveAssetToTrash(projectRoot: string, sourcePath: string) {
@@ -1725,6 +1878,7 @@ function createWindow() {
       sandbox: false
     }
   })
+  attachWindowDiagnostics(win, 'main')
   applyMainWindowPreset(win, 'launcher')
 
   if (!app.isPackaged) {
@@ -1777,6 +1931,16 @@ function loadCodeEditorWindow(win: BrowserWindow) {
   }
 }
 
+function loadSpriteAtlasEditorWindow(win: BrowserWindow) {
+  if (!app.isPackaged) {
+    win.loadURL('http://localhost:5173/?spriteAtlasEditor=1')
+  } else {
+    win.loadFile(path.join(app.getAppPath(), 'dist', 'index.html'), {
+      query: { spriteAtlasEditor: '1' }
+    })
+  }
+}
+
 function openTilemapEditorWindow(payload: unknown) {
   tilemapEditorSession = payload || null
   if (!mainWindow) return { ok: false, error: 'Main window not ready' }
@@ -1792,11 +1956,13 @@ function openTilemapEditorWindow(payload: unknown) {
       parent: mainWindow,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
+        additionalArguments: ['--unu-window-role=tilemap-editor'],
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false
       }
     })
+    attachWindowDiagnostics(tilemapEditorWindow, 'tilemap-editor')
     loadTilemapEditorWindow(tilemapEditorWindow)
     tilemapEditorWindow.on('closed', () => {
       tilemapEditorWindow = null
@@ -1833,11 +1999,13 @@ function openCodeEditorWindow(payload: unknown) {
       parent: mainWindow,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
+        additionalArguments: ['--unu-window-role=code-editor'],
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: false
       }
     })
+    attachWindowDiagnostics(codeEditorWindow, 'code-editor')
     loadCodeEditorWindow(codeEditorWindow)
     codeEditorWindow.on('closed', () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1862,6 +2030,50 @@ function openCodeEditorWindow(payload: unknown) {
     return { ok: true }
   }
   codeEditorWindow.webContents.send('unu:code-editor-init', codeEditorSession)
+  return { ok: true }
+}
+
+function openSpriteAtlasEditorWindow(payload: unknown) {
+  if (!mainWindow) return { ok: false, error: 'Main window not ready' }
+
+  spriteAtlasEditorSession = payload || null
+
+  if (!spriteAtlasEditorWindow || spriteAtlasEditorWindow.isDestroyed()) {
+    spriteAtlasEditorWindow = new BrowserWindow({
+      width: 1160,
+      height: 820,
+      minWidth: 760,
+      minHeight: 520,
+      title: 'UNU Sprite Atlas Editor',
+      backgroundColor: '#0f1420',
+      parent: mainWindow,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        additionalArguments: ['--unu-window-role=sprite-atlas-editor'],
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false
+      }
+    })
+    attachWindowDiagnostics(spriteAtlasEditorWindow, 'sprite-atlas-editor')
+    loadSpriteAtlasEditorWindow(spriteAtlasEditorWindow)
+    spriteAtlasEditorWindow.on('closed', () => {
+      spriteAtlasEditorWindow = null
+      spriteAtlasEditorSession = null
+    })
+  } else {
+    if (spriteAtlasEditorWindow.isMinimized()) spriteAtlasEditorWindow.restore()
+    spriteAtlasEditorWindow.focus()
+  }
+
+  spriteAtlasEditorWindow.webContents.once('did-finish-load', () => {
+    if (!spriteAtlasEditorWindow || spriteAtlasEditorWindow.isDestroyed()) return
+    spriteAtlasEditorWindow.webContents.send('unu:sprite-atlas-editor-init', spriteAtlasEditorSession)
+  })
+  if (spriteAtlasEditorWindow.webContents.isLoadingMainFrame()) {
+    return { ok: true }
+  }
+  spriteAtlasEditorWindow.webContents.send('unu:sprite-atlas-editor-init', spriteAtlasEditorSession)
   return { ok: true }
 }
 
@@ -2089,33 +2301,12 @@ app.whenReady().then(() => {
       .sort(sortSampleProjectEntries)
   })
 
+  ipcMain.handle('unu:get-project-info', async (_event, projectRoot: string) => {
+    return readProjectInfo(projectRoot)
+  })
+
   ipcMain.handle('unu:scan-project', async (_event, projectRoot: string) => {
-    if (!projectRoot) return { rootPath: '', name: '', tree: [] }
-    const resolvedProjectRoot = await resolveProjectRootPath(projectRoot)
-    await ensureProjectStructure(resolvedProjectRoot)
-    await ensureProjectRuntimeScriptFiles(resolvedProjectRoot)
-    const projectName = path.basename(resolvedProjectRoot)
-    const reconcile = await reconcileProjectSceneCatalog(resolvedProjectRoot, projectName)
-    const integrity = await ensureProjectAssetIntegrity(resolvedProjectRoot)
-    const tree = await buildAssetNodes(resolvedProjectRoot, resolvedProjectRoot)
-    return {
-      rootPath: resolvedProjectRoot,
-      name: projectName,
-      tree,
-      sceneCatalogRepaired: reconcile.repaired,
-      sceneCount: reconcile.sceneCount,
-      sceneCreatedByReference: reconcile.createdByReference,
-      assetIntegrityRepaired: integrity.repaired,
-      normalizedSceneFiles: integrity.normalizedSceneFiles,
-      normalizedFiles: integrity.normalizedFiles,
-      copiedAssets: integrity.copiedAssets,
-      relinkedAssets: integrity.relinkedAssets,
-      relinkedFiles: integrity.relinkedFiles,
-      checkedAssetRefs: integrity.checkedAssetRefs,
-      resolvedAssets: integrity.resolvedAssets,
-      unresolvedAssets: integrity.unresolvedAssets,
-      unresolvedRefs: integrity.unresolvedRefs
-    }
+    return scanProject(projectRoot)
   })
 
   ipcMain.handle('unu:check-asset-integrity', async (_event, payload: { projectRoot: string }) => {
@@ -2125,11 +2316,12 @@ app.whenReady().then(() => {
     }
     await ensureProjectStructure(resolvedProjectRoot)
     const integrity = await ensureProjectAssetIntegrity(resolvedProjectRoot)
-    const tree = await buildAssetNodes(resolvedProjectRoot, resolvedProjectRoot)
+    const assetTree = await buildProjectAssetTree(resolvedProjectRoot)
     return {
       rootPath: resolvedProjectRoot,
       name: path.basename(resolvedProjectRoot),
-      tree,
+      tree: assetTree.tree,
+      assetTreeTruncated: assetTree.truncated,
       assetIntegrityRepaired: integrity.repaired,
       normalizedSceneFiles: integrity.normalizedSceneFiles,
       normalizedFiles: integrity.normalizedFiles,
@@ -2652,6 +2844,23 @@ app.whenReady().then(() => {
   ipcMain.handle('unu:close-code-editor', async () => {
     if (codeEditorWindow && !codeEditorWindow.isDestroyed()) codeEditorWindow.close()
     codeEditorWindow = null
+    return { ok: true }
+  })
+
+  ipcMain.handle('unu:open-sprite-atlas-editor', async (_event, payload) => {
+    return openSpriteAtlasEditorWindow(payload)
+  })
+
+  ipcMain.handle('unu:sprite-atlas-editor-update', async (_event, payload) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: 'Main window not available' }
+    mainWindow.webContents.send('unu:sprite-atlas-editor-apply', payload)
+    spriteAtlasEditorSession = { ...(spriteAtlasEditorSession || {}), ...(payload || {}) }
+    return { ok: true }
+  })
+
+  ipcMain.handle('unu:close-sprite-atlas-editor', async () => {
+    if (spriteAtlasEditorWindow && !spriteAtlasEditorWindow.isDestroyed()) spriteAtlasEditorWindow.close()
+    spriteAtlasEditorWindow = null
     return { ok: true }
   })
 

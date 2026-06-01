@@ -212,13 +212,13 @@ async function refreshHistory() {
   loading.value = true
   try {
     const base = readHistory()
-    if (!window.unu?.scanProject) {
+    if (!window.unu?.getProjectInfo) {
       history.value = base
       return
     }
     const checked = await Promise.all(base.map(async (item) => {
       try {
-        const scanned = await window.unu!.scanProject!(item.rootPath)
+        const scanned = await window.unu!.getProjectInfo!(item.rootPath)
         return {
           rootPath: item.rootPath,
           name: scanned?.name || item.name || item.rootPath.split(/[\\/]/).pop() || 'Untitled',

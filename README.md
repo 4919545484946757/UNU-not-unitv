@@ -4,9 +4,9 @@
 
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时。项目目标不是只做一个编辑器壳子，而是形成“创建项目、编辑场景、编写脚本、预览玩法、调试性能、导出 Web 游戏、打包 Windows 应用”的完整闭环。
 
-- 文档更新时间：`2026-05-27`
-- 项目版本：`1.0.1`
-- 当前定位：桌面端 2D 游戏编辑器 + 可导出 Web 游戏运行包
+- 文档更新时间：`2026-05-30`
+- 项目版本：`1.1.0`
+- 当前定位：桌面端 2D 游戏编辑器 + Android 编辑器 APK + 可导出 Web 游戏运行包
 - 示例项目真源：`Sample-project-list/`
 
 ## 快速开始
@@ -17,6 +17,33 @@ npm run dev
 ```
 
 启动后会先进入项目启动器。可以选择历史项目、打开示例项目、新建项目，或回到启动器切换项目。`npm run dev` 会同时启动 Vite、Electron main/preload watch 构建和 Electron 应用。
+
+## 1.1 Release 日志
+
+1.1 版本重点补齐 Android 编辑器可用性，并修复示例项目路径污染、移动端窗口布局和示例玩法中的 UI/贴图问题。
+
+### Android 编辑器
+
+- 新增 Android 编辑器 APK 入口修正：`android:editor:apk` 构建会进入编辑器启动界面，不再直接进入游戏。
+- 新建项目会在用户选择的 Android 目录下生成基础项目文件，并打开独立空白工程，不再跳转或绑定到示例游戏。
+- 打开本地项目、历史项目、资源扫描和图片预览的路径兜底已收紧，避免本地工程误读内置示例项目资源。
+- 起始界面、Script 独立窗口、Tilemap 编辑窗口默认竖屏；主编辑器、Scene View 和其余界面默认横屏。
+- Script 独立窗口和 Tilemap 编辑窗口在小屏手机上会贴合安全区域显示，不再只贴左上角或保留异常边距。
+- Scene View 支持手机端双指缩放；Tilemap 编辑窗口支持单指拖动平移、长按拖动框选和双指缩放。
+
+### 示例与运行时
+
+- 修复打开背包后任务缩略图、玩家、Enemy 等动画贴图可能丢帧闪烁的问题。
+- 背包角色预览支持玩家向右移动时的翻转显示。
+- 同步示例项目多个场景中的背包、容器、热栏、暂停菜单等 UI 尺寸，修复 SecondScene UI 显示不一致。
+- 优化手机小屏下暂停菜单与按键绑定菜单的尺寸和按钮排版。
+- 霰弹枪逐发上弹时支持在弹仓仍有子弹的情况下中断上弹并直接开火。
+
+### 打包产物
+
+- Windows 安装包：`release-fixed/UNU Engine Setup 1.1.exe`
+- Windows 便携版：`release-fixed/UNU Engine 1.1.exe`
+- Android 编辑器 Debug APK：`release-fixed/UNU Engine Editor 1.1-debug.apk`
 
 ## 文档导航
 
@@ -56,6 +83,7 @@ npm run dev
 
 - 支持选择、Shift 多选、批量移动、批量缩放、角度制旋转、复制/删除、增减图层和拖动实体树层级。
 - 非播放态支持鼠标中键平移 Scene View，滚轮缩放画面。
+- Android 编辑器内 Scene View 支持双指缩放，适配手机横屏编辑。
 - 播放态会禁用编辑工具选中框，改用运行态交互高亮、调试层和专用输入逻辑。
 - 播放按钮旁提供调试播放开关，可显示碰撞箱、实体边界框、Tilemap 网格、实体名称和交互提示。
 
@@ -68,8 +96,8 @@ npm run dev
 
 ### Tilemap 与资源管理
 
-- Tilemap 支持 CSV 文本编辑和 Electron 子窗口图形化编辑。
-- 图形化 Tilemap 编辑器支持滚轮缩放、中键拖动、多选、Shift 划选、批量赋值、Tile 值材质预览和快速绑定。
+- Tilemap 支持 CSV 文本编辑和独立图形化编辑窗口。
+- 图形化 Tilemap 编辑器支持滚轮/双指缩放、中键或单指拖动平移、多选、Shift 划选、手机长按框选、批量赋值、Tile 值材质预览和快速绑定。
 - 资源树支持图片预览、文件夹打开、双击/右键打开文本或图片、拖拽移动文件、复制/粘贴、删除、重命名、新建文件/文件夹。
 - 文件操作支持 `Ctrl+Z` / `Ctrl+Y` 撤回与恢复，资源重命名会自动同步引用。
 - 素材箱支持当前目录面包屑切换、图片预览和 JS/JSON/HTML 等文本资源显示。
@@ -162,7 +190,7 @@ npm run dist:win:installer
 
 ## Android APK
 
-当前 Android 移植采用 `Capacitor + Android WebView`。`android:apk` 会直接进入游戏运行模式；`android:editor:apk` 会进入编辑器模式，并默认打包 `Sample-project-list/sample-2D-shooting` 示例。编辑器模式已支持启动器、打开内置项目、资源读取、场景/脚本保存、素材导入、Prefab、内嵌脚本/Tilemap 编辑窗口，以及通过 Capacitor Filesystem 导出真实目录。
+当前 Android 移植采用 `Capacitor + Android WebView`。`android:apk` 会直接进入游戏运行模式；`android:editor:apk` 会进入编辑器模式，并默认打包内置示例项目。编辑器模式已支持启动器、打开内置项目、新建/打开 Android 本地工作区、资源读取、场景/脚本保存、素材导入、Prefab、内嵌脚本/Tilemap 编辑窗口、方向切换，以及通过 Capacitor Filesystem / Android Storage Access Framework 写入真实目录。
 
 生成 Debug APK：
 
@@ -172,6 +200,8 @@ npm run android:editor:apk
 ```
 
 APK 输出位置通常为 `android/app/build/outputs/apk/debug/app-debug.apk`。如果遇到 `Unsupported class file major version 69`，请将 Java 从 25 切换到 JDK 17 或 21。更多说明见 [Android APK 构建说明](docs/ANDROID_APK.zh-CN.md)。
+
+1.1 版本发布包额外复制为 `release-fixed/UNU Engine Editor 1.1-debug.apk`。
 
 ## 当前工程约定
 

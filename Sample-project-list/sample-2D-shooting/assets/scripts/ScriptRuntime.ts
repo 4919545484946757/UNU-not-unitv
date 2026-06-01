@@ -13,8 +13,11 @@ const resolveEnemyMatcher = (cfg) => {
   const fromConfig = cfg && typeof cfg.enemyMatch === 'object' ? cfg.enemyMatch : null
   if (fromConfig) return fromConfig
   return {
-    scriptPath: 'assets/scripts/enemy-chase-respawn.js',
-    namePrefix: 'Enemy'
+    scriptPaths: [
+      'assets/scripts/enemy-chase-respawn.js',
+      'assets/scripts/mushroom-neutral.js'
+    ],
+    requireCollider: true
   }
 }
 
@@ -74,6 +77,12 @@ const defaultEnemyInventory = (seed) => {
 
 const isEntityDeathPending = (ctx, entity) => Boolean(ctx.api.getState(entity).__deathPending)
 const ensureEnemyHealth = (ctx, entity, options = {}) => ensureHealth(ctx, entity, { max: Number(options.max ?? 50) })
+const isMushroomEntity = (entity) => {
+  const scriptPath = String(entity?.getComponent?.('Script')?.scriptPath || '')
+  const folder = String(entity?.sceneFolderPath || '').toLowerCase()
+  const id = String(entity?.id || '').toLowerCase()
+  return scriptPath === 'assets/scripts/mushroom-neutral.js' || folder.includes('/mushroom') || id.startsWith('mushroom')
+}
 
 const ensureEntityInventory = (ctx, entity, options = {}) => {
   const state = ctx.api.getState(entity)
@@ -706,6 +715,11 @@ export default {
           ctx.api.log(`[${hitEnemy.id}] hit -${Math.round(damage)} HP (${Math.round(enemyHealth.health)}/${Math.round(enemyHealth.maxHealth)})`)
           return
         }
+        if (isMushroomEntity(hitEnemy)) {
+          ctx.api.getState(hitEnemy).__deathPending = true
+          ctx.api.log(`[${hitEnemy.id}] defeated`)
+          return
+        }
         ctx.api.getState(hitEnemy).__deathPending = true
         const enemyLoot = ensureEntityInventory(ctx, hitEnemy, { count: 12, defaults: defaultEnemyInventory(hitEnemy.id) }).filter(Boolean)
         ctx.api.removeEntity(hitEnemy)
@@ -751,8 +765,120 @@ export default {
       onCollisionStay(ctx) {
         applyEnemyContactDamage(ctx)
       }
+    },
+    'assets/scripts/mushroom-neutral.js': {
+      onInit(ctx) {
+        const cfg = parseConfig(ctx)
+        ensureEntityInventory(ctx, ctx.entity, { count: 12, defaults: defaultEnemyInventory(ctx.entity.id) })
+        ensureEnemyHealth(ctx, ctx.entity, { max: Number(cfg.maxHealth ?? 90) })
+        setAnimationState(ctx.entity, 'Atlas')
+      },
+      onUpdate(ctx) {
+        updateMushroomNeutral(ctx)
+      }
     }
   }
+}
+
+function setAnimationState(entity, stateName) {
+  const animation = entity.getComponent('Animation')
+  if (!animation?.stateMachine?.enabled) return
+  if (animation.stateMachine.currentState === stateName) return
+  if (!animation.stateMachine.clips?.some((clip) => clip.name === stateName)) return
+  animation.stateMachine.currentState = stateName
+  animation.currentFrame = 0
+  animation.elapsed = 0
+  animation.playing = true
+}
+
+function getAnimationClipDuration(entity, stateName, fallback = 0.4) {
+  const animation = entity.getComponent('Animation')
+  const clip = animation?.stateMachine?.clips?.find((item) => item.name === stateName)
+  if (!animation || !clip?.framePaths?.length) return fallback
+  const fps = Math.max(1, Number(animation.fps || 1))
+  const totalFrames = clip.framePaths.length
+  const totalDuration = clip.frameDurations?.slice(0, totalFrames).reduce((sum, duration) => {
+    return sum + Math.max(1, Number(duration ?? 1)) / fps
+  }, 0)
+  return Math.max(0.05, Number(totalDuration || totalFrames / fps || fallback))
+}
+
+function updateMushroomNeutral(ctx) {
+  const player = ctx.api.findEntityByName('Player')
+  const transform = ctx.entity.getTransform()
+  const playerTransform = player?.getTransform?.()
+  if (!player || !transform || !playerTransform) return
+
+  const cfg = parseConfig(ctx)
+  const health = ensureEnemyHealth(ctx, ctx.entity, { max: Number(cfg.maxHealth ?? 90) })
+  const state = ctx.api.getState(ctx.entity)
+  state.spikeCooldown = Math.max(0, Number(state.spikeCooldown || 0) - ctx.api.delta)
+  state.lightCooldown = Math.max(0, Number(state.lightCooldown || 0) - ctx.api.delta)
+  state.actionLock = Math.max(0, Number(state.actionLock || 0) - ctx.api.delta)
+
+  if (health.health <= 0 || state.dead || state.__deathPending) {
+    state.dead = true
+    setAnimationState(ctx.entity, 'die')
+    state.deathTimer = Number(state.deathTimer || 0) + ctx.api.delta
+    if (state.deathTimer >= Math.max(0.5, Number(cfg.deathRemoveDelay ?? 1.2))) {
+      ctx.api.removeEntity(ctx.entity)
+    }
+    return
+  }
+
+  const dx = playerTransform.x - transform.x
+  const dy = playerTransform.y - transform.y
+  const distance = Math.hypot(dx, dy)
+  const aggroRange = Math.max(0, Number(cfg.aggroRange ?? 220))
+  const attackRange = Math.max(8, Number(cfg.attackRange ?? 54))
+
+  if (Math.abs(dx) > 1e-3) {
+    const baseScale = Math.max(0.001, Math.abs(Number(state.baseScaleX ?? (transform.scaleX || 1))))
+    state.baseScaleX = baseScale
+    transform.scaleX = dx > 0 ? -baseScale : baseScale
+  }
+
+  if (Number(state.actionLock || 0) > 0) {
+    return
+  }
+
+  if (distance > aggroRange) {
+    setAnimationState(ctx.entity, 'Atlas')
+    return
+  }
+
+  if (distance > attackRange) {
+    ctx.api.moveTowards(ctx.entity, player, Number(cfg.moveSpeed ?? 82), true)
+    setAnimationState(ctx.entity, 'walk')
+    return
+  }
+
+  if (Number(state.spikeCooldown || 0) <= 0) {
+    const damage = Math.max(0, Number(cfg.spikeDamage ?? 24))
+    const finalDamage = applyArmorDamageReduction(ctx, player, damage)
+    const playerHealth = damageEntity(ctx, player, finalDamage)
+    updatePlayerHud(ctx, player)
+    state.spikeCooldown = Math.max(0.1, Number(cfg.spikeCooldown ?? 2.5))
+    state.lightCooldown = Math.max(Number(state.lightCooldown || 0), 0.25)
+    setAnimationState(ctx.entity, 'attack')
+    state.actionLock = Number(cfg.spikeAnimLock ?? getAnimationClipDuration(ctx.entity, 'attack', 0.75))
+    ctx.api.log(`[${ctx.entity.id}] spike attack -${Math.round(finalDamage)} HP (${Math.round(playerHealth.health)}/${Math.round(playerHealth.maxHealth)})`)
+    return
+  }
+
+  if (Number(state.lightCooldown || 0) <= 0) {
+    const damage = Math.max(0, Number(cfg.lightDamage ?? 9))
+    const finalDamage = applyArmorDamageReduction(ctx, player, damage)
+    const playerHealth = damageEntity(ctx, player, finalDamage)
+    updatePlayerHud(ctx, player)
+    state.lightCooldown = Math.max(0.1, Number(cfg.lightCooldown ?? 0.75))
+    setAnimationState(ctx.entity, 'lightattack')
+    state.actionLock = Number(cfg.lightAnimLock ?? getAnimationClipDuration(ctx.entity, 'lightattack', 0.5))
+    ctx.api.log(`[${ctx.entity.id}] light attack -${Math.round(finalDamage)} HP (${Math.round(playerHealth.health)}/${Math.round(playerHealth.maxHealth)})`)
+    return
+  }
+
+  setAnimationState(ctx.entity, 'Atlas')
 }
 
 function applyEnemyContactDamage(ctx) {

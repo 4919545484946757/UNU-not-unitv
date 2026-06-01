@@ -1214,39 +1214,38 @@ export class ScriptRuntime {
 
     const collider = entity.getComponent<ColliderComponent>('Collider')
     if (collider && collider.width > 0 && collider.height > 0) {
-      const halfWidth = Math.abs(transform.scaleX) * collider.width / 2
-      const halfHeight = Math.abs(transform.scaleY) * collider.height / 2
-      const centerX = transform.x + collider.offsetX
-      const centerY = transform.y + collider.offsetY
+      const local = worldToLocalPoint(transform, pointerX, pointerY)
+      const halfWidth = collider.width / 2
+      const halfHeight = collider.height / 2
+      const centerX = Number(collider.offsetX || 0)
+      const centerY = Number(collider.offsetY || 0)
       return (
-        pointerX >= centerX - halfWidth &&
-        pointerX <= centerX + halfWidth &&
-        pointerY >= centerY - halfHeight &&
-        pointerY <= centerY + halfHeight
+        local.x >= centerX - halfWidth &&
+        local.x <= centerX + halfWidth &&
+        local.y >= centerY - halfHeight &&
+        local.y <= centerY + halfHeight
       )
     }
 
     const sprite = entity.getComponent<SpriteComponent>('Sprite')
     if (sprite && sprite.visible && sprite.width > 0 && sprite.height > 0) {
-      const halfWidth = Math.abs(transform.scaleX) * sprite.width / 2
-      const halfHeight = Math.abs(transform.scaleY) * sprite.height / 2
+      const local = worldToLocalPoint(transform, pointerX, pointerY)
+      const halfWidth = sprite.width / 2
+      const halfHeight = sprite.height / 2
       return (
-        pointerX >= transform.x - halfWidth &&
-        pointerX <= transform.x + halfWidth &&
-        pointerY >= transform.y - halfHeight &&
-        pointerY <= transform.y + halfHeight
+        local.x >= -halfWidth &&
+        local.x <= halfWidth &&
+        local.y >= -halfHeight &&
+        local.y <= halfHeight
       )
     }
 
     const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
     if (tilemap?.enabled) {
-      const scaledWidth = tilemap.columns * tilemap.tileWidth * transform.scaleX
-      const scaledHeight = tilemap.rows * tilemap.tileHeight * transform.scaleY
-      const minX = Math.min(transform.x, transform.x + scaledWidth)
-      const maxX = Math.max(transform.x, transform.x + scaledWidth)
-      const minY = Math.min(transform.y, transform.y + scaledHeight)
-      const maxY = Math.max(transform.y, transform.y + scaledHeight)
-      return pointerX >= minX && pointerX <= maxX && pointerY >= minY && pointerY <= maxY
+      const local = worldToLocalPoint(transform, pointerX, pointerY)
+      const width = tilemap.columns * tilemap.tileWidth
+      const height = tilemap.rows * tilemap.tileHeight
+      return local.x >= 0 && local.x <= width && local.y >= 0 && local.y <= height
     }
 
     return false
@@ -1447,10 +1446,75 @@ function isRectColliderOverlap(
   bTransform: TransformComponent,
   bCollider: ColliderComponent
 ) {
-  return (
-    Math.abs((aTransform.x + aCollider.offsetX) - (bTransform.x + bCollider.offsetX)) <= (aCollider.width + bCollider.width) / 2 &&
-    Math.abs((aTransform.y + aCollider.offsetY) - (bTransform.y + bCollider.offsetY)) <= (aCollider.height + bCollider.height) / 2
+  return areOrientedRectsOverlapping(
+    getColliderCorners(aTransform, aCollider),
+    getColliderCorners(bTransform, bCollider)
   )
+}
+
+function rotatePoint(x: number, y: number, rotation: number) {
+  const cos = Math.cos(rotation)
+  const sin = Math.sin(rotation)
+  return { x: x * cos - y * sin, y: x * sin + y * cos }
+}
+
+function worldToLocalPoint(transform: TransformComponent, worldX: number, worldY: number) {
+  const dx = worldX - transform.x
+  const dy = worldY - transform.y
+  const local = rotatePoint(dx, dy, -transform.rotation)
+  const scaleX = Math.abs(transform.scaleX) > 0.0001 ? transform.scaleX : 1
+  const scaleY = Math.abs(transform.scaleY) > 0.0001 ? transform.scaleY : 1
+  return { x: local.x / scaleX, y: local.y / scaleY }
+}
+
+function localToWorldPoint(transform: TransformComponent, localX: number, localY: number) {
+  const scaledX = localX * transform.scaleX
+  const scaledY = localY * transform.scaleY
+  const rotated = rotatePoint(scaledX, scaledY, transform.rotation)
+  return { x: transform.x + rotated.x, y: transform.y + rotated.y }
+}
+
+function getColliderCorners(transform: TransformComponent, collider: ColliderComponent) {
+  const halfW = Math.max(0, Number(collider.width || 0)) / 2
+  const halfH = Math.max(0, Number(collider.height || 0)) / 2
+  const offsetX = Number(collider.offsetX || 0)
+  const offsetY = Number(collider.offsetY || 0)
+  return [
+    localToWorldPoint(transform, offsetX - halfW, offsetY - halfH),
+    localToWorldPoint(transform, offsetX + halfW, offsetY - halfH),
+    localToWorldPoint(transform, offsetX + halfW, offsetY + halfH),
+    localToWorldPoint(transform, offsetX - halfW, offsetY + halfH)
+  ]
+}
+
+function projectPolygon(points: Array<{ x: number; y: number }>, axis: { x: number; y: number }) {
+  let min = points[0].x * axis.x + points[0].y * axis.y
+  let max = min
+  for (let i = 1; i < points.length; i += 1) {
+    const value = points[i].x * axis.x + points[i].y * axis.y
+    min = Math.min(min, value)
+    max = Math.max(max, value)
+  }
+  return { min, max }
+}
+
+function areOrientedRectsOverlapping(a: Array<{ x: number; y: number }>, b: Array<{ x: number; y: number }>) {
+  const axes: Array<{ x: number; y: number }> = []
+  for (const points of [a, b]) {
+    for (let i = 0; i < 2; i += 1) {
+      const p1 = points[i]
+      const p2 = points[(i + 1) % points.length]
+      const edgeX = p2.x - p1.x
+      const edgeY = p2.y - p1.y
+      const length = Math.hypot(edgeX, edgeY) || 1
+      axes.push({ x: -edgeY / length, y: edgeX / length })
+    }
+  }
+  return axes.every((axis) => {
+    const left = projectPolygon(a, axis)
+    const right = projectPolygon(b, axis)
+    return left.max >= right.min && right.max >= left.min
+  })
 }
 
 function canCollidersInteract(left: ColliderComponent, right: ColliderComponent) {
@@ -1549,8 +1613,9 @@ function isWorldBlocked(scene: Scene | null, x: number, y: number) {
     const transform = entity.getComponent<TransformComponent>('Transform')
     const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
     if (!transform || !tilemap || !tilemap.enabled) continue
-    const localX = x - transform.x
-    const localY = y - transform.y
+    const local = worldToLocalPoint(transform, x, y)
+    const localX = local.x
+    const localY = local.y
     const col = Math.floor(localX / tilemap.tileWidth)
     const row = Math.floor(localY / tilemap.tileHeight)
     if (col < 0 || row < 0 || col >= tilemap.columns || row >= tilemap.rows) continue
@@ -1580,10 +1645,22 @@ function isWorldRectBlocked(
     const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
     if (!transform || !tilemap || !tilemap.enabled) continue
 
-    const minCol = Math.floor((worldLeft - transform.x) / tilemap.tileWidth)
-    const maxCol = Math.floor((worldRight - transform.x) / tilemap.tileWidth)
-    const minRow = Math.floor((worldTop - transform.y) / tilemap.tileHeight)
-    const maxRow = Math.floor((worldBottom - transform.y) / tilemap.tileHeight)
+    const corners = [
+      worldToLocalPoint(transform, worldLeft, worldTop),
+      worldToLocalPoint(transform, worldRight, worldTop),
+      worldToLocalPoint(transform, worldRight, worldBottom),
+      worldToLocalPoint(transform, worldLeft, worldBottom),
+      worldToLocalPoint(transform, centerX, centerY)
+    ]
+    const minLocalX = Math.min(...corners.map((point) => point.x))
+    const maxLocalX = Math.max(...corners.map((point) => point.x))
+    const minLocalY = Math.min(...corners.map((point) => point.y))
+    const maxLocalY = Math.max(...corners.map((point) => point.y))
+
+    const minCol = Math.floor(minLocalX / tilemap.tileWidth)
+    const maxCol = Math.floor(maxLocalX / tilemap.tileWidth)
+    const minRow = Math.floor(minLocalY / tilemap.tileHeight)
+    const maxRow = Math.floor(maxLocalY / tilemap.tileHeight)
 
     if (maxCol < 0 || maxRow < 0 || minCol >= tilemap.columns || minRow >= tilemap.rows) continue
 

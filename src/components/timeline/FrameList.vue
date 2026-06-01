@@ -29,6 +29,10 @@ defineEmits<{
 
 function frameLabel(path: string) {
   const normalized = String(path || '').replace(/\\/g, '/')
+  if (normalized.startsWith('atlasframe://')) {
+    const [base, frame] = normalized.replace('atlasframe://', '').split('#')
+    return `${base.slice(base.lastIndexOf('/') + 1) || base} #${Number(frame || 0) + 1}`
+  }
   if (normalized.startsWith('atlas://')) {
     const [base] = normalized.replace('atlas://', '').split('#')
     return `${base.slice(base.lastIndexOf('/') + 1) || base} · atlas`

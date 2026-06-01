@@ -16,7 +16,7 @@
         <button @click="removeCurrentFrame" :disabled="!animation.framePaths.length">删除当前帧</button>
         <button @click="saveAnimationAsset">保存动画资源</button>
         <button @click="openAnimationAsset">打开动画资源</button>
-        <button @click="generateAtlasSliceAsset">生成图集描述</button>
+        <button @click="openAtlasEditor">打开图集编辑器</button>
       </div>
 
       <div class="meta-grid">
@@ -272,7 +272,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { AnimationComponent, type AnimationStateClip, type AnimationStateTransition } from '../../engine/components/AnimationComponent'
 import { getAnimationProgress, getAnimationTotalDuration } from '../../engine/animation/applyAnimation'
-import { createAtlasFramePaths, deserializeAtlasAsset, serializeAtlasAsset } from '../../engine/animation/atlasAsset'
+import { createAtlasFramePaths, deserializeAtlasAsset, normalizeAtlasClips, serializeAtlasAsset } from '../../engine/animation/atlasAsset'
 import { applyAnimationAssetToComponent, deserializeAnimationAsset, serializeAnimationAsset } from '../../engine/animation/animationAsset'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
@@ -423,6 +423,10 @@ function onGraphMouseUp() {
 let previewTimer: number | null = null
 
 function frameLabel(path: string) {
+  if (path.startsWith('atlasframe://')) {
+    const [base, frame] = path.replace('atlasframe://', '').split('#')
+    return `${base.split('/').pop() || base} #${Number(frame || 0) + 1}`
+  }
   if (path.startsWith('atlas://')) {
     const [base] = path.replace('atlas://', '').split('#')
     return `${base.split('/').pop() || base} · atlas`
@@ -663,10 +667,44 @@ async function bindSelectedAtlas() {
   const atlas = deserializeAtlasAsset(result.content)
   animation.value.sourceAtlasPath = assets.selectedAsset.path
   animation.value.atlasGrid = { columns: atlas.atlas.columns, rows: atlas.atlas.rows, cellWidth: atlas.atlas.cellWidth, cellHeight: atlas.atlas.cellHeight, frameCount: atlas.atlas.frameCount }
-  animation.value.framePaths = createAtlasFramePaths(atlas.atlas)
+  animation.value.framePaths = createAtlasFramePaths(atlas.atlas, assets.selectedAsset.path)
   animation.value.frameDurations = animation.value.framePaths.map(() => 1)
   animation.value.currentFrame = 0
   animation.value.elapsed = 0
+  const fallbackClip: AnimationStateClip = {
+    name: 'Atlas',
+    framePaths: [...animation.value.framePaths],
+    frameDurations: [...animation.value.frameDurations],
+    loop: true
+  }
+  const atlasClips = normalizeAtlasClips(atlas.clips, atlas.atlas.frameCount)
+  const clips = atlasClips
+    .map<AnimationStateClip>((clip) => {
+      const framePaths: string[] = []
+      const frameDurations: number[] = []
+      clip.frames.forEach((frame, index) => {
+        const path = animation.value?.framePaths[frame]
+        if (!path) return
+        framePaths.push(path)
+        frameDurations.push(Math.max(1, Number(clip.durations[index] || 1)))
+      })
+      return {
+        name: clip.name,
+        framePaths,
+        frameDurations,
+        loop: clip.loop
+      }
+    })
+    .filter((clip) => clip.framePaths.length > 0)
+  const stateClips = clips.length ? clips : [fallbackClip]
+  animation.value.stateMachine = {
+    enabled: true,
+    initialState: stateClips[0].name,
+    currentState: stateClips[0].name,
+    clips: stateClips,
+    transitions: []
+  }
+  selectedState.value = stateClips[0].name
   editor.setTimelineFrameIndex(0)
   sceneStore.markDirty()
   project.setStatus(`已绑定图集动画：${assets.selectedAsset.name}`)
@@ -829,6 +867,25 @@ async function openAnimationAsset() {
   await assets.refreshProject()
   if (result.relativePath) await assets.selectAsset(result.relativePath)
   project.setStatus(`已绑定动画资源：${result.name}`)
+}
+
+async function openAtlasEditor() {
+  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath || project.isMemoryProject) {
+    project.setStatus('精灵图集编辑器需要在 Electron 本地工程中使用。')
+    return
+  }
+  const selected = assets.selectedAsset
+  const payload = {
+    projectRoot: project.rootPath,
+    imagePath: selected?.type === 'image' ? selected.path : undefined,
+    atlasPath: selected?.type === 'atlas' ? selected.path : animation.value?.sourceAtlasPath || undefined
+  }
+  if (!payload.imagePath && !payload.atlasPath) {
+    project.setStatus('请先在资源树选择一张图片或一个 .atlas.json 图集资源。')
+    return
+  }
+  const result = await window.unu.openSpriteAtlasEditor(payload)
+  if (!result?.ok) project.setStatus(`打开精灵图集编辑器失败：${result?.error || '未知错误'}`)
 }
 
 async function generateAtlasSliceAsset() {

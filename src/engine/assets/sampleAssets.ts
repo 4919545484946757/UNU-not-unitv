@@ -169,7 +169,13 @@ export const sampleAssetRoots: AssetNode[] = [
         name: 'audio',
         type: 'folder',
         path: 'assets/audio',
-        children: [{ id: 'assets/audio/bgm.mp3', name: 'bgm.mp3', type: 'audio', path: 'assets/audio/bgm.mp3' }]
+        children: [
+          { id: 'assets/audio/换弹.mp3', name: '换弹.mp3', type: 'audio', path: 'assets/audio/换弹.mp3' },
+          { id: 'assets/audio/背景音乐1.mp3', name: '背景音乐1.mp3', type: 'audio', path: 'assets/audio/背景音乐1.mp3' },
+          { id: 'assets/audio/背景音乐2.mp3', name: '背景音乐2.mp3', type: 'audio', path: 'assets/audio/背景音乐2.mp3' },
+          { id: 'assets/audio/轻型枪射击.mp3', name: '轻型枪射击.mp3', type: 'audio', path: 'assets/audio/轻型枪射击.mp3' },
+          { id: 'assets/audio/重型枪械射击.mp3', name: '重型枪械射击.mp3', type: 'audio', path: 'assets/audio/重型枪械射击.mp3' }
+        ]
       }
     ]
   },

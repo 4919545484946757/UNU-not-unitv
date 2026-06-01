@@ -25,6 +25,7 @@ declare global {
     __UNU_GAME_EXPORT__?: boolean
     unu?: {
       version: string
+      windowRole?: 'main' | 'tilemap-editor' | 'code-editor' | 'sprite-atlas-editor' | string
       createProject?: (payload?: { projectName?: string; parentDir?: string }) => Promise<{
         rootPath: string
         name: string
@@ -58,10 +59,12 @@ declare global {
         entryScene?: string
         tags?: string[]
       }>>
+      getProjectInfo?: (projectRoot: string) => Promise<{ rootPath: string; name: string }>
       scanProject?: (projectRoot: string) => Promise<{
         rootPath: string
         name: string
         tree: import('./engine/assets/types').AssetNode[]
+        assetTreeTruncated?: boolean
         sceneCatalogRepaired?: boolean
         sceneCount?: number
         sceneCreatedByReference?: number
@@ -100,6 +103,7 @@ declare global {
         rootPath: string
         name: string
         tree: import('./engine/assets/types').AssetNode[]
+        assetTreeTruncated?: boolean
         assetIntegrityRepaired?: boolean
         normalizedSceneFiles?: number
         normalizedFiles?: number
@@ -133,12 +137,17 @@ declare global {
       openCodeEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       submitCodeEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
       closeCodeEditor?: () => Promise<{ ok: boolean; error?: string }>
+      openSpriteAtlasEditor?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
+      submitSpriteAtlasEditorUpdate?: (payload: unknown) => Promise<{ ok: boolean; error?: string }>
+      closeSpriteAtlasEditor?: () => Promise<{ ok: boolean; error?: string }>
       setMainWindowPreset?: (preset: 'launcher' | 'editor') => Promise<{ ok: boolean; error?: string }>
       onTilemapEditorInit?: (callback: (payload: unknown) => void) => (() => void)
       onTilemapEditorApply?: (callback: (payload: unknown) => void) => (() => void)
       onCodeEditorInit?: (callback: (payload: unknown) => void) => (() => void)
       onCodeEditorApply?: (callback: (payload: unknown) => void) => (() => void)
       onCodeEditorClosed?: (callback: (payload: unknown) => void) => (() => void)
+      onSpriteAtlasEditorInit?: (callback: (payload: unknown) => void) => (() => void)
+      onSpriteAtlasEditorApply?: (callback: (payload: unknown) => void) => (() => void)
     }
   }
 }

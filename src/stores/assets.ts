@@ -30,10 +30,14 @@ function buildProjectHealthMessage(
     resolvedAssets?: number
     unresolvedAssets?: number
     unresolvedRefs?: Array<{ sourceFile: string; keyPath: string; ref: string }>
+    assetTreeTruncated?: boolean
   },
   base: string
 ) {
   const suffixes: string[] = []
+  if (result.assetTreeTruncated) {
+    suffixes.push('资源树较大，已限制显示数量')
+  }
   if (result.sceneCatalogRepaired) {
     const sceneBase = `场景目录已修复（${result.sceneCount ?? 0}）`
     const created = Number(result.sceneCreatedByReference || 0)

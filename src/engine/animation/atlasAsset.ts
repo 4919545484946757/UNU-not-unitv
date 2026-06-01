@@ -8,13 +8,39 @@ export interface AtlasAssetData {
   format: 'unu-atlas'
   version: 1
   atlas: AtlasGridPayload
+  clips?: AtlasClipPayload[]
 }
 
-export function serializeAtlasAsset(payload: AtlasGridPayload) {
+export interface AtlasClipPayload {
+  name: string
+  frames: number[]
+  durations: number[]
+  loop: boolean
+}
+
+export function normalizeAtlasClips(clips: AtlasClipPayload[] | undefined, frameCount: number) {
+  const maxIndex = Math.max(0, Math.floor(Number(frameCount) || 1) - 1)
+  return (clips || [])
+    .map((clip) => {
+      const frames = Array.isArray(clip.frames)
+        ? clip.frames.map((frame) => Math.max(0, Math.min(maxIndex, Math.floor(Number(frame) || 0))))
+        : []
+      return {
+        name: String(clip.name || '').trim() || 'Atlas',
+        frames,
+        durations: frames.map((_, index) => Math.max(1, Math.floor(Number(clip.durations?.[index]) || 1))),
+        loop: clip.loop ?? true
+      }
+    })
+    .filter((clip, index, list) => clip.name && list.findIndex((item) => item.name === clip.name) === index)
+}
+
+export function serializeAtlasAsset(payload: AtlasGridPayload, clips?: AtlasClipPayload[]) {
   const data: AtlasAssetData = {
     format: 'unu-atlas',
     version: 1,
-    atlas: payload
+    atlas: payload,
+    clips: normalizeAtlasClips(clips, payload.frameCount)
   }
   return JSON.stringify(data, null, 2)
 }
@@ -36,6 +62,25 @@ export function buildAtlasFramePath(payload: AtlasGridPayload, frameIndex: numbe
   return `atlas://${payload.imagePath}#${x},${y},${payload.cellWidth},${payload.cellHeight}`
 }
 
-export function createAtlasFramePaths(payload: AtlasGridPayload) {
-  return Array.from({ length: Math.max(1, payload.frameCount) }, (_, index) => buildAtlasFramePath(payload, index))
+export function buildAtlasFrameRefPath(atlasPath: string, frameIndex: number) {
+  const normalized = String(atlasPath || '').trim()
+  return normalized ? `atlasframe://${normalized}#${Math.max(0, Math.floor(Number(frameIndex) || 0))}` : ''
+}
+
+export function parseAtlasFrameRefPath(texturePath: string) {
+  const value = String(texturePath || '')
+  const match = value.match(/^atlasframe:\/\/(.+)#(\d+)$/) || value.match(/^(.+\.atlas\.json)#(\d+)$/)
+  if (!match) return null
+  return {
+    atlasPath: match[1],
+    frameIndex: Math.max(0, Number(match[2]) || 0)
+  }
+}
+
+export function createAtlasFramePaths(payload: AtlasGridPayload, atlasPath = '') {
+  const count = Math.max(1, payload.frameCount)
+  const normalizedAtlasPath = String(atlasPath || '').trim()
+  return Array.from({ length: count }, (_, index) => (
+    normalizedAtlasPath ? buildAtlasFrameRefPath(normalizedAtlasPath, index) : buildAtlasFramePath(payload, index)
+  ))
 }

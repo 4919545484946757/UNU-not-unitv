@@ -6,6 +6,10 @@
     <label>Texture Offset X <input type="number" :value="sprite.offsetX || 0" @input="$emit('set-number', 'offsetX', $event)" /></label>
     <label>Texture Offset Y <input type="number" :value="sprite.offsetY || 0" @input="$emit('set-number', 'offsetY', $event)" /></label>
     <label>Alpha <input type="number" step="0.1" min="0" max="1" :value="sprite.alpha" @input="$emit('set-number', 'alpha', $event)" /></label>
+    <label class="checkbox-row">
+      <input type="checkbox" :checked="sprite.preserveAspect" @change="$emit('set-checked', 'preserveAspect', $event)" />
+      Preserve Aspect
+    </label>
     <div class="color-field">
       <label>
         Color
@@ -19,6 +23,7 @@
     <label>Texture Path <input :value="sprite.texturePath" @input="$emit('set-text', 'texturePath', $event)" /></label>
     <div class="asset-picker">
       <button @click="$emit('apply-selected-image')">Use Selected Image</button>
+      <button @click="$emit('open-atlas-editor')">Atlas Editor</button>
       <span>{{ selectedImagePath || 'Select an image in Asset Tree first' }}</span>
     </div>
     <label class="checkbox-row">
@@ -44,6 +49,7 @@ defineEmits<{
   'set-hex': [key: string, event: Event]
   'set-checked': [key: string, event: Event]
   'apply-selected-image': []
+  'open-atlas-editor': []
 }>()
 </script>
 

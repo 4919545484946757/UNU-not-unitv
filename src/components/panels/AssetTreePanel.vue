@@ -294,6 +294,7 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
 
   if (node.type === 'image') {
     items.push({ label: '预览图片', action: () => openImagePreview(node) })
+    items.push({ label: '新建精灵图集', action: () => openSpriteAtlasEditor(node) })
     items.push({ label: '选中图片', action: () => assets.selectAsset(node.path) })
     items.push({
       label: '创建 Sprite 实体',
@@ -338,6 +339,9 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
   }
 
   if (node.type === 'animation' || node.type === 'atlas') {
+    if (node.type === 'atlas') {
+      items.push({ label: '打开精灵图集编辑器', action: () => openSpriteAtlasEditor(node) })
+    }
     items.push({
       label: '打开时间轴面板',
       action: async () => {
@@ -363,6 +367,21 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
   }
 
   showMenu(event, items)
+}
+
+async function openSpriteAtlasEditor(node: AssetNode) {
+  if (!window.unu?.openSpriteAtlasEditor || !project.rootPath || project.isMemoryProject) {
+    project.setStatus('精灵图集编辑器需要在 Electron 本地工程中使用。')
+    return
+  }
+  await assets.selectAsset(node.path)
+  const payload = {
+    projectRoot: project.rootPath,
+    imagePath: node.type === 'image' ? node.path : undefined,
+    atlasPath: node.type === 'atlas' ? node.path : undefined
+  }
+  const result = await window.unu.openSpriteAtlasEditor(payload)
+  if (!result?.ok) project.setStatus(`打开精灵图集编辑器失败：${result?.error || '未知错误'}`)
 }
 
 async function handleAssetDrop(payload: { sourcePath: string; targetNode: AssetNode }) {

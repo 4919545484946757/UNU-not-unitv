@@ -1,0 +1,156 @@
+{
+  "format": "unu-atlas",
+  "version": 1,
+  "atlas": {
+    "imagePath": "assets/images/pixel/mushroom/大蘑菇图集.png",
+    "columns": 10,
+    "rows": 5,
+    "cellWidth": 32,
+    "cellHeight": 32,
+    "frameCount": 50
+  },
+  "clips": [
+    {
+      "name": "Atlas",
+      "frames": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "durations": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "loop": true
+    },
+    {
+      "name": "friendly",
+      "frames": [
+        5,
+        6,
+        7,
+        8,
+        9
+      ],
+      "durations": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "frames": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18
+      ],
+      "durations": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "loop": true
+    },
+    {
+      "name": "lightattack",
+      "frames": [
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "durations": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "loop": false
+    },
+    {
+      "name": "attack",
+      "frames": [
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39
+      ],
+      "durations": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "loop": false
+    },
+    {
+      "name": "die",
+      "frames": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "durations": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "loop": false
+    }
+  ]
+}

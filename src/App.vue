@@ -2,6 +2,7 @@
   <GamePlayer v-if="isGameExport" />
   <TilemapEditorWindow v-else-if="isTilemapEditorWindow" />
   <CodeEditorWindow v-else-if="isCodeEditorWindow" />
+  <SpriteAtlasEditorWindow v-else-if="isSpriteAtlasEditorWindow" />
   <LauncherView v-else-if="showLauncher" @open-project="openProjectFromLauncher" />
   <EditorLayout v-else @return-launcher="returnToLauncher" />
   <div v-if="androidCodeEditorVisible" class="android-window-overlay">
@@ -18,7 +19,10 @@ import GamePlayer from './components/game/GamePlayer.vue'
 import LauncherView from './components/launcher/LauncherView.vue'
 import EditorLayout from './components/layout/EditorLayout.vue'
 import CodeEditorWindow from './components/windows/CodeEditorWindow.vue'
+import SpriteAtlasEditorWindow from './components/windows/SpriteAtlasEditorWindow.vue'
 import TilemapEditorWindow from './components/windows/TilemapEditorWindow.vue'
+import { AnimationComponent } from './engine/components/AnimationComponent'
+import { SpriteComponent } from './engine/components/SpriteComponent'
 import { createFallbackProject } from './engine/project/projectFallback'
 import { installAndroidEditorBridge } from './platform/androidEditorBridge'
 import { useAssetStore } from './stores/assets'
@@ -30,14 +34,17 @@ import { useSelectionStore } from './stores/selection'
 installAndroidEditorBridge()
 
 const isAndroidEditorMode = import.meta.env.VITE_UNU_ANDROID_EDITOR === '1'
-const isTilemapEditorWindow = !isAndroidEditorMode && new URLSearchParams(window.location.search).get('tilemapEditor') === '1'
-const isCodeEditorWindow = !isAndroidEditorMode && new URLSearchParams(window.location.search).get('codeEditor') === '1'
+const searchParams = new URLSearchParams(window.location.search)
+const electronWindowRole = window.unu?.windowRole || 'main'
+const isTilemapEditorWindow = !isAndroidEditorMode && (searchParams.get('tilemapEditor') === '1' || electronWindowRole === 'tilemap-editor')
+const isCodeEditorWindow = !isAndroidEditorMode && (searchParams.get('codeEditor') === '1' || electronWindowRole === 'code-editor')
+const isSpriteAtlasEditorWindow = !isAndroidEditorMode && (searchParams.get('spriteAtlasEditor') === '1' || electronWindowRole === 'sprite-atlas-editor')
 const isGameExport =
-  new URLSearchParams(window.location.search).get('game') === '1' ||
+  searchParams.get('game') === '1' ||
   window.__UNU_GAME_EXPORT__ === true ||
   (import.meta.env.VITE_UNU_ANDROID === '1' && !isAndroidEditorMode)
 const isElectronMode = !!window.unu
-const showLauncher = ref(!isGameExport && !isTilemapEditorWindow && !isCodeEditorWindow && isElectronMode)
+const showLauncher = ref(!isGameExport && !isTilemapEditorWindow && !isCodeEditorWindow && !isSpriteAtlasEditorWindow && isElectronMode)
 
 const assets = useAssetStore()
 const project = useProjectStore()
@@ -46,6 +53,30 @@ const scene = useSceneStore()
 const selection = useSelectionStore()
 const androidCodeEditorVisible = ref(false)
 const androidTilemapEditorVisible = ref(false)
+const openingProject = ref(false)
+let removeSpriteAtlasEditorListener: (() => void) | null = null
+
+interface SpriteAtlasEditorApplyPayload {
+  action?: 'saved' | 'apply-frame' | 'apply-animation'
+  atlasPath?: string
+  framePath?: string
+  framePaths?: string[]
+  stateMachine?: {
+    enabled: boolean
+    initialState: string
+    currentState: string
+    clips: Array<{ name: string; framePaths: string[]; frameDurations: number[]; loop: boolean }>
+    transitions: []
+  }
+  atlas?: {
+    imagePath?: string
+    columns?: number
+    rows?: number
+    cellWidth?: number
+    cellHeight?: number
+    frameCount?: number
+  }
+}
 
 function refreshAndroidUiClasses() {
   const compactPhone = isAndroidEditorMode && Math.min(window.innerWidth, window.innerHeight) <= 540
@@ -69,7 +100,87 @@ function handleAndroidTilemapEditorClose() {
   androidTilemapEditorVisible.value = false
 }
 
+async function applySpriteAtlasEditorPayload(raw: unknown) {
+  if (isGameExport || isTilemapEditorWindow || isCodeEditorWindow || isSpriteAtlasEditorWindow) return
+  const payload = (raw || {}) as SpriteAtlasEditorApplyPayload
+  if (payload.action === 'saved') {
+    await assets.refreshProject()
+    if (payload.atlasPath) await assets.selectAsset(payload.atlasPath)
+    project.setStatus(`精灵图集已保存：${payload.atlasPath || 'Atlas'}`)
+    return
+  }
+
+  const current = scene.currentScene?.getEntityById(selection.selectedEntityId)
+  if (!current) {
+    project.setStatus('请先选择一个实体，再从图集编辑器应用帧。')
+    return
+  }
+  let targetSprite = current.getComponent<SpriteComponent>('Sprite')
+
+  if (payload.action === 'apply-frame' && payload.framePath) {
+    if (!targetSprite) {
+      targetSprite = new SpriteComponent('', Math.max(1, Number(payload.atlas?.cellWidth || 64)), Math.max(1, Number(payload.atlas?.cellHeight || 64)), true, 1, 0xffffff, true)
+      current.addComponent(targetSprite)
+    }
+    targetSprite.texturePath = payload.framePath
+    targetSprite.width = Math.max(1, Number(payload.atlas?.cellWidth || targetSprite.width || 64))
+    targetSprite.height = Math.max(1, Number(payload.atlas?.cellHeight || targetSprite.height || 64))
+    scene.markDirty()
+    project.setStatus('已将图集帧应用到 Sprite。')
+    return
+  }
+
+  if (payload.action === 'apply-animation' && payload.framePaths?.length) {
+    if (!targetSprite) {
+      targetSprite = new SpriteComponent('', Math.max(1, Number(payload.atlas?.cellWidth || 64)), Math.max(1, Number(payload.atlas?.cellHeight || 64)), true, 1, 0xffffff, true)
+      current.addComponent(targetSprite)
+    }
+    let targetAnimation = current.getComponent<AnimationComponent>('Animation')
+    if (!targetAnimation) {
+      targetAnimation = new AnimationComponent(true, true, 8, true, 0, 0, [], [], '', '', null, [])
+      current.addComponent(targetAnimation)
+    }
+    targetAnimation.sourceAtlasPath = payload.atlasPath || ''
+    targetAnimation.atlasGrid = payload.atlas
+      ? {
+          columns: Math.max(1, Number(payload.atlas.columns || 1)),
+          rows: Math.max(1, Number(payload.atlas.rows || 1)),
+          cellWidth: Math.max(1, Number(payload.atlas.cellWidth || 1)),
+          cellHeight: Math.max(1, Number(payload.atlas.cellHeight || 1)),
+          frameCount: Math.max(1, Number(payload.atlas.frameCount || payload.framePaths.length))
+        }
+      : null
+    targetAnimation.framePaths = payload.framePaths.map(String).filter(Boolean)
+    targetAnimation.frameDurations = targetAnimation.framePaths.map(() => 1)
+    targetAnimation.currentFrame = 0
+    targetAnimation.elapsed = 0
+    targetAnimation.playing = true
+    targetAnimation.stateMachine = payload.stateMachine || {
+      enabled: true,
+      initialState: 'Atlas',
+      currentState: 'Atlas',
+      clips: [{
+        name: 'Atlas',
+        framePaths: [...targetAnimation.framePaths],
+        frameDurations: [...targetAnimation.frameDurations],
+        loop: true
+      }],
+      transitions: []
+    }
+    if (targetAnimation.framePaths[0]) {
+      targetSprite.texturePath = targetAnimation.framePaths[0]
+      targetSprite.width = Math.max(1, Number(payload.atlas?.cellWidth || targetSprite.width || 64))
+      targetSprite.height = Math.max(1, Number(payload.atlas?.cellHeight || targetSprite.height || 64))
+    }
+    scene.markDirty()
+    project.setStatus('已将图集帧应用到 Animation。')
+  }
+}
+
 onMounted(() => {
+  if (!isGameExport && !isTilemapEditorWindow && !isCodeEditorWindow && !isSpriteAtlasEditorWindow) {
+    removeSpriteAtlasEditorListener = window.unu?.onSpriteAtlasEditorApply?.((payload) => { void applySpriteAtlasEditorPayload(payload) }) || null
+  }
   if (!isAndroidEditorMode) return
   refreshAndroidUiClasses()
   window.addEventListener('resize', refreshAndroidUiClasses)
@@ -80,6 +191,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  removeSpriteAtlasEditorListener?.()
+  removeSpriteAtlasEditorListener = null
   window.removeEventListener('resize', refreshAndroidUiClasses)
   document.documentElement.classList.remove('unu-android-editor', 'unu-android-phone-compact')
   window.removeEventListener('unu-android-code-editor-open', handleAndroidCodeEditorOpen)
@@ -98,10 +211,14 @@ function buildProjectHealthMessage(
     normalizedSceneFiles?: number
     copiedAssets?: number
     unresolvedAssets?: number
+    assetTreeTruncated?: boolean
   },
   base: string
 ) {
   const suffixes: string[] = []
+  if (scanned.assetTreeTruncated) {
+    suffixes.push('资源树较大，已限制显示数量')
+  }
   if (scanned.sceneCatalogRepaired) {
     const created = Number(scanned.sceneCreatedByReference || 0)
     suffixes.push(created > 0 ? `场景目录已修复（${scanned.sceneCount ?? 0}，补全 ${created}）` : `场景目录已修复（${scanned.sceneCount ?? 0}）`)
@@ -117,6 +234,8 @@ function buildProjectHealthMessage(
 }
 
 async function openProjectFromLauncher(payload: { rootPath: string; name: string; sampleProjectId?: string }) {
+  if (openingProject.value) return
+  openingProject.value = true
   try {
     runtime.stop()
     selection.clearSelection()
@@ -152,6 +271,8 @@ async function openProjectFromLauncher(payload: { rootPath: string; name: string
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     project.setStatus(`打开项目失败：${message}`)
+  } finally {
+    openingProject.value = false
   }
 }
 

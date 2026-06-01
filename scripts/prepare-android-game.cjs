@@ -32,6 +32,7 @@ async function main() {
       throw new Error(`Android sample source is missing: ${sample.source}`)
     }
 
+    await fs.rm(sample.target, { recursive: true, force: true })
     await fs.mkdir(sample.target, { recursive: true })
 
     for (const name of ['project.json', 'manifest.json', 'scenes', 'assets', 'prefabs']) {

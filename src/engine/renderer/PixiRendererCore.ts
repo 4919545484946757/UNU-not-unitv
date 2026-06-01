@@ -18,6 +18,7 @@ import { ScriptRuntime, type ProjectRuntimeSourceFile, type ScriptConsoleMessage
 import { InputState } from '../runtime/InputState'
 import { AudioRuntime } from '../runtime/AudioRuntime'
 import { applySceneAnimation } from '../animation/applyAnimation'
+import { buildAtlasFramePath, deserializeAtlasAsset, parseAtlasFrameRefPath } from '../animation/atlasAsset'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
@@ -62,6 +63,19 @@ function estimateUiTextWidth(text: string, fontSize: number) {
   return ascii * fontSize * 0.58 + nonAscii * fontSize * 0.95
 }
 
+function worldToLocalPoint(transform: TransformComponent, worldX: number, worldY: number) {
+  const dx = worldX - transform.x
+  const dy = worldY - transform.y
+  const cos = Math.cos(-transform.rotation)
+  const sin = Math.sin(-transform.rotation)
+  const scaleX = Math.abs(transform.scaleX) > 0.0001 ? transform.scaleX : 1
+  const scaleY = Math.abs(transform.scaleY) > 0.0001 ? transform.scaleY : 1
+  return {
+    x: (dx * cos - dy * sin) / scaleX,
+    y: (dx * sin + dy * cos) / scaleY
+  }
+}
+
 export class PixiRenderer {
   private app!: Application
   private readonly root = new Container()
@@ -84,8 +98,11 @@ export class PixiRenderer {
   private isPaused = false
   private playDebugEnabled = false
   private textureCache = new Map<string, Texture>()
+  private textureLoadPromises = new Map<string, Promise<Texture | null>>()
+  private atlasAssetContentCache = new Map<string, string>()
   private selectedEntityId = ''
   private selectedEntityIds: string[] = []
+  private selectionNotifyFrame = 0
   private activeTool: EditorTool = 'select'
   private gizmoMode: GizmoMode = 'none'
   private uiSliderDragEntityId = ''
@@ -372,7 +389,8 @@ export class PixiRenderer {
     this.applyPlayerSpawnPoint(this.playScene, request.targetSpawnId)
     this.currentScene = this.playScene
     this.selectedEntityId = ''
-    this.options.onEntitySelected?.('')
+    this.selectedEntityIds = []
+    this.scheduleSelectionChanged()
     this.scriptRuntime.setSelectedEntityId('')
 
     this.scriptRuntime.initScene(this.playScene)
@@ -691,6 +709,8 @@ export class PixiRenderer {
 
   private selectEntityFromPointer(entityId: string, event: FederatedPointerEvent) {
     const additive = Boolean((event as unknown as { shiftKey?: boolean }).shiftKey || (event.originalEvent as unknown as PointerEvent | undefined)?.shiftKey)
+    const previousPrimary = this.selectedEntityId
+    const previousIds = this.selectedEntityIds.join('|')
     if (additive) {
       if (this.selectedEntityIds.includes(entityId)) {
         this.selectedEntityIds = this.selectedEntityIds.filter((id) => id !== entityId)
@@ -706,21 +726,22 @@ export class PixiRenderer {
     } else {
       this.selectedEntityId = entityId
     }
+    const nextIds = this.selectedEntityIds.join('|')
+    if (previousPrimary === this.selectedEntityId && previousIds === nextIds) return
     this.scriptRuntime.setSelectedEntityId(this.selectedEntityId)
-    this.options.onEntitySelected?.(this.selectedEntityId, {
-      additive,
-      selectedEntityIds: [...this.selectedEntityIds],
-      primaryId: this.selectedEntityId
-    })
-    this.drawSelectionGizmo()
+    this.scheduleSelectionChanged(additive)
   }
 
   private captureBatchGestureStart(event: FederatedPointerEvent) {
     const worldPoint = event.getLocalPosition(this.world)
-    this.batchGestureStart.pointerWorldX = worldPoint.x
-    this.batchGestureStart.pointerWorldY = worldPoint.y
-    this.batchGestureStart.pointerGlobalX = event.global.x
-    this.batchGestureStart.pointerGlobalY = event.global.y
+    this.captureBatchGestureStartFromPoints(worldPoint.x, worldPoint.y, event.global.x, event.global.y)
+  }
+
+  private captureBatchGestureStartFromPoints(pointerWorldX: number, pointerWorldY: number, pointerGlobalX: number, pointerGlobalY: number) {
+    this.batchGestureStart.pointerWorldX = pointerWorldX
+    this.batchGestureStart.pointerWorldY = pointerWorldY
+    this.batchGestureStart.pointerGlobalX = pointerGlobalX
+    this.batchGestureStart.pointerGlobalY = pointerGlobalY
     this.batchGestureStart.transforms.clear()
     if (!this.currentScene) return
     const ids = this.selectedEntityIds.length ? this.selectedEntityIds : (this.selectedEntityId ? [this.selectedEntityId] : [])
@@ -774,6 +795,14 @@ export class PixiRenderer {
     this.world.position.y += dy
     this.overlay.position.x += dx
     this.overlay.position.y += dy
+  }
+
+  private worldPointFromGlobal(globalX: number, globalY: number) {
+    const scale = this.world.scale.x || 1
+    return {
+      x: (globalX - this.world.position.x) / scale,
+      y: (globalY - this.world.position.y) / scale
+    }
   }
 
   private zoomViewportAt(clientX: number, clientY: number, deltaY: number) {
@@ -937,8 +966,9 @@ export class PixiRenderer {
       node.rotation = transform.rotation
       node.scale.set(transform.scaleX, transform.scaleY)
       if (!isCameraBoundBackground) {
-        node.eventMode = 'static'
-        node.cursor = 'pointer'
+        node.eventMode = 'none'
+        node.interactiveChildren = false
+        node.cursor = 'default'
       }
       node.zIndex = isBackgroundEntity ? -100000 + (transform.zIndex ?? 0) : (transform.zIndex ?? 0)
 
@@ -1035,6 +1065,21 @@ export class PixiRenderer {
       : transform.viewportVertical === 'bottom'
         ? viewportHeight - centerY - halfHeight
         : centerY - viewportHeight / 2
+  }
+
+  private scheduleSelectionChanged(additive = false) {
+    if (this.selectionNotifyFrame) window.cancelAnimationFrame(this.selectionNotifyFrame)
+    const entityId = this.selectedEntityId
+    const selectedEntityIds = [...this.selectedEntityIds]
+    this.selectionNotifyFrame = window.requestAnimationFrame(() => {
+      this.selectionNotifyFrame = 0
+      this.drawSelectionGizmo()
+      this.options.onEntitySelected?.(entityId, {
+        additive,
+        selectedEntityIds,
+        primaryId: entityId
+      })
+    })
   }
 
   private buildUiMetrics(scene: Scene) {
@@ -1165,15 +1210,15 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.selectEntityFromPointer(entity.id, event)
-      this.captureBatchGestureStart(event)
-      const global = event.global
-      const dragPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
-      this.dragOffset.x = global.x - dragPosition.x
-      this.dragOffset.y = global.y - dragPosition.y
       if (this.activeTool === 'move') {
+        this.captureBatchGestureStart(event)
+        const global = event.global
+        const dragPosition = this.resolveViewportPosition(transform, metrics.width, metrics.height, ui.anchorX, ui.anchorY)
+        this.dragOffset.x = global.x - dragPosition.x
+        this.dragOffset.y = global.y - dragPosition.y
         this.gizmoMode = 'move'
       }
+      this.selectEntityFromPointer(entity.id, event)
       event.stopPropagation()
     })
 
@@ -1526,9 +1571,10 @@ export class PixiRenderer {
           event.stopPropagation()
           return
         }
-        this.options.onEntitySelected?.(entity.id)
         this.selectedEntityId = entity.id
-        this.drawSelectionGizmo()
+        this.selectedEntityIds = [entity.id]
+        this.scriptRuntime.setSelectedEntityId(entity.id)
+        this.scheduleSelectionChanged()
         event.stopPropagation()
       })
       this.htmlUiLayer.appendChild(node)
@@ -1859,8 +1905,9 @@ export class PixiRenderer {
     node.y = transform.y
     node.rotation = transform.rotation
     node.scale.set(transform.scaleX, transform.scaleY)
-    node.eventMode = 'static'
-    node.cursor = 'pointer'
+    node.eventMode = 'none'
+    node.interactiveChildren = false
+    node.cursor = 'default'
     node.zIndex = transform.zIndex ?? 0
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
@@ -1869,20 +1916,20 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.selectEntityFromPointer(entityId, event)
-      this.captureBatchGestureStart(event)
-      if (transform.positionMode === 'viewport') {
-        const position = this.resolveViewportPosition(transform, tilemap.columns * tilemap.tileWidth, tilemap.rows * tilemap.tileHeight, 0, 0)
-        this.dragOffset.x = event.global.x - position.x
-        this.dragOffset.y = event.global.y - position.y
-      } else {
-        const local = event.getLocalPosition(this.world)
-        this.dragOffset.x = local.x - transform.x
-        this.dragOffset.y = local.y - transform.y
-      }
       if (this.activeTool === 'move') {
+        this.captureBatchGestureStart(event)
+        if (transform.positionMode === 'viewport') {
+          const position = this.resolveViewportPosition(transform, tilemap.columns * tilemap.tileWidth, tilemap.rows * tilemap.tileHeight, 0, 0)
+          this.dragOffset.x = event.global.x - position.x
+          this.dragOffset.y = event.global.y - position.y
+        } else {
+          const local = event.getLocalPosition(this.world)
+          this.dragOffset.x = local.x - transform.x
+          this.dragOffset.y = local.y - transform.y
+        }
         this.gizmoMode = 'move'
       }
+      this.selectEntityFromPointer(entityId, event)
       event.stopPropagation()
     })
 
@@ -1987,12 +2034,26 @@ export class PixiRenderer {
 
       const target = event.target as Container | null
       if (target && target !== this.app.stage && target.label !== 'grid') return
+
+      const worldPoint = this.worldPointFromGlobal(event.global.x, event.global.y)
+      const picked = this.pickEntityAt(worldPoint.x, worldPoint.y)
+      if (picked) {
+        if (this.activeTool === 'move') {
+          this.captureBatchGestureStartFromPoints(worldPoint.x, worldPoint.y, event.global.x, event.global.y)
+          this.dragOffset.x = worldPoint.x - picked.transform.x
+          this.dragOffset.y = worldPoint.y - picked.transform.y
+          this.gizmoMode = 'move'
+        }
+        this.selectEntityFromPointer(picked.id, event)
+        return
+      }
+
       this.gizmoMode = 'none'
       if (this.activeTool === 'select') {
         this.selectedEntityId = ''
         this.selectedEntityIds = []
-        this.options.onEntitySelected?.('')
-        this.drawSelectionGizmo()
+        this.scriptRuntime.setSelectedEntityId('')
+        this.scheduleSelectionChanged()
       }
     })
     this.app.stage.on('globalpointermove', (event: FederatedPointerEvent) => {
@@ -2117,22 +2178,23 @@ export class PixiRenderer {
       const sprite = entity.getComponent<SpriteComponent>('Sprite')
       const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
       if (!transform) continue
+      const local = worldToLocalPoint(transform, x, y)
       if (sprite && sprite.visible) {
-        const halfW = (sprite.width * Math.abs(transform.scaleX)) / 2
-        const halfH = (sprite.height * Math.abs(transform.scaleY)) / 2
-        if (x >= transform.x - halfW && x <= transform.x + halfW && y >= transform.y - halfH && y <= transform.y + halfH) {
+        const halfW = sprite.width / 2
+        const halfH = sprite.height / 2
+        if (local.x >= -halfW && local.x <= halfW && local.y >= -halfH && local.y <= halfH) {
           return { id: entity.id, transform }
         }
       } else if (tilemap?.enabled) {
-        const width = tilemap.columns * tilemap.tileWidth * Math.abs(transform.scaleX)
-        const height = tilemap.rows * tilemap.tileHeight * Math.abs(transform.scaleY)
-        if (x >= transform.x && x <= transform.x + width && y >= transform.y && y <= transform.y + height) {
+        const width = tilemap.columns * tilemap.tileWidth
+        const height = tilemap.rows * tilemap.tileHeight
+        if (local.x >= 0 && local.x <= width && local.y >= 0 && local.y <= height) {
           return { id: entity.id, transform }
         }
       } else {
-        const halfW = (EMPTY_ENTITY_EDITOR_SIZE * Math.abs(transform.scaleX)) / 2
-        const halfH = (EMPTY_ENTITY_EDITOR_SIZE * Math.abs(transform.scaleY)) / 2
-        if (x >= transform.x - halfW && x <= transform.x + halfW && y >= transform.y - halfH && y <= transform.y + halfH) {
+        const halfW = EMPTY_ENTITY_EDITOR_SIZE / 2
+        const halfH = EMPTY_ENTITY_EDITOR_SIZE / 2
+        if (local.x >= -halfW && local.x <= halfW && local.y >= -halfH && local.y <= halfH) {
           return { id: entity.id, transform }
         }
       }
@@ -2218,8 +2280,9 @@ export class PixiRenderer {
 
     const node = new Container()
     node.label = entity.id
-    node.eventMode = 'static'
-    node.cursor = 'pointer'
+    node.eventMode = 'none'
+    node.interactiveChildren = false
+    node.cursor = 'default'
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
       if (this.shouldStartPan(event)) {
@@ -2227,20 +2290,20 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.selectEntityFromPointer(entity.id, event)
-      this.captureBatchGestureStart(event)
-      if (transform.positionMode === 'viewport') {
-        const position = this.resolveViewportPosition(transform, sprite.width, sprite.height)
-        this.dragOffset.x = event.global.x - position.x
-        this.dragOffset.y = event.global.y - position.y
-      } else {
-        const local = event.getLocalPosition(this.world)
-        this.dragOffset.x = local.x - transform.x
-        this.dragOffset.y = local.y - transform.y
-      }
       if (this.activeTool === 'move') {
+        this.captureBatchGestureStart(event)
+        if (transform.positionMode === 'viewport') {
+          const position = this.resolveViewportPosition(transform, sprite.width, sprite.height)
+          this.dragOffset.x = event.global.x - position.x
+          this.dragOffset.y = event.global.y - position.y
+        } else {
+          const local = event.getLocalPosition(this.world)
+          this.dragOffset.x = local.x - transform.x
+          this.dragOffset.y = local.y - transform.y
+        }
         this.gizmoMode = 'move'
       }
+      this.selectEntityFromPointer(entity.id, event)
       event.stopPropagation()
     })
 
@@ -2282,8 +2345,9 @@ export class PixiRenderer {
 
     const node = new Container()
     node.label = entity.id
-    node.eventMode = 'static'
-    node.cursor = 'pointer'
+    node.eventMode = 'none'
+    node.interactiveChildren = false
+    node.cursor = 'default'
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
       if (this.shouldStartPan(event)) {
@@ -2291,20 +2355,20 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.selectEntityFromPointer(entity.id, event)
-      this.captureBatchGestureStart(event)
-      if (transform.positionMode === 'viewport') {
-        const position = this.resolveViewportPosition(transform, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
-        this.dragOffset.x = event.global.x - position.x
-        this.dragOffset.y = event.global.y - position.y
-      } else {
-        const local = event.getLocalPosition(this.world)
-        this.dragOffset.x = local.x - transform.x
-        this.dragOffset.y = local.y - transform.y
-      }
       if (this.activeTool === 'move') {
+        this.captureBatchGestureStart(event)
+        if (transform.positionMode === 'viewport') {
+          const position = this.resolveViewportPosition(transform, EMPTY_ENTITY_EDITOR_SIZE, EMPTY_ENTITY_EDITOR_SIZE)
+          this.dragOffset.x = event.global.x - position.x
+          this.dragOffset.y = event.global.y - position.y
+        } else {
+          const local = event.getLocalPosition(this.world)
+          this.dragOffset.x = local.x - transform.x
+          this.dragOffset.y = local.y - transform.y
+        }
         this.gizmoMode = 'move'
       }
+      this.selectEntityFromPointer(entity.id, event)
       event.stopPropagation()
     })
 
@@ -2355,11 +2419,39 @@ export class PixiRenderer {
   private async resolveTexture(texturePath: string): Promise<Texture | null> {
     if (!texturePath) return null
     if (this.textureCache.has(texturePath)) return this.textureCache.get(texturePath) ?? null
+    const pending = this.textureLoadPromises.get(texturePath)
+    if (pending) return pending
 
+    const loadPromise = this.resolveTextureUncached(texturePath).finally(() => {
+      this.textureLoadPromises.delete(texturePath)
+    })
+    this.textureLoadPromises.set(texturePath, loadPromise)
+    return loadPromise
+  }
+
+  private async resolveTextureUncached(texturePath: string): Promise<Texture | null> {
     if (texturePath.startsWith('data:image/')) {
       const texture = await this.loadTextureFromDataUrl(texturePath)
       this.configurePixelTextureSampling(texture)
       this.textureCache.set(texturePath, texture)
+      return texture
+    }
+
+    if (texturePath.startsWith('atlasframe://')) {
+      const texture = await this.resolveAtlasFrameRefTexture(texturePath)
+      if (texture) {
+        this.configurePixelTextureSampling(texture)
+        this.textureCache.set(texturePath, texture)
+      }
+      return texture
+    }
+
+    if (/\.atlas\.json#\d+$/i.test(texturePath)) {
+      const texture = await this.resolveAtlasFrameRefTexture(`atlasframe://${texturePath}`)
+      if (texture) {
+        this.configurePixelTextureSampling(texture)
+        this.textureCache.set(texturePath, texture)
+      }
       return texture
     }
 
@@ -2398,6 +2490,31 @@ export class PixiRenderer {
       }
     }
     return null
+  }
+
+  private async resolveAtlasFrameRefTexture(texturePath: string): Promise<Texture | null> {
+    const ref = parseAtlasFrameRefPath(texturePath)
+    if (!ref) return null
+    const project = useProjectStore()
+    let content = this.atlasAssetContentCache.get(ref.atlasPath) || ''
+    if (!content && project.rootPath && window.unu?.readTextAsset) {
+      const result = await window.unu.readTextAsset({ projectRoot: project.rootPath, relativePath: ref.atlasPath })
+      content = result?.content || ''
+    }
+    if (!content && typeof fetch === 'function') {
+      const candidates = [ref.atlasPath, `/${ref.atlasPath}`]
+      for (const candidate of candidates) {
+        const response = await fetch(candidate).catch(() => null)
+        if (response?.ok) {
+          content = await response.text()
+          break
+        }
+      }
+    }
+    if (!content) return null
+    this.atlasAssetContentCache.set(ref.atlasPath, content)
+    const atlas = deserializeAtlasAsset(content)
+    return this.resolveAtlasFrameTexture(buildAtlasFramePath(atlas.atlas, ref.frameIndex))
   }
 
 
@@ -2604,6 +2721,7 @@ export class PixiRenderer {
       const box = new Graphics()
       box.rect(bounds.boxX, bounds.boxY, bounds.boxWidth, bounds.boxHeight)
       box.stroke({ color: id === this.selectedEntityId ? 0x56b6c2 : 0x8fdbe4, alpha: id === this.selectedEntityId ? 1 : 0.62, width: id === this.selectedEntityId ? 2 : 1.5 })
+      box.eventMode = 'none'
       this.overlay.addChild(box)
     }
     if (!primaryBounds) return
@@ -2617,6 +2735,7 @@ export class PixiRenderer {
     center.moveTo(centerX, centerY - 12)
     center.lineTo(centerX, centerY + 12)
     center.stroke({ color: 0x56b6c2, alpha: 0.9, width: 2 })
+    center.eventMode = 'none'
 
     this.overlay.addChild(center)
 
@@ -2653,6 +2772,7 @@ export class PixiRenderer {
       const ring = new Graphics()
       ring.circle(centerX, centerY, radius)
       ring.stroke({ color: 0x70d6ff, alpha: 0.55, width: 1.5 })
+      ring.eventMode = 'none'
       const handle = new Graphics()
       handle.circle(handleX, handleY, handleSize / 2)
       handle.fill({ color: 0x70d6ff, alpha: 1 })
@@ -2688,51 +2808,52 @@ export class PixiRenderer {
       const tilemap = entity.getComponent<TilemapComponent>('Tilemap')
       const collider = entity.getComponent<ColliderComponent>('Collider')
 
-      let boxX = 0
-      let boxY = 0
+      let localBoxX = 0
+      let localBoxY = 0
       let boxWidth = 0
       let boxHeight = 0
 
       if (collider && collider.width > 0 && collider.height > 0) {
-        const width = Math.max(1, collider.width * Math.abs(transform.scaleX))
-        const height = Math.max(1, collider.height * Math.abs(transform.scaleY))
-        const centerX = transform.x + collider.offsetX
-        const centerY = transform.y + collider.offsetY
-        boxX = centerX - width / 2
-        boxY = centerY - height / 2
-        boxWidth = width
-        boxHeight = height
+        boxWidth = Math.max(1, collider.width)
+        boxHeight = Math.max(1, collider.height)
+        localBoxX = collider.offsetX - boxWidth / 2
+        localBoxY = collider.offsetY - boxHeight / 2
       } else if (sprite && sprite.visible) {
-        boxWidth = Math.max(1, sprite.width * Math.abs(transform.scaleX))
-        boxHeight = Math.max(1, sprite.height * Math.abs(transform.scaleY))
-        boxX = transform.x - boxWidth / 2
-        boxY = transform.y - boxHeight / 2
+        boxWidth = Math.max(1, sprite.width)
+        boxHeight = Math.max(1, sprite.height)
+        localBoxX = -boxWidth / 2
+        localBoxY = -boxHeight / 2
       } else if (tilemap?.enabled) {
-        const scaledWidth = tilemap.columns * tilemap.tileWidth * transform.scaleX
-        const scaledHeight = tilemap.rows * tilemap.tileHeight * transform.scaleY
-        boxX = Math.min(transform.x, transform.x + scaledWidth)
-        boxY = Math.min(transform.y, transform.y + scaledHeight)
-        boxWidth = Math.max(1, Math.abs(scaledWidth))
-        boxHeight = Math.max(1, Math.abs(scaledHeight))
+        boxWidth = Math.max(1, tilemap.columns * tilemap.tileWidth)
+        boxHeight = Math.max(1, tilemap.rows * tilemap.tileHeight)
       } else {
         continue
       }
 
+      const hintNode = new Container()
+      hintNode.position.set(transform.x, transform.y)
+      hintNode.rotation = transform.rotation
+      hintNode.scale.set(transform.scaleX, transform.scaleY)
+      hintNode.eventMode = 'none'
+
       const box = new Graphics()
-      box.rect(boxX, boxY, boxWidth, boxHeight)
+      box.rect(localBoxX, localBoxY, boxWidth, boxHeight)
       box.fill({ color: 0xffc857, alpha: 0.08 })
       box.stroke({ color: 0xffe082, alpha: 0.95, width: 2 })
-      this.playHintOverlay.addChild(box)
+      box.eventMode = 'none'
+      hintNode.addChild(box)
 
       if (this.playDebugEnabled) {
         const hint = new Text({
-          text: '鍙抽敭浜や簰',
+          text: '右键交互',
           style: { fill: '#ffe9b3', fontSize: 12, fontWeight: '700' }
         })
-        hint.x = boxX
-        hint.y = boxY - 18
-        this.playHintOverlay.addChild(hint)
+        hint.x = localBoxX
+        hint.y = localBoxY - 18
+        hint.eventMode = 'none'
+        hintNode.addChild(hint)
       }
+      this.playHintOverlay.addChild(hintNode)
     }
   }
 
@@ -2762,6 +2883,10 @@ export class PixiRenderer {
   }
 
   destroy() {
+    if (this.selectionNotifyFrame) {
+      window.cancelAnimationFrame(this.selectionNotifyFrame)
+      this.selectionNotifyFrame = 0
+    }
     if (this.wheelHandler) {
       this.app.canvas.removeEventListener('wheel', this.wheelHandler)
       this.wheelHandler = null
@@ -2850,8 +2975,9 @@ export class PixiRenderer {
 
     const node = new Container()
     node.label = entityId
-    node.eventMode = 'static'
-    node.cursor = 'pointer'
+    node.eventMode = 'none'
+    node.interactiveChildren = false
+    node.cursor = 'default'
     node.on('pointerdown', (event: FederatedPointerEvent) => {
       if (this.isPlaying) return
       if (this.shouldStartPan(event)) {
@@ -2859,11 +2985,11 @@ export class PixiRenderer {
         event.stopPropagation()
         return
       }
-      this.selectEntityFromPointer(entityId, event)
-      this.captureBatchGestureStart(event)
       if (this.activeTool === 'move') {
+        this.captureBatchGestureStart(event)
         this.gizmoMode = 'move'
       }
+      this.selectEntityFromPointer(entityId, event)
       event.stopPropagation()
     })
 
