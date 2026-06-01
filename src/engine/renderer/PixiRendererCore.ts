@@ -496,7 +496,8 @@ export class PixiRenderer {
   async setRuntimeState(isPlaying: boolean, isPaused: boolean, scene: Scene | null, refreshPlayingScene = false) {
     const wasPlaying = this.isPlaying
     this.sourceScene = scene
-    this.audioRuntime.setProjectRoot(useProjectStore().rootPath)
+    const projectStore = useProjectStore()
+    this.audioRuntime.setProjectRoot(projectStore.rootPath, projectStore.mode)
 
     if (!scene) {
       this.isPlaying = false

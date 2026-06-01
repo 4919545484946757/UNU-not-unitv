@@ -2083,11 +2083,9 @@
                       "assets/animations/大蘑菇图集.atlas.json#0",
                       "assets/animations/大蘑菇图集.atlas.json#1",
                       "assets/animations/大蘑菇图集.atlas.json#2",
-                      "assets/animations/大蘑菇图集.atlas.json#3",
-                      "assets/animations/大蘑菇图集.atlas.json#4"
+                      "assets/animations/大蘑菇图集.atlas.json#3"
                     ],
                     "frameDurations": [
-                      1,
                       1,
                       1,
                       1,
@@ -2101,11 +2099,9 @@
                       "assets/animations/大蘑菇图集.atlas.json#5",
                       "assets/animations/大蘑菇图集.atlas.json#6",
                       "assets/animations/大蘑菇图集.atlas.json#7",
-                      "assets/animations/大蘑菇图集.atlas.json#8",
-                      "assets/animations/大蘑菇图集.atlas.json#9"
+                      "assets/animations/大蘑菇图集.atlas.json#8"
                     ],
                     "frameDurations": [
-                      1,
                       1,
                       1,
                       1,
@@ -2123,11 +2119,9 @@
                       "assets/animations/大蘑菇图集.atlas.json#14",
                       "assets/animations/大蘑菇图集.atlas.json#15",
                       "assets/animations/大蘑菇图集.atlas.json#16",
-                      "assets/animations/大蘑菇图集.atlas.json#17",
-                      "assets/animations/大蘑菇图集.atlas.json#18"
+                      "assets/animations/大蘑菇图集.atlas.json#17"
                     ],
                     "frameDurations": [
-                      1,
                       1,
                       1,
                       1,
@@ -2150,11 +2144,9 @@
                       "assets/animations/大蘑菇图集.atlas.json#25",
                       "assets/animations/大蘑菇图集.atlas.json#26",
                       "assets/animations/大蘑菇图集.atlas.json#27",
-                      "assets/animations/大蘑菇图集.atlas.json#28",
-                      "assets/animations/大蘑菇图集.atlas.json#29"
+                      "assets/animations/大蘑菇图集.atlas.json#28"
                     ],
                     "frameDurations": [
-                      1,
                       1,
                       1,
                       1,
@@ -2178,11 +2170,9 @@
                       "assets/animations/大蘑菇图集.atlas.json#35",
                       "assets/animations/大蘑菇图集.atlas.json#36",
                       "assets/animations/大蘑菇图集.atlas.json#37",
-                      "assets/animations/大蘑菇图集.atlas.json#38",
-                      "assets/animations/大蘑菇图集.atlas.json#39"
+                      "assets/animations/大蘑菇图集.atlas.json#38"
                     ],
                     "frameDurations": [
-                      1,
                       1,
                       1,
                       1,
@@ -2204,11 +2194,9 @@
                       "assets/animations/大蘑菇图集.atlas.json#43",
                       "assets/animations/大蘑菇图集.atlas.json#44",
                       "assets/animations/大蘑菇图集.atlas.json#45",
-                      "assets/animations/大蘑菇图集.atlas.json#46",
-                      "assets/animations/大蘑菇图集.atlas.json#47"
+                      "assets/animations/大蘑菇图集.atlas.json#46"
                     ],
                     "frameDurations": [
-                      1,
                       1,
                       1,
                       1,
@@ -5270,7 +5258,7 @@
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
-              "zIndex": -1000,
+              "zIndex": 49,
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle"
@@ -5291,6 +5279,748 @@
               "playbackRate": 1,
               "fadeIn": 0.6,
               "fadeOut": 0.35
+            }
+          }
+        ]
+      },
+      {
+        "id": "copy_urvz5q",
+        "name": "mushroom001_Copy",
+        "sceneFolderPath": "Gameplay/Actors/mushroom",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 68.82500911842496,
+              "y": 88.39803737472495,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 50,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/animations/大蘑菇图集.atlas.json#0",
+              "width": 96,
+              "height": 96,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": false,
+              "offsetX": 0,
+              "offsetY": 0
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 58,
+              "height": 72,
+              "offsetX": 0,
+              "offsetY": 12,
+              "isTrigger": false,
+              "layer": "Enemy",
+              "collidesWith": [
+                "Default",
+                "Player",
+                "World",
+                "Attack",
+                "Trap",
+                "Sensor"
+              ]
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/animations/大蘑菇图集.atlas.json#0",
+                "assets/animations/大蘑菇图集.atlas.json#1",
+                "assets/animations/大蘑菇图集.atlas.json#2",
+                "assets/animations/大蘑菇图集.atlas.json#3",
+                "assets/animations/大蘑菇图集.atlas.json#4",
+                "assets/animations/大蘑菇图集.atlas.json#5",
+                "assets/animations/大蘑菇图集.atlas.json#6",
+                "assets/animations/大蘑菇图集.atlas.json#7",
+                "assets/animations/大蘑菇图集.atlas.json#8",
+                "assets/animations/大蘑菇图集.atlas.json#9",
+                "assets/animations/大蘑菇图集.atlas.json#10",
+                "assets/animations/大蘑菇图集.atlas.json#11",
+                "assets/animations/大蘑菇图集.atlas.json#12",
+                "assets/animations/大蘑菇图集.atlas.json#13",
+                "assets/animations/大蘑菇图集.atlas.json#14",
+                "assets/animations/大蘑菇图集.atlas.json#15",
+                "assets/animations/大蘑菇图集.atlas.json#16",
+                "assets/animations/大蘑菇图集.atlas.json#17",
+                "assets/animations/大蘑菇图集.atlas.json#18",
+                "assets/animations/大蘑菇图集.atlas.json#19",
+                "assets/animations/大蘑菇图集.atlas.json#20",
+                "assets/animations/大蘑菇图集.atlas.json#21",
+                "assets/animations/大蘑菇图集.atlas.json#22",
+                "assets/animations/大蘑菇图集.atlas.json#23",
+                "assets/animations/大蘑菇图集.atlas.json#24",
+                "assets/animations/大蘑菇图集.atlas.json#25",
+                "assets/animations/大蘑菇图集.atlas.json#26",
+                "assets/animations/大蘑菇图集.atlas.json#27",
+                "assets/animations/大蘑菇图集.atlas.json#28",
+                "assets/animations/大蘑菇图集.atlas.json#29",
+                "assets/animations/大蘑菇图集.atlas.json#30",
+                "assets/animations/大蘑菇图集.atlas.json#31",
+                "assets/animations/大蘑菇图集.atlas.json#32",
+                "assets/animations/大蘑菇图集.atlas.json#33",
+                "assets/animations/大蘑菇图集.atlas.json#34",
+                "assets/animations/大蘑菇图集.atlas.json#35",
+                "assets/animations/大蘑菇图集.atlas.json#36",
+                "assets/animations/大蘑菇图集.atlas.json#37",
+                "assets/animations/大蘑菇图集.atlas.json#38",
+                "assets/animations/大蘑菇图集.atlas.json#39",
+                "assets/animations/大蘑菇图集.atlas.json#40",
+                "assets/animations/大蘑菇图集.atlas.json#41",
+                "assets/animations/大蘑菇图集.atlas.json#42",
+                "assets/animations/大蘑菇图集.atlas.json#43",
+                "assets/animations/大蘑菇图集.atlas.json#44",
+                "assets/animations/大蘑菇图集.atlas.json#45",
+                "assets/animations/大蘑菇图集.atlas.json#46",
+                "assets/animations/大蘑菇图集.atlas.json#47",
+                "assets/animations/大蘑菇图集.atlas.json#48",
+                "assets/animations/大蘑菇图集.atlas.json#49"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "assets/animations/大蘑菇图集.atlas.json",
+              "atlasGrid": {
+                "columns": 10,
+                "rows": 5,
+                "cellWidth": 32,
+                "cellHeight": 32,
+                "frameCount": 50
+              },
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": true,
+                "initialState": "Atlas",
+                "currentState": "Atlas",
+                "clips": [
+                  {
+                    "name": "Atlas",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#0",
+                      "assets/animations/大蘑菇图集.atlas.json#1",
+                      "assets/animations/大蘑菇图集.atlas.json#2",
+                      "assets/animations/大蘑菇图集.atlas.json#3"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "friendly",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#5",
+                      "assets/animations/大蘑菇图集.atlas.json#6",
+                      "assets/animations/大蘑菇图集.atlas.json#7",
+                      "assets/animations/大蘑菇图集.atlas.json#8"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "walk",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#10",
+                      "assets/animations/大蘑菇图集.atlas.json#11",
+                      "assets/animations/大蘑菇图集.atlas.json#12",
+                      "assets/animations/大蘑菇图集.atlas.json#13",
+                      "assets/animations/大蘑菇图集.atlas.json#14",
+                      "assets/animations/大蘑菇图集.atlas.json#15",
+                      "assets/animations/大蘑菇图集.atlas.json#16",
+                      "assets/animations/大蘑菇图集.atlas.json#17"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "lightattack",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#20",
+                      "assets/animations/大蘑菇图集.atlas.json#21",
+                      "assets/animations/大蘑菇图集.atlas.json#22",
+                      "assets/animations/大蘑菇图集.atlas.json#23",
+                      "assets/animations/大蘑菇图集.atlas.json#24",
+                      "assets/animations/大蘑菇图集.atlas.json#25",
+                      "assets/animations/大蘑菇图集.atlas.json#26",
+                      "assets/animations/大蘑菇图集.atlas.json#27",
+                      "assets/animations/大蘑菇图集.atlas.json#28"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  },
+                  {
+                    "name": "attack",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#30",
+                      "assets/animations/大蘑菇图集.atlas.json#31",
+                      "assets/animations/大蘑菇图集.atlas.json#32",
+                      "assets/animations/大蘑菇图集.atlas.json#33",
+                      "assets/animations/大蘑菇图集.atlas.json#34",
+                      "assets/animations/大蘑菇图集.atlas.json#35",
+                      "assets/animations/大蘑菇图集.atlas.json#36",
+                      "assets/animations/大蘑菇图集.atlas.json#37",
+                      "assets/animations/大蘑菇图集.atlas.json#38"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  },
+                  {
+                    "name": "die",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#40",
+                      "assets/animations/大蘑菇图集.atlas.json#41",
+                      "assets/animations/大蘑菇图集.atlas.json#42",
+                      "assets/animations/大蘑菇图集.atlas.json#43",
+                      "assets/animations/大蘑菇图集.atlas.json#44",
+                      "assets/animations/大蘑菇图集.atlas.json#45",
+                      "assets/animations/大蘑菇图集.atlas.json#46"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  }
+                ],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/mushroom-neutral.js",
+              "sourceCode": "{\n  \"class\": \"mushroom\",\n  \"faction\": \"neutral\",\n  \"aggroRange\": 220,\n  \"attackRange\": 54,\n  \"moveSpeed\": 82,\n  \"maxHealth\": 90,\n  \"spikeDamage\": 24,\n  \"spikeCooldown\": 2.5,\n  \"lightDamage\": 9,\n  \"lightCooldown\": 0.75,\n  \"spikeAnimLock\": 1.25,\n  \"lightAnimLock\": 1.25\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          },
+          {
+            "type": "Health",
+            "data": {
+              "type": "Health",
+              "max": 90,
+              "current": 90
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "mushroom",
+              "capacity": 12,
+              "items": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "copy_htsn4v",
+        "name": "mushroom001_Copy",
+        "sceneFolderPath": "Gameplay/Actors/mushroom",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 723.2250640500656,
+              "y": 74.80102524676153,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 51,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle"
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "assets/animations/大蘑菇图集.atlas.json#0",
+              "width": 96,
+              "height": 96,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16777215,
+              "preserveAspect": false,
+              "offsetX": 0,
+              "offsetY": 0
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 58,
+              "height": 72,
+              "offsetX": 0,
+              "offsetY": 12,
+              "isTrigger": false,
+              "layer": "Enemy",
+              "collidesWith": [
+                "Default",
+                "Player",
+                "World",
+                "Attack",
+                "Trap",
+                "Sensor"
+              ]
+            }
+          },
+          {
+            "type": "Animation",
+            "data": {
+              "type": "Animation",
+              "enabled": true,
+              "playing": true,
+              "fps": 8,
+              "loop": true,
+              "currentFrame": 0,
+              "elapsed": 0,
+              "framePaths": [
+                "assets/animations/大蘑菇图集.atlas.json#0",
+                "assets/animations/大蘑菇图集.atlas.json#1",
+                "assets/animations/大蘑菇图集.atlas.json#2",
+                "assets/animations/大蘑菇图集.atlas.json#3",
+                "assets/animations/大蘑菇图集.atlas.json#4",
+                "assets/animations/大蘑菇图集.atlas.json#5",
+                "assets/animations/大蘑菇图集.atlas.json#6",
+                "assets/animations/大蘑菇图集.atlas.json#7",
+                "assets/animations/大蘑菇图集.atlas.json#8",
+                "assets/animations/大蘑菇图集.atlas.json#9",
+                "assets/animations/大蘑菇图集.atlas.json#10",
+                "assets/animations/大蘑菇图集.atlas.json#11",
+                "assets/animations/大蘑菇图集.atlas.json#12",
+                "assets/animations/大蘑菇图集.atlas.json#13",
+                "assets/animations/大蘑菇图集.atlas.json#14",
+                "assets/animations/大蘑菇图集.atlas.json#15",
+                "assets/animations/大蘑菇图集.atlas.json#16",
+                "assets/animations/大蘑菇图集.atlas.json#17",
+                "assets/animations/大蘑菇图集.atlas.json#18",
+                "assets/animations/大蘑菇图集.atlas.json#19",
+                "assets/animations/大蘑菇图集.atlas.json#20",
+                "assets/animations/大蘑菇图集.atlas.json#21",
+                "assets/animations/大蘑菇图集.atlas.json#22",
+                "assets/animations/大蘑菇图集.atlas.json#23",
+                "assets/animations/大蘑菇图集.atlas.json#24",
+                "assets/animations/大蘑菇图集.atlas.json#25",
+                "assets/animations/大蘑菇图集.atlas.json#26",
+                "assets/animations/大蘑菇图集.atlas.json#27",
+                "assets/animations/大蘑菇图集.atlas.json#28",
+                "assets/animations/大蘑菇图集.atlas.json#29",
+                "assets/animations/大蘑菇图集.atlas.json#30",
+                "assets/animations/大蘑菇图集.atlas.json#31",
+                "assets/animations/大蘑菇图集.atlas.json#32",
+                "assets/animations/大蘑菇图集.atlas.json#33",
+                "assets/animations/大蘑菇图集.atlas.json#34",
+                "assets/animations/大蘑菇图集.atlas.json#35",
+                "assets/animations/大蘑菇图集.atlas.json#36",
+                "assets/animations/大蘑菇图集.atlas.json#37",
+                "assets/animations/大蘑菇图集.atlas.json#38",
+                "assets/animations/大蘑菇图集.atlas.json#39",
+                "assets/animations/大蘑菇图集.atlas.json#40",
+                "assets/animations/大蘑菇图集.atlas.json#41",
+                "assets/animations/大蘑菇图集.atlas.json#42",
+                "assets/animations/大蘑菇图集.atlas.json#43",
+                "assets/animations/大蘑菇图集.atlas.json#44",
+                "assets/animations/大蘑菇图集.atlas.json#45",
+                "assets/animations/大蘑菇图集.atlas.json#46",
+                "assets/animations/大蘑菇图集.atlas.json#47",
+                "assets/animations/大蘑菇图集.atlas.json#48",
+                "assets/animations/大蘑菇图集.atlas.json#49"
+              ],
+              "frameDurations": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "animationAssetPath": "",
+              "sourceAtlasPath": "assets/animations/大蘑菇图集.atlas.json",
+              "atlasGrid": {
+                "columns": 10,
+                "rows": 5,
+                "cellWidth": 32,
+                "cellHeight": 32,
+                "frameCount": 50
+              },
+              "frameEvents": [],
+              "transformTracks": {
+                "positionX": [],
+                "positionY": [],
+                "rotation": []
+              },
+              "stateMachine": {
+                "enabled": true,
+                "initialState": "Atlas",
+                "currentState": "Atlas",
+                "clips": [
+                  {
+                    "name": "Atlas",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#0",
+                      "assets/animations/大蘑菇图集.atlas.json#1",
+                      "assets/animations/大蘑菇图集.atlas.json#2",
+                      "assets/animations/大蘑菇图集.atlas.json#3"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "friendly",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#5",
+                      "assets/animations/大蘑菇图集.atlas.json#6",
+                      "assets/animations/大蘑菇图集.atlas.json#7",
+                      "assets/animations/大蘑菇图集.atlas.json#8"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "walk",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#10",
+                      "assets/animations/大蘑菇图集.atlas.json#11",
+                      "assets/animations/大蘑菇图集.atlas.json#12",
+                      "assets/animations/大蘑菇图集.atlas.json#13",
+                      "assets/animations/大蘑菇图集.atlas.json#14",
+                      "assets/animations/大蘑菇图集.atlas.json#15",
+                      "assets/animations/大蘑菇图集.atlas.json#16",
+                      "assets/animations/大蘑菇图集.atlas.json#17"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": true
+                  },
+                  {
+                    "name": "lightattack",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#20",
+                      "assets/animations/大蘑菇图集.atlas.json#21",
+                      "assets/animations/大蘑菇图集.atlas.json#22",
+                      "assets/animations/大蘑菇图集.atlas.json#23",
+                      "assets/animations/大蘑菇图集.atlas.json#24",
+                      "assets/animations/大蘑菇图集.atlas.json#25",
+                      "assets/animations/大蘑菇图集.atlas.json#26",
+                      "assets/animations/大蘑菇图集.atlas.json#27",
+                      "assets/animations/大蘑菇图集.atlas.json#28"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  },
+                  {
+                    "name": "attack",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#30",
+                      "assets/animations/大蘑菇图集.atlas.json#31",
+                      "assets/animations/大蘑菇图集.atlas.json#32",
+                      "assets/animations/大蘑菇图集.atlas.json#33",
+                      "assets/animations/大蘑菇图集.atlas.json#34",
+                      "assets/animations/大蘑菇图集.atlas.json#35",
+                      "assets/animations/大蘑菇图集.atlas.json#36",
+                      "assets/animations/大蘑菇图集.atlas.json#37",
+                      "assets/animations/大蘑菇图集.atlas.json#38"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  },
+                  {
+                    "name": "die",
+                    "framePaths": [
+                      "assets/animations/大蘑菇图集.atlas.json#40",
+                      "assets/animations/大蘑菇图集.atlas.json#41",
+                      "assets/animations/大蘑菇图集.atlas.json#42",
+                      "assets/animations/大蘑菇图集.atlas.json#43",
+                      "assets/animations/大蘑菇图集.atlas.json#44",
+                      "assets/animations/大蘑菇图集.atlas.json#45",
+                      "assets/animations/大蘑菇图集.atlas.json#46"
+                    ],
+                    "frameDurations": [
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1,
+                      1
+                    ],
+                    "loop": false
+                  }
+                ],
+                "transitions": []
+              }
+            }
+          },
+          {
+            "type": "Script",
+            "data": {
+              "type": "Script",
+              "scriptPath": "assets/scripts/mushroom-neutral.js",
+              "sourceCode": "{\n  \"class\": \"mushroom\",\n  \"faction\": \"neutral\",\n  \"aggroRange\": 220,\n  \"attackRange\": 54,\n  \"moveSpeed\": 82,\n  \"maxHealth\": 90,\n  \"spikeDamage\": 24,\n  \"spikeCooldown\": 2.5,\n  \"lightDamage\": 9,\n  \"lightCooldown\": 0.75,\n  \"spikeAnimLock\": 1.25,\n  \"lightAnimLock\": 1.25\n}",
+              "enabled": true,
+              "instance": null,
+              "initialized": false,
+              "started": false
+            }
+          },
+          {
+            "type": "Health",
+            "data": {
+              "type": "Health",
+              "max": 90,
+              "current": 90
+            }
+          },
+          {
+            "type": "Inventory",
+            "data": {
+              "type": "Inventory",
+              "ownerType": "mushroom",
+              "capacity": 12,
+              "items": [
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                ""
+              ]
             }
           }
         ]

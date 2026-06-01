@@ -136,7 +136,7 @@ public/android-game/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-
+.codex/
 Release/
 release-fixed/
 unu0301.zip

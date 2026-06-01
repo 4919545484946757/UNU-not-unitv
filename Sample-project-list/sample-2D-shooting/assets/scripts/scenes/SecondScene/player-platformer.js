@@ -41,6 +41,27 @@ const getArmorMoveMultiplier = (ctx, entity) => {
 
 const NS = 'sample-2D-shooting'
 const itemId = (name) => `${NS}:${name}`
+const AUDIO_CLIPS = {
+  reload: 'assets/audio/换弹.mp3',
+  lightShot: 'assets/audio/轻型枪射击.mp3',
+  heavyShot: 'assets/audio/重型枪械射击.mp3'
+}
+
+const playOneShotAudio = (ctx, clipPath, options = {}) => {
+  if (!clipPath || !ctx?.api?.audio?.playOneShot) return
+  void ctx.api.audio.playOneShot(clipPath, {
+    group: 'sfx',
+    volume: 1,
+    ...options
+  })
+}
+
+const getWeaponShotAudio = (weaponId) => (
+  weaponId === itemId('sniper_rifle') || weaponId === itemId('shotgun')
+    ? AUDIO_CLIPS.heavyShot
+    : AUDIO_CLIPS.lightShot
+)
+
 const WEAPONS = {
   [itemId('auto_rifle')]: { displayName: '自动步枪', fireMode: 'auto', magazineSize: 30, reserveAmmo: 180, fireInterval: 0.08, reloadTime: 1.55, bulletSpeed: 980, spread: 0.025, pellets: 1, damage: 18 },
   [itemId('precision_rifle')]: { displayName: '精确步枪', fireMode: 'semi', magazineSize: 15, reserveAmmo: 90, fireInterval: 0.22, reloadTime: 1.65, bulletSpeed: 1180, spread: 0.01, maxSpread: 0.085, spreadPerRapidShot: 0.018, focusResetTime: 0.55, accurateShots: 2, pellets: 1, damage: 34 },
@@ -124,6 +145,7 @@ const updateReload = (ctx, config, ammo) => {
     if (ammo.magazine < config.magazineSize && ammo.reserve > 0) {
       ammo.magazine += 1
       ammo.reserve -= 1
+      playOneShotAudio(ctx, AUDIO_CLIPS.reload, { volume: 0.55 })
       ammo.reloadTimer = ammo.magazine < config.magazineSize && ammo.reserve > 0 ? Number(config.shellReloadInterval || 0.42) : 0
       ammo.reloading = ammo.reloadTimer > 0
     } else ammo.reloading = false
@@ -133,12 +155,14 @@ const updateReload = (ctx, config, ammo) => {
   ammo.magazine += loaded
   ammo.reserve -= loaded
   ammo.reloading = false
+  if (loaded > 0) playOneShotAudio(ctx, AUDIO_CLIPS.reload, { volume: 0.75 })
 }
 
 const startReload = (ctx, config, ammo) => {
   if (ammo.reloading || ammo.reserve <= 0 || ammo.magazine >= config.magazineSize) return
   ammo.reloading = true
   ammo.reloadTimer = config.reloadMode === 'shell' ? Number(config.shellReloadInterval || 0.42) : Number(config.reloadTime || 1.5)
+  playOneShotAudio(ctx, AUDIO_CLIPS.reload, { volume: config.reloadMode === 'shell' ? 0.65 : 0.8 })
   ctx.api.log(`[Weapon] ${config.displayName} reload`)
 }
 
@@ -164,6 +188,9 @@ const fireHeldWeapon = (ctx, entity) => {
   }
   ammo.magazine -= 1
   ammo.cooldown = Number(config.fireInterval || 0.2)
+  playOneShotAudio(ctx, getWeaponShotAudio(id), {
+    volume: id === itemId('shotgun') ? 0.95 : id === itemId('sniper_rifle') ? 1 : 0.72
+  })
   if (config.fireMode === 'semi') {
     ammo.rapidShots = Number(ammo.rapidShots || 0) + 1
     ammo.focusTimer = Number(config.focusResetTime || 0.55)

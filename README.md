@@ -4,7 +4,7 @@
 
 UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时。项目目标不是只做一个编辑器壳子，而是形成“创建项目、编辑场景、编写脚本、预览玩法、调试性能、导出 Web 游戏、打包 Windows 应用”的完整闭环。
 
-- 文档更新时间：`2026-05-30`
+- 文档更新时间：`2026-06-01`
 - 项目版本：`1.1.0`
 - 当前定位：桌面端 2D 游戏编辑器 + Android 编辑器 APK + 可导出 Web 游戏运行包
 - 示例项目真源：`Sample-project-list/`
@@ -35,15 +35,19 @@ npm run dev
 
 - 修复打开背包后任务缩略图、玩家、Enemy 等动画贴图可能丢帧闪烁的问题。
 - 背包角色预览支持玩家向右移动时的翻转显示。
+- 大蘑菇图集动画统一删除各状态片段的最后一帧，并同步所有场景内大蘑菇实体的状态机帧段。
+- 大蘑菇移动朝向规则明确为：向左移动保持原贴图方向，向右移动时水平翻转贴图。
 - 同步示例项目多个场景中的背包、容器、热栏、暂停菜单等 UI 尺寸，修复 SecondScene UI 显示不一致。
 - 优化手机小屏下暂停菜单与按键绑定菜单的尺寸和按钮排版。
 - 霰弹枪逐发上弹时支持在弹仓仍有子弹的情况下中断上弹并直接开火。
+- 示例项目已接入背景音乐、开枪音效和换弹音效；MainScene 与 SecondScene 均支持枪械射击/换弹音效。
+- 修复音频 `data:`/`blob:` 媒体资源被 CSP 拦截的问题，并为播放状态下的 BGM/音效增加自动播放失败后的用户手势重试。
 
 ### 打包产物
 
-- Windows 安装包：`release-fixed/UNU Engine Setup 1.1.exe`
-- Windows 便携版：`release-fixed/UNU Engine 1.1.exe`
-- Android 编辑器 Debug APK：`release-fixed/UNU Engine Editor 1.1-debug.apk`
+- Windows 安装包：`release-fixed/UNU Engine Setup 1.1.0.exe`
+- Windows 便携版：`release-fixed/UNU Engine 1.1.0.exe`
+- Android 编辑器 Debug APK：`release-fixed/UNU Engine Editor 1.1.0-debug.apk`
 
 ## 文档导航
 
@@ -201,7 +205,7 @@ npm run android:editor:apk
 
 APK 输出位置通常为 `android/app/build/outputs/apk/debug/app-debug.apk`。如果遇到 `Unsupported class file major version 69`，请将 Java 从 25 切换到 JDK 17 或 21。更多说明见 [Android APK 构建说明](docs/ANDROID_APK.zh-CN.md)。
 
-1.1 版本发布包额外复制为 `release-fixed/UNU Engine Editor 1.1-debug.apk`。
+1.1 版本发布包额外复制为 `release-fixed/UNU Engine Editor 1.1.0-debug.apk`。
 
 ## 当前工程约定
 

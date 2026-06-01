@@ -861,7 +861,8 @@ function updateMushroomNeutral(ctx) {
   if (Math.abs(dx) > 1e-3) {
     const baseScale = Math.max(0.001, Math.abs(Number(state.baseScaleX ?? (transform.scaleX || 1))))
     state.baseScaleX = baseScale
-    transform.scaleX = dx > 0 ? -baseScale : baseScale
+    const movingRight = dx > 0
+    transform.scaleX = movingRight ? -baseScale : baseScale
   }
 
   if (Number(state.actionLock || 0) > 0) {

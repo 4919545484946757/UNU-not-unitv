@@ -74,6 +74,7 @@ export class AudioRuntime {
   private readonly oneShotMeta = new Map<HTMLAudioElement, { group: AudioGroup; baseVolume: number; muted: boolean; fadeOut: number }>()
   private readonly fadeTimers = new Map<HTMLAudioElement, number>()
   private readonly dataUrlCache = new Map<string, Promise<string | null>>()
+  private readonly pendingPlayback = new Set<HTMLAudioElement>()
   private masterVolume = 1
   private groupVolumes: Record<AudioGroup, number> = { bgm: 0.8, sfx: 1, ui: 1 }
   private groupMutes: Record<AudioGroup, boolean> = { bgm: false, sfx: false, ui: false }
@@ -82,6 +83,7 @@ export class AudioRuntime {
   private projectMode: 'sample' | 'local' | 'memory' = 'memory'
   private paused = false
   private projectHooks: AudioRuntimeHooks = {}
+  private unlockListenersInstalled = false
 
   setProjectRoot(projectRoot: string, projectMode: 'sample' | 'local' | 'memory' = 'local') {
     this.projectRoot = projectRoot
@@ -115,6 +117,8 @@ export class AudioRuntime {
     }
     if (paused) {
       for (const oneShot of this.oneShotAudios) oneShot.pause()
+    } else {
+      this.retryPendingPlayback()
     }
   }
 
@@ -186,7 +190,7 @@ export class AudioRuntime {
     }, { once: true })
     if (!this.paused) {
       this.fadeIn(audio, audio.volume, resolvedRequest.options.fadeIn ?? 0)
-      await audio.play().catch(() => undefined)
+      await this.playElement(audio)
     }
     return audio
   }
@@ -215,7 +219,7 @@ export class AudioRuntime {
       existing.element.muted = existing.muted || this.masterMuted || this.getGroupMuted(existing.group)
       existing.element.volume = this.computeVolume(existing.group, existing.baseVolume)
       if (!this.paused && existing.element.paused) {
-        await existing.element.play().catch(() => undefined)
+        await this.playElement(existing.element)
       }
       audioComp.playing = true
       return
@@ -242,7 +246,7 @@ export class AudioRuntime {
     this.managedByEntity.set(entity.id, managed)
     if (!this.paused) {
       this.fadeIn(element, element.volume, resolvedRequest.fadeIn)
-      await element.play().catch(() => undefined)
+      await this.playElement(element)
     }
     audioComp.playing = true
   }
@@ -263,7 +267,7 @@ export class AudioRuntime {
   resumeEntityAudio(entityId: string) {
     const managed = this.managedByEntity.get(entityId)
     if (!managed || this.paused) return
-    void managed.element.play().catch(() => undefined)
+    void this.playElement(managed.element)
   }
 
   seekEntityAudio(entityId: string, seconds: number) {
@@ -337,6 +341,7 @@ export class AudioRuntime {
     }
     this.oneShotAudios.clear()
     this.oneShotMeta.clear()
+    this.pendingPlayback.clear()
   }
 
   private async resolveAudioSource(clipPath: string) {
@@ -344,19 +349,74 @@ export class AudioRuntime {
     if (clipPath.startsWith('data:') || clipPath.startsWith('http://') || clipPath.startsWith('https://')) {
       return clipPath
     }
-    if (!window.unu?.readAssetDataUrl || !this.projectRoot || this.projectMode === 'memory') {
-      return null
+    if (window.unu?.readAssetDataUrl && this.projectRoot && this.projectMode !== 'memory') {
+      if (!this.dataUrlCache.has(clipPath)) {
+        this.dataUrlCache.set(clipPath, (async () => {
+          const result = await window.unu?.readAssetDataUrl?.({
+            projectRoot: this.projectRoot,
+            relativePath: clipPath
+          })
+          return result?.dataUrl || null
+        })())
+      }
+      const dataUrl = await this.dataUrlCache.get(clipPath)
+      if (dataUrl) return dataUrl
     }
-    if (!this.dataUrlCache.has(clipPath)) {
-      this.dataUrlCache.set(clipPath, (async () => {
-        const result = await window.unu?.readAssetDataUrl?.({
-          projectRoot: this.projectRoot,
-          relativePath: clipPath
-        })
-        return result?.dataUrl || null
+
+    const fallbackKey = `fallback:${clipPath}`
+    if (!this.dataUrlCache.has(fallbackKey)) {
+      this.dataUrlCache.set(fallbackKey, (async () => {
+        const normalized = String(clipPath || '').replace(/\\/g, '/').replace(/^\/+/, '')
+        const candidates = [
+          normalized,
+          `/${normalized}`,
+          `android-game/${normalized}`,
+          `/android-game/${normalized}`
+        ]
+        for (const candidate of candidates) {
+          const response = await fetch(encodeURI(candidate)).catch(() => null)
+          if (response?.ok) {
+            const blob = await response.blob()
+            return await blobToDataUrl(blob)
+          }
+        }
+        return null
       })())
     }
-    return this.dataUrlCache.get(clipPath) ?? null
+    return this.dataUrlCache.get(fallbackKey) ?? null
+  }
+
+  private async playElement(element: HTMLAudioElement) {
+    if (this.paused) return false
+    try {
+      await element.play()
+      this.pendingPlayback.delete(element)
+      return true
+    } catch {
+      this.pendingPlayback.add(element)
+      this.installPlaybackUnlockListeners()
+      return false
+    }
+  }
+
+  private retryPendingPlayback = () => {
+    if (this.paused || this.pendingPlayback.size === 0) return
+    for (const element of Array.from(this.pendingPlayback)) {
+      if (element.ended) {
+        this.pendingPlayback.delete(element)
+        continue
+      }
+      void this.playElement(element)
+    }
+  }
+
+  private installPlaybackUnlockListeners() {
+    if (this.unlockListenersInstalled || typeof window === 'undefined') return
+    this.unlockListenersInstalled = true
+    const options: AddEventListenerOptions = { capture: true, passive: true }
+    window.addEventListener('pointerdown', this.retryPendingPlayback, options)
+    window.addEventListener('keydown', this.retryPendingPlayback, options)
+    window.addEventListener('touchstart', this.retryPendingPlayback, options)
   }
 
   private resolveOneShotRequest(clipPath: string, options: PlayOneShotOptions) {
@@ -526,6 +586,15 @@ function clamp01(value: number) {
 function clampPlaybackRate(value: number) {
   if (!Number.isFinite(value)) return 1
   return Math.max(0.25, Math.min(4, value))
+}
+
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(reader.error || new Error('Failed to read audio blob.'))
+    reader.readAsDataURL(blob)
+  })
 }
 
 function parseProjectAudioRuntime(sourceCode: string | null, scriptPath: string) {
