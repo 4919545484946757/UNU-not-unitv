@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:heavy_boots",
+  "namespace": "sample-2D-shooting",
+  "name": "heavy_boots",
+  "displayName": "???",
+  "type": "equipment",
+  "equipSlot": "boots",
+  "maxStack": 1,
+  "description": "???????????????????",
+  "script": "assets/items/scripts/heavy_boots.js",
+  "tags": [
+    "armor",
+    "boots"
+  ],
+  "attributes": {
+    "flatReduction": 2,
+    "moveSpeedMultiplier": 0.92
+  }
+}

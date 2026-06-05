@@ -66,7 +66,7 @@
       <SpriteInspector
         :sprite="sprite"
         :selected-image-path="selectedImageAssetPath"
-        :hex-value="formatHexNumber(sprite.tint)"
+        :hex-value="formatColorValue(sprite.tint, sprite.alpha)"
         :color-input="formatColorInput(sprite.tint)"
         @set-number="(key, event) => setNumber('sprite', key, event)"
         @set-text="(key, event) => setText('sprite', key, event)"
@@ -406,7 +406,7 @@
           <label>Render Mode
             <select :value="ui.renderMode" @change="setUIRenderMode">
               <option value="pixi">Pixi Text</option>
-              <option value="html">HTML Overlay</option>
+              <option value="html">HTMLoverlayer</option>
             </select>
           </label>
           <label>Mode
@@ -427,6 +427,11 @@
           </label>
           <template v-if="ui.renderMode === 'html'">
             <label>HTML File Path <input :value="ui.htmlSourcePath || ''" placeholder="assets/ui/pause-menu.html，留空使用上方 Text/HTML" @input="setText('ui', 'htmlSourcePath', $event)" /></label>
+            <div class="asset-picker html-code-actions">
+              <button type="button" @click="void createOrOpenHtmlUiAsset()">{{ ui.htmlSourcePath ? 'Open HTML Code' : 'Create HTML Asset' }}</button>
+              <button type="button" :disabled="!selectedHtmlAssetPath" @click="bindSelectedHtmlAsset">Bind Selected HTML</button>
+              <span>{{ ui.htmlSourcePath || selectedHtmlAssetPath || 'Use an HTML asset or create one for this UI' }}</span>
+            </div>
             <div class="html-option-grid">
               <label class="checkbox-row">
                 <input type="checkbox" :checked="ui.htmlUseIframe" @change="setChecked('ui', 'htmlUseIframe', $event)" />
@@ -440,11 +445,32 @@
                 <input type="checkbox" :checked="ui.htmlBridgeEnabled" @change="setChecked('ui', 'htmlBridgeEnabled', $event)" />
                 UNU Bridge
               </label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="ui.htmlDebugOverlay" @change="setChecked('ui', 'htmlDebugOverlay', $event)" />
+                Debug Bounds
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="ui.htmlDebugConsole" @change="setChecked('ui', 'htmlDebugConsole', $event)" />
+                Debug Console
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" :checked="ui.htmlAutoCreateAsset" @change="setChecked('ui', 'htmlAutoCreateAsset', $event)" />
+                Auto Template
+              </label>
             </div>
-            <div class="tips">HTML Overlay 可直接写完整 HTML/CSS/JS，或链接工程内 .html 文件。HTML 中可调用 <code>window.UNU.emit(type, payload)</code> 连接游戏脚本。</div>
+            <div class="tips">HTMLoverlayer 可直接写完整 HTML/CSS/JS，或链接工程内 .html 文件。HTML 中可调用 <code>window.UNU.emit(type, payload)</code> 连接游戏脚本。</div>
           </template>
           <label>Font Size <input type="number" min="8" max="96" :value="ui.fontSize" @input="setNumber('ui', 'fontSize', $event)" /></label>
-          <label>Text Color (Hex) <input :value="`0x${Number(ui.textColor).toString(16)}`" @input="setHexNumber('ui', 'textColor', $event)" /></label>
+          <div class="color-field">
+            <label>
+              Text Color
+              <input type="color" :value="formatColorInput(ui.textColor)" @input="setHexNumber('ui', 'textColor', $event)" />
+            </label>
+            <label>
+              Text Color
+              <input :value="formatHexNumber(ui.textColor)" placeholder="#fff / 0xffffff / hsl(210 80% 90%)" @input="setHexNumber('ui', 'textColor', $event)" />
+            </label>
+          </div>
           <label>Width <input :value="ui.width" placeholder="760 或 80%" @input="setUiSize('width', $event)" /></label>
           <label>Height <input :value="ui.height" placeholder="480 或 70%" @input="setUiSize('height', $event)" /></label>
           <label class="checkbox-row">
@@ -457,7 +483,28 @@
           </label>
           <label>Min Width <input :value="ui.minWidth || 1" placeholder="1 或 20%" @input="setUiSize('minWidth', $event)" /></label>
           <label>Min Height <input :value="ui.minHeight || 1" placeholder="1 或 20%" @input="setUiSize('minHeight', $event)" /></label>
-          <label>Background (Hex) <input :value="`0x${Number(ui.backgroundColor).toString(16)}`" @input="setHexNumber('ui', 'backgroundColor', $event)" /></label>
+          <div class="color-field">
+            <label>
+              Background
+              <input type="color" :value="formatColorInput(ui.backgroundColor)" @input="setHexNumber('ui', 'backgroundColor', $event)" />
+            </label>
+            <label>
+              Background
+              <input :value="formatColorValue(ui.backgroundColor, ui.backgroundAlpha)" placeholder="#2b3242cc / rgba(43,50,66,.8) / hsl(220 20% 25% / .8)" @input="setHexNumber('ui', 'backgroundColor', $event)" />
+            </label>
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" :checked="ui.backgroundVisible" @change="setChecked('ui', 'backgroundVisible', $event)" />
+            Show Background
+          </label>
+          <label class="alpha-field">
+            Background Alpha
+            <span>
+              <input type="range" min="0" max="1" step="0.01" :value="ui.backgroundAlpha" @input="setNumber('ui', 'backgroundAlpha', $event)" />
+              <input type="number" min="0" max="1" step="0.01" :value="ui.backgroundAlpha" @input="setNumber('ui', 'backgroundAlpha', $event)" />
+            </span>
+          </label>
+          <label>Background Texture Path <input :value="ui.backgroundTexturePath || ''" placeholder="assets/images/ui/panel.png，留空使用背景色" @input="setText('ui', 'backgroundTexturePath', $event)" /></label>
           <label>Anchor X <input type="number" min="0" max="1" step="0.01" :value="ui.anchorX" @input="setNumber('ui', 'anchorX', $event)" /></label>
           <label>Anchor Y <input type="number" min="0" max="1" step="0.01" :value="ui.anchorY" @input="setNumber('ui', 'anchorY', $event)" /></label>
           <label>Parent UI ID / Name <input :value="ui.parentId || ''" placeholder="例如 PauseMenu_Backdrop" @input="setText('ui', 'parentId', $event)" /></label>
@@ -772,6 +819,10 @@ const selectedScriptAssetPath = computed(() => {
 const selectedImageAssetPath = computed(() => assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : '')
 const selectedAtlasAssetPath = computed(() => assets.selectedAsset?.type === 'atlas' ? assets.selectedAsset.path : '')
 const selectedAudioAssetPath = computed(() => assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : '')
+const selectedHtmlAssetPath = computed(() => {
+  const path = String(assets.selectedAsset?.path || '')
+  return path.toLowerCase().endsWith('.html') ? path : ''
+})
 
 const canOpenScriptAsset = computed(() => {
   const path = String(script.value?.scriptPath || '')
@@ -805,6 +856,11 @@ let interactionCodeEditorRelativePath = ''
 let interactionCodeEditorContent = ''
 let entityScriptCodeEditorSessionId = ''
 let entityScriptCodeEditorEntityId = ''
+let htmlUiCodeEditorSessionId = ''
+let htmlUiCodeEditorEntityId = ''
+let htmlUiCodeEditorFilePath = ''
+let htmlUiCodeEditorRelativePath = ''
+let htmlUiCodeEditorContent = ''
 
 const interactionCodeDescription = computed(() => {
   const path = script.value?.scriptPath?.trim() || ''
@@ -1323,19 +1379,141 @@ function setText(group: 'sprite' | 'camera' | 'audio' | 'ui' | 'interactable', k
 function setHexNumber(group: 'sprite' | 'ui', key: string, event: Event) {
   if (runtime.isPlaying) return
   const raw = (event.target as HTMLInputElement).value.trim()
-  const normalized = raw.startsWith('0x') || raw.startsWith('0X') ? raw.slice(2) : raw.replace('#', '')
-  const parsed = Number.parseInt(normalized, 16)
-  if (!Number.isFinite(parsed)) return
-  markDirtyIfUpdated(setInspectorColorField(inspectorComponents(), group, key, parsed))
+  const parsed = parseColorInput(raw)
+  if (!parsed) return
+  const components = inspectorComponents()
+  let changed = setInspectorColorField(components, group, key, parsed.rgb)
+  if (typeof parsed.alpha === 'number') {
+    if (group === 'sprite' && key === 'tint') {
+      changed = setInspectorNumberField(components, 'sprite', 'alpha', parsed.alpha) || changed
+    } else if (group === 'ui' && key === 'backgroundColor') {
+      changed = setInspectorNumberField(components, 'ui', 'backgroundAlpha', parsed.alpha) || changed
+    }
+  }
+  markDirtyIfUpdated(changed)
 }
 
 function formatHexNumber(value: number) {
   const color = Math.max(0, Math.min(0xffffff, Math.round(Number(value) || 0)))
-  return `0x${color.toString(16).padStart(6, '0')}`
+  return `#${color.toString(16).padStart(6, '0')}`
+}
+
+function formatColorValue(value: number, alpha?: number) {
+  const color = Math.max(0, Math.min(0xffffff, Math.round(Number(value) || 0)))
+  const normalizedAlpha = Math.max(0, Math.min(1, Number(alpha)))
+  const hex = color.toString(16).padStart(6, '0')
+  if (!Number.isFinite(normalizedAlpha) || normalizedAlpha >= 0.995) return `#${hex}`
+  return `#${hex}${Math.round(normalizedAlpha * 255).toString(16).padStart(2, '0')}`
 }
 
 function formatColorInput(value: number) {
-  return formatHexNumber(value).replace(/^0x/, '#')
+  return formatHexNumber(value)
+}
+
+function parseColorInput(raw: string): { rgb: number; alpha?: number } | null {
+  const value = raw.trim()
+  if (!value) return null
+  return parseHexColor(value) || parseRgbColor(value) || parseHslColor(value)
+}
+
+function parseHexColor(value: string): { rgb: number; alpha?: number } | null {
+  let normalized = value.trim()
+  if (/^0x/i.test(normalized)) normalized = normalized.slice(2)
+  else if (normalized.startsWith('#')) normalized = normalized.slice(1)
+  else if (!/^[\da-f]{3,8}$/i.test(normalized)) return null
+  if (!/^[\da-f]+$/i.test(normalized)) return null
+  if (normalized.length === 3 || normalized.length === 4) {
+    normalized = Array.from(normalized).map((char) => char + char).join('')
+  }
+  if (normalized.length !== 6 && normalized.length !== 8) return null
+  const rgb = Number.parseInt(normalized.slice(0, 6), 16)
+  if (!Number.isFinite(rgb)) return null
+  const alpha = normalized.length === 8 ? Number.parseInt(normalized.slice(6, 8), 16) / 255 : undefined
+  return { rgb, alpha }
+}
+
+function parseRgbColor(value: string): { rgb: number; alpha?: number } | null {
+  const match = value.match(/^rgba?\((.*)\)$/i)
+  if (!match) return null
+  const parts = splitColorFunctionArgs(match[1])
+  if (parts.length < 3) return null
+  const r = parseRgbChannel(parts[0])
+  const g = parseRgbChannel(parts[1])
+  const b = parseRgbChannel(parts[2])
+  if (r === null || g === null || b === null) return null
+  const alpha = parts[3] === undefined ? undefined : parseAlpha(parts[3])
+  if (parts[3] !== undefined && alpha === null) return null
+  return { rgb: (r << 16) | (g << 8) | b, alpha: alpha ?? undefined }
+}
+
+function parseHslColor(value: string): { rgb: number; alpha?: number } | null {
+  const match = value.match(/^hsla?\((.*)\)$/i)
+  if (!match) return null
+  const parts = splitColorFunctionArgs(match[1])
+  if (parts.length < 3) return null
+  const h = parseHue(parts[0])
+  const s = parsePercent(parts[1])
+  const l = parsePercent(parts[2])
+  if (h === null || s === null || l === null) return null
+  const alpha = parts[3] === undefined ? undefined : parseAlpha(parts[3])
+  if (parts[3] !== undefined && alpha === null) return null
+  const [r, g, b] = hslToRgb(h, s, l)
+  return { rgb: (r << 16) | (g << 8) | b, alpha: alpha ?? undefined }
+}
+
+function splitColorFunctionArgs(value: string) {
+  const normalized = value.trim().replace(/\s*\/\s*/g, ',')
+  if (normalized.includes(',')) return normalized.split(',').map((part) => part.trim()).filter(Boolean)
+  return normalized.split(/\s+/).map((part) => part.trim()).filter(Boolean)
+}
+
+function parseRgbChannel(value: string) {
+  const trimmed = value.trim()
+  const numeric = Number(trimmed.replace('%', ''))
+  if (!Number.isFinite(numeric)) return null
+  const channel = trimmed.endsWith('%') ? numeric * 2.55 : numeric
+  return Math.max(0, Math.min(255, Math.round(channel)))
+}
+
+function parseHue(value: string) {
+  const trimmed = value.trim().toLowerCase()
+  const numeric = Number(trimmed.replace(/(deg|turn|rad)$/, ''))
+  if (!Number.isFinite(numeric)) return null
+  if (trimmed.endsWith('turn')) return ((numeric * 360) % 360 + 360) % 360
+  if (trimmed.endsWith('rad')) return ((numeric * 180 / Math.PI) % 360 + 360) % 360
+  return ((numeric % 360) + 360) % 360
+}
+
+function parsePercent(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed.endsWith('%')) return null
+  const numeric = Number(trimmed.slice(0, -1))
+  if (!Number.isFinite(numeric)) return null
+  return Math.max(0, Math.min(1, numeric / 100))
+}
+
+function parseAlpha(value: string) {
+  const trimmed = value.trim()
+  const numeric = Number(trimmed.replace('%', ''))
+  if (!Number.isFinite(numeric)) return null
+  return Math.max(0, Math.min(1, trimmed.endsWith('%') ? numeric / 100 : numeric))
+}
+
+function hslToRgb(h: number, s: number, l: number) {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs((h / 60) % 2 - 1))
+  const m = l - c / 2
+  const [rp, gp, bp] = h < 60 ? [c, x, 0]
+    : h < 120 ? [x, c, 0]
+      : h < 180 ? [0, c, x]
+        : h < 240 ? [0, x, c]
+          : h < 300 ? [x, 0, c]
+            : [c, 0, x]
+  return [
+    Math.round((rp + m) * 255),
+    Math.round((gp + m) * 255),
+    Math.round((bp + m) * 255)
+  ]
 }
 
 function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
@@ -1466,8 +1644,161 @@ function guessInteractionEditorLanguage(path: string) {
   const lower = path.toLowerCase()
   if (lower.startsWith('custom://interaction')) return 'json'
   if (lower.endsWith('.json') || lower.endsWith('.anim') || lower.endsWith('.atlas')) return 'json'
+  if (lower.endsWith('.html') || lower.endsWith('.htm') || lower.endsWith('.css')) return 'html'
   if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.includes('builtin://')) return 'js'
   return 'plain'
+}
+
+function bindSelectedHtmlAsset() {
+  if (runtime.isPlaying || !ui.value || !selectedHtmlAssetPath.value) return
+  ui.value.renderMode = 'html'
+  ui.value.htmlSourcePath = selectedHtmlAssetPath.value
+  ui.value.htmlUseIframe = true
+  ui.value.htmlAllowScripts = true
+  ui.value.htmlBridgeEnabled = true
+  sceneStore.markDirty()
+  project.setStatus(`已绑定 HTML UI：${selectedHtmlAssetPath.value}`)
+}
+
+function createDefaultHtmlUiTemplate(targetUi: UIComponent, targetEntityName = 'UI') {
+  const title = escapeHtmlForTemplate(targetEntityName || 'UI')
+  const text = escapeHtmlForTemplate(String(targetUi.text || 'HTML UI'))
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: transparent;
+      color: #f7fbff;
+      font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    .unu-panel {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      box-sizing: border-box;
+      background: rgba(24, 32, 48, 0.72);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+    }
+    button {
+      border: 1px solid rgba(255,255,255,0.24);
+      background: rgba(72, 120, 220, 0.82);
+      color: white;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font: inherit;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="unu-panel" data-unu-ui="${title}">
+    <button data-unu-action="click">${text}</button>
+  </main>
+  <script>
+    window.UNU?.emit('html-ui-ready', { name: ${JSON.stringify(targetEntityName || 'UI')} });
+    document.addEventListener('click', (event) => {
+      const action = event.target?.closest?.('[data-unu-action]')?.dataset?.unuAction;
+      if (action) window.UNU?.emit(action, { time: Date.now() });
+    });
+  <\/script>
+</body>
+</html>`
+}
+
+function escapeHtmlForTemplate(value: string) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[char] || char))
+}
+
+async function createOrOpenHtmlUiAsset() {
+  if (runtime.isPlaying || !ui.value || !entity.value) return
+  if (!window.unu?.openCodeEditor) {
+    project.setStatus('当前环境未接入代码编辑器窗口。')
+    return
+  }
+  ui.value.renderMode = 'html'
+  ui.value.htmlUseIframe = true
+  ui.value.htmlAllowScripts = true
+  ui.value.htmlBridgeEnabled = true
+
+  let relativePath = String(ui.value.htmlSourcePath || '').replace(/\\/g, '/').trim()
+  let filePath = ''
+  let content = ''
+  if (!relativePath) {
+    const safeName = (entity.value.name || entity.value.id || 'ui').replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ui'
+    relativePath = `assets/ui/${safeName}.html`
+    content = createDefaultHtmlUiTemplate(ui.value, entity.value.name || entity.value.id)
+    if (ui.value.htmlAutoCreateAsset && window.unu?.saveTextAsset && project.rootPath && !project.isMemoryProject) {
+      try {
+        const saved = await window.unu.saveTextAsset({
+          content,
+          suggestedName: fileNameOf(relativePath),
+          projectRoot: project.rootPath,
+          subdir: directoryOf(relativePath),
+          title: '创建 HTML UI',
+          filterName: 'HTML'
+        })
+        if (saved?.relativePath) {
+          relativePath = saved.relativePath
+          filePath = saved.filePath
+          await assets.refreshProject()
+          await assets.selectAsset(relativePath)
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`创建 HTML UI 文件失败：${message}`)
+      }
+    }
+    ui.value.htmlSourcePath = relativePath
+    ui.value.text = content
+    sceneStore.markDirty()
+  } else if (window.unu?.readTextAsset && project.rootPath && !project.isMemoryProject && relativePath.startsWith('assets/')) {
+    try {
+      const result = await window.unu.readTextAsset({ projectRoot: project.rootPath, relativePath })
+      content = result?.content || ''
+      filePath = result?.filePath || ''
+      relativePath = result?.relativePath || relativePath
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      project.setStatus(`读取 HTML UI 失败：${message}`)
+    }
+  }
+  if (!content) content = ui.value.text || createDefaultHtmlUiTemplate(ui.value, entity.value.name || entity.value.id)
+
+  htmlUiCodeEditorSessionId = `html_ui_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  htmlUiCodeEditorEntityId = entity.value.id
+  htmlUiCodeEditorFilePath = filePath
+  htmlUiCodeEditorRelativePath = relativePath
+  htmlUiCodeEditorContent = content
+
+  const result = await window.unu.openCodeEditor({
+    id: htmlUiCodeEditorSessionId,
+    mode: 'html-ui-asset',
+    title: `${entity.value.name || 'UI'} HTMLoverlayer`,
+    path: htmlUiCodeEditorRelativePath || 'inline://html-ui',
+    language: 'html',
+    content
+  })
+  if (!result?.ok) {
+    project.setStatus(`打开 HTML UI 代码窗口失败：${result?.error || '未知错误'}`)
+    return
+  }
+  project.setStatus('已打开 HTMLoverlayer 代码窗口')
 }
 
 async function openInteractionCodeEditor() {
@@ -1543,6 +1874,26 @@ async function openInteractionCodeEditor() {
 
 function applyInteractionCodeEditorPayload(raw: unknown) {
   const payload = (raw || {}) as CodeEditorApplyPayload
+  if (payload.mode === 'html-ui-asset') {
+    if (payload.id && htmlUiCodeEditorSessionId && payload.id !== htmlUiCodeEditorSessionId) return
+    htmlUiCodeEditorContent = String(payload.content ?? '')
+    const targetEntity = sceneStore.scenes
+      .map((scene) => scene.getEntityById(htmlUiCodeEditorEntityId))
+      .find(Boolean)
+    const targetUi = targetEntity?.getComponent<UIComponent>('UI')
+    if (!targetUi) {
+      project.setStatus('HTML UI 内容未应用：原实体或 UI 组件已不存在。')
+      return
+    }
+    targetUi.renderMode = 'html'
+    targetUi.htmlSourcePath = htmlUiCodeEditorRelativePath || targetUi.htmlSourcePath
+    targetUi.htmlPreviewContent = htmlUiCodeEditorContent
+    if (!targetUi.htmlSourcePath) targetUi.text = htmlUiCodeEditorContent
+    sceneStore.markDirty()
+    if (payload.saveRequested) void saveHtmlUiAssetFromEditor()
+    return
+  }
+
   if (payload.mode === 'inspector-entity-script') {
     if (payload.id && entityScriptCodeEditorSessionId && payload.id !== entityScriptCodeEditorSessionId) return
     const targetEntity = sceneStore.scenes
@@ -1612,8 +1963,56 @@ async function saveInteractionAssetFromEditor() {
   }
 }
 
+async function saveHtmlUiAssetFromEditor() {
+  if (!window.unu?.saveTextAsset || !project.rootPath || !htmlUiCodeEditorRelativePath) {
+    project.setStatus('当前环境无法保存 HTML UI 文件。')
+    return
+  }
+  try {
+    const saved = await window.unu.saveTextAsset({
+      filePath: htmlUiCodeEditorFilePath || undefined,
+      content: htmlUiCodeEditorContent,
+      suggestedName: fileNameOf(htmlUiCodeEditorRelativePath),
+      projectRoot: project.rootPath,
+      subdir: directoryOf(htmlUiCodeEditorRelativePath),
+      title: '保存 HTML UI',
+      filterName: 'HTML'
+    })
+    if (!saved) {
+      project.setStatus('已取消保存 HTML UI。')
+      return
+    }
+    htmlUiCodeEditorFilePath = saved.filePath
+    htmlUiCodeEditorRelativePath = saved.relativePath || htmlUiCodeEditorRelativePath
+    const targetEntity = sceneStore.scenes
+      .map((scene) => scene.getEntityById(htmlUiCodeEditorEntityId))
+      .find(Boolean)
+    const targetUi = targetEntity?.getComponent<UIComponent>('UI')
+    if (targetUi) {
+      targetUi.htmlSourcePath = htmlUiCodeEditorRelativePath
+      targetUi.htmlPreviewContent = ''
+      sceneStore.markDirty()
+    }
+    await assets.refreshProject()
+    project.setStatus(`HTML UI 已保存：${saved.name}`)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    project.setStatus(`保存 HTML UI 失败：${message}`)
+  }
+}
+
 function handleInteractionCodeEditorClosed(raw: unknown) {
   const payload = (raw || {}) as CodeEditorApplyPayload
+  if (payload.mode === 'html-ui-asset') {
+    if (payload.id && htmlUiCodeEditorSessionId && payload.id !== htmlUiCodeEditorSessionId) return
+    htmlUiCodeEditorSessionId = ''
+    htmlUiCodeEditorEntityId = ''
+    htmlUiCodeEditorFilePath = ''
+    htmlUiCodeEditorRelativePath = ''
+    htmlUiCodeEditorContent = ''
+    return
+  }
+
   if (payload.mode === 'inspector-entity-script') {
     if (payload.id && entityScriptCodeEditorSessionId && payload.id !== entityScriptCodeEditorSessionId) return
     editor.unlockScriptEditorExternal(payload.id)
@@ -2544,6 +2943,17 @@ textarea { min-height: 96px; resize: vertical; }
   height: 36px;
   padding: 3px;
   cursor: pointer;
+}
+.alpha-field span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+.alpha-field input[type='range'] {
+  width: 100%;
+  min-width: 0;
 }
 .checkbox-row { display: flex; align-items: center; gap: 8px; }
 .html-option-grid {

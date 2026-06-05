@@ -592,8 +592,23 @@ onBeforeUnmount(() => {
   color: #dce7f6;
 }
 
-.android-window-overlay .tilemap-window {
-  height: 100%;
+:global(.android-window-overlay) .tilemap-window {
+  min-height: 100%;
+  height: auto;
+  max-height: none;
+}
+
+:global(.android-window-overlay) .toolbar {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+:global(.android-window-overlay) .content {
+  min-height: min(640px, calc(100dvh - var(--unu-safe-top) - var(--unu-safe-bottom) - 74px));
+}
+
+:global(.android-window-overlay) .viewport {
+  min-height: 320px;
 }
 .toolbar {
   display: flex;
@@ -820,6 +835,18 @@ onBeforeUnmount(() => {
   .preview {
     width: 32px;
     height: 32px;
+  }
+}
+
+@media (max-width: 700px), (max-height: 460px) {
+  :global(.android-window-overlay) .content {
+    grid-template-rows: minmax(320px, 1fr) auto;
+    min-height: auto;
+  }
+
+  :global(.android-window-overlay) .sidebar {
+    max-height: none;
+    overflow: visible;
   }
 }
 </style>

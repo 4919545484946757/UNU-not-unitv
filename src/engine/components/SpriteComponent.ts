@@ -12,7 +12,8 @@ export class SpriteComponent extends Component {
     public tint = 0xffffff,
     public preserveAspect = true,
     public offsetX = 0,
-    public offsetY = 0
+    public offsetY = 0,
+    public showDebugFrame = true
   ) {
     super()
   }

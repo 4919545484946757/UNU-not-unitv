@@ -8,8 +8,10 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { Scene } from '../../engine/core/Scene'
-import { PixiRenderer } from '../../engine/renderer/PixiRenderer'
+import { createSceneRenderer } from '../../engine/renderer/RendererFactory'
+import type { SceneRenderer } from '../../engine/renderer/RendererTypes'
 import { deserializeScene } from '../../engine/serialization/sceneSerializer'
+import { normalizeProjectRenderBackend, type ProjectRenderBackend } from '../../stores/project'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
@@ -19,11 +21,15 @@ const errorMessage = ref('')
 const project = useProjectStore()
 const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
-let renderer: PixiRenderer | null = null
+let renderer: SceneRenderer | null = null
 const gameBasePath = normalizeGameBasePath(import.meta.env.VITE_UNU_GAME_BASE || './')
 
 type ExportProject = {
   name?: string
+  renderBackend?: ProjectRenderBackend
+  renderer?: {
+    backend?: ProjectRenderBackend
+  }
   startupScene?: string
   sceneCatalog?: Array<string | { file?: string; fileName?: string; path?: string; name?: string }>
 }
@@ -122,6 +128,7 @@ async function loadExportScenes() {
 
   return {
     projectName: String(projectJson.name || 'UNU Game'),
+    renderBackend: normalizeProjectRenderBackend(projectJson.renderer?.backend ?? projectJson.renderBackend),
     entries,
     startupSceneId
   }
@@ -132,11 +139,12 @@ onMounted(async () => {
   try {
     installExportFileBridge()
     const loaded = await loadExportScenes()
-    project.setProject({ rootPath: '.', name: loaded.projectName })
+    project.setProject({ rootPath: '.', name: loaded.projectName, renderBackend: loaded.renderBackend })
     sceneStore.bootstrapSceneCollection(loaded.entries, loaded.startupSceneId)
     sceneStore.repairCurrentSceneComponents()
 
-    renderer = new PixiRenderer({
+    renderer = createSceneRenderer({
+      backend: loaded.renderBackend,
       container: containerRef.value,
       onRuntimeSceneUpdated: (scene) => {
         if (scene) sceneStore.setRuntimeScene(scene)

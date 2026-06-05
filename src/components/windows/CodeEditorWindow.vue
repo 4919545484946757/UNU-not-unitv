@@ -98,14 +98,16 @@ let removeInitListener: (() => void) | null = null
 let liveSyncTimer = 0
 
 const lineCount = computed(() => Math.max(1, content.value.split('\n').length))
-const currentLanguage = computed<'js' | 'json' | 'plain'>(() => {
+const currentLanguage = computed<'js' | 'json' | 'html' | 'plain'>(() => {
   const raw = language.value.toLowerCase()
   if (raw === 'js' || raw === 'javascript' || raw === 'ts' || raw === 'typescript') return 'js'
   if (raw === 'json') return 'json'
+  if (raw === 'html' || raw === 'css') return 'html'
   if (raw === 'plain' || raw === 'text') return 'plain'
   const lowerPath = path.value.toLowerCase()
   if (lowerPath.includes('custom://interaction')) return 'json'
   if (lowerPath.endsWith('.json') || lowerPath.endsWith('.anim') || lowerPath.endsWith('.atlas')) return 'json'
+  if (lowerPath.endsWith('.html') || lowerPath.endsWith('.htm') || lowerPath.endsWith('.css')) return 'html'
   if (lowerPath.endsWith('.js') || lowerPath.endsWith('.ts') || lowerPath.includes('builtin://')) return 'js'
   return 'plain'
 })
@@ -114,6 +116,7 @@ const highlightedHtml = computed(() => {
   const code = content.value || ''
   if (currentLanguage.value === 'json') return `${highlightJson(code)}\n`
   if (currentLanguage.value === 'js') return `${highlightJsLike(code)}\n`
+  if (currentLanguage.value === 'html') return `${highlightHtmlLike(code)}\n`
   return `${escapeHtml(code)}\n`
 })
 const findMatches = computed(() => collectFindMatches(content.value, findPanel.query, findPanel.caseSensitive))
@@ -524,6 +527,19 @@ function highlightJson(code: string) {
   return out
 }
 
+function highlightHtmlLike(code: string) {
+  return escapeHtml(code).replace(
+    /(&lt;\/?)([\w:-]+)([^&]*?)(&gt;)/g,
+    (_match, open, tag, attrs, close) => {
+      const highlightedAttrs = String(attrs || '').replace(
+        /([\w:-]+)(=)(&quot;.*?&quot;|'.*?'|[^\s&]+)/g,
+        (_attrMatch, name, eq, value) => `${wrapToken('tok-key', name)}${wrapToken('tok-operator', eq)}${wrapToken('tok-string', value)}`
+      )
+      return `${wrapToken('tok-operator', open)}${wrapToken('tok-lifecycle', tag)}${highlightedAttrs}${wrapToken('tok-operator', close)}`
+    }
+  )
+}
+
 function highlightJsLike(code: string) {
   let out = ''
   let i = 0
@@ -598,8 +614,24 @@ onBeforeUnmount(() => {
   font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
 }
 
-.android-window-overlay .code-window {
-  height: 100%;
+:global(.android-window-overlay) .code-window {
+  min-height: 100%;
+  height: auto;
+  max-height: none;
+}
+
+:global(.android-window-overlay) header,
+:global(.android-window-overlay) footer {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+:global(.android-window-overlay) main {
+  min-height: min(520px, calc(100dvh - var(--unu-safe-top) - var(--unu-safe-bottom) - 112px));
+}
+
+:global(.android-window-overlay) .editor-wrap {
+  min-height: 280px;
 }
 header,
 footer {

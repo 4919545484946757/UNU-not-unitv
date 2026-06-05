@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:heavy_chest",
+  "namespace": "sample-2D-shooting",
+  "name": "heavy_chest",
+  "displayName": "????",
+  "type": "equipment",
+  "equipSlot": "chest",
+  "maxStack": 1,
+  "description": "???????????????????",
+  "script": "assets/items/scripts/heavy_chest.js",
+  "tags": [
+    "armor",
+    "chest"
+  ],
+  "attributes": {
+    "flatReduction": 4,
+    "moveSpeedMultiplier": 0.88
+  }
+}

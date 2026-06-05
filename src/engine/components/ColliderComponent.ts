@@ -49,7 +49,8 @@ export class ColliderComponent extends Component {
     public offsetY = 0,
     public isTrigger = false,
     public layer: CollisionLayer = 'Default',
-    public collidesWith: CollisionLayer[] = [...DEFAULT_COLLISION_MASKS.Default]
+    public collidesWith: CollisionLayer[] = [...DEFAULT_COLLISION_MASKS.Default],
+    public showDebugFrame = true
   ) {
     super()
   }

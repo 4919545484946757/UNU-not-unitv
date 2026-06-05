@@ -10,14 +10,18 @@
       <input type="checkbox" :checked="sprite.preserveAspect" @change="$emit('set-checked', 'preserveAspect', $event)" />
       Preserve Aspect
     </label>
+    <label class="checkbox-row">
+      <input type="checkbox" :checked="sprite.showDebugFrame !== false" @change="$emit('set-checked', 'showDebugFrame', $event)" />
+      Show Debug Frame
+    </label>
     <div class="color-field">
       <label>
         Color
         <input type="color" :value="colorInput" @input="$emit('set-hex', 'tint', $event)" />
       </label>
       <label>
-        Tint Hex
-        <input :value="hexValue" placeholder="0xffffff" @input="$emit('set-hex', 'tint', $event)" />
+        Tint
+        <input :value="hexValue" placeholder="#ffffff / #ffffffff / rgba(255,255,255,1) / hsl(0 0% 100%)" @input="$emit('set-hex', 'tint', $event)" />
       </label>
     </div>
     <label>Texture Path <input :value="sprite.texturePath" @input="$emit('set-text', 'texturePath', $event)" /></label>

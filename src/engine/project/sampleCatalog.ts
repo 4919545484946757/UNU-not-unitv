@@ -23,6 +23,17 @@ export const fallbackSampleProjectCatalog: SampleProjectEntry[] = [
     tags: ['2d', 'action', 'shooting', 'animation', 'interaction']
   },
   {
+    id: '2D-shooting-canvas',
+    title: '2D Shooting Canvas',
+    description: 'Canvas 2D port of sample-2D-shooting: movement, shooting, inventory, container UI, scene switching, and project-local scripts.',
+    available: true,
+    rootPath: 'Sample-project-list/2D-shooting-canvas',
+    manifestPath: 'Sample-project-list/2D-shooting-canvas/manifest.json',
+    projectFile: 'project.json',
+    entryScene: 'MainScene.scene.json',
+    tags: ['2d', 'action', 'shooting', 'animation', 'interaction', 'canvas2d']
+  },
+  {
     id: 'snake',
     title: 'Snake Demo',
     description: 'Playable Snake sample: grid movement, food, score, pause, restart, and editable project-local gameplay scripts.',

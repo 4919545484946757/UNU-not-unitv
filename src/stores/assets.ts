@@ -359,7 +359,7 @@ export const useAssetStore = defineStore('assets', {
         return
       }
       const result = await window.unu.scanProject(created.rootPath)
-      project.setProject({ rootPath: result.rootPath, name: result.name })
+      project.setProject({ rootPath: result.rootPath, name: result.name, renderBackend: result.renderBackend })
       this.hydrateTree(result.tree)
       this.clearFileHistory()
       this.selectedPath = 'assets'
@@ -388,7 +388,7 @@ export const useAssetStore = defineStore('assets', {
       }
       project.setProject({ rootPath: picked.rootPath, name: picked.name })
       const result = await window.unu.scanProject(picked.rootPath)
-      project.setProject({ rootPath: result.rootPath, name: result.name })
+      project.setProject({ rootPath: result.rootPath, name: result.name, renderBackend: result.renderBackend })
       this.hydrateTree(result.tree)
       this.clearFileHistory()
       project.setStatus(buildProjectHealthMessage(result, `已打开工程：${result.name}`))
@@ -425,7 +425,7 @@ export const useAssetStore = defineStore('assets', {
 
       project.setProject({ rootPath: saved.rootPath, name: saved.name })
       const scanned = await window.unu.scanProject(saved.rootPath)
-      project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
+      project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
       this.hydrateTree(scanned.tree)
       this.clearFileHistory()
       this.selectedPath = 'assets'
@@ -442,6 +442,7 @@ export const useAssetStore = defineStore('assets', {
       if (!project.rootPath || !window.unu?.scanProject) return
       const result = await window.unu.scanProject(project.rootPath)
       this.hydrateTree(result.tree)
+      project.setRenderBackend(result.renderBackend || 'pixi')
       project.setStatus(buildProjectHealthMessage(result, `工程已刷新：${result.name}`))
     },
     async checkAssetIntegrity() {
@@ -540,7 +541,7 @@ export const useAssetStore = defineStore('assets', {
               return
             }
             const scanned = await window.unu.scanProject(picked.rootPath)
-            project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
             this.hydrateTree(scanned.tree)
           } else {
             return
@@ -583,7 +584,7 @@ export const useAssetStore = defineStore('assets', {
               return
             }
             const scanned = await window.unu.scanProject(picked.rootPath)
-            project.setProject({ rootPath: scanned.rootPath, name: scanned.name })
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
             this.hydrateTree(scanned.tree)
           } else {
             return

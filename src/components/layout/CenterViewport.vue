@@ -50,7 +50,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createDemoScene } from '../../engine/sampleScene'
-import { PixiRenderer } from '../../engine/renderer/PixiRenderer'
+import { createSceneRenderer } from '../../engine/renderer/RendererFactory'
+import type { SceneRenderer, SceneRendererOptions } from '../../engine/renderer/RendererTypes'
 import { deserializeScene } from '../../engine/serialization/sceneSerializer'
 import { useAssetStore } from '../../stores/assets'
 import { useConsoleStore } from '../../stores/console'
@@ -69,7 +70,7 @@ const project = useProjectStore()
 const runtime = useRuntimeStore()
 const sceneStore = useSceneStore()
 const selection = useSelectionStore()
-let renderer: PixiRenderer | null = null
+let renderer: SceneRenderer | null = null
 let lastRuntimeSyncAt = 0
 let disposeProjectScriptChanged: (() => void) | null = null
 let scriptHotReloadTimer = 0
@@ -228,6 +229,56 @@ function stopPreview() {
   runtime.stop()
 }
 
+function buildRendererOptions(): SceneRendererOptions {
+  if (!containerRef.value) throw new Error('Viewport container is not ready.')
+  return {
+    container: containerRef.value,
+    onEntitySelected: (entityId, options) => {
+      if (!entityId) selection.clearSelection()
+      else if (options?.selectedEntityIds) selection.selectEntities(options.selectedEntityIds, options.primaryId || entityId)
+      else if (options?.additive) selection.toggleEntity(entityId)
+      else selection.selectEntity(entityId)
+    },
+    onSceneMutated: () => sceneStore.markDirty(),
+    onRuntimeSceneUpdated: (scene) => {
+      if (!runtime.isPlaying) {
+        sceneStore.clearRuntimeScene()
+        return
+      }
+      const now = performance.now()
+      if (now - lastRuntimeSyncAt < 120) return
+      lastRuntimeSyncAt = now
+      sceneStore.setRuntimeScene(scene)
+    },
+    onScriptError: (error) => {
+      void locateScriptError(error)
+    },
+    onConsoleMessage: (message) => {
+      const prefix = message.entityName ? `[${message.entityName}] ` : ''
+      consoleStore.push(message.level, `${prefix}${message.message}`, {
+        source: message.scriptPath,
+        line: message.line,
+        column: message.column
+      })
+    }
+  }
+}
+
+async function initializeRenderer(refreshPlayingScene = true) {
+  if (!containerRef.value) return
+  renderer?.destroy()
+  renderer = createSceneRenderer({
+    ...buildRendererOptions(),
+    backend: project.renderBackend
+  })
+  await renderer.init(sceneStore.currentScene)
+  renderer.setGridVisible(editor.showGrid)
+  renderer.setPlayDebugEnabled(runtime.playDebugEnabled)
+  renderer.setSelections([...selection.selectedEntityIds], selection.selectedEntityId)
+  renderer.setTool(editor.tool)
+  if (runtime.isPlaying) await renderer.setRuntimeState(true, runtime.isPaused, sceneStore.currentScene, refreshPlayingScene)
+}
+
 onMounted(async () => {
   if (!containerRef.value) return
 
@@ -235,42 +286,7 @@ onMounted(async () => {
     await ensureInitialSceneReady()
     sceneStore.repairCurrentSceneComponents()
 
-    renderer = new PixiRenderer({
-      container: containerRef.value,
-      onEntitySelected: (entityId, options) => {
-        if (!entityId) selection.clearSelection()
-        else if (options?.selectedEntityIds) selection.selectEntities(options.selectedEntityIds, options.primaryId || entityId)
-        else if (options?.additive) selection.toggleEntity(entityId)
-        else selection.selectEntity(entityId)
-      },
-      onSceneMutated: () => sceneStore.markDirty(),
-      onRuntimeSceneUpdated: (scene) => {
-        if (!runtime.isPlaying) {
-          sceneStore.clearRuntimeScene()
-          return
-        }
-        const now = performance.now()
-        if (now - lastRuntimeSyncAt < 120) return
-        lastRuntimeSyncAt = now
-        sceneStore.setRuntimeScene(scene)
-      },
-      onScriptError: (error) => {
-        void locateScriptError(error)
-      },
-      onConsoleMessage: (message) => {
-        const prefix = message.entityName ? `[${message.entityName}] ` : ''
-        consoleStore.push(message.level, `${prefix}${message.message}`, {
-          source: message.scriptPath,
-          line: message.line,
-          column: message.column
-        })
-      }
-    })
-    await renderer.init(sceneStore.currentScene)
-    renderer.setGridVisible(editor.showGrid)
-    renderer.setPlayDebugEnabled(runtime.playDebugEnabled)
-    renderer.setSelections([...selection.selectedEntityIds], selection.selectedEntityId)
-    renderer.setTool(editor.tool)
+    await initializeRenderer(false)
     await startProjectScriptWatcher()
   } catch (error) {
     console.error('Viewport 初始化失败', error)
@@ -321,6 +337,15 @@ watch(
 watch(
   () => runtime.playDebugEnabled,
   (enabled) => renderer?.setPlayDebugEnabled(enabled)
+)
+
+watch(
+  () => project.renderBackend,
+  async (nextBackend, previousBackend) => {
+    if (!previousBackend || nextBackend === previousBackend) return
+    await initializeRenderer(false)
+    if (sceneStore.currentScene) await renderer?.renderScene(sceneStore.currentScene)
+  }
 )
 
 watch(

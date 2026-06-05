@@ -278,7 +278,8 @@ async function openProjectFromLauncher(payload: { rootPath: string; name: string
       rootPath: scanned.rootPath,
       name: scanned.name || payload.name,
       sampleProjectId: payload.sampleProjectId || '',
-      mode: payload.sampleProjectId ? 'sample' : 'local'
+      mode: payload.sampleProjectId ? 'sample' : 'local',
+      renderBackend: scanned.renderBackend
     })
     project.resetSceneFile()
     project.setStatus(buildProjectHealthMessage(scanned, `已打开工程：${scanned.name}`))
@@ -311,20 +312,27 @@ if (showLauncher.value) {
   inset: 10px;
   z-index: 9999;
   display: grid;
+  align-items: stretch;
+  justify-items: stretch;
   min-width: 0;
   min-height: 0;
   border: 1px solid rgba(148, 163, 184, 0.45);
   border-radius: 14px;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
   background: #0b1020;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
 }
 
 .android-window-overlay :deep(.code-window),
-.android-window-overlay :deep(.tilemap-window) {
+.android-window-overlay :deep(.tilemap-window),
+.android-window-overlay :deep(.atlas-window) {
   width: 100%;
-  height: 100%;
   min-width: 0;
-  min-height: 0;
+  min-height: 100%;
+  height: auto;
+  max-height: none;
 }
 </style>

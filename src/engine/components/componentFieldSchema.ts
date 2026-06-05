@@ -45,7 +45,7 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
   sprite: {
     number: ['width', 'height', 'alpha', 'offsetX', 'offsetY'],
     text: ['texturePath'],
-    boolean: ['visible', 'preserveAspect'],
+    boolean: ['visible', 'preserveAspect', 'showDebugFrame'],
     color: ['tint']
   },
   background: {
@@ -53,7 +53,7 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
   },
   collider: {
     number: ['width', 'height', 'offsetX', 'offsetY'],
-    boolean: ['enabled', 'isTrigger']
+    boolean: ['enabled', 'isTrigger', 'showDebugFrame']
   },
   animation: {
     number: ['fps', 'currentFrame', 'elapsed'],
@@ -70,9 +70,9 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
     boolean: ['enabled', 'loop', 'playOnStart', 'spatial', 'playing', 'muted']
   },
   ui: {
-    number: ['fontSize', 'width', 'height', 'alpha', 'anchorX', 'anchorY', 'paddingX', 'paddingY', 'cornerRadius', 'sliderValue', 'sliderMin', 'sliderMax'],
-    text: ['text', 'parentId', 'onClickScriptPath', 'htmlSourcePath'],
-    boolean: ['enabled', 'visible', 'markdownEnabled', 'htmlEnabled', 'autoSize', 'autoWidth', 'autoHeight', 'htmlUseIframe', 'htmlAllowScripts', 'htmlBridgeEnabled'],
+    number: ['fontSize', 'width', 'height', 'alpha', 'anchorX', 'anchorY', 'paddingX', 'paddingY', 'cornerRadius', 'sliderValue', 'sliderMin', 'sliderMax', 'backgroundAlpha'],
+    text: ['text', 'parentId', 'onClickScriptPath', 'htmlSourcePath', 'backgroundTexturePath'],
+    boolean: ['enabled', 'visible', 'markdownEnabled', 'htmlEnabled', 'autoSize', 'autoWidth', 'autoHeight', 'htmlUseIframe', 'htmlAllowScripts', 'htmlBridgeEnabled', 'htmlDebugOverlay', 'htmlDebugConsole', 'htmlAutoCreateAsset', 'backgroundVisible'],
     color: ['textColor', 'backgroundColor']
   },
   tilemap: {
@@ -92,6 +92,7 @@ export function setInspectorNumberField(components: InspectorComponentMap, group
   const schema = inspectorComponentFieldSchema[group]
   if (schema?.integer?.includes(key)) return assignField(component, key, Math.round(value))
   if (schema?.nonNegativeNumber?.includes(key)) return assignField(component, key, Math.max(0, value))
+  if (group === 'ui' && key === 'backgroundAlpha') return assignField(component, key, Math.max(0, Math.min(1, value)))
   if (schema?.number?.includes(key)) return assignField(component, key, value)
   return false
 }

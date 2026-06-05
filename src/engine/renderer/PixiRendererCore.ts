@@ -27,17 +27,9 @@ import { useSceneStore } from '../../stores/scene'
 import { basicMarkdownToHtml, parseBasicMarkdownLines, sanitizeHtmlContent, stripInlineMarkdown } from './utils/markdown'
 import { blendColor, colorToCss, hexToRgba } from './utils/color'
 import type { UiMetrics } from './utils/uiMetrics'
+import type { EditorTool, SceneRendererOptions } from './RendererTypes'
 
-interface PixiRendererOptions {
-  container: HTMLDivElement
-  onEntitySelected?: (entityId: string, options?: { additive?: boolean; selectedEntityIds?: string[]; primaryId?: string }) => void
-  onSceneMutated?: () => void
-  onRuntimeSceneUpdated?: (scene: Scene | null) => void
-  onScriptError?: (error: ScriptRuntimeError) => void
-  onConsoleMessage?: (message: ScriptConsoleMessage) => void
-}
-
-type EditorTool = 'select' | 'move' | 'scale' | 'rotate' | 'pan'
+type PixiRendererOptions = SceneRendererOptions
 type GizmoMode = 'none' | 'move' | 'scale' | 'rotate' | 'pan'
 interface CameraViewState {
   x: number
@@ -151,6 +143,17 @@ export class PixiRenderer {
     const entity = this.currentScene.getEntityById(data.entityId)
     const ui = entity?.getComponent<UIComponent>('UI')
     if (!entity || !ui) return
+    if (data.type === '__unu_console') {
+      const payload = data.payload as { level?: string; message?: string } | undefined
+      this.options.onConsoleMessage?.({
+        level: payload?.level === 'error' || payload?.level === 'warn' ? payload.level : 'log',
+        message: `[HTML UI] ${payload?.message || ''}`,
+        entityId: entity.id,
+        entityName: entity.name,
+        scriptPath: ui.htmlSourcePath || 'inline-html-ui'
+      })
+      return
+    }
     this.scriptRuntime.handleHtmlUiMessage(this.currentScene, entity, ui, {
       type: String(data.type || 'message'),
       payload: data.payload
@@ -887,7 +890,7 @@ export class PixiRenderer {
           activeHtmlUiIds.add(entity.id)
           continue
         }
-        const uiNode = this.getCachedUiNode(entity, transform, ui, metrics)
+        const uiNode = await this.getCachedUiNode(entity, transform, ui, metrics)
         const uiPosition = this.resolveUiPosition(scene, entity, transform, ui, metrics, uiMetrics)
         uiNode.x = uiPosition.x
         uiNode.y = uiPosition.y
@@ -1183,7 +1186,7 @@ export class PixiRenderer {
     }
   }
 
-  private createUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent, metrics: UiMetrics) {
+  private async createUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent, metrics: UiMetrics) {
     const node = new Container()
     node.label = entity.id
     node.zIndex = transform.zIndex ?? 0
@@ -1223,13 +1226,28 @@ export class PixiRenderer {
       event.stopPropagation()
     })
 
+    const bgAlpha = this.resolveUiBackgroundAlpha(ui)
+    const shouldDrawBackground = this.shouldDrawUiBackground(ui)
+    if (shouldDrawBackground && Number(ui.backgroundColor || 0) !== 0) {
+      const backgroundColor = new Graphics()
+      backgroundColor.roundRect(-metrics.width / 2, -metrics.height / 2, metrics.width, metrics.height, ui.mode === 'button' ? 10 : 6)
+      backgroundColor.fill({ color: ui.backgroundColor, alpha: bgAlpha })
+      node.addChild(backgroundColor)
+    }
+    const backgroundTexture = await this.resolveTexture(ui.backgroundTexturePath || '')
+    if (shouldDrawBackground && backgroundTexture) {
+      const background = new Sprite(backgroundTexture)
+      background.anchor.set(0.5)
+      background.width = metrics.width
+      background.height = metrics.height
+      background.alpha = bgAlpha
+      node.addChild(background)
+    }
     if (ui.mode === 'button') {
-      const buttonBg = new Graphics()
-      buttonBg.roundRect(-metrics.width / 2, -metrics.height / 2, metrics.width, metrics.height, 10)
-      const bgAlpha = ui.backgroundColor === 0 ? 0 : 0.95
-      buttonBg.fill({ color: ui.backgroundColor, alpha: bgAlpha })
-      buttonBg.stroke({ color: 0xffffff, alpha: bgAlpha > 0 ? 0.25 : 0, width: 1.5 })
-      node.addChild(buttonBg)
+      const border = new Graphics()
+      border.roundRect(-metrics.width / 2, -metrics.height / 2, metrics.width, metrics.height, 10)
+      border.stroke({ color: 0xffffff, alpha: shouldDrawBackground ? 0.25 : 0, width: 1.5 })
+      node.addChild(border)
     }
 
     if (ui.mode === 'slider') {
@@ -1336,9 +1354,19 @@ export class PixiRenderer {
     const local = this.resolveUiLocalPoint(transform, metrics, ui, event)
     const halfHeight = metrics.height / 2
     if (local.y < -halfHeight || local.y > halfHeight) return false
-    const transparentButton = Number(ui.backgroundColor || 0) === 0
+    const transparentButton = !this.shouldDrawUiBackground(ui)
     const hitWidth = transparentButton ? this.resolveUiTextHitWidth(ui, metrics) : metrics.width
     return local.x >= -hitWidth / 2 && local.x <= hitWidth / 2
+  }
+
+  private shouldDrawUiBackground(ui: UIComponent) {
+    return ui.backgroundVisible !== false && this.resolveUiBackgroundAlpha(ui) > 0 && (Number(ui.backgroundColor || 0) !== 0 || String(ui.backgroundTexturePath || '').trim().length > 0)
+  }
+
+  private resolveUiBackgroundAlpha(ui: UIComponent) {
+    const value = Number(ui.backgroundAlpha)
+    if (!Number.isFinite(value)) return ui.mode === 'button' ? 0.95 : 0.78
+    return Math.max(0, Math.min(1, value))
   }
 
   private resolveUiLocalPoint(transform: TransformComponent, metrics: UiMetrics, ui: UIComponent, event: FederatedPointerEvent) {
@@ -1472,7 +1500,7 @@ export class PixiRenderer {
     return content
   }
 
-  private getCachedUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent, metrics: UiMetrics) {
+  private async getCachedUiNode(entity: Scene['entities'][number], transform: TransformComponent, ui: UIComponent, metrics: UiMetrics) {
     const signature = [
       ui.mode,
       ui.text,
@@ -1483,6 +1511,9 @@ export class PixiRenderer {
       metrics.width,
       metrics.height,
       ui.backgroundColor,
+      ui.backgroundVisible ? 1 : 0,
+      this.resolveUiBackgroundAlpha(ui),
+      ui.backgroundTexturePath,
       ui.anchorX,
       ui.anchorY,
       ui.interactable,
@@ -1509,7 +1540,7 @@ export class PixiRenderer {
     const cached = this.uiNodeCache.get(entity.id)
     if (cached && cached.signature === signature) return cached.node
 
-    const node = this.createUiNode(entity, transform, ui, metrics)
+    const node = await this.createUiNode(entity, transform, ui, metrics)
     if (cached) cached.node.destroy({ children: true })
     this.uiNodeCache.set(entity.id, { signature, node })
     return node
@@ -1535,6 +1566,10 @@ export class PixiRenderer {
       metrics.width,
       metrics.height,
       ui.backgroundColor,
+      ui.backgroundVisible ? 1 : 0,
+      this.resolveUiBackgroundAlpha(ui),
+      ui.htmlDebugOverlay ? 1 : 0,
+      ui.htmlDebugConsole ? 1 : 0,
       ui.interactable,
       ui.onClickScriptPath,
       ui.sliderValue,
@@ -1552,6 +1587,7 @@ export class PixiRenderer {
       ui.minWidth,
       ui.minHeight,
       ui.htmlSourcePath,
+      ui.htmlPreviewContent,
       ui.htmlUseIframe,
       ui.htmlAllowScripts,
       ui.htmlBridgeEnabled,
@@ -1610,7 +1646,7 @@ export class PixiRenderer {
       this.revokeHtmlUiObjectUrl(cached)
       cached.iframe = null
       node.replaceChildren()
-      const rawHtml = externalHtml ?? ui.text
+      const rawHtml = ui.htmlPreviewContent || externalHtml || ui.text
       const html = ui.markdownEnabled ? basicMarkdownToHtml(rawHtml) : rawHtml
       const useIframe = ui.htmlUseIframe || ui.htmlAllowScripts || !!ui.htmlSourcePath
       if (useIframe) {
@@ -1670,10 +1706,16 @@ export class PixiRenderer {
       padding: ui.mode === 'button' ? `${Math.max(0, ui.paddingY || 0)}px ${Math.max(0, ui.paddingX || 0)}px` : '0',
       borderRadius: ui.mode === 'button' ? '10px' : '0',
       border: ui.mode === 'button' ? '1px solid rgba(255,255,255,0.28)' : '0',
-      background: ui.mode === 'button' ? hexToRgba(ui.backgroundColor, 0.95) : 'transparent',
+      background: this.shouldDrawUiBackground(ui) && Number(ui.backgroundColor || 0) !== 0 ? hexToRgba(ui.backgroundColor, this.resolveUiBackgroundAlpha(ui)) : 'transparent',
+      outline: ui.htmlDebugOverlay ? '1px dashed rgba(125, 211, 252, 0.9)' : 'none',
+      boxShadow: ui.htmlDebugOverlay ? '0 0 0 1px rgba(8, 13, 24, 0.8) inset' : 'none',
       pointerEvents: this.resolveHtmlUiPointerEvents(ui),
       cursor: ui.mode === 'button' && ui.interactable ? 'pointer' : 'default'
     })
+    node.dataset.unuEntityId = entity.id
+    node.dataset.unuEntityName = entity.name
+    node.dataset.unuHtmlUi = ui.htmlSourcePath || 'inline'
+    node.title = ui.htmlDebugOverlay ? `${entity.name || entity.id} HTML UI (${Math.round(metrics.width)}x${Math.round(metrics.height)})` : ''
     if (cached.iframe) {
       cached.iframe.width = String(Math.max(1, Math.round(metrics.width)))
       cached.iframe.height = String(Math.max(1, Math.round(metrics.height)))
@@ -1813,6 +1855,26 @@ export class PixiRenderer {
       text: target.textContent || ''
     });
   });
+  if (${ui.htmlDebugConsole ? 'true' : 'false'}) {
+    for (const level of ['log', 'info', 'warn', 'error']) {
+      const original = console[level] && console[level].bind(console);
+      console[level] = (...args) => {
+        if (original) original(...args);
+        window.parent.postMessage({
+          source: 'unu-html-ui',
+          entityId,
+          type: '__unu_console',
+          payload: {
+            level,
+            message: args.map((item) => {
+              if (typeof item === 'string') return item;
+              try { return JSON.stringify(item); } catch (_) { return String(item); }
+            }).join(' ')
+          }
+        }, '*');
+      };
+    }
+  }
 })();
 </script>` : ''
     const baseHref = this.getHtmlUiBaseHref(project.rootPath, ui.htmlSourcePath)
@@ -1820,6 +1882,7 @@ export class PixiRenderer {
 <style data-unu-frame-defaults>
   :root { --unu-ui-width: 100vw; --unu-ui-height: 100vh; }
   html, body { width: 100%; height: 100%; margin: 0; background: transparent !important; }
+  body::after { content: ${ui.htmlDebugOverlay ? JSON.stringify(`${entity.name || entity.id} ${ui.htmlSourcePath || 'inline'}`) : "''"}; display: ${ui.htmlDebugOverlay ? 'block' : 'none'}; position: fixed; left: 4px; top: 4px; z-index: 2147483647; max-width: calc(100% - 8px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 5px; border-radius: 4px; background: rgba(8, 13, 24, 0.82); color: #7dd3fc; font: 10px/1.2 monospace; pointer-events: none; }
 </style>`
     const hasDocument = /<html[\s>]/i.test(html) || /<!doctype/i.test(html)
     if (hasDocument) {
@@ -2272,8 +2335,9 @@ export class PixiRenderer {
       sprite.preserveAspect,
       sprite.offsetX,
       sprite.offsetY,
+      sprite.showDebugFrame !== false ? 1 : 0,
       showDebug ? 1 : 0,
-      collider ? [collider.width, collider.height, collider.offsetX, collider.offsetY, collider.isTrigger ? 1 : 0].join(',') : 'no-collider'
+      collider ? [collider.width, collider.height, collider.offsetX, collider.offsetY, collider.isTrigger ? 1 : 0, collider.showDebugFrame !== false ? 1 : 0].join(',') : 'no-collider'
     ].join('|')
 
     const cached = this.worldNodeCache.get(entity.id)
@@ -2311,7 +2375,14 @@ export class PixiRenderer {
     const textureNode = await this.createSpriteNode(sprite)
     node.addChild(textureNode)
 
-    if (showDebug) {
+    if (showDebug && sprite.showDebugFrame !== false) {
+      const spriteGfx = new Graphics()
+      spriteGfx.rect(-sprite.width / 2 + Number(sprite.offsetX || 0), -sprite.height / 2 + Number(sprite.offsetY || 0), sprite.width, sprite.height)
+      spriteGfx.stroke({ color: 0xffd166, alpha: 0.9, width: 1.5 })
+      node.addChild(spriteGfx)
+    }
+
+    if (showDebug && (sprite.showDebugFrame !== false || collider?.showDebugFrame !== false)) {
       const label = new Text({
         text: entity.name,
         style: { fill: '#ffffff', fontSize: 12 }
@@ -2321,7 +2392,7 @@ export class PixiRenderer {
       node.addChild(label)
     }
 
-    if (collider && showDebug) {
+    if (collider && showDebug && collider.showDebugFrame !== false) {
       const colliderGfx = new Graphics()
       colliderGfx.rect(
         -collider.width / 2 + collider.offsetX,
@@ -2329,7 +2400,7 @@ export class PixiRenderer {
         collider.width,
         collider.height
       )
-      colliderGfx.stroke({ color: 0x00d1ff, alpha: 0.9, width: 2 })
+      colliderGfx.stroke({ color: collider.isTrigger ? 0xa855f7 : 0x00d1ff, alpha: 0.9, width: 2 })
       node.addChild(colliderGfx)
     }
 

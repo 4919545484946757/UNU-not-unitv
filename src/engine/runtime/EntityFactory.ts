@@ -48,7 +48,8 @@ export function createEnemyEntityAt(
       spriteTemplate?.tint ?? 0xffffff,
       spriteTemplate?.preserveAspect ?? true,
       spriteTemplate?.offsetX ?? 0,
-      spriteTemplate?.offsetY ?? 0
+      spriteTemplate?.offsetY ?? 0,
+      spriteTemplate?.showDebugFrame ?? true
     )
   )
   enemy.addComponent(
@@ -60,7 +61,8 @@ export function createEnemyEntityAt(
       colliderTemplate.offsetY,
       colliderTemplate.isTrigger,
       colliderTemplate.layer,
-      [...(colliderTemplate.collidesWith || [])]
+      [...(colliderTemplate.collidesWith || [])],
+      colliderTemplate.showDebugFrame ?? true
     )
   )
   if (animationTemplate) {

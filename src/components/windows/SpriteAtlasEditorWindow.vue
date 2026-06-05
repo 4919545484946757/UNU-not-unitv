@@ -755,6 +755,29 @@ onBeforeUnmount(() => {
   background: #0b1020;
   color: #e5edf7;
 }
+
+:global(.android-window-overlay) .atlas-window {
+  min-height: 100%;
+  height: auto;
+  max-height: none;
+}
+
+:global(.android-window-overlay) .atlas-header {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+:global(.android-window-overlay) .atlas-main {
+  min-height: min(700px, calc(100dvh - var(--unu-safe-top) - var(--unu-safe-bottom) - 78px));
+}
+
+:global(.android-window-overlay) .preview-pane {
+  min-height: 320px;
+}
+
+:global(.android-window-overlay) .side-pane {
+  min-height: 0;
+}
 .atlas-header {
   display: flex;
   justify-content: space-between;
@@ -955,5 +978,18 @@ textarea {
   .atlas-main { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
   .side-pane { border-left: 0; border-top: 1px solid #263246; max-height: 46vh; }
   .preview-stage.empty { width: calc(100vw - 32px); }
+}
+
+@media (max-width: 820px), (max-height: 520px) {
+  :global(.android-window-overlay) .atlas-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(320px, auto) auto;
+    min-height: auto;
+  }
+
+  :global(.android-window-overlay) .side-pane {
+    max-height: none;
+    overflow: visible;
+  }
 }
 </style>

@@ -22,12 +22,14 @@ type AndroidPickedFile = {
   size?: number
 }
 
+type ProjectRenderBackend = 'pixi' | 'canvas2d'
+
 type UnuAndroidFilesPlugin = {
   pickDirectory: (payload?: { title?: string }) => Promise<{ uri: string; name: string } | null>
   pickFiles: (payload?: { accept?: string; multiple?: boolean }) => Promise<{ files: AndroidPickedFile[] } | null>
   openFileManager: (payload?: { title?: string; uri?: string }) => Promise<{ ok: boolean; error?: string }>
   writeFileToTree: (payload: { treeUri: string; path: string; mimeType?: string; data: string; base64?: boolean }) => Promise<{ uri: string }>
-  setOrientation: (payload: { orientation: 'portrait' | 'landscape' | 'unspecified' }) => Promise<{ ok: boolean; error?: string }>
+  setOrientation: (payload: { orientation: 'portrait' | 'landscape' | 'unspecified' }) => Promise<{ ok: boolean; error?: string; largeScreen?: boolean; appliedOrientation?: 'portrait' | 'landscape' | 'unspecified' }>
 }
 
 const UnuAndroidFiles = registerPlugin<UnuAndroidFilesPlugin>('UnuAndroidFiles')
@@ -89,6 +91,17 @@ async function setAndroidOrientation(orientation: 'portrait' | 'landscape' | 'un
   return UnuAndroidFiles.setOrientation({ orientation }).catch((error: unknown) => ({ ok: false, error: String(error) }))
 }
 
+function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
+  return value === 'canvas2d' || value === 'native-canvas' || value === 'canvas' ? 'canvas2d' : 'pixi'
+}
+
+function readProjectRenderBackend(projectJson: Record<string, unknown> | null | undefined): ProjectRenderBackend {
+  const renderer = projectJson?.renderer && typeof projectJson.renderer === 'object'
+    ? projectJson.renderer as Record<string, unknown>
+    : null
+  return normalizeProjectRenderBackend(renderer?.backend ?? projectJson?.renderBackend)
+}
+
 export function installAndroidEditorBridge() {
   if (window.unu || import.meta.env.VITE_UNU_ANDROID_EDITOR !== '1') return
   migrateAndroidEditorStorage()
@@ -100,7 +113,8 @@ export function installAndroidEditorBridge() {
       const pickedParent = payload?.parentDir ? null : await pickAndroidDirectory('选择项目存放目录').catch(() => null)
       const parentDir = payload?.parentDir || pickedParent?.dirPath || ''
       const rootPath = `android://workspace/${name}`
-      const files = createBlankProjectFiles(name)
+      const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend)
+      const files = createBlankProjectFiles(name, renderBackend)
       for (const file of files) {
         await writeOverlayText(rootPath, file.path, file.content)
       }
@@ -116,7 +130,7 @@ export function installAndroidEditorBridge() {
         }
       }
       rememberWorkspace(rootPath, name, '', parentDir)
-      return { rootPath, name, parentDir, created: true }
+      return { rootPath, name, parentDir, renderBackend, created: true }
     },
     pickDirectory: async (payload) => {
       const picked = await pickAndroidDirectory(payload?.title || '选择目录').catch(() => null)
@@ -156,6 +170,7 @@ export function installAndroidEditorBridge() {
       return {
         rootPath,
         name: String(projectJson.name || rootName(rootPath)),
+        renderBackend: readProjectRenderBackend(projectJson),
         tree: await buildAssetTree(rootPath),
         sceneCount: Array.isArray(projectJson.sceneCatalog) ? projectJson.sceneCatalog.length : 0,
         checkedAssetRefs: 0,
@@ -181,6 +196,7 @@ export function installAndroidEditorBridge() {
       return {
         rootPath,
         name,
+        renderBackend: readProjectRenderBackend(projectJson),
         sceneFilePath: payload.currentSceneName ? `scenes/${sanitizeFileName(payload.currentSceneName)}` : undefined,
         fromSample: isAndroidSampleRoot(sourceRoot)
       }
@@ -327,6 +343,18 @@ export function installAndroidEditorBridge() {
       project.name = name
       await writeOverlayText(rootPath, 'project.json', JSON.stringify(project, null, 2))
       return { rootPath, name }
+    },
+    updateProjectSettings: async (payload) => {
+      const rootPath = normalizeRoot(payload.projectRoot)
+      const projectJson = await readProjectJson(rootPath).catch(() => ({ name: rootName(rootPath) }))
+      const renderBackend = normalizeProjectRenderBackend(payload.renderBackend)
+      const renderer = projectJson.renderer && typeof projectJson.renderer === 'object'
+        ? projectJson.renderer as Record<string, unknown>
+        : {}
+      projectJson.renderer = { ...renderer, backend: renderBackend }
+      projectJson.updatedAt = new Date().toISOString()
+      await writeOverlayText(rootPath, 'project.json', JSON.stringify(projectJson, null, 2))
+      return { ok: true, renderBackend }
     },
     revealInFolder: async (payload) => {
       const rootPath = normalizeRoot(payload.projectRoot)
@@ -787,13 +815,16 @@ async function ensureAndroidParentDirectory(path: string) {
   if (parent) await writeAndroidDirectory(parent)
 }
 
-function createBlankProjectFiles(name: string) {
+function createBlankProjectFiles(name: string, renderBackend: ProjectRenderBackend = 'pixi') {
   const now = new Date().toISOString()
   const scene = new Scene('scene_main', 'MainScene')
   const project = {
     format: 'unu-project',
     version: 1,
     name,
+    renderer: {
+      backend: normalizeProjectRenderBackend(renderBackend)
+    },
     createdAt: now,
     updatedAt: now,
     sceneCatalogVersion: 1,

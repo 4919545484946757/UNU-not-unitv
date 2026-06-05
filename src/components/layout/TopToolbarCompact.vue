@@ -61,6 +61,13 @@
             />
             <span>专注播放模式</span>
           </label>
+          <label class="filter-row renderer-row">
+            <span>项目渲染方式</span>
+            <select :value="project.renderBackend" @change="setProjectRenderBackend">
+              <option value="pixi">Pixi Renderer</option>
+              <option value="canvas2d">原生 Canvas 2D</option>
+            </select>
+          </label>
           <div class="menu-tip">播放/调试播放时仅保留 Scene View，停止后恢复当前布局。</div>
           <div class="menu-actions">
             <button type="button" @click="setAllPanelsVisible(true)">全部显示</button>
@@ -126,7 +133,7 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
-import { STATUS_LOG_CATEGORIES, STATUS_LOG_CATEGORY_LABELS, useProjectStore } from '../../stores/project'
+import { STATUS_LOG_CATEGORIES, STATUS_LOG_CATEGORY_LABELS, normalizeProjectRenderBackend, useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 
@@ -234,6 +241,24 @@ function setPanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom', event: E
 
 function setHideChromeDuringPlay(event: Event) {
   editor.setHideChromeDuringPlay((event.target as HTMLInputElement).checked)
+}
+
+async function setProjectRenderBackend(event: Event) {
+  const previous = project.renderBackend
+  const renderBackend = normalizeProjectRenderBackend((event.target as HTMLSelectElement).value)
+  project.setRenderBackend(renderBackend)
+  if (!project.canUseLocalProjectFiles || !window.unu?.updateProjectSettings) {
+    project.setStatus(`项目渲染方式已设为：${renderBackend === 'canvas2d' ? '原生 Canvas 2D' : 'Pixi Renderer'}`)
+    return
+  }
+  const result = await window.unu.updateProjectSettings({ projectRoot: project.rootPath, renderBackend }).catch((error): { ok: boolean; renderBackend?: UnuProjectRenderBackend; error?: string } => ({ ok: false, error: String(error) }))
+  if (!result?.ok) {
+    project.setRenderBackend(previous)
+    project.setStatus(`保存项目渲染方式失败：${result?.error || '未知错误'}`)
+    return
+  }
+  project.setRenderBackend(normalizeProjectRenderBackend(result.renderBackend))
+  project.setStatus(`项目渲染方式已保存：${project.renderBackend === 'canvas2d' ? '原生 Canvas 2D' : 'Pixi Renderer'}`)
 }
 
 function setAllPanelsVisible(visible: boolean) {
@@ -482,6 +507,24 @@ button:hover {
   width: 14px;
   height: 14px;
   accent-color: #66d9ef;
+}
+
+.renderer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  cursor: default;
+}
+
+.renderer-row select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #344154;
+  border-radius: 7px;
+  background: #111827;
+  color: #ecf4ff;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .menu-actions {

@@ -40,7 +40,8 @@
               "tint": 16777215,
               "preserveAspect": false,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -1439,7 +1440,8 @@
               "tint": 16777215,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -1455,7 +1457,8 @@
               "layer": "Door",
               "collidesWith": [
                 "Player"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -1520,7 +1523,8 @@
               "tint": 10910802,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -1536,7 +1540,8 @@
               "layer": "Pickup",
               "collidesWith": [
                 "Player"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -1641,7 +1646,8 @@
               "tint": 16777215,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -1663,7 +1669,8 @@
                 "Pickup",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -1919,7 +1926,8 @@
               "tint": 16777215,
               "preserveAspect": false,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -1940,7 +1948,8 @@
                 "Attack",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -2290,7 +2299,8 @@
               "tint": 16777215,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -2311,7 +2321,8 @@
                 "Attack",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -2432,7 +2443,8 @@
               "tint": 16777215,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -2453,7 +2465,8 @@
                 "Attack",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -2574,7 +2587,8 @@
               "tint": 16777215,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -2595,7 +2609,8 @@
                 "Attack",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -2716,7 +2731,8 @@
               "tint": 16777215,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -2732,7 +2748,8 @@
               "layer": "Pickup",
               "collidesWith": [
                 "Player"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -2837,7 +2854,8 @@
               "tint": 16762967,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -2854,7 +2872,8 @@
               "collidesWith": [
                 "Player",
                 "Enemy"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -2993,7 +3012,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -3053,7 +3079,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.74
             }
           }
         ]
@@ -3113,7 +3146,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -3176,7 +3216,8 @@
               "tint": 10910802,
               "preserveAspect": true,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -3192,7 +3233,8 @@
               "layer": "Pickup",
               "collidesWith": [
                 "Player"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -3355,7 +3397,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           }
         ]
@@ -3416,7 +3465,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -3477,7 +3533,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -3550,7 +3613,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -3623,7 +3693,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -3696,7 +3773,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -3769,7 +3853,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -3830,7 +3921,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -3891,7 +3989,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -3964,7 +4069,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4037,7 +4149,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4110,7 +4229,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -4171,7 +4297,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -4232,7 +4365,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           },
           {
@@ -4305,7 +4445,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4378,7 +4525,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4451,7 +4605,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4524,7 +4685,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4597,7 +4765,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4670,7 +4845,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4743,7 +4925,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4816,7 +5005,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4889,7 +5085,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -4962,7 +5165,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           },
           {
@@ -5034,7 +5244,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.95
             }
           }
         ]
@@ -5094,7 +5311,14 @@
               "htmlSourcePath": "",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           }
         ]
@@ -5154,7 +5378,14 @@
               "htmlSourcePath": "assets/ui/container.html",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           },
           {
@@ -5226,7 +5457,14 @@
               "htmlSourcePath": "assets/ui/inventory.html",
               "htmlUseIframe": true,
               "htmlAllowScripts": true,
-              "htmlBridgeEnabled": true
+              "htmlBridgeEnabled": true,
+              "htmlDebugOverlay": false,
+              "htmlDebugConsole": false,
+              "htmlAutoCreateAsset": true,
+              "htmlPreviewContent": "",
+              "backgroundTexturePath": "",
+              "backgroundVisible": true,
+              "backgroundAlpha": 0.78
             }
           },
           {
@@ -5317,7 +5555,8 @@
               "tint": 16777215,
               "preserveAspect": false,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -5338,7 +5577,8 @@
                 "Attack",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {
@@ -5688,7 +5928,8 @@
               "tint": 16777215,
               "preserveAspect": false,
               "offsetX": 0,
-              "offsetY": 0
+              "offsetY": 0,
+              "showDebugFrame": true
             }
           },
           {
@@ -5709,7 +5950,8 @@
                 "Attack",
                 "Trap",
                 "Sensor"
-              ]
+              ],
+              "showDebugFrame": true
             }
           },
           {

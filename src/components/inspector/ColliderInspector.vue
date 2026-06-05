@@ -26,6 +26,10 @@
       <input type="checkbox" :checked="collider.isTrigger" @change="$emit('set-checked', 'isTrigger', $event)" />
       Trigger
     </label>
+    <label class="checkbox-row">
+      <input type="checkbox" :checked="collider.showDebugFrame !== false" @change="$emit('set-checked', 'showDebugFrame', $event)" />
+      Show Debug Frame
+    </label>
   </div>
 </template>
 

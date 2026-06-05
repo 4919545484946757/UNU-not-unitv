@@ -53,6 +53,11 @@ const DEFAULT_STATUS_LOG_FILTERS: Record<StatusLogCategory, boolean> = {
 
 export const STATUS_LOG_CATEGORIES = Object.keys(STATUS_LOG_CATEGORY_LABELS) as StatusLogCategory[]
 export type ProjectMode = 'sample' | 'local' | 'memory'
+export type ProjectRenderBackend = 'pixi' | 'canvas2d'
+
+export function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
+  return value === 'canvas2d' || value === 'native-canvas' || value === 'canvas' ? 'canvas2d' : 'pixi'
+}
 
 export const useProjectStore = defineStore('project', {
   state: () => ({
@@ -60,6 +65,7 @@ export const useProjectStore = defineStore('project', {
     name: 'sample-project',
     sampleProjectId: 'action-2d',
     mode: 'memory' as ProjectMode,
+    renderBackend: 'pixi' as ProjectRenderBackend,
     currentScenePath: '',
     statusMessage: '正在使用示例工程数据',
     lastSavedAt: '',
@@ -74,13 +80,17 @@ export const useProjectStore = defineStore('project', {
     canUseLocalProjectFiles: (state) => Boolean(state.rootPath) && state.mode !== 'memory'
   },
   actions: {
-    setProject(payload: { rootPath: string; name: string; sampleProjectId?: string; mode?: ProjectMode }) {
+    setProject(payload: { rootPath: string; name: string; sampleProjectId?: string; mode?: ProjectMode; renderBackend?: ProjectRenderBackend }) {
       this.rootPath = payload.rootPath
       this.name = payload.name
       this.sampleProjectId = payload.sampleProjectId || ''
       this.mode = payload.mode || (payload.sampleProjectId ? 'sample' : 'local')
+      this.renderBackend = normalizeProjectRenderBackend(payload.renderBackend)
       this.currentScenePath = ''
       this.statusMessage = `已打开工程：${payload.name}`
+    },
+    setRenderBackend(renderBackend: ProjectRenderBackend) {
+      this.renderBackend = normalizeProjectRenderBackend(renderBackend)
     },
     resetSceneFile() {
       this.currentScenePath = ''

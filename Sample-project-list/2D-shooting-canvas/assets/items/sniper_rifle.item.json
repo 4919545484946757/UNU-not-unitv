@@ -1,0 +1,26 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:sniper_rifle",
+  "namespace": "sample-2D-shooting",
+  "name": "sniper_rifle",
+  "displayName": "????",
+  "type": "weapon",
+  "maxStack": 1,
+  "description": "????????????????????",
+  "script": "assets/items/scripts/sniper_rifle.js",
+  "tags": [
+    "weapon",
+    "firearm"
+  ],
+  "attributes": {
+    "fireMode": "semi",
+    "magazineSize": 5,
+    "reserveAmmo": 25,
+    "fireInterval": 0.95,
+    "reloadTime": 2.35,
+    "bulletSpeed": 1500,
+    "spread": 0,
+    "damage": 95
+  }
+}

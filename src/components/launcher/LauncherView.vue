@@ -56,35 +56,73 @@
     <div v-if="createDialogVisible" class="create-dialog-mask" @click.self="closeCreateDialog">
       <div class="create-dialog">
         <div class="dialog-head">
-          <h3>新建项目</h3>
+          <div>
+            <h3>新建项目</h3>
+            <p>配置基础信息后创建工程</p>
+          </div>
           <button class="close-btn" @click="closeCreateDialog">×</button>
         </div>
 
-        <label class="field">
-          <span>项目名称（可选）</span>
-          <input
-            v-model="createForm.projectName"
-            type="text"
-            placeholder="留空则自动使用默认名称"
-            maxlength="80"
-          >
-        </label>
+        <div class="create-form">
+          <section class="form-section">
+            <div class="section-title">基础信息</div>
+            <div class="form-grid">
+              <label class="field">
+                <span>项目名称</span>
+                <input
+                  v-model="createForm.projectName"
+                  type="text"
+                  placeholder="留空则自动使用默认名称"
+                  maxlength="80"
+                >
+              </label>
 
-        <label class="field">
-          <span>目标目录（可选）</span>
-          <div class="dir-row">
-            <input
-              :value="createForm.parentDir"
-              type="text"
-              placeholder="留空则创建时选择目录"
-              readonly
-            >
-            <button @click="pickCreateParentDir">选择目录</button>
-            <button class="ghost" @click="clearCreateParentDir">清空</button>
-          </div>
-        </label>
+              <label class="field">
+                <span>项目模板</span>
+                <select v-model="createForm.template">
+                  <option value="blank-2d">空白 2D 项目</option>
+                </select>
+              </label>
+            </div>
+          </section>
 
-        <p class="hint">创建路径：目标目录 / 项目名称 / ...</p>
+          <section class="form-section">
+            <div class="section-title">存储位置</div>
+            <label class="field">
+              <span>目标目录</span>
+              <div class="dir-row">
+                <input
+                  :value="createForm.parentDir"
+                  type="text"
+                  placeholder="留空则创建时选择目录"
+                  readonly
+                >
+                <button @click="pickCreateParentDir">选择目录</button>
+                <button class="ghost" @click="clearCreateParentDir">清空</button>
+              </div>
+            </label>
+            <p class="hint">创建路径：目标目录 / 项目名称 / ...</p>
+          </section>
+
+          <section class="form-section settings-section">
+            <div class="section-title">项目设置</div>
+            <label class="field">
+              <span>渲染方式</span>
+              <select v-model="createForm.renderBackend">
+                <option value="pixi">Pixi Renderer</option>
+                <option value="canvas2d">原生 Canvas 2D</option>
+              </select>
+            </label>
+            <div class="setting-row">
+              <span>默认场景</span>
+              <strong>MainScene</strong>
+            </div>
+            <div class="setting-row">
+              <span>资源目录</span>
+              <strong>assets / scenes / scripts</strong>
+            </div>
+          </section>
+        </div>
         <p v-if="createError" class="error">{{ createError }}</p>
 
         <div class="dialog-actions">
@@ -103,24 +141,26 @@
           <button class="close-btn" @click="closeRenameDialog">×</button>
         </div>
 
-        <label class="field">
-          <span>当前项目</span>
-          <input :value="renameForm.currentName" type="text" readonly>
-        </label>
+        <div class="rename-form-body">
+          <label class="field">
+            <span>当前项目</span>
+            <input :value="renameForm.currentName" type="text" readonly>
+          </label>
 
-        <label class="field">
-          <span>新项目名称</span>
-          <input
-            v-model="renameForm.nextName"
-            type="text"
-            placeholder="输入新的项目名称"
-            maxlength="80"
-            @keydown.enter.prevent="submitRenameProject"
-          >
-        </label>
+          <label class="field">
+            <span>新项目名称</span>
+            <input
+              v-model="renameForm.nextName"
+              type="text"
+              placeholder="输入新的项目名称"
+              maxlength="80"
+              @keydown.enter.prevent="submitRenameProject"
+            >
+          </label>
 
-        <p class="hint">项目目录将被重命名，内部配置会自动同步。</p>
-        <p v-if="renameError" class="error">{{ renameError }}</p>
+          <p class="hint">项目目录将被重命名，内部配置会自动同步。</p>
+          <p v-if="renameError" class="error">{{ renameError }}</p>
+        </div>
 
         <div class="dialog-actions">
           <button class="ghost" :disabled="renamingProject" @click="closeRenameDialog">取消</button>
@@ -159,7 +199,9 @@ const creatingProject = ref(false)
 const createError = ref('')
 const createForm = ref({
   projectName: '',
-  parentDir: ''
+  parentDir: '',
+  template: 'blank-2d',
+  renderBackend: 'pixi' as UnuProjectRenderBackend
 })
 
 const renameDialogVisible = ref(false)
@@ -281,6 +323,15 @@ function clearCreateParentDir() {
   createForm.value.parentDir = ''
 }
 
+function resetCreateForm() {
+  createForm.value = {
+    projectName: '',
+    parentDir: '',
+    template: 'blank-2d',
+    renderBackend: 'pixi'
+  }
+}
+
 async function pickCreateParentDir() {
   if (!window.unu?.pickDirectory) return
   const picked = await window.unu.pickDirectory({
@@ -298,13 +349,14 @@ async function submitCreateProject() {
   try {
     const created = await window.unu.createProject({
       projectName: createForm.value.projectName.trim() || undefined,
-      parentDir: createForm.value.parentDir.trim() || undefined
+      parentDir: createForm.value.parentDir.trim() || undefined,
+      renderBackend: createForm.value.renderBackend
     })
     if (!created) return
     const row = { rootPath: created.rootPath, name: created.name, lastOpenedAt: Date.now() }
     upsertHistory(row)
     createDialogVisible.value = false
-    createForm.value.projectName = ''
+    resetCreateForm()
     emit('open-project', { rootPath: row.rootPath, name: row.name })
   } catch (error) {
     createError.value = error instanceof Error ? error.message : String(error)
@@ -598,13 +650,13 @@ button.danger {
 }
 
 .create-dialog {
-  width: min(680px, calc(100vw - 40px));
+  width: min(760px, calc(100vw - 40px));
   border: 1px solid #2c3d56;
   border-radius: 12px;
   background: #101824;
-  padding: 14px;
+  padding: 0;
   display: grid;
-  gap: 12px;
+  overflow: hidden;
 }
 
 .rename-dialog {
@@ -614,7 +666,11 @@ button.danger {
 .dialog-head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #253348;
+  background: #121c2a;
 }
 
 .dialog-head h3 {
@@ -622,11 +678,51 @@ button.danger {
   font-size: 18px;
 }
 
+.dialog-head p {
+  margin: 4px 0 0;
+  color: #8ca0bc;
+  font-size: 12px;
+}
+
 .close-btn {
   width: 30px;
   height: 30px;
   border-radius: 999px;
   padding: 0;
+  flex: 0 0 auto;
+}
+
+.create-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.rename-form-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.form-section {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #253348;
+  border-radius: 10px;
+  background: #121b29;
+  padding: 12px;
+}
+
+.section-title {
+  color: #dbe8f7;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(180px, 0.8fr);
+  gap: 10px;
 }
 
 .field {
@@ -639,13 +735,15 @@ button.danger {
   color: #9fb1c8;
 }
 
-.field input {
+.field input,
+.field select {
   width: 100%;
   border: 1px solid #324156;
   background: #131f2f;
   color: #d9e3f1;
   border-radius: 8px;
   padding: 9px 10px;
+  min-height: 38px;
 }
 
 .dir-row {
@@ -660,8 +758,40 @@ button.danger {
   font-size: 12px;
 }
 
+.settings-section {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-section .section-title {
+  grid-column: 1 / -1;
+}
+
+.setting-row {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid #27364a;
+  border-radius: 8px;
+  background: #101824;
+  padding: 10px;
+}
+
+.setting-row span {
+  color: #8ca0bc;
+  font-size: 12px;
+}
+
+.setting-row strong {
+  color: #d9e3f1;
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .error {
-  margin: 0;
+  margin: 0 14px;
   color: #ffb4b4;
   font-size: 12px;
 }
@@ -670,5 +800,23 @@ button.danger {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid #253348;
+  background: #0f1724;
+}
+
+@media (max-width: 640px) {
+  .form-grid,
+  .settings-section {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dir-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dialog-actions {
+    flex-wrap: wrap;
+  }
 }
 </style>

@@ -1,0 +1,33 @@
+{
+  "format": "unu-project",
+  "version": 1,
+  "name": "2D-shooting-canvas",
+  "createdAt": "2026-04-24T03:20:39.708Z",
+  "updatedAt": "2026-05-19T08:53:56.292Z",
+  "sceneCatalogVersion": 1,
+  "sceneCatalog": [
+    {
+      "file": "MainScene.scene.json",
+      "name": "MainScene",
+      "scriptRoot": "assets/scripts/scenes/MainScene"
+    },
+    {
+      "file": "SecondScene.scene.json",
+      "name": "SecondScene",
+      "scriptRoot": "assets/scripts/scenes/SecondScene"
+    }
+  ],
+  "startupScene": "MainScene.scene.json",
+  "scriptRoots": {
+    "shared": "assets/scripts/shared",
+    "scenes": "assets/scripts/scenes",
+    "interactions": "assets/scripts/interactions"
+  },
+  "sampleManifest": "manifest.json",
+  "itemRegistry": "assets/items/items.registry.json",
+  "itemRoot": "assets/items",
+  "renderer": {
+    "backend": "canvas2d"
+  },
+  "renderBackend": "canvas2d"
+}

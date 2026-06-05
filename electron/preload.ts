@@ -6,7 +6,7 @@ const windowRole = windowRoleArg ? windowRoleArg.slice('--unu-window-role='.leng
 contextBridge.exposeInMainWorld('unu', {
   version: '0.9.0',
   windowRole,
-  createProject: (payload?: { projectName?: string; parentDir?: string }) => ipcRenderer.invoke('unu:create-project-v2', payload),
+  createProject: (payload?: { projectName?: string; parentDir?: string; renderBackend?: 'pixi' | 'canvas2d' }) => ipcRenderer.invoke('unu:create-project-v2', payload),
   pickDirectory: (payload?: { title?: string; defaultPath?: string }) => ipcRenderer.invoke('unu:pick-directory', payload),
   saveProjectAs: (payload: {
     sourceProjectRoot?: string
@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('unu', {
   pickProjectFolder: () => ipcRenderer.invoke('unu:pick-project-folder'),
   listSampleProjects: () => ipcRenderer.invoke('unu:list-sample-projects'),
   getProjectInfo: (projectRoot: string) => ipcRenderer.invoke('unu:get-project-info', projectRoot),
+  updateProjectSettings: (payload: { projectRoot: string; renderBackend?: 'pixi' | 'canvas2d' }) =>
+    ipcRenderer.invoke('unu:update-project-settings', payload),
   clearApplicationData: () => ipcRenderer.invoke('unu:clear-application-data'),
   scanProject: (projectRoot: string) => ipcRenderer.invoke('unu:scan-project', projectRoot),
   saveScene: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) =>

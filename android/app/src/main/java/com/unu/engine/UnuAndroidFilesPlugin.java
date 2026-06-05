@@ -5,6 +5,7 @@ import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.database.Cursor;
 import android.net.Uri;
 import android.provider.OpenableColumns;
@@ -28,8 +29,11 @@ public class UnuAndroidFilesPlugin extends Plugin {
     @PluginMethod
     public void setOrientation(PluginCall call) {
         String orientation = call.getString("orientation", "unspecified");
+        boolean largeScreen = isLargeScreenDevice();
         int requestedOrientation;
-        if ("portrait".equals(orientation)) {
+        if (largeScreen) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+        } else if ("portrait".equals(orientation)) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
         } else if ("landscape".equals(orientation)) {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
@@ -40,10 +44,17 @@ public class UnuAndroidFilesPlugin extends Plugin {
             getActivity().setRequestedOrientation(requestedOrientation);
             JSObject ret = new JSObject();
             ret.put("ok", true);
+            ret.put("largeScreen", largeScreen);
+            ret.put("appliedOrientation", largeScreen ? "unspecified" : orientation);
             call.resolve(ret);
         } catch (Exception error) {
             call.reject("Failed to set orientation: " + error.getMessage());
         }
+    }
+
+    private boolean isLargeScreenDevice() {
+        Configuration config = getContext().getResources().getConfiguration();
+        return config.smallestScreenWidthDp >= 600;
     }
 
     @PluginMethod

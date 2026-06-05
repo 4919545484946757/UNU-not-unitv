@@ -38,7 +38,14 @@ export class UIComponent extends Component {
     public htmlSourcePath = '',
     public htmlUseIframe = true,
     public htmlAllowScripts = true,
-    public htmlBridgeEnabled = true
+    public htmlBridgeEnabled = true,
+    public htmlDebugOverlay = false,
+    public htmlDebugConsole = false,
+    public htmlAutoCreateAsset = true,
+    public htmlPreviewContent = '',
+    public backgroundTexturePath = '',
+    public backgroundVisible = true,
+    public backgroundAlpha = 0.78
   ) {
     super()
   }

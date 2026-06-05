@@ -1,0 +1,19 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:scp_500",
+  "namespace": "sample-2D-shooting",
+  "name": "scp_500",
+  "displayName": "SCP-500",
+  "type": "consumable",
+  "maxStack": 1,
+  "description": "??????????????????",
+  "script": "assets/items/scripts/scp_500.js",
+  "tags": [
+    "medicine",
+    "healing"
+  ],
+  "attributes": {
+    "heal": "full"
+  }
+}

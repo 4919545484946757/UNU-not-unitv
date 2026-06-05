@@ -109,13 +109,27 @@ async function ensureProjectStructure(projectRoot: string) {
 }
 
 
-async function writeProjectFile(projectRoot: string, projectName?: string) {
+type ProjectRenderBackend = 'pixi' | 'canvas2d'
+
+function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
+  return value === 'canvas2d' || value === 'native-canvas' || value === 'canvas' ? 'canvas2d' : 'pixi'
+}
+
+function readProjectRenderBackend(projectJson: Record<string, any> | null | undefined): ProjectRenderBackend {
+  return normalizeProjectRenderBackend(projectJson?.renderer?.backend ?? projectJson?.renderBackend)
+}
+
+async function writeProjectFile(projectRoot: string, projectName?: string, renderBackend?: ProjectRenderBackend) {
   const projectFile = path.join(projectRoot, 'project.json')
   const name = projectName?.trim() || path.basename(projectRoot)
+  const backend = normalizeProjectRenderBackend(renderBackend)
   const payload = {
     format: 'unu-project',
     version: 1,
     name,
+    renderer: {
+      backend
+    },
     createdAt: new Date().toISOString()
   }
   await fs.writeFile(projectFile, JSON.stringify(payload, null, 2), 'utf-8')
@@ -585,17 +599,19 @@ async function readProjectInfo(projectRoot: string) {
   }
   const projectFile = path.join(resolvedProjectRoot, 'project.json')
   let name = path.basename(resolvedProjectRoot)
+  let renderBackend: ProjectRenderBackend = 'pixi'
   if (await exists(projectFile)) {
     try {
       const projectJson = JSON.parse(await fs.readFile(projectFile, 'utf-8'))
       if (typeof projectJson?.name === 'string' && projectJson.name.trim()) {
         name = projectJson.name.trim()
       }
+      renderBackend = readProjectRenderBackend(projectJson)
     } catch {
       // Keep the directory name if the metadata is unreadable.
     }
   }
-  return { rootPath: resolvedProjectRoot, name }
+  return { rootPath: resolvedProjectRoot, name, renderBackend }
 }
 
 async function scanProject(projectRoot: string) {
@@ -603,13 +619,15 @@ async function scanProject(projectRoot: string) {
   const resolvedProjectRoot = await resolveProjectRootPath(projectRoot)
   await ensureProjectStructure(resolvedProjectRoot)
   await ensureProjectRuntimeScriptFiles(resolvedProjectRoot)
-  const projectName = path.basename(resolvedProjectRoot)
+  const projectInfo = await readProjectInfo(resolvedProjectRoot)
+  const projectName = projectInfo.name || path.basename(resolvedProjectRoot)
   const reconcile = await reconcileProjectSceneCatalog(resolvedProjectRoot, projectName)
   const integrity = await ensureProjectAssetIntegrity(resolvedProjectRoot)
   const assetTree = await buildProjectAssetTree(resolvedProjectRoot)
   return {
     rootPath: resolvedProjectRoot,
     name: projectName,
+    renderBackend: projectInfo.renderBackend,
     tree: assetTree.tree,
     assetTreeTruncated: assetTree.truncated,
     sceneCatalogRepaired: reconcile.repaired,
@@ -2145,7 +2163,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string }) => {
+  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string; renderBackend?: ProjectRenderBackend }) => {
     let parentDir = String(payload?.parentDir || '').trim()
     if (!parentDir) {
       const result = await dialog.showOpenDialog({
@@ -2168,16 +2186,35 @@ app.whenReady().then(() => {
     }
 
     await ensureProjectStructure(projectRoot)
-    await writeProjectFile(projectRoot, projectName)
+    const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend)
+    await writeProjectFile(projectRoot, projectName, renderBackend)
     await ensureProjectRuntimeScriptFiles(projectRoot)
     const integrity = await ensureProjectAssetIntegrity(projectRoot)
     return {
       rootPath: projectRoot,
       name: projectName,
       parentDir,
+      renderBackend,
       created: true,
       integrity
     }
+  })
+
+  ipcMain.handle('unu:update-project-settings', async (_event, payload?: { projectRoot?: string; renderBackend?: ProjectRenderBackend }) => {
+    const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || ''))
+    if (!projectRoot || projectRoot === 'sample-project') return { ok: false, error: '当前工程不支持写入项目设置。' }
+    const projectFile = path.join(projectRoot, 'project.json')
+    const projectJson = await fs.readFile(projectFile, 'utf-8')
+      .then((raw) => JSON.parse(raw))
+      .catch(() => ({ format: 'unu-project', version: 1, name: path.basename(projectRoot) }))
+    const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend)
+    projectJson.renderer = {
+      ...(projectJson.renderer && typeof projectJson.renderer === 'object' ? projectJson.renderer : {}),
+      backend: renderBackend
+    }
+    projectJson.updatedAt = new Date().toISOString()
+    await fs.writeFile(projectFile, JSON.stringify(projectJson, null, 2), 'utf-8')
+    return { ok: true, renderBackend }
   })
 
   ipcMain.handle('unu:pick-directory', async (_event, payload?: { title?: string; defaultPath?: string }) => {

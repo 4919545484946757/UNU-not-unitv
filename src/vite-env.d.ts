@@ -21,15 +21,18 @@ declare global {
     unresolvedRefs?: UnuAssetIntegrityRef[]
   }
 
+  type UnuProjectRenderBackend = 'pixi' | 'canvas2d'
+
   interface Window {
     __UNU_GAME_EXPORT__?: boolean
     unu?: {
       version: string
       windowRole?: 'main' | 'tilemap-editor' | 'code-editor' | 'sprite-atlas-editor' | string
-      createProject?: (payload?: { projectName?: string; parentDir?: string }) => Promise<{
+      createProject?: (payload?: { projectName?: string; parentDir?: string; renderBackend?: UnuProjectRenderBackend }) => Promise<{
         rootPath: string
         name: string
         parentDir?: string
+        renderBackend?: UnuProjectRenderBackend
         created: boolean
         integrity?: UnuAssetIntegrityResult
       } | null>
@@ -59,11 +62,13 @@ declare global {
         entryScene?: string
         tags?: string[]
       }>>
-      getProjectInfo?: (projectRoot: string) => Promise<{ rootPath: string; name: string }>
+      getProjectInfo?: (projectRoot: string) => Promise<{ rootPath: string; name: string; renderBackend?: UnuProjectRenderBackend }>
+      updateProjectSettings?: (payload: { projectRoot: string; renderBackend?: UnuProjectRenderBackend }) => Promise<{ ok: boolean; renderBackend?: UnuProjectRenderBackend; error?: string }>
       clearApplicationData?: () => Promise<{ ok: boolean; cleared?: string[]; restartRequired?: boolean; error?: string }>
       scanProject?: (projectRoot: string) => Promise<{
         rootPath: string
         name: string
+        renderBackend?: UnuProjectRenderBackend
         tree: import('./engine/assets/types').AssetNode[]
         assetTreeTruncated?: boolean
         sceneCatalogRepaired?: boolean

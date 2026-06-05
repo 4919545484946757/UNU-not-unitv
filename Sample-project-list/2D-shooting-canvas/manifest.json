@@ -1,0 +1,18 @@
+{
+  "format": "unu-sample-manifest",
+  "version": 1,
+  "id": "2D-shooting-canvas",
+  "title": "2D Shooting Canvas",
+  "description": "Canvas 2D port of sample-2D-shooting: movement, shooting, inventory, container UI, scene switching, and project-local scripts.",
+  "available": true,
+  "projectFile": "project.json",
+  "entryScene": "MainScene.scene.json",
+  "tags": [
+    "2d",
+    "action",
+    "shooting",
+    "animation",
+    "interaction",
+    "canvas2d"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:heavy_leggings",
+  "namespace": "sample-2D-shooting",
+  "name": "heavy_leggings",
+  "displayName": "????",
+  "type": "equipment",
+  "equipSlot": "leggings",
+  "maxStack": 1,
+  "description": "???????????????????",
+  "script": "assets/items/scripts/heavy_leggings.js",
+  "tags": [
+    "armor",
+    "leggings"
+  ],
+  "attributes": {
+    "flatReduction": 3,
+    "moveSpeedMultiplier": 0.9
+  }
+}

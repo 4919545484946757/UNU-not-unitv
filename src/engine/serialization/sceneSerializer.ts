@@ -104,7 +104,8 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.tint ?? 0xffffff),
             Boolean(data.preserveAspect ?? true),
             Number(data.offsetX ?? 0),
-            Number(data.offsetY ?? 0)
+            Number(data.offsetY ?? 0),
+            Boolean(data.showDebugFrame ?? true)
           )
         )
         break
@@ -127,7 +128,8 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.offsetY ?? 0),
             Boolean(data.isTrigger ?? false),
             normalizeCollisionLayer(data.layer),
-            normalizeCollisionMask(data.collidesWith, normalizeCollisionLayer(data.layer))
+            normalizeCollisionMask(data.collidesWith, normalizeCollisionLayer(data.layer)),
+            Boolean(data.showDebugFrame ?? true)
           )
         )
         break
@@ -298,7 +300,14 @@ export function deserializeEntity(entityData: SerializedEntity) {
             String(data.htmlSourcePath ?? ''),
             Boolean(data.htmlUseIframe ?? true),
             Boolean(data.htmlAllowScripts ?? true),
-            Boolean(data.htmlBridgeEnabled ?? true)
+            Boolean(data.htmlBridgeEnabled ?? true),
+            Boolean(data.htmlDebugOverlay ?? false),
+            Boolean(data.htmlDebugConsole ?? false),
+            Boolean(data.htmlAutoCreateAsset ?? true),
+            String(data.htmlPreviewContent ?? ''),
+            String(data.backgroundTexturePath ?? ''),
+            Boolean(data.backgroundVisible ?? true),
+            normalizeUnitValue(data.backgroundAlpha, data.mode === 'button' ? 0.95 : 0.78)
           )
         )
         break
@@ -372,6 +381,12 @@ function normalizeUiSizeValue(value: unknown, fallback: number) {
   }
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function normalizeUnitValue(value: unknown, fallback: number) {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.max(0, Math.min(1, parsed))
 }
 
 export function entityToData(entity: Entity): EntityData {

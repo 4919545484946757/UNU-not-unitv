@@ -42,7 +42,7 @@ export const useEditorStore = defineStore('editor', {
     showRightPanel: true,
     showAssetBrowserPanel: true,
     showBottomPanel: true,
-    hideChromeDuringPlay: false
+    hideChromeDuringPlay: import.meta.env.VITE_UNU_ANDROID_EDITOR === '1'
   }),
   actions: {
     setTool(tool: 'select' | 'move' | 'scale' | 'rotate' | 'pan') {

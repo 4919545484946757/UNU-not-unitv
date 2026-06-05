@@ -1,0 +1,29 @@
+{
+  "format": "unu-item",
+  "version": 1,
+  "id": "sample-2D-shooting:precision_rifle",
+  "namespace": "sample-2D-shooting",
+  "name": "precision_rifle",
+  "displayName": "????",
+  "type": "weapon",
+  "maxStack": 1,
+  "description": "????????????????????????",
+  "script": "assets/items/scripts/precision_rifle.js",
+  "tags": [
+    "weapon",
+    "firearm"
+  ],
+  "attributes": {
+    "fireMode": "semi",
+    "magazineSize": 15,
+    "reserveAmmo": 90,
+    "fireInterval": 0.22,
+    "reloadTime": 1.65,
+    "bulletSpeed": 1180,
+    "spread": 0.01,
+    "maxSpread": 0.085,
+    "spreadPerRapidShot": 0.018,
+    "accurateShots": 2,
+    "damage": 34
+  }
+}

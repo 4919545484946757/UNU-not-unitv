@@ -42,6 +42,32 @@ html.unu-android-editor .android-window-overlay {
   bottom: var(--unu-safe-bottom);
   left: var(--unu-safe-left);
   border-radius: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.unu-android-editor .create-dialog-mask,
+html.unu-android-editor .entity-dialog-mask,
+html.unu-android-editor .scene-dialog-mask,
+html.unu-android-editor .modal-backdrop {
+  align-items: start !important;
+  justify-content: center !important;
+  place-items: start center !important;
+  overflow: auto !important;
+  padding: calc(12px + var(--unu-safe-top)) calc(12px + var(--unu-safe-right)) calc(12px + var(--unu-safe-bottom)) calc(12px + var(--unu-safe-left)) !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.unu-android-editor .create-dialog,
+html.unu-android-editor .entity-dialog,
+html.unu-android-editor .scene-dialog,
+html.unu-android-editor .dialog {
+  width: min(100%, calc(100vw - var(--unu-safe-left) - var(--unu-safe-right) - 24px)) !important;
+  max-height: calc(100dvh - var(--unu-safe-top) - var(--unu-safe-bottom) - 24px) !important;
+  overflow: auto !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 button, input, select {

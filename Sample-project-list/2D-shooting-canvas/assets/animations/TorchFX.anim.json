@@ -1,0 +1,23 @@
+{
+  "format": "unu-animation",
+  "version": 1,
+  "animation": {
+    "name": "TorchFX",
+    "fps": 6,
+    "loop": true,
+    "frames": [
+      {
+        "texturePath": "assets/images/player.png",
+        "duration": 1
+      },
+      {
+        "texturePath": "assets/images/enemy.png",
+        "duration": 1
+      },
+      {
+        "texturePath": "assets/images/chest.png",
+        "duration": 2
+      }
+    ]
+  }
+}
