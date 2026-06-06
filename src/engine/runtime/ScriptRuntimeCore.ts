@@ -3,7 +3,9 @@ import { AnimationComponent } from '../components/AnimationComponent'
 import type { AudioGroup } from '../components/AudioComponent'
 import { BackgroundComponent } from '../components/BackgroundComponent'
 import { ColliderComponent } from '../components/ColliderComponent'
+import { CustomComponent } from '../components/CustomComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
+import { PhysicsBodyComponent } from '../components/PhysicsBodyComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
 import { TransformComponent } from '../components/TransformComponent'
@@ -137,6 +139,12 @@ export interface ScriptContext {
     findEnemyOverlap: (target?: Entity, matcher?: EntityMatchQuery | null) => Entity | null
     isTouching: (left: Entity, right: Entity) => boolean
     moveTowards: (source: Entity, target: Entity, speed: number, useCollision?: boolean) => void
+    physics: {
+      getBody: (target?: Entity) => PhysicsBodyComponent | null
+      getVelocity: (target?: Entity) => { x: number; y: number; z: number } | null
+      setVelocity: (target: Entity | undefined, velocity: Partial<{ x: number; y: number; z: number }>) => void
+      applyImpulse: (target: Entity | undefined, impulse: Partial<{ x: number; y: number; z: number }>) => void
+    }
     three: {
       getTransform: (target?: Entity) => {
         x: number; y: number; z: number
@@ -149,6 +157,8 @@ export interface ScriptContext {
       scale: (target: Entity | undefined, deltaValues: Partial<{ scaleX: number; scaleY: number; scaleZ: number }>) => void
       getCollider: (target?: Entity) => ScriptCollider3DData | null
       getWorldCollider: (target?: Entity) => ScriptWorldCollider3DData | null
+      getModelAnimationState: (target?: Entity) => string
+      setModelAnimationState: (target: Entity | undefined, state: string) => void
     }
     spawnEnemyLike: (
       source?: Entity,
@@ -688,6 +698,28 @@ export class ScriptRuntime {
             sourceTransform.y = nextY
           }
         },
+        physics: {
+          getBody: (target?: Entity) => (target ?? entity).getComponent<PhysicsBodyComponent>('PhysicsBody') ?? null,
+          getVelocity: (target?: Entity) => {
+            const body = (target ?? entity).getComponent<PhysicsBodyComponent>('PhysicsBody')
+            return body ? { x: body.velocityX, y: body.velocityY, z: body.velocityZ } : null
+          },
+          setVelocity: (target: Entity | undefined, velocity: Partial<{ x: number; y: number; z: number }>) => {
+            const body = (target ?? entity).getComponent<PhysicsBodyComponent>('PhysicsBody')
+            if (!body || !velocity) return
+            if (Number.isFinite(Number(velocity.x))) body.velocityX = Number(velocity.x)
+            if (Number.isFinite(Number(velocity.y))) body.velocityY = Number(velocity.y)
+            if (Number.isFinite(Number(velocity.z))) body.velocityZ = Number(velocity.z)
+          },
+          applyImpulse: (target: Entity | undefined, impulse: Partial<{ x: number; y: number; z: number }>) => {
+            const body = (target ?? entity).getComponent<PhysicsBodyComponent>('PhysicsBody')
+            if (!body || !impulse) return
+            const mass = Math.max(0.0001, Number(body.mass || 1))
+            if (Number.isFinite(Number(impulse.x))) body.velocityX += Number(impulse.x) / mass
+            if (Number.isFinite(Number(impulse.y))) body.velocityY += Number(impulse.y) / mass
+            if (Number.isFinite(Number(impulse.z))) body.velocityZ += Number(impulse.z) / mass
+          }
+        },
         three: {
           getTransform: (target?: Entity) => {
             const transform = (target ?? entity).getComponent<TransformComponent>('Transform')
@@ -736,6 +768,18 @@ export class ScriptRuntime {
             const transform = source.getComponent<TransformComponent>('Transform')
             if (!collider || !transform) return null
             return getWorldCollider3DData(transform, collider)
+          },
+          getModelAnimationState: (target?: Entity) => {
+            const data = (target ?? entity).getComponent<CustomComponent>('ThreeObject')?.data
+            if (!data || typeof data !== 'object') return ''
+            return String(data.modelAnimationState || data.modelAnimationInitialState || '')
+          },
+          setModelAnimationState: (target: Entity | undefined, state: string) => {
+            const data = (target ?? entity).getComponent<CustomComponent>('ThreeObject')?.data
+            if (!data || typeof data !== 'object') return
+            const next = String(state || '').trim()
+            data.modelAnimationState = next
+            if (next && !String(data.modelAnimationInitialState || '').trim()) data.modelAnimationInitialState = next
           }
         },
         spawnEnemyLike: (source?: Entity, options?: { x?: number; y?: number; avoidX?: number; avoidY?: number; minDistance?: number }) => {

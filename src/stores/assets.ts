@@ -359,7 +359,7 @@ export const useAssetStore = defineStore('assets', {
         return
       }
       const result = await window.unu.scanProject(created.rootPath)
-      project.setProject({ rootPath: result.rootPath, name: result.name, renderBackend: result.renderBackend })
+      project.setProject({ rootPath: result.rootPath, name: result.name, renderBackend: result.renderBackend, physicsBackend: result.physicsBackend })
       this.hydrateTree(result.tree)
       this.clearFileHistory()
       this.selectedPath = 'assets'
@@ -388,7 +388,7 @@ export const useAssetStore = defineStore('assets', {
       }
       project.setProject({ rootPath: picked.rootPath, name: picked.name })
       const result = await window.unu.scanProject(picked.rootPath)
-      project.setProject({ rootPath: result.rootPath, name: result.name, renderBackend: result.renderBackend })
+      project.setProject({ rootPath: result.rootPath, name: result.name, renderBackend: result.renderBackend, physicsBackend: result.physicsBackend })
       this.hydrateTree(result.tree)
       this.clearFileHistory()
       project.setStatus(buildProjectHealthMessage(result, `已打开工程：${result.name}`))
@@ -425,7 +425,7 @@ export const useAssetStore = defineStore('assets', {
 
       project.setProject({ rootPath: saved.rootPath, name: saved.name })
       const scanned = await window.unu.scanProject(saved.rootPath)
-      project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
+      project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend, physicsBackend: scanned.physicsBackend })
       this.hydrateTree(scanned.tree)
       this.clearFileHistory()
       this.selectedPath = 'assets'
@@ -507,6 +507,8 @@ export const useAssetStore = defineStore('assets', {
       const result = await window.unu.exportGame({
         projectRoot: project.rootPath,
         projectName: project.name,
+        renderBackend: project.renderBackend,
+        physicsBackend: project.physicsBackend,
         sceneFiles
       })
       if (!result) {
@@ -541,7 +543,7 @@ export const useAssetStore = defineStore('assets', {
               return
             }
             const scanned = await window.unu.scanProject(picked.rootPath)
-            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend, physicsBackend: scanned.physicsBackend })
             this.hydrateTree(scanned.tree)
           } else {
             return
@@ -584,7 +586,7 @@ export const useAssetStore = defineStore('assets', {
               return
             }
             const scanned = await window.unu.scanProject(picked.rootPath)
-            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend, physicsBackend: scanned.physicsBackend })
             this.hydrateTree(scanned.tree)
           } else {
             return
@@ -627,7 +629,7 @@ export const useAssetStore = defineStore('assets', {
               return
             }
             const scanned = await window.unu.scanProject(picked.rootPath)
-            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend, physicsBackend: scanned.physicsBackend })
             this.hydrateTree(scanned.tree)
           } else {
             return

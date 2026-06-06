@@ -22,13 +22,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed, watch } from 'vue'
 import { useEditorStore } from '../../stores/editor'
+import { useProjectStore } from '../../stores/project'
 import InspectorPanel from '../panels/InspectorPanel.vue'
 import ScriptEditorPanel from '../panels/ScriptEditorPanel.vue'
 import TimelinePanel from '../panels/TimelinePanel.vue'
 
 const editor = useEditorStore()
-const tabs = ['Inspector', 'Script', 'Timeline'] as const
+const project = useProjectStore()
+const tabs = computed(() => project.renderBackend === 'three'
+  ? ['Inspector', 'Script'] as const
+  : ['Inspector', 'Script', 'Timeline'] as const
+)
+
+watch(
+  () => project.renderBackend,
+  () => {
+    if (project.renderBackend === 'three' && editor.rightTab === 'Timeline') editor.setRightTab('Inspector')
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

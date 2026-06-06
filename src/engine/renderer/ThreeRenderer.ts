@@ -7,13 +7,14 @@ import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TransformComponent } from '../components/TransformComponent'
 import { Scene } from '../core/Scene'
+import { PhysicsRuntime } from '../runtime/PhysicsRuntime'
 import { ScriptRuntime } from '../runtime/ScriptRuntime'
 import { deserializeScene, serializeScene } from '../serialization/sceneSerializer'
 import type { DebugOverlayOptions } from '../../stores/editor'
 import { useAssetStore } from '../../stores/assets'
 import { useProjectStore } from '../../stores/project'
 import { EditorCameraController, type EditorCameraSettings, type EditorCameraState } from './EditorCameraController'
-import { loadGltfModel, loadThreeTexture } from './modelAssetLoader'
+import { loadGltfModelWithHierarchy, loadThreeTexture } from './modelAssetLoader'
 import type { EditorTool, SceneRenderer, SceneRendererOptions } from './RendererTypes'
 
 type ThreeObjectConfig = {
@@ -21,13 +22,34 @@ type ThreeObjectConfig = {
   z?: number
   depth?: number
   intensity?: number
+  width?: number
+  height?: number
   metalness?: number
   roughness?: number
   opacity?: number
   color?: number | string
   texturePath?: string
   normalMapPath?: string
+  environmentMapPath?: string
+  worldTexturePath?: string
+  distance?: number
+  decay?: number
+  angle?: number
+  penumbra?: number
+  targetX?: number
+  targetY?: number
+  targetZ?: number
+  environmentIntensity?: number
+  skyRadius?: number
+  showAsBackground?: boolean
   modelNodeOverrides?: Record<string, ModelNodeOverride>
+  modelAnimationClips?: string[]
+  modelAnimationEnabled?: boolean
+  modelAnimationState?: string
+  modelAnimationInitialState?: string
+  modelAnimationLoop?: boolean
+  modelAnimationSpeed?: number
+  modelAnimationBindings?: Record<string, string>
   rotationX?: number
   rotationY?: number
   rotationZ?: number
@@ -80,6 +102,8 @@ export class ThreeRenderer implements SceneRenderer {
   private raycaster = new THREE.Raycaster()
   private pointer = new THREE.Vector2()
   private entityObjects = new Map<string, THREE.Object3D>()
+  private modelAnimationPlayers = new Map<string, { mixer: THREE.AnimationMixer; actions: Map<string, THREE.AnimationAction>; currentClip: string }>()
+  private environmentTexture: THREE.Texture | null = null
   private selectedEntityIds: string[] = []
   private primarySelection = ''
   private primaryModelNodePath = ''
@@ -89,7 +113,9 @@ export class ThreeRenderer implements SceneRenderer {
   private isPaused = false
   private playScene: Scene | null = null
   private readonly scriptRuntime = new ScriptRuntime()
+  private readonly physicsRuntime = new PhysicsRuntime()
   private lastRuntimeTick = performance.now()
+  private lastAnimationTick = performance.now()
   private runtimeEntitySignature = ''
   private activeCameraEntityId = ''
   private isDragging = false
@@ -135,6 +161,7 @@ export class ThreeRenderer implements SceneRenderer {
     await this.loadProjectRuntimeScripts(scene || null)
     this.scriptRuntime.setErrorReporter(this.options.onScriptError || null)
     this.scriptRuntime.setConsoleReporter(this.options.onConsoleMessage || null)
+    this.syncPhysicsBackend()
     this.attachEvents()
     this.resize()
     await this.renderScene(scene || new Scene('empty', 'Empty'))
@@ -149,6 +176,7 @@ export class ThreeRenderer implements SceneRenderer {
     this.transformControls?.detach()
     if (this.transformControlsHelper) this.transformControlsHelper.visible = false
     this.clearEntityObjects()
+    await this.applySceneEnvironment(scene)
     for (const entity of scene.entities) {
       if (token !== this.renderSceneToken) return
       const transform = entity.getComponent<TransformComponent>('Transform')
@@ -357,6 +385,7 @@ export class ThreeRenderer implements SceneRenderer {
     cancelAnimationFrame(this.animationFrame)
     this.detachEvents()
     this.clearEntityObjects()
+    this.clearSceneEnvironment()
     this.transformControls?.removeEventListener('objectChange', this.handleTransformControlObjectChange)
     this.transformControls?.removeEventListener('dragging-changed', this.handleTransformControlDraggingChanged)
     this.transformControls?.detach()
@@ -497,27 +526,55 @@ export class ThreeRenderer implements SceneRenderer {
     const rawKind = String(three?.kind || (sprite ? 'box' : '')).toLowerCase()
     const kind = three?.modelPath && !rawKind.endsWith('light') ? 'model' : rawKind
     const z = Number(transform.z ?? three?.z ?? 0)
-    const lightColor = sprite?.tint || 0xffffff
+    const lightColor = this.resolveThreeColor(three?.color, sprite?.tint || 0xffffff)
     const lightIntensity = Number(three?.intensity ?? 1.3)
     if (kind === 'ambientlight') {
       return new THREE.AmbientLight(lightColor, lightIntensity)
     }
+    if (kind === 'environmentlight') {
+      return null
+    }
     if (kind === 'pointlight') {
-      const light = new THREE.PointLight(lightColor, lightIntensity, 1200)
+      const light = new THREE.PointLight(
+        lightColor,
+        lightIntensity,
+        Math.max(0, Number(three?.distance ?? 1200)),
+        Math.max(0, Number(three?.decay ?? 2))
+      )
       light.position.set(transform.x, -transform.y, z || 240)
+      return light
+    }
+    if (kind === 'spotlight') {
+      const light = new THREE.SpotLight(
+        lightColor,
+        lightIntensity,
+        Math.max(0, Number(three?.distance ?? 1400)),
+        Math.max(0.01, Math.min(Math.PI / 2, Number(three?.angle ?? Math.PI / 6))),
+        Math.max(0, Math.min(1, Number(three?.penumbra ?? 0.28))),
+        Math.max(0, Number(three?.decay ?? 2))
+      )
+      light.position.set(transform.x, -transform.y, z || 420)
+      light.target.position.set(
+        Number(three?.targetX ?? transform.x),
+        -Number(three?.targetY ?? transform.y + 320),
+        Number(three?.targetZ ?? 0)
+      )
+      this.scene3d.add(light.target)
+      light.userData.targetObject = light.target
       return light
     }
     if (kind === 'directionallight') {
       const light = new THREE.DirectionalLight(lightColor, lightIntensity)
       light.position.set(transform.x, -transform.y, z || 420)
-      light.target.position.set(0, 0, 0)
+      light.target.position.set(Number(three?.targetX ?? 0), -Number(three?.targetY ?? 0), Number(three?.targetZ ?? 0))
       this.scene3d.add(light.target)
+      light.userData.targetObject = light.target
       return light
     }
     if (this.isPlaying && camera) return null
     if (sprite?.visible === false) return null
-    const width = Math.max(1, Number(sprite?.width || collider?.width || 80))
-    const height = Math.max(1, Number(sprite?.height || collider?.height || 80))
+    const width = Math.max(1, Number(three?.width || sprite?.width || collider?.width || 80))
+    const height = Math.max(1, Number(three?.height || sprite?.height || collider?.height || 80))
     const depth = Math.max(1, Number(three?.depth ?? Math.min(width, height)))
     const material = await this.createThreeMaterial(sprite, three)
     const position = new THREE.Vector3(transform.x + Number(sprite?.offsetX || 0), -transform.y - Number(sprite?.offsetY || 0), z || depth / 2)
@@ -529,29 +586,56 @@ export class ThreeRenderer implements SceneRenderer {
     const scale = new THREE.Vector3(transform.scaleX || 1, transform.scaleY || 1, transform.scaleZ || 1)
 
     if (kind === 'model' && three?.modelPath) {
-      const loaded = await loadGltfModel(three.modelPath).catch((error) => {
+      const loaded = await loadGltfModelWithHierarchy(three.modelPath).catch((error) => {
         console.warn('[UNU][three] failed to load model', three.modelPath, error)
         return null
       })
       if (loaded) {
         const group = new THREE.Group()
         group.name = `Model: ${three.modelPath}`
-        loaded.traverse((child) => {
+        loaded.scene.traverse((child) => {
           const mesh = child as THREE.Mesh
           if (mesh.isMesh) {
             mesh.castShadow = true
             mesh.receiveShadow = true
           }
         })
-        this.centerAndFitModel(loaded, Math.max(width, height, depth))
-        await this.applyThreeMaterialOverrides(loaded, sprite, three)
-        this.applyModelNodeOverrides(loaded, three)
-        group.add(loaded)
+        three.modelAnimationClips = loaded.animationClips
+        if (!three.modelAnimationState && !three.modelAnimationInitialState && loaded.animationClips[0]) {
+          three.modelAnimationInitialState = loaded.animationClips[0]
+          three.modelAnimationState = loaded.animationClips[0]
+        }
+        this.centerAndFitModel(loaded.scene, Math.max(width, height, depth))
+        await this.applyThreeMaterialOverrides(loaded.scene, sprite, three)
+        this.applyModelNodeOverrides(loaded.scene, three)
+        group.add(loaded.scene)
         group.position.copy(position)
         group.rotation.copy(rotation)
         group.scale.copy(scale)
+        this.setupModelAnimationPlayer(entity.id, loaded.scene, loaded.animations, three)
         return group
       }
+    }
+
+    if (kind === 'worldenvironment') {
+      const radius = Math.max(10, Number(three?.skyRadius ?? depth ?? 4000))
+      const geometry = new THREE.SphereGeometry(radius, 48, 24)
+      const material = new THREE.MeshBasicMaterial({
+        color: this.resolveThreeColor(three?.color, sprite?.tint || 0xffffff),
+        side: THREE.BackSide,
+        depthWrite: false,
+        depthTest: false,
+        transparent: false
+      })
+      const skyPath = String(three?.worldTexturePath || three?.texturePath || three?.environmentMapPath || '').trim()
+      if (skyPath) {
+        material.map = await loadThreeTexture(skyPath).catch(() => null)
+      }
+      const sky = new THREE.Mesh(geometry, material)
+      sky.name = 'World Environment Sphere'
+      sky.renderOrder = -1000
+      sky.position.set(0, 0, 0)
+      return sky
     }
 
     const geometry = kind === 'plane'
@@ -582,6 +666,39 @@ export class ThreeRenderer implements SceneRenderer {
     }
     material.needsUpdate = true
     return material
+  }
+
+  private async applySceneEnvironment(scene: Scene) {
+    this.clearSceneEnvironment()
+    const environmentEntity = scene.entities.find((entity) => {
+      const three = entity.getComponent<CustomComponent>('ThreeObject')?.data as ThreeObjectConfig | undefined
+      const kind = String(three?.kind || '').toLowerCase()
+      return kind === 'environmentlight' || kind === 'worldenvironment'
+    })
+    const three = environmentEntity?.getComponent<CustomComponent>('ThreeObject')?.data as ThreeObjectConfig | undefined
+    const environmentPath = String(three?.environmentMapPath || '').trim()
+    if (!environmentPath) return
+    const texture = await loadThreeTexture(environmentPath).catch((error) => {
+      console.warn('[UNU][three] failed to load environment map', environmentPath, error)
+      return null
+    })
+    if (!texture) return
+    texture.mapping = THREE.EquirectangularReflectionMapping
+    texture.needsUpdate = true
+    this.environmentTexture = texture
+    this.scene3d.environment = texture
+    if (three?.showAsBackground) this.scene3d.background = texture
+    ;(this.scene3d as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = Math.max(0, Number(three?.environmentIntensity ?? 1))
+  }
+
+  private clearSceneEnvironment() {
+    if (this.environmentTexture) {
+      this.environmentTexture.dispose()
+      this.environmentTexture = null
+    }
+    this.scene3d.environment = null
+    this.scene3d.background = new THREE.Color(0x0b0f16)
+    ;(this.scene3d as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = 1
   }
 
   private async applyThreeMaterialOverrides(object: THREE.Object3D, sprite?: SpriteComponent, three?: ThreeObjectConfig) {
@@ -659,6 +776,54 @@ export class ThreeRenderer implements SceneRenderer {
         standard.needsUpdate = true
       }
     })
+  }
+
+  private setupModelAnimationPlayer(entityId: string, object: THREE.Object3D, clips: THREE.AnimationClip[], three?: ThreeObjectConfig) {
+    this.modelAnimationPlayers.delete(entityId)
+    if (!clips.length || three?.modelAnimationEnabled === false) return
+    const mixer = new THREE.AnimationMixer(object)
+    const actions = new Map<string, THREE.AnimationAction>()
+    for (const clip of clips) {
+      if (!clip.name) continue
+      const action = mixer.clipAction(clip)
+      action.enabled = true
+      action.clampWhenFinished = false
+      action.setLoop(three?.modelAnimationLoop === false ? THREE.LoopOnce : THREE.LoopRepeat, Infinity)
+      actions.set(clip.name, action)
+    }
+    const currentClip = this.resolveModelAnimationClip(three, actions)
+    if (currentClip) {
+      const action = actions.get(currentClip)
+      action?.reset().play()
+    }
+    this.modelAnimationPlayers.set(entityId, { mixer, actions, currentClip })
+  }
+
+  private resolveModelAnimationClip(three: ThreeObjectConfig | undefined, actions: Map<string, THREE.AnimationAction>) {
+    const state = String(three?.modelAnimationState || three?.modelAnimationInitialState || '').trim()
+    const bound = state ? String(three?.modelAnimationBindings?.[state] || state).trim() : ''
+    if (bound && actions.has(bound)) return bound
+    return actions.keys().next().value || ''
+  }
+
+  private updateModelAnimationPlayers(scene: Scene | null, delta: number) {
+    if (!scene || delta <= 0) return
+    for (const entity of scene.entities) {
+      const player = this.modelAnimationPlayers.get(entity.id)
+      if (!player) continue
+      const three = entity.getComponent<CustomComponent>('ThreeObject')?.data as ThreeObjectConfig | undefined
+      if (three?.modelAnimationEnabled === false) continue
+      const nextClip = this.resolveModelAnimationClip(three, player.actions)
+      if (nextClip && nextClip !== player.currentClip) {
+        const previous = player.actions.get(player.currentClip)
+        const next = player.actions.get(nextClip)
+        previous?.fadeOut(0.16)
+        next?.reset().fadeIn(0.16).play()
+        player.currentClip = nextClip
+      }
+      const speed = Math.max(0, Number(three?.modelAnimationSpeed ?? 1))
+      player.mixer.update(delta * speed)
+    }
   }
 
   private centerAndFitModel(object: THREE.Object3D, targetSize: number) {
@@ -803,7 +968,10 @@ export class ThreeRenderer implements SceneRenderer {
 
   private clearEntityObjects() {
     this.clearDebugOverlay()
+    this.modelAnimationPlayers.clear()
     for (const object of this.entityObjects.values()) {
+      const targetObject = object.userData.targetObject as THREE.Object3D | undefined
+      if (targetObject) this.scene3d.remove(targetObject)
       this.scene3d.remove(object)
       this.disposeObject(object)
     }
@@ -1172,7 +1340,11 @@ export class ThreeRenderer implements SceneRenderer {
 
   private animate = () => {
     this.animationFrame = requestAnimationFrame(this.animate)
+    const now = performance.now()
+    const animationDelta = Math.min(0.05, Math.max(0, (now - this.lastAnimationTick) / 1000))
+    this.lastAnimationTick = now
     this.updateRuntime()
+    this.updateModelAnimationPlayers(this.isPlaying ? this.playScene : this.scene, animationDelta)
     if (!this.isPlaying) this.editorCameraController?.update()
     this.render()
   }
@@ -1188,6 +1360,8 @@ export class ThreeRenderer implements SceneRenderer {
     }
     this.scriptRuntime.setSelectedEntityId(this.primarySelection)
     this.scriptRuntime.updateScene(this.playScene, delta, undefined, false)
+    this.syncPhysicsBackend()
+    this.physicsRuntime.step(this.playScene, delta)
     this.configureRuntimeCamera(this.playScene)
     const signature = this.getRuntimeEntitySignature(this.playScene)
     if (signature !== this.runtimeEntitySignature) {
@@ -1249,6 +1423,11 @@ export class ThreeRenderer implements SceneRenderer {
       if (result?.content !== undefined) files.push({ path, content: result.content })
     }
     this.scriptRuntime.setProjectRuntimeSources(files.length ? files : [{ path: defaultPath, content: '' }])
+  }
+
+  private syncPhysicsBackend() {
+    const project = useProjectStore()
+    this.physicsRuntime.setBackend(project.physicsBackend)
   }
 
   private render() {

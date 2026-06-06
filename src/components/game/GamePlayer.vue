@@ -11,7 +11,7 @@ import type { Scene } from '../../engine/core/Scene'
 import { createSceneRenderer } from '../../engine/renderer/RendererFactory'
 import type { SceneRenderer } from '../../engine/renderer/RendererTypes'
 import { deserializeScene } from '../../engine/serialization/sceneSerializer'
-import { normalizeProjectRenderBackend, type ProjectRenderBackend } from '../../stores/project'
+import { normalizeProjectPhysicsBackend, normalizeProjectRenderBackend, type ProjectPhysicsBackend, type ProjectRenderBackend } from '../../stores/project'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
@@ -29,6 +29,10 @@ type ExportProject = {
   renderBackend?: ProjectRenderBackend
   renderer?: {
     backend?: ProjectRenderBackend
+  }
+  physicsBackend?: ProjectPhysicsBackend
+  physics?: {
+    backend?: ProjectPhysicsBackend
   }
   startupScene?: string
   sceneCatalog?: Array<string | { file?: string; fileName?: string; path?: string; name?: string }>
@@ -129,6 +133,7 @@ async function loadExportScenes() {
   return {
     projectName: String(projectJson.name || 'UNU Game'),
     renderBackend: normalizeProjectRenderBackend(projectJson.renderer?.backend ?? projectJson.renderBackend),
+    physicsBackend: normalizeProjectPhysicsBackend(projectJson.physics?.backend ?? projectJson.physicsBackend),
     entries,
     startupSceneId
   }
@@ -139,7 +144,7 @@ onMounted(async () => {
   try {
     installExportFileBridge()
     const loaded = await loadExportScenes()
-    project.setProject({ rootPath: '.', name: loaded.projectName, renderBackend: loaded.renderBackend })
+    project.setProject({ rootPath: '.', name: loaded.projectName, renderBackend: loaded.renderBackend, physicsBackend: loaded.physicsBackend })
     sceneStore.bootstrapSceneCollection(loaded.entries, loaded.startupSceneId)
     sceneStore.repairCurrentSceneComponents()
 

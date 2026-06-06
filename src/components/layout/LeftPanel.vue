@@ -3,11 +3,11 @@
     <div class="tabs">
       <button
         v-for="tab in tabs"
-        :key="tab"
-        :class="{ active: editor.leftTab === tab }"
-        @click="editor.leftTab = tab"
+        :key="tab.value"
+        :class="{ active: editor.leftTab === tab.value }"
+        @click="editor.leftTab = tab.value"
       >
-        {{ tab }}
+        {{ tab.label }}
       </button>
     </div>
 
@@ -29,8 +29,7 @@
 
     <section v-if="editor.showAssetBrowserPanel" class="browser-panel">
       <div class="scroll-inner">
-        <div class="section-title">素材箱</div>
-        <!--div class="section-tip">拖动中间分隔线可调整素材箱高度</div-->
+        <div class="section-title">{{ is3DProject ? '模型 / 贴图 / 脚本资源' : '素材箱' }}</div>
         <AssetBrowserPanel />
       </div>
     </section>
@@ -40,13 +39,27 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '../../stores/editor'
+import { useProjectStore } from '../../stores/project'
 import AssetTreePanel from '../panels/AssetTreePanel.vue'
 import SceneTreePanel from '../panels/SceneTreePanel.vue'
 import PrefabPanel from '../panels/PrefabPanel.vue'
 import AssetBrowserPanel from '../panels/AssetBrowserPanel.vue'
 
 const editor = useEditorStore()
-const tabs = ['Assets', 'Scene', 'Prefab']
+const project = useProjectStore()
+const is3DProject = computed(() => project.renderBackend === 'three')
+const tabs = computed(() => is3DProject.value
+  ? [
+      { value: 'Scene', label: 'Scene Graph' },
+      { value: 'Assets', label: 'Assets' },
+      { value: 'Prefab', label: 'Prefabs' }
+    ] as const
+  : [
+      { value: 'Assets', label: 'Assets' },
+      { value: 'Scene', label: 'Scene' },
+      { value: 'Prefab', label: 'Prefab' }
+    ] as const
+)
 let cleanup: (() => void) | null = null
 
 const panelStyle = computed(() => ({
@@ -145,11 +158,6 @@ onBeforeUnmount(() => cleanup?.())
   margin-bottom: 6px;
   font-size: 13px;
   color: #94a3b8;
-}
-.section-tip {
-  margin-bottom: 10px;
-  font-size: 12px;
-  color: #6f86a6;
 }
 .scroll-inner {
   min-width: 0;

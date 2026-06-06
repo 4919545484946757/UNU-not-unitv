@@ -1,0 +1,18 @@
+{
+  "format": "unu-sample-manifest",
+  "version": 1,
+  "id": "3D",
+  "title": "3D Sample",
+  "description": "Three.js 3D sample project with camera controls, 3D transform editing, lights, model loading, debug overlays, and runtime scripts.",
+  "available": true,
+  "projectFile": "project.json",
+  "entryScene": "MainScene.scene.json",
+  "tags": [
+    "3d",
+    "three",
+    "model",
+    "lighting",
+    "camera",
+    "physics"
+  ]
+}

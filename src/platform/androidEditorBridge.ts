@@ -23,6 +23,7 @@ type AndroidPickedFile = {
 }
 
 type ProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
+type ProjectPhysicsBackend = 'none' | 'cannon' | 'rapier'
 
 type UnuAndroidFilesPlugin = {
   pickDirectory: (payload?: { title?: string }) => Promise<{ uri: string; name: string } | null>
@@ -72,6 +73,16 @@ const ANDROID_SAMPLE_PROJECTS = [
     manifestPath: 'android-game/__samples/snake/manifest.json',
     entryScene: 'Snake.scene.json',
     tags: ['android', '2d', 'arcade', 'snake']
+  },
+  {
+    id: 'android-3d',
+    rootPath: 'android://3D',
+    title: '3D Sample (Android)',
+    description: '内置 Android 3D 示例，包含 Three.js 渲染、3D 场景、灯光、模型和摄像机配置。',
+    bundleBase: '__samples/3D/',
+    manifestPath: 'android-game/__samples/3D/manifest.json',
+    entryScene: 'MainScene.scene.json',
+    tags: ['android', '3d', 'three', 'model', 'lighting']
   }
 ] as const
 
@@ -103,6 +114,17 @@ function readProjectRenderBackend(projectJson: Record<string, unknown> | null | 
   return normalizeProjectRenderBackend(renderer?.backend ?? projectJson?.renderBackend)
 }
 
+function normalizeProjectPhysicsBackend(value: unknown): ProjectPhysicsBackend {
+  return value === 'cannon' || value === 'cannon-es' ? 'cannon' : value === 'rapier' || value === 'rapier3d' ? 'rapier' : 'none'
+}
+
+function readProjectPhysicsBackend(projectJson: Record<string, unknown> | null | undefined): ProjectPhysicsBackend {
+  const physics = projectJson?.physics && typeof projectJson.physics === 'object'
+    ? projectJson.physics as Record<string, unknown>
+    : null
+  return normalizeProjectPhysicsBackend(physics?.backend ?? projectJson?.physicsBackend)
+}
+
 export function installAndroidEditorBridge() {
   if (window.unu || import.meta.env.VITE_UNU_ANDROID_EDITOR !== '1') return
   migrateAndroidEditorStorage()
@@ -115,7 +137,8 @@ export function installAndroidEditorBridge() {
       const parentDir = payload?.parentDir || pickedParent?.dirPath || ''
       const rootPath = `android://workspace/${name}`
       const renderBackend = payload?.template === 'blank-3d' ? 'three' : normalizeProjectRenderBackend(payload?.renderBackend)
-      const files = createBlankProjectFiles(name, renderBackend)
+      const physicsBackend = normalizeProjectPhysicsBackend(payload?.physicsBackend)
+      const files = createBlankProjectFiles(name, renderBackend, physicsBackend)
       for (const file of files) {
         await writeOverlayText(rootPath, file.path, file.content)
       }
@@ -131,7 +154,7 @@ export function installAndroidEditorBridge() {
         }
       }
       rememberWorkspace(rootPath, name, '', parentDir)
-      return { rootPath, name, parentDir, renderBackend, created: true }
+      return { rootPath, name, parentDir, renderBackend, physicsBackend, created: true }
     },
     pickDirectory: async (payload) => {
       const picked = await pickAndroidDirectory(payload?.title || '选择目录').catch(() => null)
@@ -172,6 +195,7 @@ export function installAndroidEditorBridge() {
         rootPath,
         name: String(projectJson.name || rootName(rootPath)),
         renderBackend: readProjectRenderBackend(projectJson),
+        physicsBackend: readProjectPhysicsBackend(projectJson),
         tree: await buildAssetTree(rootPath),
         sceneCount: Array.isArray(projectJson.sceneCatalog) ? projectJson.sceneCatalog.length : 0,
         checkedAssetRefs: 0,
@@ -354,14 +378,19 @@ export function installAndroidEditorBridge() {
     updateProjectSettings: async (payload) => {
       const rootPath = normalizeRoot(payload.projectRoot)
       const projectJson = await readProjectJson(rootPath).catch(() => ({ name: rootName(rootPath) }))
-      const renderBackend = normalizeProjectRenderBackend(payload.renderBackend)
+      const renderBackend = normalizeProjectRenderBackend(payload.renderBackend ?? projectJson.renderer?.backend ?? projectJson.renderBackend)
+      const physicsBackend = normalizeProjectPhysicsBackend(payload.physicsBackend ?? projectJson.physics?.backend ?? projectJson.physicsBackend)
       const renderer = projectJson.renderer && typeof projectJson.renderer === 'object'
         ? projectJson.renderer as Record<string, unknown>
         : {}
       projectJson.renderer = { ...renderer, backend: renderBackend }
+      const physics = projectJson.physics && typeof projectJson.physics === 'object'
+        ? projectJson.physics as Record<string, unknown>
+        : {}
+      projectJson.physics = { ...physics, backend: physicsBackend }
       projectJson.updatedAt = new Date().toISOString()
       await writeOverlayText(rootPath, 'project.json', JSON.stringify(projectJson, null, 2))
-      return { ok: true, renderBackend }
+      return { ok: true, renderBackend, physicsBackend }
     },
     revealInFolder: async (payload) => {
       const rootPath = normalizeRoot(payload.projectRoot)
@@ -375,7 +404,13 @@ export function installAndroidEditorBridge() {
     watchProjectScripts: async () => ({ ok: true }),
     unwatchProjectScripts: async () => ({ ok: true }),
     onProjectScriptChanged: () => () => undefined,
-    exportGame: async (payload) => exportProjectBundle(normalizeRoot(payload.projectRoot), payload.projectName, payload.sceneFiles),
+    exportGame: async (payload) => exportProjectBundle(
+      normalizeRoot(payload.projectRoot),
+      payload.projectName,
+      payload.sceneFiles,
+      payload.renderBackend,
+      payload.physicsBackend
+    ),
     openTilemapEditor: async (payload) => {
       await setAndroidOrientation('portrait')
       tilemapEditorSession = payload
@@ -530,6 +565,37 @@ async function readProjectJson(rootPath: string) {
   return JSON.parse(await readText(rootPath, 'project.json'))
 }
 
+async function createExportProjectJson(
+  rootPath: string,
+  projectName?: string,
+  renderBackendOverride?: ProjectRenderBackend,
+  physicsBackendOverride?: ProjectPhysicsBackend
+) {
+  const projectJson = await readProjectJson(rootPath).catch(() => ({ name: projectName || rootName(rootPath) }))
+  const renderer = projectJson.renderer && typeof projectJson.renderer === 'object' ? projectJson.renderer : {}
+  const physics = projectJson.physics && typeof projectJson.physics === 'object' ? projectJson.physics : {}
+  const renderBackend = normalizeProjectRenderBackend(renderBackendOverride ?? renderer.backend ?? projectJson.renderBackend)
+  const physicsBackend = normalizeProjectPhysicsBackend(physicsBackendOverride ?? physics.backend ?? projectJson.physicsBackend)
+  const exportProject = {
+    ...projectJson,
+    format: 'unu-project',
+    version: 1,
+    name: String(projectJson.name || projectName || rootName(rootPath)),
+    projectType: renderBackend === 'three' ? '3d' : '2d',
+    renderBackend,
+    renderer: {
+      ...renderer,
+      backend: renderBackend
+    },
+    physicsBackend,
+    physics: {
+      ...physics,
+      backend: physicsBackend
+    }
+  }
+  return JSON.stringify(exportProject, null, 2)
+}
+
 async function readText(rootPath: string, relativePath: string) {
   const normalized = normalizeRelativePath(relativePath)
   const stored = localStorage.getItem(fileKey(rootPath, normalized))
@@ -601,8 +667,19 @@ async function pickFiles(accept: string): Promise<Array<File | AndroidPickedFile
   })
 }
 
-async function exportProjectBundle(rootPath: string, projectName?: string, sceneFiles?: Array<{ fileName?: string; content: string }>) {
+async function exportProjectBundle(
+  rootPath: string,
+  projectName?: string,
+  sceneFiles?: Array<{ fileName?: string; content: string }>,
+  renderBackendOverride?: ProjectRenderBackend,
+  physicsBackendOverride?: ProjectPhysicsBackend
+) {
   const manifest = await loadManifest(rootPath)
+  const sourceProjectJson = await readProjectJson(rootPath).catch(() => null)
+  const sourceRenderer = sourceProjectJson?.renderer && typeof sourceProjectJson.renderer === 'object' ? sourceProjectJson.renderer : {}
+  const sourcePhysics = sourceProjectJson?.physics && typeof sourceProjectJson.physics === 'object' ? sourceProjectJson.physics : {}
+  const exportRenderBackend = normalizeProjectRenderBackend(renderBackendOverride ?? sourceRenderer.backend ?? sourceProjectJson?.renderBackend)
+  const exportPhysicsBackend = normalizeProjectPhysicsBackend(physicsBackendOverride ?? sourcePhysics.backend ?? sourceProjectJson?.physicsBackend)
   const exportName = `${sanitizeFileName(projectName || rootName(rootPath))}-web-${timestampForPath()}`
   const pickedOutput = await pickAndroidDirectory('选择 Web 游戏导出目录').catch(() => null)
   const exportTreeUri = pickedOutput?.dirPath?.startsWith('content://') ? pickedOutput.dirPath : ''
@@ -612,6 +689,8 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
     exportedAt: new Date().toISOString(),
     projectName: projectName || rootName(rootPath),
     rootPath,
+    renderBackend: exportRenderBackend,
+    physicsBackend: exportPhysicsBackend,
     outputDir: exportTreeUri ? `${pickedOutput?.name || 'Android Directory'}/${exportName}` : exportRoot,
     files: [] as string[],
     runtimeFiles: [] as string[],
@@ -649,7 +728,7 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
       if (!report.files.includes(path)) report.files.push(path)
     }
 
-    const projectPayload = await readText(rootPath, 'project.json').catch(() => JSON.stringify({ name: projectName || rootName(rootPath) }, null, 2))
+    const projectPayload = await createExportProjectJson(rootPath, projectName, exportRenderBackend, exportPhysicsBackend)
     await writeExportText(`${projectExportRoot}/project.json`, projectPayload, exportTreeUri)
     if (!report.files.includes('project.json')) report.files.push('project.json')
 
@@ -688,6 +767,7 @@ async function exportProjectBundle(rootPath: string, projectName?: string, scene
     }
     for (const path of overlayFilePaths(rootPath)) files[path] = await readText(rootPath, path).catch(() => '')
     for (const scene of sceneFiles || []) files[`scenes/${sanitizeFileName(scene.fileName || 'Scene.scene.json')}`] = scene.content
+    files['project.json'] = await createExportProjectJson(rootPath, projectName, exportRenderBackend, exportPhysicsBackend)
     const bundle = {
       format: 'unu-android-web-export-bundle',
       exportedAt: new Date().toISOString(),
@@ -832,7 +912,7 @@ async function ensureAndroidParentDirectory(path: string) {
   if (parent) await writeAndroidDirectory(parent)
 }
 
-function createBlankProjectFiles(name: string, renderBackend: ProjectRenderBackend = 'pixi') {
+function createBlankProjectFiles(name: string, renderBackend: ProjectRenderBackend = 'pixi', physicsBackend: ProjectPhysicsBackend = 'none') {
   const now = new Date().toISOString()
   const scene = new Scene('scene_main', 'MainScene')
   const sceneContent = renderBackend === 'three' ? createBlank3DSceneContent() : serializeScene(scene)
@@ -843,6 +923,9 @@ function createBlankProjectFiles(name: string, renderBackend: ProjectRenderBacke
     projectType: renderBackend === 'three' ? '3d' : '2d',
     renderer: {
       backend: normalizeProjectRenderBackend(renderBackend)
+    },
+    physics: {
+      backend: normalizeProjectPhysicsBackend(physicsBackend)
     },
     createdAt: now,
     updatedAt: now,

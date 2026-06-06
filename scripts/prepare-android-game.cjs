@@ -13,6 +13,11 @@ const samples = [
     id: 'snake',
     source: path.join(root, 'Sample-project-list', 'snake'),
     target: path.join(target, '__samples', 'snake')
+  },
+  {
+    id: '3D',
+    source: path.join(root, 'Sample-project-list', '3D'),
+    target: path.join(target, '__samples', '3D')
   }
 ]
 
@@ -78,6 +83,7 @@ function classifyAssetType(filePath) {
   if (/\.prefab\.json$/.test(lower)) return 'prefab'
   if (/\.anim\.json$/.test(lower)) return 'animation'
   if (/\.atlas\.json$/.test(lower)) return 'atlas'
+  if (/\.(glb|gltf|obj|fbx|bin)$/.test(lower)) return 'model'
   if (/\.(js|ts|json|html|css|md|txt)$/.test(lower)) return 'script'
   return 'script'
 }

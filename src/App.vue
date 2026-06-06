@@ -279,7 +279,8 @@ async function openProjectFromLauncher(payload: { rootPath: string; name: string
       name: scanned.name || payload.name,
       sampleProjectId: payload.sampleProjectId || '',
       mode: payload.sampleProjectId ? 'sample' : 'local',
-      renderBackend: scanned.renderBackend
+      renderBackend: scanned.renderBackend,
+      physicsBackend: scanned.physicsBackend
     })
     project.resetSceneFile()
     project.setStatus(buildProjectHealthMessage(scanned, `已打开工程：${scanned.name}`))

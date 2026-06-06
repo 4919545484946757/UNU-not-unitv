@@ -4,6 +4,8 @@ import path from 'node:path'
 export type ExportGamePayload = {
   projectRoot: string
   projectName?: string
+  renderBackend?: 'pixi' | 'canvas2d' | 'three'
+  physicsBackend?: 'none' | 'cannon' | 'rapier'
   sceneFiles?: Array<{ fileName?: string; content: string }>
 }
 
@@ -18,6 +20,8 @@ export type ExportGameReport = {
   launchScript: string
   sceneCount: number
   startupScene: string
+  renderBackend: string
+  physicsBackend: string
   sceneCatalog: Array<{ file: string; name: string }>
   sceneSnapshotWritten: number
   sceneSnapshotFiles: string[]
@@ -88,7 +92,10 @@ export function createExportGameHandler(deps: ExportGameDependencies) {
     await deps.copyIfExists(path.join(projectRoot, 'assets'), path.join(outputDir, 'assets'))
     await deps.copyIfExists(path.join(projectRoot, 'scenes'), path.join(outputDir, 'scenes'))
     await deps.copyIfExists(path.join(projectRoot, 'prefabs'), path.join(outputDir, 'prefabs'))
-    const exportProject = await writeNormalizedExportProjectFile(projectRoot, outputDir, projectName)
+    const exportProject = await writeNormalizedExportProjectFile(projectRoot, outputDir, projectName, {
+      renderBackend: payload?.renderBackend,
+      physicsBackend: payload?.physicsBackend
+    })
     const runtimeValidation = await validateRuntimeAssets(outputDir)
 
     const indexPath = path.join(outputDir, 'index.html')
@@ -104,6 +111,8 @@ export function createExportGameHandler(deps: ExportGameDependencies) {
       launchScript: path.join(outputDir, 'PLAY_GAME.bat'),
       sceneCount: exportProject.sceneCatalog.length || reconcile.sceneCount,
       startupScene: exportProject.startupScene || reconcile.startupScene,
+      renderBackend: exportProject.renderBackend,
+      physicsBackend: exportProject.physicsBackend,
       sceneCatalog: exportProject.sceneCatalog,
       sceneSnapshotWritten: sceneSnapshot.written,
       sceneSnapshotFiles: sceneSnapshot.fileNames,
@@ -140,6 +149,8 @@ export function createExportReport(input: {
   launchScript: string
   sceneCount: number
   startupScene: string
+  renderBackend: string
+  physicsBackend: string
   sceneCatalog: Array<{ file: string; name: string }>
   sceneSnapshotWritten: number
   sceneSnapshotFiles: string[]
@@ -158,6 +169,8 @@ export function createExportReport(input: {
     launchScript: input.launchScript,
     sceneCount: input.sceneCount,
     startupScene: input.startupScene,
+    renderBackend: input.renderBackend,
+    physicsBackend: input.physicsBackend,
     sceneCatalog: input.sceneCatalog,
     sceneSnapshotWritten: input.sceneSnapshotWritten,
     sceneSnapshotFiles: input.sceneSnapshotFiles,
@@ -274,7 +287,12 @@ async function patchExportIndexHtml(indexPath: string, projectName?: string) {
   await fs.writeFile(indexPath, html, 'utf-8')
 }
 
-async function writeNormalizedExportProjectFile(projectRoot: string, outputDir: string, projectName: string) {
+async function writeNormalizedExportProjectFile(
+  projectRoot: string,
+  outputDir: string,
+  projectName: string,
+  overrides: { renderBackend?: ExportGamePayload['renderBackend']; physicsBackend?: ExportGamePayload['physicsBackend'] } = {}
+) {
   const sourceProjectFile = path.join(projectRoot, 'project.json')
   const outputProjectFile = path.join(outputDir, 'project.json')
   let parsed: Record<string, any> = {}
@@ -293,18 +311,31 @@ async function writeNormalizedExportProjectFile(projectRoot: string, outputDir: 
     sceneFiles.find((file) => file.toLowerCase() === previousStartup.toLowerCase()) ||
     sceneFiles[0] ||
     ''
+  const renderBackend = normalizeRenderBackend(overrides.renderBackend ?? parsed.renderer?.backend ?? parsed.renderBackend)
+  const physicsBackend = normalizePhysicsBackend(overrides.physicsBackend ?? parsed.physics?.backend ?? parsed.physicsBackend)
 
   const payload = {
     ...parsed,
     format: 'unu-project',
     version: 1,
     name: String(parsed.name || projectName || '').trim() || projectName,
+    projectType: renderBackend === 'three' ? '3d' : '2d',
+    renderBackend,
+    renderer: {
+      ...(parsed.renderer && typeof parsed.renderer === 'object' ? parsed.renderer : {}),
+      backend: renderBackend
+    },
+    physicsBackend,
+    physics: {
+      ...(parsed.physics && typeof parsed.physics === 'object' ? parsed.physics : {}),
+      backend: physicsBackend
+    },
     sceneCatalogVersion: 1,
     sceneCatalog: catalog,
     startupScene
   }
   await fs.writeFile(outputProjectFile, JSON.stringify(payload, null, 2), 'utf-8')
-  return { sceneCatalog: catalog, startupScene }
+  return { sceneCatalog: catalog, startupScene, renderBackend, physicsBackend }
 }
 
 async function writeSceneSnapshotFiles(projectRoot: string, sceneFiles?: Array<{ fileName?: string; content: string }>) {
@@ -366,6 +397,10 @@ function Get-MimeType([string]$filePath) {
     ".webp" { return "image/webp" }
     ".gif" { return "image/gif" }
     ".svg" { return "image/svg+xml" }
+    ".gltf" { return "model/gltf+json; charset=utf-8" }
+    ".glb" { return "model/gltf-binary" }
+    ".bin" { return "application/octet-stream" }
+    ".ktx2" { return "image/ktx2" }
     ".mp3" { return "audio/mpeg" }
     ".wav" { return "audio/wav" }
     ".ogg" { return "audio/ogg" }
@@ -519,6 +554,20 @@ function normalizeExportSceneFileReference(value: unknown) {
   if (!raw) return ''
   const withoutPrefix = raw.replace(/^\.?\//, '').replace(/^scenes\//i, '')
   return withoutPrefix.split('/').filter(Boolean).pop() || withoutPrefix
+}
+
+function normalizeRenderBackend(value: unknown): 'pixi' | 'canvas2d' | 'three' {
+  const raw = String(value || '').trim().toLowerCase()
+  if (raw === 'canvas2d' || raw === 'canvas' || raw === 'native-canvas') return 'canvas2d'
+  if (raw === 'three' || raw === 'threejs' || raw === '3d') return 'three'
+  return 'pixi'
+}
+
+function normalizePhysicsBackend(value: unknown): 'none' | 'cannon' | 'rapier' {
+  const raw = String(value || '').trim().toLowerCase()
+  if (raw === 'cannon' || raw === 'cannon-compatible') return 'cannon'
+  if (raw === 'rapier' || raw === 'rapier-compatible') return 'rapier'
+  return 'none'
 }
 
 function escapeHtml(input: string) {

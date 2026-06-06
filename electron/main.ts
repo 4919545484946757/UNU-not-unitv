@@ -4,6 +4,7 @@ import * as fsSync from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createExportGameHandler } from './services/exportGame'
+import { sampleProjectDisplayOrder } from '../src/engine/project/sampleCatalog'
 
 
 const __filename = fileURLToPath(import.meta.url)
@@ -112,6 +113,7 @@ async function ensureProjectStructure(projectRoot: string) {
 
 
 type ProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
+type ProjectPhysicsBackend = 'none' | 'cannon' | 'rapier'
 
 function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
   if (value === 'three' || value === 'threejs' || value === '3d') return 'three'
@@ -122,7 +124,15 @@ function readProjectRenderBackend(projectJson: Record<string, any> | null | unde
   return normalizeProjectRenderBackend(projectJson?.renderer?.backend ?? projectJson?.renderBackend)
 }
 
-async function writeProjectFile(projectRoot: string, projectName?: string, renderBackend?: ProjectRenderBackend, projectType?: string) {
+function normalizeProjectPhysicsBackend(value: unknown): ProjectPhysicsBackend {
+  return value === 'cannon' || value === 'cannon-es' ? 'cannon' : value === 'rapier' || value === 'rapier3d' ? 'rapier' : 'none'
+}
+
+function readProjectPhysicsBackend(projectJson: Record<string, any> | null | undefined): ProjectPhysicsBackend {
+  return normalizeProjectPhysicsBackend(projectJson?.physics?.backend ?? projectJson?.physicsBackend)
+}
+
+async function writeProjectFile(projectRoot: string, projectName?: string, renderBackend?: ProjectRenderBackend, projectType?: string, physicsBackend?: ProjectPhysicsBackend) {
   const projectFile = path.join(projectRoot, 'project.json')
   const name = projectName?.trim() || path.basename(projectRoot)
   const backend = normalizeProjectRenderBackend(renderBackend)
@@ -133,6 +143,9 @@ async function writeProjectFile(projectRoot: string, projectName?: string, rende
     projectType: projectType || (backend === 'three' ? '3d' : '2d'),
     renderer: {
       backend
+    },
+    physics: {
+      backend: normalizeProjectPhysicsBackend(physicsBackend)
     },
     createdAt: new Date().toISOString()
   }
@@ -656,6 +669,7 @@ async function readProjectInfo(projectRoot: string) {
   const projectFile = path.join(resolvedProjectRoot, 'project.json')
   let name = path.basename(resolvedProjectRoot)
   let renderBackend: ProjectRenderBackend = 'pixi'
+  let physicsBackend: ProjectPhysicsBackend = 'none'
   if (await exists(projectFile)) {
     try {
       const projectJson = JSON.parse(await fs.readFile(projectFile, 'utf-8'))
@@ -663,11 +677,12 @@ async function readProjectInfo(projectRoot: string) {
         name = projectJson.name.trim()
       }
       renderBackend = readProjectRenderBackend(projectJson)
+      physicsBackend = readProjectPhysicsBackend(projectJson)
     } catch {
       // Keep the directory name if the metadata is unreadable.
     }
   }
-  return { rootPath: resolvedProjectRoot, name, renderBackend }
+  return { rootPath: resolvedProjectRoot, name, renderBackend, physicsBackend }
 }
 
 async function scanProject(projectRoot: string) {
@@ -684,6 +699,7 @@ async function scanProject(projectRoot: string) {
     rootPath: resolvedProjectRoot,
     name: projectName,
     renderBackend: projectInfo.renderBackend,
+    physicsBackend: projectInfo.physicsBackend,
     tree: assetTree.tree,
     assetTreeTruncated: assetTree.truncated,
     sceneCatalogRepaired: reconcile.repaired,
@@ -735,9 +751,8 @@ async function readSampleProjectManifest(sampleRoot: string, sampleDirName: stri
 }
 
 function sortSampleProjectEntries(left: any, right: any) {
-  const order = ['sample-2D-shooting', 'snake']
-  const leftIndex = order.indexOf(String(left?.id || left?.title || ''))
-  const rightIndex = order.indexOf(String(right?.id || right?.title || ''))
+  const leftIndex = sampleProjectDisplayOrder.indexOf(String(left?.id || left?.title || ''))
+  const rightIndex = sampleProjectDisplayOrder.indexOf(String(right?.id || right?.title || ''))
   if (leftIndex !== -1 || rightIndex !== -1) {
     return (leftIndex === -1 ? Number.MAX_SAFE_INTEGER : leftIndex) -
       (rightIndex === -1 ? Number.MAX_SAFE_INTEGER : rightIndex)
@@ -2292,7 +2307,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string; renderBackend?: ProjectRenderBackend; template?: string }) => {
+  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string; renderBackend?: ProjectRenderBackend; physicsBackend?: ProjectPhysicsBackend; template?: string }) => {
     let parentDir = String(payload?.parentDir || '').trim()
     if (!parentDir) {
       const result = await dialog.showOpenDialog({
@@ -2317,7 +2332,8 @@ app.whenReady().then(() => {
     await ensureProjectStructure(projectRoot)
     const template = String(payload?.template || '').trim()
     const renderBackend = template === 'blank-3d' ? 'three' : normalizeProjectRenderBackend(payload?.renderBackend)
-    await writeProjectFile(projectRoot, projectName, renderBackend, template === 'blank-3d' ? '3d' : '2d')
+    const physicsBackend = normalizeProjectPhysicsBackend(payload?.physicsBackend)
+    await writeProjectFile(projectRoot, projectName, renderBackend, template === 'blank-3d' ? '3d' : '2d', physicsBackend)
     await ensureProjectRuntimeScriptFiles(projectRoot)
     if (renderBackend === 'three') {
       const scenePath = path.join(projectRoot, 'scenes', 'MainScene.scene.json')
@@ -2331,26 +2347,32 @@ app.whenReady().then(() => {
       name: projectName,
       parentDir,
       renderBackend,
+      physicsBackend,
       created: true,
       integrity
     }
   })
 
-  ipcMain.handle('unu:update-project-settings', async (_event, payload?: { projectRoot?: string; renderBackend?: ProjectRenderBackend }) => {
+  ipcMain.handle('unu:update-project-settings', async (_event, payload?: { projectRoot?: string; renderBackend?: ProjectRenderBackend; physicsBackend?: ProjectPhysicsBackend }) => {
     const projectRoot = await resolveProjectRootPath(String(payload?.projectRoot || ''))
     if (!projectRoot || projectRoot === 'sample-project') return { ok: false, error: '当前工程不支持写入项目设置。' }
     const projectFile = path.join(projectRoot, 'project.json')
     const projectJson = await fs.readFile(projectFile, 'utf-8')
       .then((raw) => JSON.parse(raw))
       .catch(() => ({ format: 'unu-project', version: 1, name: path.basename(projectRoot) }))
-    const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend)
+    const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend ?? projectJson.renderer?.backend ?? projectJson.renderBackend)
+    const physicsBackend = normalizeProjectPhysicsBackend(payload?.physicsBackend ?? projectJson.physics?.backend ?? projectJson.physicsBackend)
     projectJson.renderer = {
       ...(projectJson.renderer && typeof projectJson.renderer === 'object' ? projectJson.renderer : {}),
       backend: renderBackend
     }
+    projectJson.physics = {
+      ...(projectJson.physics && typeof projectJson.physics === 'object' ? projectJson.physics : {}),
+      backend: physicsBackend
+    }
     projectJson.updatedAt = new Date().toISOString()
     await fs.writeFile(projectFile, JSON.stringify(projectJson, null, 2), 'utf-8')
-    return { ok: true, renderBackend }
+    return { ok: true, renderBackend, physicsBackend }
   })
 
   ipcMain.handle('unu:pick-directory', async (_event, payload?: { title?: string; defaultPath?: string }) => {
@@ -2457,7 +2479,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:export-game', async (_event, payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) => {
+  ipcMain.handle('unu:export-game', async (_event, payload: { projectRoot: string; projectName?: string; renderBackend?: ProjectRenderBackend; physicsBackend?: ProjectPhysicsBackend; sceneFiles?: Array<{ fileName?: string; content: string }> }) => {
     const handler = createExportGameHandler({
       resolveProjectRootPath,
       exists,

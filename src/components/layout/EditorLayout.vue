@@ -1,5 +1,5 @@
 ﻿<template>
-  <div class="editor-shell" :class="{ 'focus-scene-view': focusSceneView }">
+  <div class="editor-shell" :class="{ 'focus-scene-view': focusSceneView, 'three-project-layout': is3DProject }">
     <TopToolbar v-if="showEditorChrome" @return-launcher="emit('return-launcher')" />
     <EntityCreateDialog />
     <SceneListDialog />
@@ -65,6 +65,7 @@ const minRightPanelWidth = computed(() => (compactViewport.value ? 140 : 240))
 const maxLeftPanelWidth = computed(() => (compactViewport.value ? 420 : 640))
 const maxRightPanelWidth = computed(() => (compactViewport.value ? 460 : 720))
 const focusSceneView = computed(() => runtime.isPlaying && editor.hideChromeDuringPlay)
+const is3DProject = computed(() => project.renderBackend === 'three')
 const showEditorChrome = computed(() => !focusSceneView.value)
 const showLeftPanel = computed(() => editor.showLeftPanel && !focusSceneView.value)
 const showRightPanel = computed(() => editor.showRightPanel && !focusSceneView.value)
@@ -97,6 +98,21 @@ watch(focusSceneView, () => {
     window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
   })
 })
+
+watch(
+  () => project.renderBackend,
+  (backend) => {
+    if (backend !== 'three') return
+    if (editor.rightTab === 'Timeline') editor.setRightTab('Inspector')
+    if (editor.leftTab === 'Prefab') editor.leftTab = 'Scene'
+    if (!editor.compactUi) {
+      if (editor.leftPanelWidth < 320) editor.setLeftPanelWidth(320)
+      if (editor.rightPanelWidth < 420) editor.setRightPanelWidth(420)
+      if (editor.assetBrowserHeight > 180) editor.setAssetBrowserHeight(180)
+    }
+  },
+  { immediate: true }
+)
 
 function clampPanelWidths(nextLeft: number, nextRight: number) {
   const mainWidth = mainRef.value?.clientWidth ?? window.innerWidth

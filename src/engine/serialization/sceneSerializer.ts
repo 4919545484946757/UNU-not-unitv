@@ -4,6 +4,7 @@ import { BackgroundComponent } from '../components/BackgroundComponent'
 import { CameraComponent } from '../components/CameraComponent'
 import { COLLISION_LAYERS, ColliderComponent, DEFAULT_COLLISION_MASKS, type CollisionLayer } from '../components/ColliderComponent'
 import { InteractableComponent } from '../components/InteractableComponent'
+import { PhysicsBodyComponent } from '../components/PhysicsBodyComponent'
 import { ScriptComponent } from '../components/ScriptComponent'
 import { SpriteComponent } from '../components/SpriteComponent'
 import { TilemapComponent } from '../components/TilemapComponent'
@@ -139,6 +140,24 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.radius ?? Math.max(1, Math.min(Number(data.width ?? 80), Number(data.height ?? 80), Number(data.depth ?? data.width ?? 80)) / 2)),
             Number(data.capsuleHeight ?? data.height ?? 120),
             Number(data.offsetZ ?? 0)
+          )
+        )
+        break
+      case 'PhysicsBody':
+        entity.addComponent(
+          new PhysicsBodyComponent(
+            data.bodyType === 'static' || data.bodyType === 'kinematic' ? data.bodyType : 'dynamic',
+            Number(data.mass ?? 1),
+            Boolean(data.useGravity ?? true),
+            Math.max(0, Number(data.damping ?? 0.08)),
+            Number(data.velocityX ?? 0),
+            Number(data.velocityY ?? 0),
+            Number(data.velocityZ ?? 0),
+            Number(data.angularVelocityX ?? 0),
+            Number(data.angularVelocityY ?? 0),
+            Number(data.angularVelocityZ ?? 0),
+            Boolean(data.lockedRotation ?? false),
+            Boolean(data.enabled ?? true)
           )
         )
         break

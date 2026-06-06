@@ -61,7 +61,7 @@
         </div>
       </section>
 
-      <section v-if="sprite" class="component-shell" :class="componentShellClass('sprite')">
+      <section v-if="!is3DProject && sprite" class="component-shell" :class="componentShellClass('sprite')">
         <div class="component-shell-header" @click="toggleComponentCollapsed('sprite')">
           <button class="collapse-toggle" type="button">{{ isComponentCollapsed('sprite') ? '▸' : '▾' }}</button>
           <div><strong>Sprite</strong><span>贴图、尺寸与颜色</span></div>
@@ -90,53 +90,31 @@
           <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('ThreeObject')">删除</button>
         </div>
         <div v-if="!isComponentCollapsed('threeObject')" class="component-shell-content inline">
-          <label>
-            Mesh Type
-            <select :value="threeObjectKind" @change="setThreeObjectKind">
-              <option value="box">Box</option>
-              <option value="plane">Plane</option>
-              <option value="model">Model</option>
-              <option value="directionalLight">Directional Light</option>
-              <option value="pointLight">Point Light</option>
-              <option value="ambientLight">Ambient Light</option>
-            </select>
-          </label>
-          <label>Depth <input type="number" min="0.1" step="1" :value="threeObjectNumber('depth', 80)" @input="setThreeObjectNumber('depth', $event)" /></label>
-          <label>Material Metalness <input type="number" min="0" max="1" step="0.01" :value="threeObjectNumber('metalness', 0.02)" @input="setThreeObjectNumber('metalness', $event, 0, 1)" /></label>
-          <label>Material Roughness <input type="number" min="0" max="1" step="0.01" :value="threeObjectNumber('roughness', 0.65)" @input="setThreeObjectNumber('roughness', $event, 0, 1)" /></label>
-          <label>Material Opacity <input type="number" min="0" max="1" step="0.01" :value="threeObjectNumber('opacity', sprite?.alpha ?? 1)" @input="setThreeObjectNumber('opacity', $event, 0, 1)" /></label>
-          <div class="color-field">
-            <label>
-              Material Color
-              <input type="color" :value="formatColorInput(threeObjectColor)" @input="setThreeObjectColor" />
-            </label>
-            <input :value="formatColorValue(threeObjectColor, threeObjectNumber('opacity', sprite?.alpha ?? 1))" placeholder="#fff / rgba(255,255,255,.8) / hsl(0 0% 100%)" @input="setThreeObjectColor" />
-          </div>
-          <label v-if="threeObjectIsLight">Light Intensity <input type="number" min="0" step="0.1" :value="threeObjectNumber('intensity', 1.3)" @input="setThreeObjectNumber('intensity', $event, 0)" /></label>
-          <label>
-            Model Path
-            <input :value="threeObjectText('modelPath')" placeholder="assets/models/example.glb" @input="setThreeObjectText('modelPath', $event)" />
-          </label>
-          <div class="asset-picker">
-            <button class="small" :disabled="!selectedModelAssetPath || runtime.isPlaying" @click="bindSelectedModelAsset">Bind Selected Model</button>
-            <span>{{ selectedModelAssetPath || 'Select .glb/.gltf/.obj in Assets' }}</span>
-          </div>
-          <label>
-            Texture Path
-            <input :value="threeObjectText('texturePath')" placeholder="assets/images/albedo.png" @input="setThreeObjectText('texturePath', $event)" />
-          </label>
-          <div class="asset-picker">
-            <button class="small" :disabled="!selectedImageAssetPath || runtime.isPlaying" @click="bindSelectedThreeTexture('texturePath')">Bind Selected Texture</button>
-            <span>{{ selectedImageAssetPath || 'Select image in Assets' }}</span>
-          </div>
-          <label>
-            Normal Map Path
-            <input :value="threeObjectText('normalMapPath')" placeholder="assets/images/normal.png" @input="setThreeObjectText('normalMapPath', $event)" />
-          </label>
-          <div class="asset-picker">
-            <button class="small" :disabled="!selectedImageAssetPath || runtime.isPlaying" @click="bindSelectedThreeTexture('normalMapPath')">Bind Selected Normal</button>
-            <span>{{ selectedImageAssetPath || 'Select image in Assets' }}</span>
-          </div>
+          <ThreeObjectInspector
+            :data="threeObject.data || {}"
+            :kind="threeObjectKind"
+            :is-light="threeObjectIsLight"
+            :sprite-alpha="sprite?.alpha ?? 1"
+            :sprite-width="sprite?.width ?? 0"
+            :sprite-height="sprite?.height ?? 0"
+            :selected-model-asset-path="selectedModelAssetPath"
+            :selected-image-asset-path="selectedImageAssetPath"
+            :runtime-playing="runtime.isPlaying"
+            :color-input="formatColorInput(threeObjectColor)"
+            :color-value="formatColorValue(threeObjectColor, threeObjectNumber('opacity', sprite?.alpha ?? 1))"
+            :model-animation-clips="modelAnimationClips"
+            :bound-clip-for-current-model-state="boundClipForCurrentModelState"
+            @set-kind="setThreeObjectKind"
+            @set-text="setThreeObjectText"
+            @set-number="setThreeObjectNumber"
+            @set-size="setThreeObjectSize"
+            @set-bool="setThreeObjectBool"
+            @set-color="setThreeObjectColor"
+            @bind-model="bindSelectedModelAsset"
+            @refresh-clips="refreshModelAnimationClips"
+            @set-animation-binding="setModelAnimationBinding"
+            @bind-texture="bindSelectedThreeTexture"
+          />
         </div>
       </section>
 
@@ -323,6 +301,22 @@
             @set-layer="setColliderLayer"
             @set-mask-layer="setColliderMaskLayer"
             @set-checked="(key, event) => setChecked('collider', key, event)"
+          />
+        </div>
+      </section>
+
+      <section v-if="is3DProject && physicsBody" class="component-shell" :class="componentShellClass('physicsBody')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('physicsBody')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('physicsBody') ? '▸' : '▾' }}</button>
+          <div><strong>Physics Body</strong><span>3D 刚体类型、速度、阻尼与重力设置</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('PhysicsBody')">删除</button>
+        </div>
+        <div v-if="!isComponentCollapsed('physicsBody')" class="component-shell-content">
+          <PhysicsBodyInspector
+            :body="physicsBody"
+            @set-number="(key, event) => setNumber('physicsBody', key, event)"
+            @set-checked="(key, event) => setChecked('physicsBody', key, event)"
+            @set-body-type="setPhysicsBodyType"
           />
         </div>
       </section>
@@ -763,6 +757,7 @@ import { BackgroundComponent } from '../../engine/components/BackgroundComponent
 import { CameraComponent } from '../../engine/components/CameraComponent'
 import { COLLISION_LAYERS, ColliderComponent, DEFAULT_COLLISION_MASKS, type CollisionLayer } from '../../engine/components/ColliderComponent'
 import { InteractableComponent } from '../../engine/components/InteractableComponent'
+import { PhysicsBodyComponent } from '../../engine/components/PhysicsBodyComponent'
 import { ScriptComponent } from '../../engine/components/ScriptComponent'
 import { SpriteComponent } from '../../engine/components/SpriteComponent'
 import { TilemapComponent } from '../../engine/components/TilemapComponent'
@@ -777,6 +772,8 @@ import ColliderInspector from '../inspector/ColliderInspector.vue'
 import BackgroundInspector from '../inspector/BackgroundInspector.vue'
 import AudioInspector from '../inspector/AudioInspector.vue'
 import CameraInspector from '../inspector/CameraInspector.vue'
+import PhysicsBodyInspector from '../inspector/PhysicsBodyInspector.vue'
+import ThreeObjectInspector from '../inspector/ThreeObjectInspector.vue'
 import {
   setInspectorBooleanField,
   setInspectorColorField,
@@ -815,6 +812,7 @@ const sprite = computed(() => entity.value?.getComponent<SpriteComponent>('Sprit
 const background = computed(() => entity.value?.getComponent<BackgroundComponent>('Background') ?? null)
 const animation = computed(() => entity.value?.getComponent<AnimationComponent>('Animation') ?? null)
 const collider = computed(() => entity.value?.getComponent<ColliderComponent>('Collider') ?? null)
+const physicsBody = computed(() => entity.value?.getComponent<PhysicsBodyComponent>('PhysicsBody') ?? null)
 const interactable = computed(() => entity.value?.getComponent<InteractableComponent>('Interactable') ?? null)
 const script = computed(() => entity.value?.getComponent<ScriptComponent>('Script') ?? null)
 const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camera') ?? null)
@@ -827,6 +825,7 @@ const defaultCollapsedComponents: Record<string, boolean> = {
   threeObject: false,
   animation: true,
   collider: true,
+  physicsBody: false,
   interactable: true,
   tilemap: true,
   ui: true,
@@ -837,7 +836,7 @@ const defaultCollapsedComponents: Record<string, boolean> = {
 const collapsedComponents = ref<Record<string, boolean>>({ ...defaultCollapsedComponents })
 const customComponentName = ref('')
 
-type BuiltinComponentId = 'script' | 'transform' | 'sprite' | 'threeObject' | 'background' | 'animation' | 'collider' | 'interactable' | 'tilemap' | 'ui' | 'audio' | 'camera'
+type BuiltinComponentId = 'script' | 'transform' | 'sprite' | 'threeObject' | 'background' | 'animation' | 'collider' | 'physicsBody' | 'interactable' | 'tilemap' | 'ui' | 'audio' | 'camera'
 
 interface InspectorComponentPanel {
   id: BuiltinComponentId
@@ -852,11 +851,12 @@ interface InspectorComponentPanel {
 const baseComponentPanelOrder: Array<Omit<InspectorComponentPanel, 'active'>> = [
   { id: 'script', type: 'Script', title: 'Script', description: '挂载项目脚本、内联配置或实体交互逻辑。', removable: true },
   { id: 'transform', type: 'Transform', title: 'Transform', description: '实体在世界或视窗中的位置、旋转和缩放。', removable: false },
-  { id: 'sprite', type: 'Sprite', title: 'Sprite', description: '贴图、尺寸、颜色和可见性设置。', removable: true },
-  { id: 'threeObject', type: 'ThreeObject', title: 'Three Object', description: '3D 网格类型、材质参数、灯光强度和模型路径。', removable: true, projectMode: '3d' },
+  { id: 'sprite', type: 'Sprite', title: 'Sprite', description: '贴图、尺寸、颜色和可见性设置。', removable: true, projectMode: '2d' },
+  { id: 'threeObject', type: 'ThreeObject', title: 'Three Object', description: '3D 网格/模型、材质、灯光、环境和模型动画。', removable: true, projectMode: '3d' },
   { id: 'background', type: 'Background', title: 'Background', description: '背景图跟随摄像机、适配模式与背景资源绑定。', removable: true, projectMode: '2d' },
   { id: 'animation', type: 'Animation', title: 'Animation', description: '序列帧、状态机和动画轨道设置。', removable: true, projectMode: '2d' },
   { id: 'collider', type: 'Collider', title: 'Collider', description: '碰撞箱、触发器、碰撞层与碰撞矩阵。', removable: true },
+  { id: 'physicsBody', type: 'PhysicsBody', title: 'Physics Body', description: '3D 刚体模拟、速度、重力和阻尼。', removable: true, projectMode: '3d' },
   { id: 'interactable', type: 'Interactable', title: 'Interactable', description: '交互距离、交互脚本和门/箱子等交互行为。', removable: true },
   { id: 'tilemap', type: 'Tilemap', title: 'Tilemap', description: 'Tile 数据、碰撞数据和数值贴图绑定。', removable: true, projectMode: '2d' },
   { id: 'ui', type: 'UI', title: 'UI', description: '文本、按钮、Slider、Markdown/HTML Overlay 和布局。', removable: true, projectMode: '2d' },
@@ -1083,6 +1083,7 @@ function isBuiltinComponentActive(id: BuiltinComponentId) {
     case 'background': return Boolean(background.value)
     case 'animation': return Boolean(animation.value)
     case 'collider': return Boolean(collider.value)
+    case 'physicsBody': return Boolean(physicsBody.value)
     case 'interactable': return Boolean(interactable.value)
     case 'tilemap': return Boolean(tilemap.value)
     case 'ui': return Boolean(ui.value)
@@ -1101,6 +1102,7 @@ function addBuiltinComponent(id: BuiltinComponentId) {
     case 'background': addBackgroundComponent(); break
     case 'animation': addAnimationComponent(); break
     case 'collider': addColliderComponent(); break
+    case 'physicsBody': addPhysicsBodyComponent(); break
     case 'interactable': addInteractableComponent(); break
     case 'tilemap': addTilemapComponent(); break
     case 'ui': addUIComponent(); break
@@ -1145,7 +1147,18 @@ function addCustomComponent() {
 }
 
 const threeObjectKind = computed(() => String(threeObject.value?.data?.kind || 'box'))
-const threeObjectIsLight = computed(() => ['directionalLight', 'pointLight', 'ambientLight'].includes(threeObjectKind.value))
+const threeObjectIsLight = computed(() => ['directionalLight', 'pointLight', 'spotLight', 'ambientLight', 'environmentLight'].includes(threeObjectKind.value))
+const modelAnimationClips = computed(() => {
+  const clips = threeObject.value?.data?.modelAnimationClips
+  return Array.isArray(clips) ? clips.map((clip) => String(clip || '').trim()).filter(Boolean) : []
+})
+const boundClipForCurrentModelState = computed(() => {
+  const data = threeObject.value?.data
+  if (!data || typeof data !== 'object') return ''
+  const state = String(data.modelAnimationState || data.modelAnimationInitialState || '').trim()
+  if (!state || !data.modelAnimationBindings || typeof data.modelAnimationBindings !== 'object' || Array.isArray(data.modelAnimationBindings)) return ''
+  return String((data.modelAnimationBindings as Record<string, unknown>)[state] || '')
+})
 const threeObjectColor = computed(() => {
   const value = threeObject.value?.data?.color
   if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.min(0xffffff, Math.round(value)))
@@ -1167,11 +1180,6 @@ function ensureThreeObjectData() {
   return component.data
 }
 
-function threeObjectText(key: string) {
-  const value = threeObject.value?.data?.[key]
-  return typeof value === 'string' ? value : ''
-}
-
 function threeObjectNumber(key: string, fallback: number) {
   const value = Number(threeObject.value?.data?.[key])
   return Number.isFinite(value) ? value : fallback
@@ -1182,7 +1190,7 @@ function setThreeObjectKind(event: Event) {
   const data = ensureThreeObjectData()
   if (!data) return
   const value = (event.target as HTMLSelectElement).value
-  data.kind = ['box', 'plane', 'model', 'directionalLight', 'pointLight', 'ambientLight'].includes(value) ? value : 'box'
+  data.kind = ['box', 'plane', 'model', 'directionalLight', 'pointLight', 'spotLight', 'ambientLight', 'environmentLight', 'worldEnvironment'].includes(value) ? value : 'box'
   sceneStore.markDirty()
 }
 
@@ -1201,6 +1209,24 @@ function setThreeObjectNumber(key: string, event: Event, min = Number.NEGATIVE_I
   const value = Number((event.target as HTMLInputElement).value)
   if (!Number.isFinite(value)) return
   data[key] = Math.max(min, Math.min(max, value))
+  sceneStore.markDirty()
+}
+
+function setThreeObjectSize(key: 'width' | 'height', event: Event) {
+  if (runtime.isPlaying) return
+  const value = Math.max(1, Number((event.target as HTMLInputElement).value))
+  if (!Number.isFinite(value)) return
+  const data = ensureThreeObjectData()
+  if (data) data[key] = value
+  if (sprite.value) sprite.value[key] = value
+  sceneStore.markDirty()
+}
+
+function setThreeObjectBool(key: string, event: Event) {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data) return
+  data[key] = (event.target as HTMLInputElement).checked
   sceneStore.markDirty()
 }
 
@@ -1228,17 +1254,71 @@ async function bindSelectedModelAsset() {
     return null
   })
   if (result?.hierarchy) data.modelHierarchy = result.hierarchy
+  if (result?.animationClips) {
+    data.modelAnimationClips = result.animationClips
+    const firstClip = result.animationClips[0] || ''
+    if (firstClip && !String(data.modelAnimationInitialState || '').trim()) data.modelAnimationInitialState = firstClip
+    if (firstClip && !String(data.modelAnimationState || '').trim()) data.modelAnimationState = firstClip
+    if (typeof data.modelAnimationLoop !== 'boolean') data.modelAnimationLoop = true
+    if (typeof data.modelAnimationEnabled !== 'boolean') data.modelAnimationEnabled = true
+    if (!Number.isFinite(Number(data.modelAnimationSpeed))) data.modelAnimationSpeed = 1
+  }
   sceneStore.markDirty()
   project.setStatus(`已绑定 3D 模型：${selectedModelAssetPath.value}`)
 }
 
-function bindSelectedThreeTexture(key: 'texturePath' | 'normalMapPath') {
+async function refreshModelAnimationClips() {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  const modelPath = String(data?.modelPath || '').trim()
+  if (!data || !modelPath) return
+  const result = await loadGltfModelWithHierarchy(modelPath).catch((error) => {
+    console.warn('[UNU][inspector] failed to refresh model animation clips', modelPath, error)
+    return null
+  })
+  if (!result) {
+    project.setStatus(`无法读取模型动画片段：${modelPath}`)
+    return
+  }
+  data.modelHierarchy = result.hierarchy
+  data.modelAnimationClips = result.animationClips
+  const firstClip = result.animationClips[0] || ''
+  if (firstClip && !String(data.modelAnimationInitialState || '').trim()) data.modelAnimationInitialState = firstClip
+  if (firstClip && !String(data.modelAnimationState || '').trim()) data.modelAnimationState = firstClip
+  if (typeof data.modelAnimationLoop !== 'boolean') data.modelAnimationLoop = true
+  if (typeof data.modelAnimationEnabled !== 'boolean') data.modelAnimationEnabled = true
+  if (!Number.isFinite(Number(data.modelAnimationSpeed))) data.modelAnimationSpeed = 1
+  sceneStore.markDirty()
+  project.setStatus(result.animationClips.length ? `已刷新模型动画片段：${result.animationClips.join(', ')}` : `模型未包含 glTF 动画片段：${modelPath}`)
+}
+
+function setModelAnimationBinding(event: Event) {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data) return
+  const state = String(data.modelAnimationState || data.modelAnimationInitialState || '').trim()
+  if (!state) {
+    project.setStatus('请先填写模型动画 State，再绑定 glTF 片段。')
+    return
+  }
+  const clip = (event.target as HTMLSelectElement).value.trim()
+  if (!data.modelAnimationBindings || typeof data.modelAnimationBindings !== 'object' || Array.isArray(data.modelAnimationBindings)) {
+    data.modelAnimationBindings = {}
+  }
+  const bindings = data.modelAnimationBindings as Record<string, string>
+  if (clip) bindings[state] = clip
+  else delete bindings[state]
+  sceneStore.markDirty()
+}
+
+function bindSelectedThreeTexture(key: 'texturePath' | 'normalMapPath' | 'environmentMapPath' | 'worldTexturePath') {
   if (runtime.isPlaying) return
   const data = ensureThreeObjectData()
   if (!data || !selectedImageAssetPath.value) return
   data[key] = selectedImageAssetPath.value
   sceneStore.markDirty()
-  project.setStatus(`已绑定 ${key === 'normalMapPath' ? '法线贴图' : '材质贴图'}：${selectedImageAssetPath.value}`)
+  const label = key === 'normalMapPath' ? '法线贴图' : key === 'environmentMapPath' ? '环境贴图' : key === 'worldTexturePath' ? '世界环境球贴图' : '材质贴图'
+  project.setStatus(`已绑定 ${label}：${selectedImageAssetPath.value}`)
 }
 
 function addThreeObjectComponent() {
@@ -1246,6 +1326,8 @@ function addThreeObjectComponent() {
   if (!entity.value || threeObject.value) return
   entity.value.addComponent(new CustomComponent('ThreeObject', {
     kind: 'box',
+    width: 80,
+    height: 80,
     depth: 80,
     metalness: 0.02,
     roughness: 0.65,
@@ -1493,6 +1575,7 @@ function inspectorComponents(): InspectorComponentMap {
     collider: collider.value,
     animation: animation.value,
     camera: camera.value,
+    physicsBody: physicsBody.value,
     audio: audio.value,
     ui: ui.value,
     tilemap: tilemap.value,
@@ -1773,7 +1856,7 @@ function hslToRgb(h: number, s: number, l: number) {
   ]
 }
 
-function setChecked(group: 'sprite' | 'background' | 'collider' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
+function setChecked(group: 'sprite' | 'background' | 'collider' | 'physicsBody' | 'animation' | 'camera' | 'audio' | 'ui' | 'tilemap' | 'interactable', key: string, event: Event) {
   if (runtime.isPlaying) return
   const value = (event.target as HTMLInputElement).checked
   markDirtyIfUpdated(setInspectorBooleanField(inspectorComponents(), group, key, value))
@@ -1918,6 +2001,13 @@ function setColliderShape(event: Event) {
   } else if (collider.value.shape === 'box') {
     collider.value.depth = Math.max(1, Number(collider.value.depth || collider.value.width || 80))
   }
+  sceneStore.markDirty()
+}
+
+function setPhysicsBodyType(event: Event) {
+  if (runtime.isPlaying || !physicsBody.value) return
+  const value = (event.target as HTMLSelectElement).value
+  physicsBody.value.bodyType = value === 'static' || value === 'kinematic' ? value : 'dynamic'
   sceneStore.markDirty()
 }
 
@@ -2842,6 +2932,13 @@ function addColliderComponent() {
   if (runtime.isPlaying) return
   if (!entity.value || collider.value) return
   entity.value.addComponent(new ColliderComponent('rect', 80, 80, 0, 0, false, 'Default', [...DEFAULT_COLLISION_MASKS.Default], true, 80, 40, 120, 0))
+  sceneStore.markDirty()
+}
+
+function addPhysicsBodyComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || physicsBody.value) return
+  entity.value.addComponent(new PhysicsBodyComponent('dynamic', 1, true, 0.08))
   sceneStore.markDirty()
 }
 

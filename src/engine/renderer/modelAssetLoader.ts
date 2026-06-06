@@ -17,6 +17,13 @@ export type ModelHierarchyNode = {
   children: ModelHierarchyNode[]
 }
 
+export type LoadedGltfModel = {
+  scene: THREE.Object3D
+  animations: THREE.AnimationClip[]
+  animationClips: string[]
+  hierarchy: ModelHierarchyNode[]
+}
+
 function normalizeAssetPath(path: string) {
   return String(path || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()
 }
@@ -241,7 +248,12 @@ export async function loadGltfModelWithHierarchy(modelPath: string) {
     const loader = new GLTFLoader(prepared.manager)
     const gltf = await loader.parseAsync(prepared.modelData, prepared.resourcePath)
     const scene = gltf.scene || null
-    return scene ? { scene, hierarchy: buildModelHierarchy(scene) } : null
+    return scene ? {
+      scene,
+      animations: gltf.animations || [],
+      animationClips: (gltf.animations || []).map((clip) => clip.name).filter(Boolean),
+      hierarchy: buildModelHierarchy(scene)
+    } satisfies LoadedGltfModel : null
   } finally {
     prepared.dispose()
   }

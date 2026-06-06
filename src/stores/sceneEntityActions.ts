@@ -34,7 +34,7 @@ export const sceneEntityActions = {
       selection.selectEntity(entity.id)
       project.setStatus('Scene operation updated')
     },
-    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background' | 'three-box' | 'three-plane' | 'three-model' | 'three-directional-light' | 'three-point-light' | 'three-ambient-light') {
+    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background' | 'three-box' | 'three-plane' | 'three-model' | 'three-directional-light' | 'three-point-light' | 'three-spot-light' | 'three-ambient-light' | 'three-environment-light' | 'three-world-environment') {
       const project = useProjectStore()
       if (!this.currentScene) this.createNewScene()
       if (!this.currentScene) return
@@ -58,14 +58,48 @@ export const sceneEntityActions = {
         entity.name = type === 'three-model' ? 'Model' : type === 'three-plane' ? 'Plane' : 'Box'
         entity.addComponent(new SpriteComponent('', type === 'three-plane' ? 220 : 96, type === 'three-plane' ? 140 : 96, true, 1, type === 'three-plane' ? 0x3050a0 : 0x42a5f5, true))
         entity.addComponent(new ColliderComponent('rect', type === 'three-plane' ? 220 : 96, type === 'three-plane' ? 140 : 96))
-        entity.addComponent(new CustomComponent('ThreeObject', { kind, depth: type === 'three-plane' ? 8 : 96, metalness: 0.02, roughness: 0.65, opacity: 1, color: type === 'three-plane' ? 0x3050a0 : 0x42a5f5, texturePath: '', normalMapPath: '', modelPath: '' }))
-      } else if (type === 'three-directional-light' || type === 'three-point-light' || type === 'three-ambient-light') {
-        const kind = type === 'three-directional-light' ? 'directionalLight' : type === 'three-point-light' ? 'pointLight' : 'ambientLight'
-        entity.name = type === 'three-directional-light' ? 'DirectionalLight' : type === 'three-point-light' ? 'PointLight' : 'AmbientLight'
+        entity.addComponent(new CustomComponent('ThreeObject', { kind, width: type === 'three-plane' ? 220 : 96, height: type === 'three-plane' ? 140 : 96, depth: type === 'three-plane' ? 8 : 96, metalness: 0.02, roughness: 0.65, opacity: 1, color: type === 'three-plane' ? 0x3050a0 : 0x42a5f5, texturePath: '', normalMapPath: '', modelPath: '' }))
+      } else if (type === 'three-directional-light' || type === 'three-point-light' || type === 'three-spot-light' || type === 'three-ambient-light' || type === 'three-environment-light' || type === 'three-world-environment') {
+        const kind = type === 'three-directional-light'
+          ? 'directionalLight'
+          : type === 'three-point-light'
+            ? 'pointLight'
+            : type === 'three-spot-light'
+              ? 'spotLight'
+              : type === 'three-environment-light'
+                ? 'environmentLight'
+                : type === 'three-world-environment'
+                  ? 'worldEnvironment'
+                  : 'ambientLight'
+        entity.name = type === 'three-directional-light'
+          ? 'DirectionalLight'
+          : type === 'three-point-light'
+            ? 'PointLight'
+            : type === 'three-spot-light'
+              ? 'SpotLight'
+              : type === 'three-environment-light'
+                ? 'EnvironmentLight'
+                : type === 'three-world-environment'
+                  ? 'WorldEnvironment'
+                  : 'AmbientLight'
         entity.addComponent(new SpriteComponent('', 32, 32, true, 1, 0xfff2b0, true))
-        entity.addComponent(new CustomComponent('ThreeObject', { kind, intensity: kind === 'ambientLight' ? 0.55 : 1.3 }))
+        entity.addComponent(new CustomComponent('ThreeObject', {
+          kind,
+          intensity: kind === 'ambientLight' ? 0.55 : 1.3,
+          distance: kind === 'pointLight' ? 1200 : kind === 'spotLight' ? 1400 : undefined,
+          decay: kind === 'pointLight' || kind === 'spotLight' ? 2 : undefined,
+          angle: kind === 'spotLight' ? Math.PI / 6 : undefined,
+          penumbra: kind === 'spotLight' ? 0.28 : undefined,
+          targetX: kind === 'directionalLight' || kind === 'spotLight' ? 0 : undefined,
+          targetY: kind === 'spotLight' ? 320 : 0,
+          targetZ: 0,
+          environmentMapPath: kind === 'environmentLight' || kind === 'worldEnvironment' ? '' : undefined,
+          worldTexturePath: kind === 'worldEnvironment' ? '' : undefined,
+          environmentIntensity: kind === 'environmentLight' || kind === 'worldEnvironment' ? 1 : undefined,
+          skyRadius: kind === 'worldEnvironment' ? 4000 : undefined
+        }))
         const lightTransform = entity.getTransform()
-        if (lightTransform && kind !== 'ambientLight') lightTransform.z = 420
+        if (lightTransform && kind !== 'ambientLight' && kind !== 'environmentLight' && kind !== 'worldEnvironment') lightTransform.z = 420
       } else if (type === 'camera') {
         entity.name = 'Camera'
         entity.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
@@ -121,7 +155,7 @@ export const sceneEntityActions = {
       project.setStatus('Scene operation updated')
     },
     createEntityFromDialog(payload: {
-      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background' | 'three-box' | 'three-plane' | 'three-model' | 'three-directional-light' | 'three-point-light' | 'three-ambient-light'
+      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background' | 'three-box' | 'three-plane' | 'three-model' | 'three-directional-light' | 'three-point-light' | 'three-spot-light' | 'three-ambient-light' | 'three-environment-light' | 'three-world-environment'
       name?: string
       x?: number
       y?: number

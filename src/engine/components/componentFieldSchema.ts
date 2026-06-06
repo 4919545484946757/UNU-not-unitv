@@ -3,6 +3,7 @@ import type { BackgroundComponent } from './BackgroundComponent'
 import type { CameraComponent } from './CameraComponent'
 import type { ColliderComponent } from './ColliderComponent'
 import type { InteractableComponent } from './InteractableComponent'
+import type { PhysicsBodyComponent } from './PhysicsBodyComponent'
 import type { SpriteComponent } from './SpriteComponent'
 import type { TilemapComponent } from './TilemapComponent'
 import type { TransformComponent } from './TransformComponent'
@@ -14,6 +15,7 @@ export type InspectorComponentGroup =
   | 'sprite'
   | 'background'
   | 'collider'
+  | 'physicsBody'
   | 'animation'
   | 'camera'
   | 'audio'
@@ -26,6 +28,7 @@ export type InspectorComponentMap = {
   sprite: SpriteComponent | null
   background: BackgroundComponent | null
   collider: ColliderComponent | null
+  physicsBody: PhysicsBodyComponent | null
   animation: AnimationComponent | null
   camera: CameraComponent | null
   audio: AudioComponent | null
@@ -54,6 +57,10 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
   collider: {
     number: ['width', 'height', 'depth', 'radius', 'capsuleHeight', 'offsetX', 'offsetY', 'offsetZ'],
     boolean: ['enabled', 'isTrigger', 'showDebugFrame']
+  },
+  physicsBody: {
+    number: ['mass', 'damping', 'velocityX', 'velocityY', 'velocityZ', 'angularVelocityX', 'angularVelocityY', 'angularVelocityZ'],
+    boolean: ['enabled', 'useGravity', 'lockedRotation']
   },
   animation: {
     number: ['fps', 'currentFrame', 'elapsed'],

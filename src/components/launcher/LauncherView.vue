@@ -115,6 +115,14 @@
                 <option value="three">Three.js 3D</option>
               </select>
             </label>
+            <label class="field">
+              <span>物理后端</span>
+              <select v-model="createForm.physicsBackend">
+                <option value="none">None</option>
+                <option value="cannon">Cannon-compatible</option>
+                <option value="rapier">Rapier-compatible</option>
+              </select>
+            </label>
             <div class="setting-row">
               <span>默认场景</span>
               <strong>{{ createForm.template === 'blank-3d' ? 'MainScene (3D)' : 'MainScene' }}</strong>
@@ -203,7 +211,8 @@ const createForm = ref({
   projectName: '',
   parentDir: '',
   template: 'blank-2d',
-  renderBackend: 'pixi' as UnuProjectRenderBackend
+  renderBackend: 'pixi' as UnuProjectRenderBackend,
+  physicsBackend: 'none' as UnuProjectPhysicsBackend
 })
 
 const renameDialogVisible = ref(false)
@@ -330,7 +339,8 @@ function resetCreateForm() {
     projectName: '',
     parentDir: '',
     template: 'blank-2d',
-    renderBackend: 'pixi'
+    renderBackend: 'pixi',
+    physicsBackend: 'none'
   }
 }
 
@@ -364,6 +374,7 @@ async function submitCreateProject() {
       projectName: createForm.value.projectName.trim() || undefined,
       parentDir: createForm.value.parentDir.trim() || undefined,
       renderBackend: createForm.value.renderBackend,
+      physicsBackend: createForm.value.physicsBackend,
       template: createForm.value.template
     })
     if (!created) return

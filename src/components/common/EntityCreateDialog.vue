@@ -70,7 +70,10 @@ type EntityType =
   | 'three-model'
   | 'three-directional-light'
   | 'three-point-light'
+  | 'three-spot-light'
   | 'three-ambient-light'
+  | 'three-environment-light'
+  | 'three-world-environment'
 
 const editor = useEditorStore()
 const project = useProjectStore()
@@ -85,7 +88,10 @@ const entityTypeOptions = computed<Array<{ value: EntityType; label: string }>>(
       { value: 'three-model', label: '3D Model' },
       { value: 'three-directional-light', label: 'Directional Light' },
       { value: 'three-point-light', label: 'Point Light' },
+      { value: 'three-spot-light', label: 'Spot Light' },
       { value: 'three-ambient-light', label: 'Ambient Light' },
+      { value: 'three-environment-light', label: 'Environment Map Light' },
+      { value: 'three-world-environment', label: 'World Environment Sphere' },
       { value: 'camera', label: 'Camera' }
     ]
   }
@@ -134,7 +140,10 @@ const suggestedNames: Record<EntityType, string> = {
   'three-model': 'Model',
   'three-directional-light': 'DirectionalLight',
   'three-point-light': 'PointLight',
-  'three-ambient-light': 'AmbientLight'
+  'three-spot-light': 'SpotLight',
+  'three-ambient-light': 'AmbientLight',
+  'three-environment-light': 'EnvironmentLight',
+  'three-world-environment': 'WorldEnvironment'
 }
 
 function resetForm() {

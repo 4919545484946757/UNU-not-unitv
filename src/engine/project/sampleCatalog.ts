@@ -10,6 +10,13 @@ export interface SampleProjectEntry {
   tags?: string[]
 }
 
+export const sampleProjectDisplayOrder = [
+  'sample-2D-shooting',
+  '2D-shooting-canvas',
+  '3D',
+  'snake'
+]
+
 export const fallbackSampleProjectCatalog: SampleProjectEntry[] = [
   {
     id: 'sample-2D-shooting',
@@ -21,6 +28,17 @@ export const fallbackSampleProjectCatalog: SampleProjectEntry[] = [
     projectFile: 'project.json',
     entryScene: 'MainScene.scene.json',
     tags: ['2d', 'action', 'shooting', 'animation', 'interaction']
+  },
+  {
+    id: '3D',
+    title: '3D Sample',
+    description: 'Three.js 3D sample project with camera controls, 3D transform editing, lights, model loading, debug overlays, and runtime scripts.',
+    available: true,
+    rootPath: 'Sample-project-list/3D',
+    manifestPath: 'Sample-project-list/3D/manifest.json',
+    projectFile: 'project.json',
+    entryScene: 'MainScene.scene.json',
+    tags: ['3d', 'three', 'model', 'lighting', 'camera', 'physics']
   },
   {
     id: '2D-shooting-canvas',

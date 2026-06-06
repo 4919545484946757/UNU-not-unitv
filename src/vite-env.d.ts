@@ -22,17 +22,19 @@ declare global {
   }
 
   type UnuProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
+  type UnuProjectPhysicsBackend = 'none' | 'cannon' | 'rapier'
 
   interface Window {
     __UNU_GAME_EXPORT__?: boolean
     unu?: {
       version: string
       windowRole?: 'main' | 'tilemap-editor' | 'code-editor' | 'sprite-atlas-editor' | string
-      createProject?: (payload?: { projectName?: string; parentDir?: string; renderBackend?: UnuProjectRenderBackend; template?: string }) => Promise<{
+      createProject?: (payload?: { projectName?: string; parentDir?: string; renderBackend?: UnuProjectRenderBackend; physicsBackend?: UnuProjectPhysicsBackend; template?: string }) => Promise<{
         rootPath: string
         name: string
         parentDir?: string
         renderBackend?: UnuProjectRenderBackend
+        physicsBackend?: UnuProjectPhysicsBackend
         created: boolean
         integrity?: UnuAssetIntegrityResult
       } | null>
@@ -62,13 +64,14 @@ declare global {
         entryScene?: string
         tags?: string[]
       }>>
-      getProjectInfo?: (projectRoot: string) => Promise<{ rootPath: string; name: string; renderBackend?: UnuProjectRenderBackend }>
-      updateProjectSettings?: (payload: { projectRoot: string; renderBackend?: UnuProjectRenderBackend }) => Promise<{ ok: boolean; renderBackend?: UnuProjectRenderBackend; error?: string }>
+      getProjectInfo?: (projectRoot: string) => Promise<{ rootPath: string; name: string; renderBackend?: UnuProjectRenderBackend; physicsBackend?: UnuProjectPhysicsBackend }>
+      updateProjectSettings?: (payload: { projectRoot: string; renderBackend?: UnuProjectRenderBackend; physicsBackend?: UnuProjectPhysicsBackend }) => Promise<{ ok: boolean; renderBackend?: UnuProjectRenderBackend; physicsBackend?: UnuProjectPhysicsBackend; error?: string }>
       clearApplicationData?: () => Promise<{ ok: boolean; cleared?: string[]; restartRequired?: boolean; error?: string }>
       scanProject?: (projectRoot: string) => Promise<{
         rootPath: string
         name: string
         renderBackend?: UnuProjectRenderBackend
+        physicsBackend?: UnuProjectPhysicsBackend
         tree: import('./engine/assets/types').AssetNode[]
         assetTreeTruncated?: boolean
         sceneCatalogRepaired?: boolean
@@ -125,7 +128,7 @@ declare global {
       watchProjectScripts?: (payload: { projectRoot: string }) => Promise<{ ok: boolean; error?: string }>
       unwatchProjectScripts?: () => Promise<{ ok: boolean; error?: string }>
       onProjectScriptChanged?: (callback: (payload: { projectRoot: string; relativePath: string; changedAt: number }) => void) => (() => void)
-      exportGame?: (payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) => Promise<{
+      exportGame?: (payload: { projectRoot: string; projectName?: string; renderBackend?: UnuProjectRenderBackend; physicsBackend?: UnuProjectPhysicsBackend; sceneFiles?: Array<{ fileName?: string; content: string }> }) => Promise<{
         ok: boolean
         outputDir?: string
         indexPath?: string

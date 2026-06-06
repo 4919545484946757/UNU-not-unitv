@@ -77,6 +77,14 @@
               <option value="three">Three.js 3D</option>
             </select>
           </label>
+          <label class="filter-row renderer-row">
+            <span>物理后端</span>
+            <select :value="project.physicsBackend" @change="setProjectPhysicsBackend">
+              <option value="none">None</option>
+              <option value="cannon">Cannon-compatible</option>
+              <option value="rapier">Rapier-compatible</option>
+            </select>
+          </label>
           <div class="menu-tip">播放/调试播放时仅保留 Scene View，停止后恢复当前布局。</div>
           <div class="menu-actions">
             <button type="button" @click="setAllPanelsVisible(true)">全部显示</button>
@@ -182,7 +190,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
-import { STATUS_LOG_CATEGORIES, STATUS_LOG_CATEGORY_LABELS, normalizeProjectRenderBackend, useProjectStore } from '../../stores/project'
+import { STATUS_LOG_CATEGORIES, STATUS_LOG_CATEGORY_LABELS, normalizeProjectPhysicsBackend, normalizeProjectRenderBackend, useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
 
@@ -347,7 +355,7 @@ async function setProjectRenderBackend(event: Event) {
     project.setStatus(`项目渲染方式已设为：${renderBackendLabel(renderBackend)}`)
     return
   }
-  const result = await window.unu.updateProjectSettings({ projectRoot: project.rootPath, renderBackend }).catch((error): { ok: boolean; renderBackend?: UnuProjectRenderBackend; error?: string } => ({ ok: false, error: String(error) }))
+  const result = await window.unu.updateProjectSettings({ projectRoot: project.rootPath, renderBackend, physicsBackend: project.physicsBackend }).catch((error): { ok: boolean; renderBackend?: UnuProjectRenderBackend; error?: string } => ({ ok: false, error: String(error) }))
   if (!result?.ok) {
     project.setRenderBackend(previous)
     project.setStatus(`保存项目渲染方式失败：${result?.error || '未知错误'}`)
@@ -357,10 +365,34 @@ async function setProjectRenderBackend(event: Event) {
   project.setStatus(`项目渲染方式已保存：${renderBackendLabel(project.renderBackend)}`)
 }
 
+async function setProjectPhysicsBackend(event: Event) {
+  const previous = project.physicsBackend
+  const physicsBackend = normalizeProjectPhysicsBackend((event.target as HTMLSelectElement).value)
+  project.setPhysicsBackend(physicsBackend)
+  if (!project.canUseLocalProjectFiles || !window.unu?.updateProjectSettings) {
+    project.setStatus(`项目物理后端已设为：${physicsBackendLabel(physicsBackend)}`)
+    return
+  }
+  const result = await window.unu.updateProjectSettings({ projectRoot: project.rootPath, renderBackend: project.renderBackend, physicsBackend }).catch((error): { ok: boolean; physicsBackend?: UnuProjectPhysicsBackend; error?: string } => ({ ok: false, error: String(error) }))
+  if (!result?.ok) {
+    project.setPhysicsBackend(previous)
+    project.setStatus(`保存项目物理后端失败：${result?.error || '未知错误'}`)
+    return
+  }
+  project.setPhysicsBackend(normalizeProjectPhysicsBackend(result.physicsBackend))
+  project.setStatus(`项目物理后端已保存：${physicsBackendLabel(project.physicsBackend)}`)
+}
+
 function renderBackendLabel(value: UnuProjectRenderBackend) {
   if (value === 'canvas2d') return '原生 Canvas 2D'
   if (value === 'three') return 'Three.js 3D'
   return 'Pixi Renderer'
+}
+
+function physicsBackendLabel(value: UnuProjectPhysicsBackend) {
+  if (value === 'cannon') return 'Cannon-compatible'
+  if (value === 'rapier') return 'Rapier-compatible'
+  return 'None'
 }
 
 function setAllPanelsVisible(visible: boolean) {

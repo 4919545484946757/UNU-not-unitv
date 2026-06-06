@@ -6,7 +6,7 @@ const windowRole = windowRoleArg ? windowRoleArg.slice('--unu-window-role='.leng
 contextBridge.exposeInMainWorld('unu', {
   version: '0.9.0',
   windowRole,
-  createProject: (payload?: { projectName?: string; parentDir?: string; renderBackend?: 'pixi' | 'canvas2d' | 'three'; template?: string }) => ipcRenderer.invoke('unu:create-project-v2', payload),
+  createProject: (payload?: { projectName?: string; parentDir?: string; renderBackend?: 'pixi' | 'canvas2d' | 'three'; physicsBackend?: 'none' | 'cannon' | 'rapier'; template?: string }) => ipcRenderer.invoke('unu:create-project-v2', payload),
   pickDirectory: (payload?: { title?: string; defaultPath?: string }) => ipcRenderer.invoke('unu:pick-directory', payload),
   saveProjectAs: (payload: {
     sourceProjectRoot?: string
@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('unu', {
   pickProjectFolder: () => ipcRenderer.invoke('unu:pick-project-folder'),
   listSampleProjects: () => ipcRenderer.invoke('unu:list-sample-projects'),
   getProjectInfo: (projectRoot: string) => ipcRenderer.invoke('unu:get-project-info', projectRoot),
-  updateProjectSettings: (payload: { projectRoot: string; renderBackend?: 'pixi' | 'canvas2d' | 'three' }) =>
+  updateProjectSettings: (payload: { projectRoot: string; renderBackend?: 'pixi' | 'canvas2d' | 'three'; physicsBackend?: 'none' | 'cannon' | 'rapier' }) =>
     ipcRenderer.invoke('unu:update-project-settings', payload),
   clearApplicationData: () => ipcRenderer.invoke('unu:clear-application-data'),
   scanProject: (projectRoot: string) => ipcRenderer.invoke('unu:scan-project', projectRoot),
@@ -69,7 +69,7 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.on('unu:project-script-changed', listener)
     return () => ipcRenderer.removeListener('unu:project-script-changed', listener)
   },
-  exportGame: (payload: { projectRoot: string; projectName?: string; sceneFiles?: Array<{ fileName?: string; content: string }> }) =>
+  exportGame: (payload: { projectRoot: string; projectName?: string; renderBackend?: 'pixi' | 'canvas2d' | 'three'; physicsBackend?: 'none' | 'cannon' | 'rapier'; sceneFiles?: Array<{ fileName?: string; content: string }> }) =>
     ipcRenderer.invoke('unu:export-game', payload),
   openTilemapEditor: (payload: unknown) => ipcRenderer.invoke('unu:open-tilemap-editor', payload),
   submitTilemapEditorUpdate: (payload: unknown) => ipcRenderer.invoke('unu:tilemap-editor-update', payload),

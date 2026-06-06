@@ -6,6 +6,11 @@
   "renderer": {
     "backend": "three"
   },
+  "renderBackend": "three",
+  "physics": {
+    "backend": "none"
+  },
+  "physicsBackend": "none",
   "createdAt": "2026-06-05T15:43:40.591Z",
   "updatedAt": "2026-06-05T16:08:57.246Z",
   "sceneCatalogVersion": 1,
