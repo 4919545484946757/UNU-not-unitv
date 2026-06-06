@@ -151,7 +151,7 @@ async function reloadCurrentProjectScene() {
   sceneStore.repairCurrentSceneComponents()
   if (!sceneStore.currentScene) return
   await renderer?.renderScene(sceneStore.currentScene)
-  renderer?.setSelections([...selection.selectedEntityIds], selection.selectedEntityId)
+  renderer?.setSelections([...selection.selectedEntityIds], selection.selectedEntityId, selection.selectedModelNodeEntityId === selection.selectedEntityId ? selection.selectedModelNodePath : '')
   renderer?.setRuntimeState(false, false, sceneStore.currentScene, true)
 }
 
@@ -235,6 +235,7 @@ function buildRendererOptions(): SceneRendererOptions {
     container: containerRef.value,
     onEntitySelected: (entityId, options) => {
       if (!entityId) selection.clearSelection()
+      else if (options?.modelNodePath) selection.selectModelNode(entityId, options.modelNodePath)
       else if (options?.selectedEntityIds) selection.selectEntities(options.selectedEntityIds, options.primaryId || entityId)
       else if (options?.additive) selection.toggleEntity(entityId)
       else selection.selectEntity(entityId)
@@ -273,9 +274,16 @@ async function initializeRenderer(refreshPlayingScene = true) {
   })
   await renderer.init(sceneStore.currentScene)
   renderer.setGridVisible(editor.showGrid)
+  renderer.setDebugOverlayVisible(editor.showDebugOverlay)
+  renderer.setDebugOverlayOptions?.(editor.debugOverlayOptions)
   renderer.setPlayDebugEnabled(runtime.playDebugEnabled)
-  renderer.setSelections([...selection.selectedEntityIds], selection.selectedEntityId)
+  renderer.setSelections([...selection.selectedEntityIds], selection.selectedEntityId, selection.selectedModelNodeEntityId === selection.selectedEntityId ? selection.selectedModelNodePath : '')
   renderer.setTool(editor.tool)
+  renderer.setEditorCameraSettings?.({
+    controlMode: editor.threeEditorCameraControlMode,
+    projection: editor.threeEditorCameraProjection,
+    moveSpeed: editor.threeEditorCameraMoveSpeed
+  })
   if (runtime.isPlaying) await renderer.setRuntimeState(true, runtime.isPaused, sceneStore.currentScene, refreshPlayingScene)
 }
 
@@ -283,6 +291,10 @@ onMounted(async () => {
   if (!containerRef.value) return
 
   try {
+    window.addEventListener('unu:set-camera-from-editor-view', handleSetCameraFromEditorView as EventListener)
+    window.addEventListener('unu:preview-camera-view', handlePreviewCameraView as EventListener)
+    window.addEventListener('unu:exit-camera-preview', handleExitCameraPreview)
+    window.addEventListener('keydown', handleCameraPreviewKeydown, true)
     await ensureInitialSceneReady()
     sceneStore.repairCurrentSceneComponents()
 
@@ -294,6 +306,62 @@ onMounted(async () => {
     project.setStatus(`Viewport 初始化失败：${message}`)
   }
 })
+
+function eventEntityId(event: Event) {
+  return String((event as CustomEvent<{ entityId?: string }>).detail?.entityId || '').trim()
+}
+
+function handleSetCameraFromEditorView(event: Event) {
+  if (runtime.isPlaying) return
+  const entityId = eventEntityId(event)
+  if (!entityId || !renderer?.setSelectedCameraFromEditorView) {
+    project.setStatus('当前渲染器不支持读取编辑视角到相机。')
+    return
+  }
+  const ok = renderer.setSelectedCameraFromEditorView(entityId)
+  if (!ok) {
+    project.setStatus('读取编辑视角失败：请确认当前选中实体拥有 Camera 组件。')
+    return
+  }
+  sceneStore.markDirty()
+  if (sceneStore.currentScene) void renderer.renderScene(sceneStore.currentScene)
+  project.setStatus('已将当前编辑视角写入相机实体。')
+}
+
+function handlePreviewCameraView(event: Event) {
+  if (runtime.isPlaying) return
+  const entityId = eventEntityId(event)
+  if (!entityId || !renderer?.previewCameraView) {
+    project.setStatus('当前渲染器不支持编辑态相机预览。')
+    return
+  }
+  const ok = renderer.previewCameraView(entityId)
+  if (!ok) {
+    project.setStatus('相机预览失败：请确认当前选中实体拥有 Camera 组件。')
+    return
+  }
+  editor.setCameraPreviewEntity(entityId)
+  project.setStatus('已切换到该相机的编辑态预览视角。')
+}
+
+function handleExitCameraPreview() {
+  if (!renderer?.exitCameraPreview) {
+    editor.setCameraPreviewEntity('')
+    return
+  }
+  const ok = renderer.exitCameraPreview()
+  editor.setCameraPreviewEntity('')
+  project.setStatus(ok ? '已退出相机预览并恢复编辑视角。' : '当前没有活动的相机预览。')
+}
+
+function handleCameraPreviewKeydown(event: KeyboardEvent) {
+  if (event.code !== 'Escape' || !editor.cameraPreviewEntityId) return
+  const target = event.target as HTMLElement | null
+  const tag = target?.tagName?.toLowerCase()
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable) return
+  event.preventDefault()
+  handleExitCameraPreview()
+}
 
 watch(
   () => sceneStore.revision,
@@ -312,18 +380,40 @@ watch(
 )
 
 watch(
+  () => editor.showDebugOverlay,
+  (visible) => renderer?.setDebugOverlayVisible(visible)
+)
+
+watch(
+  () => [
+    editor.debugOverlayOptions.bounds,
+    editor.debugOverlayOptions.colliders,
+    editor.debugOverlayOptions.axes,
+    editor.debugOverlayOptions.lights,
+    editor.debugOverlayOptions.cameras
+  ] as const,
+  () => renderer?.setDebugOverlayOptions?.(editor.debugOverlayOptions)
+)
+
+watch(
   () => editor.tool,
   (tool) => renderer?.setTool(tool)
 )
 
 watch(
-  () => [selection.selectedEntityId, selection.selectedEntityIds.join('|')] as const,
-  ([entityId]) => renderer?.setSelections([...selection.selectedEntityIds], entityId)
+  () => [editor.threeEditorCameraControlMode, editor.threeEditorCameraProjection, editor.threeEditorCameraMoveSpeed] as const,
+  ([controlMode, projection, moveSpeed]) => renderer?.setEditorCameraSettings?.({ controlMode, projection, moveSpeed })
+)
+
+watch(
+  () => [selection.selectedEntityId, selection.selectedEntityIds.join('|'), selection.selectedModelNodeEntityId, selection.selectedModelNodePath] as const,
+  ([entityId]) => renderer?.setSelections([...selection.selectedEntityIds], entityId, selection.selectedModelNodeEntityId === entityId ? selection.selectedModelNodePath : '')
 )
 
 watch(
   () => [runtime.isPlaying, runtime.isPaused] as const,
   ([isPlaying, isPaused]) => {
+    if (isPlaying && editor.cameraPreviewEntityId) handleExitCameraPreview()
     renderer?.setRuntimeState(isPlaying, isPaused, sceneStore.currentScene)
     if (!isPlaying) {
       sceneStore.clearRuntimeScene()
@@ -429,6 +519,10 @@ onBeforeUnmount(() => {
   disposeProjectScriptChanged = null
   if (scriptHotReloadTimer) window.clearTimeout(scriptHotReloadTimer)
   void window.unu?.unwatchProjectScripts?.()
+  window.removeEventListener('unu:set-camera-from-editor-view', handleSetCameraFromEditorView as EventListener)
+  window.removeEventListener('unu:preview-camera-view', handlePreviewCameraView as EventListener)
+  window.removeEventListener('unu:exit-camera-preview', handleExitCameraPreview)
+  window.removeEventListener('keydown', handleCameraPreviewKeydown, true)
   runtime.stop()
   renderer?.destroy()
 })

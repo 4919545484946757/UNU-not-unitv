@@ -40,7 +40,7 @@ type ComponentFieldSchema = Partial<Record<InspectorComponentGroup, Partial<Reco
 
 export const inspectorComponentFieldSchema: ComponentFieldSchema = {
   transform: {
-    number: ['x', 'y', 'scaleX', 'scaleY', 'anchorX', 'anchorY', 'zIndex', 'viewportOffsetX', 'viewportOffsetY']
+    number: ['x', 'y', 'z', 'scaleX', 'scaleY', 'scaleZ', 'anchorX', 'anchorY', 'zIndex', 'viewportOffsetX', 'viewportOffsetY']
   },
   sprite: {
     number: ['width', 'height', 'alpha', 'offsetX', 'offsetY'],
@@ -52,7 +52,7 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
     boolean: ['enabled', 'followCamera', 'coverViewport', 'preserveAspect']
   },
   collider: {
-    number: ['width', 'height', 'offsetX', 'offsetY'],
+    number: ['width', 'height', 'depth', 'radius', 'capsuleHeight', 'offsetX', 'offsetY', 'offsetZ'],
     boolean: ['enabled', 'isTrigger', 'showDebugFrame']
   },
   animation: {
@@ -60,9 +60,9 @@ export const inspectorComponentFieldSchema: ComponentFieldSchema = {
     boolean: ['enabled', 'playing', 'loop']
   },
   camera: {
-    number: ['zoom', 'viewportWidth', 'viewportHeight', 'followLerp', 'followSmoothing', 'offsetX', 'offsetY', 'minX', 'maxX', 'minY', 'maxY'],
+    number: ['zoom', 'viewportWidth', 'viewportHeight', 'followLerp', 'followSmoothing', 'offsetX', 'offsetY', 'minX', 'maxX', 'minY', 'maxY', 'fov', 'near', 'far', 'targetX', 'targetY', 'targetZ'],
     text: ['followEntityId'],
-    boolean: ['enabled', 'boundsEnabled']
+    boolean: ['enabled', 'boundsEnabled', 'orbitEnabled', 'panEnabled', 'zoomEnabled']
   },
   audio: {
     number: ['volume', 'playbackRate', 'fadeIn', 'fadeOut'],

@@ -6,7 +6,7 @@ const windowRole = windowRoleArg ? windowRoleArg.slice('--unu-window-role='.leng
 contextBridge.exposeInMainWorld('unu', {
   version: '0.9.0',
   windowRole,
-  createProject: (payload?: { projectName?: string; parentDir?: string; renderBackend?: 'pixi' | 'canvas2d' }) => ipcRenderer.invoke('unu:create-project-v2', payload),
+  createProject: (payload?: { projectName?: string; parentDir?: string; renderBackend?: 'pixi' | 'canvas2d' | 'three'; template?: string }) => ipcRenderer.invoke('unu:create-project-v2', payload),
   pickDirectory: (payload?: { title?: string; defaultPath?: string }) => ipcRenderer.invoke('unu:pick-directory', payload),
   saveProjectAs: (payload: {
     sourceProjectRoot?: string
@@ -19,7 +19,7 @@ contextBridge.exposeInMainWorld('unu', {
   pickProjectFolder: () => ipcRenderer.invoke('unu:pick-project-folder'),
   listSampleProjects: () => ipcRenderer.invoke('unu:list-sample-projects'),
   getProjectInfo: (projectRoot: string) => ipcRenderer.invoke('unu:get-project-info', projectRoot),
-  updateProjectSettings: (payload: { projectRoot: string; renderBackend?: 'pixi' | 'canvas2d' }) =>
+  updateProjectSettings: (payload: { projectRoot: string; renderBackend?: 'pixi' | 'canvas2d' | 'three' }) =>
     ipcRenderer.invoke('unu:update-project-settings', payload),
   clearApplicationData: () => ipcRenderer.invoke('unu:clear-application-data'),
   scanProject: (projectRoot: string) => ipcRenderer.invoke('unu:scan-project', projectRoot),
@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld('unu', {
   readAssetDataUrl: (payload: { projectRoot: string; relativePath: string }) => ipcRenderer.invoke('unu:read-asset-data-url', payload),
   importImages: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-images', payload),
   importAudios: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-audios', payload),
+  importModels: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-models', payload),
   savePrefab: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) =>
     ipcRenderer.invoke('unu:save-prefab', payload),
   openPrefab: (payload: { projectRoot?: string }) => ipcRenderer.invoke('unu:open-prefab', payload),

@@ -120,7 +120,7 @@ export const useAssetStore = defineStore('assets', {
       this.selectedAssetPath = path
       this.ensureExpandedTo(path)
       const target = this.flat.find((node) => node.path === path)
-      if (target?.type === 'image') {
+      if (target?.type === 'image' || target?.type === 'model') {
         await this.ensurePreview(path)
       }
     },
@@ -608,6 +608,49 @@ export const useAssetStore = defineStore('assets', {
         const message = error instanceof Error ? error.message : String(error)
         project.setStatus(`导入音频失败：${message}`)
         console.error('[UNU] importAudios failed', error)
+      }
+    },
+    async importModels() {
+      const project = useProjectStore()
+      try {
+        if (!window.unu?.importModels) {
+          project.setStatus('当前环境未接入模型导入接口，请使用桌面版或安卓编辑器运行。')
+          return
+        }
+
+        if (!project.rootPath || project.isMemoryProject) {
+          project.setStatus('请先选择一个本地工程目录，再导入 3D 模型。')
+          if (window.unu?.pickProjectFolder && window.unu?.scanProject) {
+            const picked = await window.unu.pickProjectFolder()
+            if (!picked) {
+              project.setStatus('已取消选择工程目录，未导入 3D 模型。')
+              return
+            }
+            const scanned = await window.unu.scanProject(picked.rootPath)
+            project.setProject({ rootPath: scanned.rootPath, name: scanned.name, renderBackend: scanned.renderBackend })
+            this.hydrateTree(scanned.tree)
+          } else {
+            return
+          }
+        }
+
+        const result = await window.unu.importModels({ projectRoot: project.rootPath })
+        if (!result?.imported?.length) {
+          project.setStatus('已取消导入 3D 模型。')
+          return
+        }
+
+        await this.refreshProject()
+        project.setStatus(`已导入模型/贴图资源 ${result.imported.length} 个`)
+        const first = result.imported.find((item) => /\.(glb|gltf)$/i.test(item.relativePath))?.relativePath || result.imported[0]?.relativePath
+        if (first) {
+          this.selectedPath = first.split('/').slice(0, -1).join('/') || 'assets/models'
+          await this.selectAsset(first)
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        project.setStatus(`导入 3D 模型失败：${message}`)
+        console.error('[UNU] importModels failed', error)
       }
     },
     async createTextAssetInFolder(folderPath: string, fileName?: string) {

@@ -49,6 +49,7 @@ function inferAssetType(fileName: string) {
   if (fileName.endsWith('.atlas.json')) return 'atlas'
   if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) return 'image'
   if (['.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) return 'audio'
+  if (['.glb', '.gltf', '.obj', '.fbx'].includes(ext)) return 'model'
   if (['.js', '.ts', '.mjs'].includes(ext)) return 'script'
   if (fileName.endsWith('.scene.json')) return 'scene'
   if (fileName.endsWith('.prefab.json')) return 'prefab'
@@ -97,6 +98,7 @@ async function ensureProjectStructure(projectRoot: string) {
     'assets',
     'assets/images',
     'assets/audio',
+    'assets/models',
     'assets/scripts',
     'assets/scripts/shared',
     'assets/scripts/interactions',
@@ -109,9 +111,10 @@ async function ensureProjectStructure(projectRoot: string) {
 }
 
 
-type ProjectRenderBackend = 'pixi' | 'canvas2d'
+type ProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
 
 function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
+  if (value === 'three' || value === 'threejs' || value === '3d') return 'three'
   return value === 'canvas2d' || value === 'native-canvas' || value === 'canvas' ? 'canvas2d' : 'pixi'
 }
 
@@ -119,7 +122,7 @@ function readProjectRenderBackend(projectJson: Record<string, any> | null | unde
   return normalizeProjectRenderBackend(projectJson?.renderer?.backend ?? projectJson?.renderBackend)
 }
 
-async function writeProjectFile(projectRoot: string, projectName?: string, renderBackend?: ProjectRenderBackend) {
+async function writeProjectFile(projectRoot: string, projectName?: string, renderBackend?: ProjectRenderBackend, projectType?: string) {
   const projectFile = path.join(projectRoot, 'project.json')
   const name = projectName?.trim() || path.basename(projectRoot)
   const backend = normalizeProjectRenderBackend(renderBackend)
@@ -127,6 +130,7 @@ async function writeProjectFile(projectRoot: string, projectName?: string, rende
     format: 'unu-project',
     version: 1,
     name,
+    projectType: projectType || (backend === 'three' ? '3d' : '2d'),
     renderer: {
       backend
     },
@@ -381,6 +385,58 @@ function createDefaultSceneContent(sceneName: string) {
       id: sceneId,
       name: safeName,
       entities: []
+    }
+  }
+  return JSON.stringify(payload, null, 2)
+}
+
+function createDefault3DSceneContent(sceneName: string) {
+  const safeName = sanitizeSceneName(sceneName) || 'MainScene'
+  const sceneId = `scene_${safeName.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'main'}`
+  const payload = {
+    format: 'unu-scene',
+    version: 1,
+    scene: {
+      id: sceneId,
+      name: safeName,
+      entities: [
+        {
+          id: 'camera_main_3d',
+          name: 'Main Camera',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: 0, y: 160, scaleX: 1, scaleY: 1, rotation: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 0 } },
+            { type: 'Camera', data: { type: 'Camera', enabled: true, zoom: 1, followEntityId: '', followSmoothing: 0.18, offsetX: 0, offsetY: 0, boundsEnabled: false, minX: -2000, maxX: 2000, minY: -2000, maxY: 2000 } }
+          ]
+        },
+        {
+          id: 'light_key_3d',
+          name: 'Key Light',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: -220, y: -260, z: 420, scaleX: 1, scaleY: 1, scaleZ: 1, rotation: 0, rotationX: 0, rotationY: 0, rotationZ: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 1 } },
+            { type: 'Sprite', data: { type: 'Sprite', texturePath: '', width: 32, height: 32, visible: true, alpha: 1, tint: 16772829, preserveAspect: true, showDebugFrame: true } },
+            { type: 'ThreeObject', data: { kind: 'directionalLight', intensity: 1.6 } }
+          ]
+        },
+        {
+          id: 'ground_3d',
+          name: 'Ground',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: 0, y: 120, z: 0, scaleX: 1, scaleY: 1, scaleZ: 1, rotation: 0, rotationX: -1.57079632679, rotationY: 0, rotationZ: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 2 } },
+            { type: 'Sprite', data: { type: 'Sprite', texturePath: '', width: 640, height: 420, visible: true, alpha: 1, tint: 3159104, preserveAspect: false, showDebugFrame: true } },
+            { type: 'ThreeObject', data: { kind: 'plane', roughness: 0.82 } }
+          ]
+        },
+        {
+          id: 'cube_player_3d',
+          name: 'Player Cube',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: 0, y: 0, z: 64, scaleX: 1, scaleY: 1, scaleZ: 1, rotation: 0, rotationX: 0, rotationY: 0, rotationZ: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 3 } },
+            { type: 'Sprite', data: { type: 'Sprite', texturePath: '', width: 96, height: 96, visible: true, alpha: 1, tint: 4367861, preserveAspect: true, showDebugFrame: true } },
+            { type: 'Collider', data: { type: 'Collider', shape: 'rect', width: 96, height: 96, offsetX: 0, offsetY: 0, isTrigger: false, layer: 'Player', collidesWith: ['Default', 'World'], showDebugFrame: true } },
+            { type: 'ThreeObject', data: { kind: 'box', depth: 96, metalness: 0.05, roughness: 0.55 } }
+          ]
+        }
+      ]
     }
   }
   return JSON.stringify(payload, null, 2)
@@ -1745,9 +1801,15 @@ async function readFileAsDataUrl(filePath: string) {
               ? 'audio/wav'
               : ext === '.ogg'
                 ? 'audio/ogg'
-                : ext === '.m4a'
-                  ? 'audio/mp4'
-          : 'application/octet-stream'
+          : ext === '.m4a'
+            ? 'audio/mp4'
+            : ext === '.glb'
+              ? 'model/gltf-binary'
+              : ext === '.gltf'
+                ? 'model/gltf+json'
+                : ext === '.bin'
+                  ? 'application/octet-stream'
+                  : 'application/octet-stream'
 
   const buffer = await fs.readFile(filePath)
   return `data:${mime};base64,${buffer.toString('base64')}`
@@ -1787,6 +1849,32 @@ async function resolveAssetPathWithFallback(projectRoot: string, relativePath: s
     if (stat?.isFile()) return candidate
   }
 
+  const targetName = path.basename(normalizedRelativePath).toLowerCase()
+  if (targetName && normalizedRelativePath.startsWith('assets/')) {
+    const assetsRoot = path.join(projectRoot, 'assets')
+    const found = await findAssetByFileName(assetsRoot, targetName)
+    if (found) return found
+  }
+
+  return null
+}
+
+async function findAssetByFileName(rootPath: string, targetName: string) {
+  const stack = [rootPath]
+  let visited = 0
+  while (stack.length && visited < 6000) {
+    visited += 1
+    const current = stack.pop()!
+    const entries = await fs.readdir(current, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name)
+      if (entry.isDirectory()) {
+        if (!entry.name.startsWith('.')) stack.push(fullPath)
+      } else if (entry.isFile() && entry.name.toLowerCase() === targetName) {
+        return fullPath
+      }
+    }
+  }
   return null
 }
 
@@ -1807,6 +1895,47 @@ async function importFiles(projectRoot: string, files: string[], targetDir: stri
   }
 
   return imported
+}
+
+function isExternalAssetUri(uri: string) {
+  return /^(data:|blob:|https?:\/\/|file:\/\/)/i.test(String(uri || ''))
+}
+
+function decodeAssetUri(uri: string) {
+  try {
+    return decodeURIComponent(uri)
+  } catch {
+    return uri
+  }
+}
+
+async function collectModelImportFiles(files: string[]) {
+  const collected = new Set(files)
+  for (const filePath of files) {
+    if (path.extname(filePath).toLowerCase() !== '.gltf') continue
+    try {
+      const raw = await fs.readFile(filePath, 'utf-8')
+      const json = JSON.parse(raw) as {
+        buffers?: Array<{ uri?: string }>
+        images?: Array<{ uri?: string }>
+      }
+      const uris = [
+        ...(json.buffers || []).map((item) => item.uri || ''),
+        ...(json.images || []).map((item) => item.uri || '')
+      ]
+      for (const uri of uris) {
+        if (!uri || isExternalAssetUri(uri)) continue
+        const cleanUri = decodeAssetUri(uri.split(/[?#]/)[0] || '').replace(/\\/g, path.sep)
+        if (!cleanUri) continue
+        const dependencyPath = path.resolve(path.dirname(filePath), cleanUri)
+        const stat = await fs.stat(dependencyPath).catch(() => null)
+        if (stat?.isFile()) collected.add(dependencyPath)
+      }
+    } catch (error) {
+      console.warn('[UNU][main] collect glTF dependencies failed:', filePath, error)
+    }
+  }
+  return [...collected]
 }
 
 async function saveTextAsset(payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string; subdir?: string; title?: string; filterName?: string }) {
@@ -2163,7 +2292,7 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string; renderBackend?: ProjectRenderBackend }) => {
+  ipcMain.handle('unu:create-project-v2', async (_event, payload?: { projectName?: string; parentDir?: string; renderBackend?: ProjectRenderBackend; template?: string }) => {
     let parentDir = String(payload?.parentDir || '').trim()
     if (!parentDir) {
       const result = await dialog.showOpenDialog({
@@ -2186,9 +2315,16 @@ app.whenReady().then(() => {
     }
 
     await ensureProjectStructure(projectRoot)
-    const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend)
-    await writeProjectFile(projectRoot, projectName, renderBackend)
+    const template = String(payload?.template || '').trim()
+    const renderBackend = template === 'blank-3d' ? 'three' : normalizeProjectRenderBackend(payload?.renderBackend)
+    await writeProjectFile(projectRoot, projectName, renderBackend, template === 'blank-3d' ? '3d' : '2d')
     await ensureProjectRuntimeScriptFiles(projectRoot)
+    if (renderBackend === 'three') {
+      const scenePath = path.join(projectRoot, 'scenes', 'MainScene.scene.json')
+      await fs.writeFile(scenePath, createDefault3DSceneContent('MainScene'), 'utf-8')
+      await fs.mkdir(path.join(projectRoot, 'assets', 'models'), { recursive: true })
+      await fs.mkdir(path.join(projectRoot, 'assets', 'materials'), { recursive: true })
+    }
     const integrity = await ensureProjectAssetIntegrity(projectRoot)
     return {
       rootPath: projectRoot,
@@ -2492,6 +2628,23 @@ app.whenReady().then(() => {
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const imported = await importFiles(payload.projectRoot, result.filePaths, 'assets/audio')
+    return { imported }
+  })
+
+  ipcMain.handle('unu:import-models', async (_event, payload: { projectRoot: string }) => {
+    if (!payload.projectRoot) return null
+    const result = await dialog.showOpenDialog({
+      title: '导入 3D 模型/贴图资源',
+      properties: ['openFile', 'multiSelections'],
+      filters: [
+        { name: 'glTF Models and Textures', extensions: ['glb', 'gltf', 'bin', 'png', 'jpg', 'jpeg', 'webp'] },
+        { name: 'glTF Models', extensions: ['glb', 'gltf'] },
+        { name: 'Textures', extensions: ['png', 'jpg', 'jpeg', 'webp'] }
+      ]
+    })
+    if (result.canceled || result.filePaths.length === 0) return null
+    const files = await collectModelImportFiles(result.filePaths)
+    const imported = await importFiles(payload.projectRoot, files, 'assets/models')
     return { imported }
   })
 

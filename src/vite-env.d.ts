@@ -21,14 +21,14 @@ declare global {
     unresolvedRefs?: UnuAssetIntegrityRef[]
   }
 
-  type UnuProjectRenderBackend = 'pixi' | 'canvas2d'
+  type UnuProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
 
   interface Window {
     __UNU_GAME_EXPORT__?: boolean
     unu?: {
       version: string
       windowRole?: 'main' | 'tilemap-editor' | 'code-editor' | 'sprite-atlas-editor' | string
-      createProject?: (payload?: { projectName?: string; parentDir?: string; renderBackend?: UnuProjectRenderBackend }) => Promise<{
+      createProject?: (payload?: { projectName?: string; parentDir?: string; renderBackend?: UnuProjectRenderBackend; template?: string }) => Promise<{
         rootPath: string
         name: string
         parentDir?: string
@@ -90,6 +90,7 @@ declare global {
       readAssetDataUrl?: (payload: { projectRoot: string; relativePath: string }) => Promise<{ dataUrl: string } | null>
       importImages?: (payload: { projectRoot: string }) => Promise<{ imported: Array<{ fileName: string; relativePath: string }> } | null>
       importAudios?: (payload: { projectRoot: string }) => Promise<{ imported: Array<{ fileName: string; relativePath: string }> } | null>
+      importModels?: (payload: { projectRoot: string }) => Promise<{ imported: Array<{ fileName: string; relativePath: string }> } | null>
       savePrefab?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>
       openPrefab?: (payload: { projectRoot?: string }) => Promise<{ filePath: string; name: string; relativePath?: string; content: string } | null>
       saveTextAsset?: (payload: { filePath?: string; content: string; suggestedName?: string; projectRoot?: string; subdir?: string; title?: string; filterName?: string }) => Promise<{ filePath: string; name: string; relativePath?: string } | null>

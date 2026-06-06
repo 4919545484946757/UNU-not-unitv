@@ -25,7 +25,12 @@
               "zIndex": 0,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -67,7 +72,17 @@
               "minX": -2000,
               "maxX": 2000,
               "minY": -2000,
-              "maxY": 2000
+              "maxY": 2000,
+              "projection": "orthographic",
+              "fov": 50,
+              "near": 0.1,
+              "far": 5000,
+              "orbitEnabled": true,
+              "panEnabled": true,
+              "zoomEnabled": true,
+              "targetX": 0,
+              "targetY": 0,
+              "targetZ": 0
             }
           }
         ]
@@ -91,7 +106,12 @@
               "zIndex": 1,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -328,7 +348,12 @@
               "zIndex": 2,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -758,7 +783,12 @@
               "zIndex": 3,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -995,7 +1025,12 @@
               "zIndex": 4,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -1425,7 +1460,12 @@
               "zIndex": 5,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -1508,7 +1548,12 @@
               "zIndex": 6,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -1631,7 +1676,12 @@
               "zIndex": 7,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -1911,7 +1961,12 @@
               "zIndex": 8,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2284,7 +2339,12 @@
               "zIndex": 9,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2428,7 +2488,12 @@
               "zIndex": 10,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2572,7 +2637,12 @@
               "zIndex": 11,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2716,7 +2786,12 @@
               "zIndex": 12,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2839,7 +2914,12 @@
               "zIndex": 13,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2935,7 +3015,12 @@
               "zIndex": 14,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -2952,7 +3037,17 @@
               "minX": -2000,
               "maxX": 2000,
               "minY": -2000,
-              "maxY": 2000
+              "maxY": 2000,
+              "projection": "orthographic",
+              "fov": 50,
+              "near": 0.1,
+              "far": 5000,
+              "orbitEnabled": true,
+              "panEnabled": true,
+              "zoomEnabled": true,
+              "targetX": 0,
+              "targetY": 0,
+              "targetZ": 0
             }
           }
         ]
@@ -2976,7 +3071,12 @@
               "zIndex": 15,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3043,7 +3143,12 @@
               "zIndex": 16,
               "positionMode": "viewport",
               "viewportHorizontal": "right",
-              "viewportVertical": "top"
+              "viewportVertical": "top",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3101,7 +3206,7 @@
             "data": {
               "type": "Transform",
               "x": 0.008646060632571562,
-              "y": 17.600006103515625,
+              "y": 34.39481798370957,
               "scaleX": 1,
               "scaleY": 1,
               "rotation": 0,
@@ -3110,7 +3215,12 @@
               "zIndex": 17,
               "positionMode": "viewport",
               "viewportHorizontal": "left",
-              "viewportVertical": "bottom"
+              "viewportVertical": "bottom",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3119,7 +3229,7 @@
               "type": "UI",
               "enabled": true,
               "mode": "text",
-              "text": "左键：射击\n右键：交互\nWASD：移动\nShift：疾跑",
+              "text": "左键：射击\n右键：交互\nWASD：移动\nShift：疾跑\nE：背包\nQ：使用\nESC：菜单",
               "fontSize": 20,
               "textColor": 16777215,
               "width": 220,
@@ -3152,7 +3262,7 @@
               "htmlAutoCreateAsset": true,
               "htmlPreviewContent": "",
               "backgroundTexturePath": "",
-              "backgroundVisible": true,
+              "backgroundVisible": false,
               "backgroundAlpha": 0.78
             }
           }
@@ -3177,7 +3287,12 @@
               "zIndex": 18,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           }
         ]
@@ -3201,7 +3316,12 @@
               "zIndex": 19,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 1.5707963267948966
             }
           },
           {
@@ -3324,7 +3444,12 @@
               "zIndex": 20,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3361,7 +3486,12 @@
               "zIndex": 21,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3429,7 +3559,12 @@
               "zIndex": 22,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3497,7 +3632,12 @@
               "zIndex": 23,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3577,7 +3717,12 @@
               "zIndex": 24,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3657,7 +3802,12 @@
               "zIndex": 25,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3737,7 +3887,12 @@
               "zIndex": 26,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3817,7 +3972,12 @@
               "zIndex": 27,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3885,7 +4045,12 @@
               "zIndex": 28,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -3953,7 +4118,12 @@
               "zIndex": 29,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4033,7 +4203,12 @@
               "zIndex": 30,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4113,7 +4288,12 @@
               "zIndex": 31,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4193,7 +4373,12 @@
               "zIndex": 32,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4261,7 +4446,12 @@
               "zIndex": 33,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4329,7 +4519,12 @@
               "zIndex": 34,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4409,7 +4604,12 @@
               "zIndex": 35,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4489,7 +4689,12 @@
               "zIndex": 36,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4569,7 +4774,12 @@
               "zIndex": 37,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4649,7 +4859,12 @@
               "zIndex": 38,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4729,7 +4944,12 @@
               "zIndex": 39,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4809,7 +5029,12 @@
               "zIndex": 40,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4889,7 +5114,12 @@
               "zIndex": 41,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -4969,7 +5199,12 @@
               "zIndex": 42,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5049,7 +5284,12 @@
               "zIndex": 43,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5129,7 +5369,12 @@
               "zIndex": 44,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5208,7 +5453,12 @@
               "zIndex": 45,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "bottom"
+              "viewportVertical": "bottom",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5275,7 +5525,12 @@
               "zIndex": 46,
               "positionMode": "viewport",
               "viewportHorizontal": "right",
-              "viewportVertical": "bottom"
+              "viewportVertical": "bottom",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5342,7 +5597,12 @@
               "zIndex": 47,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5421,7 +5681,12 @@
               "zIndex": 48,
               "positionMode": "viewport",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5499,7 +5764,12 @@
               "zIndex": 49,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5540,7 +5810,12 @@
               "zIndex": 50,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {
@@ -5913,7 +6188,12 @@
               "zIndex": 51,
               "positionMode": "world",
               "viewportHorizontal": "center",
-              "viewportVertical": "middle"
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
             }
           },
           {

@@ -1,0 +1,1084 @@
+{
+  "format": "unu-scene",
+  "version": 1,
+  "scene": {
+    "id": "scene_mainscene",
+    "name": "MainScene",
+    "sceneFolders": [],
+    "entities": [
+      {
+        "id": "camera_main_3d",
+        "name": "Main Camera",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 88.1326,
+              "y": -323.7774,
+              "scaleX": 0,
+              "scaleY": 0,
+              "rotation": 3.084,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 0,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle",
+              "z": 162.0291,
+              "scaleZ": 0,
+              "rotationX": -1.3463,
+              "rotationY": 0.2553,
+              "rotationZ": 3.084
+            }
+          },
+          {
+            "type": "Camera",
+            "data": {
+              "type": "Camera",
+              "enabled": true,
+              "zoom": 1,
+              "followEntityId": "",
+              "followSmoothing": 0.18,
+              "offsetX": 0,
+              "offsetY": 0,
+              "boundsEnabled": false,
+              "minX": -2000,
+              "maxX": 2000,
+              "minY": -2000,
+              "maxY": 2000,
+              "projection": "perspective",
+              "fov": 50,
+              "near": 0.1,
+              "far": 5000,
+              "orbitEnabled": true,
+              "panEnabled": true,
+              "zoomEnabled": true,
+              "targetX": -4.8713,
+              "targetY": 23.642,
+              "targetZ": 82.7146
+            }
+          },
+          {
+            "type": "ThreeObject",
+            "data": {
+              "kind": "box",
+              "depth": 80,
+              "metalness": 0.02,
+              "roughness": 0.65,
+              "opacity": 0,
+              "color": 9163775,
+              "texturePath": "",
+              "normalMapPath": "",
+              "intensity": 1.3,
+              "modelPath": ""
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 80,
+              "height": 80,
+              "visible": true,
+              "alpha": 1,
+              "tint": 9163775,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0,
+              "showDebugFrame": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "light_key_3d",
+        "name": "Key Light",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -220,
+              "y": -260,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 1,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle",
+              "z": 0,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 32,
+              "height": 32,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16772829,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0,
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "ThreeObject",
+            "data": {
+              "kind": "directionalLight",
+              "intensity": 1.6,
+              "z": 420
+            }
+          }
+        ]
+      },
+      {
+        "id": "ground_3d",
+        "name": "Ground",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -65.1952,
+              "y": 38.2488,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 2,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle",
+              "z": 1,
+              "scaleZ": 1,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 640,
+              "height": 420,
+              "visible": true,
+              "alpha": 1,
+              "tint": 3159104,
+              "preserveAspect": false,
+              "offsetX": 0,
+              "offsetY": 0,
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "ThreeObject",
+            "data": {
+              "kind": "plane",
+              "z": 0,
+              "rotationX": -1.57079632679,
+              "roughness": 0.82
+            }
+          }
+        ]
+      },
+      {
+        "id": "cube_player_3d",
+        "name": "Player Cube",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": -77.0149,
+              "y": 37.1476,
+              "scaleX": 4.4448,
+              "scaleY": 4.4448,
+              "rotation": 0.2057,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 3,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle",
+              "z": 48,
+              "scaleZ": 4.4448,
+              "rotationX": 1.5011,
+              "rotationY": 0.0791,
+              "rotationZ": 0.2057
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 96,
+              "height": 96,
+              "visible": true,
+              "alpha": 1,
+              "tint": 4367861,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0,
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 96,
+              "height": 96,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false,
+              "layer": "Player",
+              "collidesWith": [
+                "Default",
+                "World"
+              ],
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "ThreeObject",
+            "data": {
+              "kind": "model",
+              "depth": 96,
+              "z": 64,
+              "metalness": 0.05,
+              "roughness": 0.55,
+              "modelPath": "assets/models/model1.gltf",
+              "color": 16777215,
+              "modelNodeOverrides": {},
+              "modelHierarchy": [
+                {
+                  "name": "neck",
+                  "path": "0:neck",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "neck_1",
+                      "path": "0:neck/0:neck_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "neck_2",
+                      "path": "0:neck/1:neck_2",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "neck2",
+                      "path": "0:neck/2:neck2",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "neck_3",
+                          "path": "0:neck/2:neck2/0:neck_3",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "neck_4",
+                          "path": "0:neck/2:neck2/1:neck_4",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "neck3",
+                          "path": "0:neck/2:neck2/2:neck3",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "neck_5",
+                              "path": "0:neck/2:neck2/2:neck3/0:neck_5",
+                              "type": "mesh",
+                              "children": []
+                            },
+                            {
+                              "name": "neck_6",
+                              "path": "0:neck/2:neck2/2:neck3/1:neck_6",
+                              "type": "mesh",
+                              "children": []
+                            },
+                            {
+                              "name": "neck4",
+                              "path": "0:neck/2:neck2/2:neck3/2:neck4",
+                              "type": "group",
+                              "children": [
+                                {
+                                  "name": "neck_7",
+                                  "path": "0:neck/2:neck2/2:neck3/2:neck4/0:neck_7",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "neck_8",
+                                  "path": "0:neck/2:neck2/2:neck3/2:neck4/1:neck_8",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "neck5",
+                                  "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5",
+                                  "type": "group",
+                                  "children": [
+                                    {
+                                      "name": "neck_9",
+                                      "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/0:neck_9",
+                                      "type": "mesh",
+                                      "children": []
+                                    },
+                                    {
+                                      "name": "neck_10",
+                                      "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/1:neck_10",
+                                      "type": "mesh",
+                                      "children": []
+                                    },
+                                    {
+                                      "name": "head",
+                                      "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head",
+                                      "type": "group",
+                                      "children": [
+                                        {
+                                          "name": "head_1",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/0:head_1",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "head_2",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/1:head_2",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "head_3",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/2:head_3",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "head_4",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/3:head_4",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "head_5",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/4:head_5",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "head_6",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/5:head_6",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "jaw",
+                                          "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/6:jaw",
+                                          "type": "group",
+                                          "children": [
+                                            {
+                                              "name": "jaw_1",
+                                              "path": "0:neck/2:neck2/2:neck3/2:neck4/2:neck5/2:head/6:jaw/0:jaw_1",
+                                              "type": "mesh",
+                                              "children": []
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "body",
+                  "path": "1:body",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "body_1",
+                      "path": "1:body/0:body_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_2",
+                      "path": "1:body/1:body_2",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_3",
+                      "path": "1:body/2:body_3",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_4",
+                      "path": "1:body/3:body_4",
+                      "type": "mesh",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "name": "wing",
+                  "path": "2:wing",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "wing_1",
+                      "path": "2:wing/0:wing_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "wing_2",
+                      "path": "2:wing/1:wing_2",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "wingtip",
+                      "path": "2:wing/2:wingtip",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "wingtip_1",
+                          "path": "2:wing/2:wingtip/0:wingtip_1",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "wingtip_2",
+                          "path": "2:wing/2:wingtip/1:wingtip_2",
+                          "type": "mesh",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "wing1",
+                  "path": "3:wing1",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "wing1_1",
+                      "path": "3:wing1/0:wing1_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "wing1_2",
+                      "path": "3:wing1/1:wing1_2",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "wingtip1",
+                      "path": "3:wing1/2:wingtip1",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "wingtip1_1",
+                          "path": "3:wing1/2:wingtip1/0:wingtip1_1",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "wingtip1_2",
+                          "path": "3:wing1/2:wingtip1/1:wingtip1_2",
+                          "type": "mesh",
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rearleg",
+                  "path": "4:rearleg",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "rearleg_1",
+                      "path": "4:rearleg/0:rearleg_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "rearlegtip",
+                      "path": "4:rearleg/1:rearlegtip",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "rearlegtip_1",
+                          "path": "4:rearleg/1:rearlegtip/0:rearlegtip_1",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "rearfoot",
+                          "path": "4:rearleg/1:rearlegtip/1:rearfoot",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "rearfoot_1",
+                              "path": "4:rearleg/1:rearlegtip/1:rearfoot/0:rearfoot_1",
+                              "type": "mesh",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "rearleg1",
+                  "path": "5:rearleg1",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "rearleg1_1",
+                      "path": "5:rearleg1/0:rearleg1_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "rearlegtip1",
+                      "path": "5:rearleg1/1:rearlegtip1",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "rearlegtip_2",
+                          "path": "5:rearleg1/1:rearlegtip1/0:rearlegtip_2",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "rearfoot1",
+                          "path": "5:rearleg1/1:rearlegtip1/1:rearfoot1",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "rearfoot_2",
+                              "path": "5:rearleg1/1:rearlegtip1/1:rearfoot1/0:rearfoot_2",
+                              "type": "mesh",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "frontleg",
+                  "path": "6:frontleg",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "frontleg_1",
+                      "path": "6:frontleg/0:frontleg_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "frontlegtip",
+                      "path": "6:frontleg/1:frontlegtip",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "frontlegtip_1",
+                          "path": "6:frontleg/1:frontlegtip/0:frontlegtip_1",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "frontfoot",
+                          "path": "6:frontleg/1:frontlegtip/1:frontfoot",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "frontfoot_1",
+                              "path": "6:frontleg/1:frontlegtip/1:frontfoot/0:frontfoot_1",
+                              "type": "mesh",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "frontleg1",
+                  "path": "7:frontleg1",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "frontleg1_1",
+                      "path": "7:frontleg1/0:frontleg1_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "frontlegtip1",
+                      "path": "7:frontleg1/1:frontlegtip1",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "frontlegtip_2",
+                          "path": "7:frontleg1/1:frontlegtip1/0:frontlegtip_2",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "frontfoot1",
+                          "path": "7:frontleg1/1:frontlegtip1/1:frontfoot1",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "frontfoot_2",
+                              "path": "7:frontleg1/1:frontlegtip1/1:frontfoot1/0:frontfoot_2",
+                              "type": "mesh",
+                              "children": []
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "tail",
+                  "path": "8:tail",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "tail_1",
+                      "path": "8:tail/0:tail_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "tail_2",
+                      "path": "8:tail/1:tail_2",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "tail2",
+                      "path": "8:tail/2:tail2",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "tail_3",
+                          "path": "8:tail/2:tail2/0:tail_3",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "tail_4",
+                          "path": "8:tail/2:tail2/1:tail_4",
+                          "type": "mesh",
+                          "children": []
+                        },
+                        {
+                          "name": "tail3",
+                          "path": "8:tail/2:tail2/2:tail3",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "tail_5",
+                              "path": "8:tail/2:tail2/2:tail3/0:tail_5",
+                              "type": "mesh",
+                              "children": []
+                            },
+                            {
+                              "name": "tail_6",
+                              "path": "8:tail/2:tail2/2:tail3/1:tail_6",
+                              "type": "mesh",
+                              "children": []
+                            },
+                            {
+                              "name": "tail4",
+                              "path": "8:tail/2:tail2/2:tail3/2:tail4",
+                              "type": "group",
+                              "children": [
+                                {
+                                  "name": "tail_7",
+                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/0:tail_7",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "tail_8",
+                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/1:tail_8",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "tail5",
+                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5",
+                                  "type": "group",
+                                  "children": [
+                                    {
+                                      "name": "tail_9",
+                                      "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/0:tail_9",
+                                      "type": "mesh",
+                                      "children": []
+                                    },
+                                    {
+                                      "name": "tail_10",
+                                      "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/1:tail_10",
+                                      "type": "mesh",
+                                      "children": []
+                                    },
+                                    {
+                                      "name": "tail6",
+                                      "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6",
+                                      "type": "group",
+                                      "children": [
+                                        {
+                                          "name": "tail_11",
+                                          "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/0:tail_11",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "tail_12",
+                                          "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/1:tail_12",
+                                          "type": "mesh",
+                                          "children": []
+                                        },
+                                        {
+                                          "name": "tail7",
+                                          "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7",
+                                          "type": "group",
+                                          "children": [
+                                            {
+                                              "name": "tail_13",
+                                              "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/0:tail_13",
+                                              "type": "mesh",
+                                              "children": []
+                                            },
+                                            {
+                                              "name": "tail_14",
+                                              "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/1:tail_14",
+                                              "type": "mesh",
+                                              "children": []
+                                            },
+                                            {
+                                              "name": "tail8",
+                                              "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8",
+                                              "type": "group",
+                                              "children": [
+                                                {
+                                                  "name": "tail_15",
+                                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/0:tail_15",
+                                                  "type": "mesh",
+                                                  "children": []
+                                                },
+                                                {
+                                                  "name": "tail_16",
+                                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/1:tail_16",
+                                                  "type": "mesh",
+                                                  "children": []
+                                                },
+                                                {
+                                                  "name": "tail9",
+                                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9",
+                                                  "type": "group",
+                                                  "children": [
+                                                    {
+                                                      "name": "tail_17",
+                                                      "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/0:tail_17",
+                                                      "type": "mesh",
+                                                      "children": []
+                                                    },
+                                                    {
+                                                      "name": "tail_18",
+                                                      "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/1:tail_18",
+                                                      "type": "mesh",
+                                                      "children": []
+                                                    },
+                                                    {
+                                                      "name": "tail10",
+                                                      "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10",
+                                                      "type": "group",
+                                                      "children": [
+                                                        {
+                                                          "name": "tail_19",
+                                                          "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/0:tail_19",
+                                                          "type": "mesh",
+                                                          "children": []
+                                                        },
+                                                        {
+                                                          "name": "tail_20",
+                                                          "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/1:tail_20",
+                                                          "type": "mesh",
+                                                          "children": []
+                                                        },
+                                                        {
+                                                          "name": "tail11",
+                                                          "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/2:tail11",
+                                                          "type": "group",
+                                                          "children": [
+                                                            {
+                                                              "name": "tail_21",
+                                                              "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/2:tail11/0:tail_21",
+                                                              "type": "mesh",
+                                                              "children": []
+                                                            },
+                                                            {
+                                                              "name": "tail_22",
+                                                              "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/2:tail11/1:tail_22",
+                                                              "type": "mesh",
+                                                              "children": []
+                                                            },
+                                                            {
+                                                              "name": "tail12",
+                                                              "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/2:tail11/2:tail12",
+                                                              "type": "group",
+                                                              "children": [
+                                                                {
+                                                                  "name": "tail_23",
+                                                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/2:tail11/2:tail12/0:tail_23",
+                                                                  "type": "mesh",
+                                                                  "children": []
+                                                                },
+                                                                {
+                                                                  "name": "tail_24",
+                                                                  "path": "8:tail/2:tail2/2:tail3/2:tail4/2:tail5/2:tail6/2:tail7/2:tail8/2:tail9/2:tail10/2:tail11/2:tail12/1:tail_24",
+                                                                  "type": "mesh",
+                                                                  "children": []
+                                                                }
+                                                              ]
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "id": "three-model_w8fjwi",
+        "name": "Entity",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 0,
+              "y": 0,
+              "scaleX": 1,
+              "scaleY": 1,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 4,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle",
+              "z": 54.2921,
+              "scaleZ": 1,
+              "rotationX": 1.5708,
+              "rotationY": 3.1416,
+              "rotationZ": 0
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 96,
+              "height": 96,
+              "visible": true,
+              "alpha": 1,
+              "tint": 4367861,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0,
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "Collider",
+            "data": {
+              "type": "Collider",
+              "shape": "rect",
+              "width": 96,
+              "height": 96,
+              "offsetX": 0,
+              "offsetY": 0,
+              "isTrigger": false,
+              "layer": "Default",
+              "collidesWith": [
+                "Default",
+                "Player",
+                "Enemy",
+                "World",
+                "Door",
+                "Pickup",
+                "Trap",
+                "Attack",
+                "Sensor"
+              ],
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "ThreeObject",
+            "data": {
+              "kind": "model",
+              "depth": 96,
+              "metalness": 0.02,
+              "roughness": 0.65,
+              "opacity": 1,
+              "color": 16777215,
+              "texturePath": "",
+              "normalMapPath": "",
+              "modelPath": "assets/models/b8e3a6266f424423b74309f457a0382a.gltf",
+              "modelNodeOverrides": {
+                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/4:Aoi_Swimsuit_1_0": {
+                  "visible": true
+                },
+                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/5:Aoi_cs_solid_black001_0": {
+                  "visible": false
+                },
+                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/2:Aoi_Hair_0": {
+                  "visible": true
+                },
+                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/3:Aoi_Hair_Outline_0": {
+                  "visible": true
+                }
+              },
+              "modelHierarchy": [
+                {
+                  "name": "RootNode",
+                  "path": "0:RootNode",
+                  "type": "group",
+                  "children": [
+                    {
+                      "name": "Aoi_-_Bikini_Girl",
+                      "path": "0:RootNode/0:Aoi_-_Bikini_Girl",
+                      "type": "group",
+                      "children": [
+                        {
+                          "name": "RootNode_1",
+                          "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1",
+                          "type": "group",
+                          "children": [
+                            {
+                              "name": "Aoi",
+                              "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi",
+                              "type": "group",
+                              "children": [
+                                {
+                                  "name": "Aoi_Skin_0",
+                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/0:Aoi_Skin_0",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "Aoi_Outline-black_0",
+                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/1:Aoi_Outline-black_0",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "Aoi_Hair_0",
+                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/2:Aoi_Hair_0",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "Aoi_Hair_Outline_0",
+                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/3:Aoi_Hair_Outline_0",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "Aoi_Swimsuit_1_0",
+                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/4:Aoi_Swimsuit_1_0",
+                                  "type": "mesh",
+                                  "children": []
+                                },
+                                {
+                                  "name": "Aoi_cs_solid_black001_0",
+                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/5:Aoi_cs_solid_black001_0",
+                                  "type": "mesh",
+                                  "children": []
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

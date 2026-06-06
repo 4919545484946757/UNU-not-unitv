@@ -61,11 +61,20 @@
             />
             <span>专注播放模式</span>
           </label>
+          <label class="filter-row">
+            <input
+              type="checkbox"
+              :checked="editor.showDebugOverlay"
+              @change="setDebugOverlayVisible($event)"
+            />
+            <span>显示调试框</span>
+          </label>
           <label class="filter-row renderer-row">
             <span>项目渲染方式</span>
             <select :value="project.renderBackend" @change="setProjectRenderBackend">
               <option value="pixi">Pixi Renderer</option>
               <option value="canvas2d">原生 Canvas 2D</option>
+              <option value="three">Three.js 3D</option>
             </select>
           </label>
           <div class="menu-tip">播放/调试播放时仅保留 Scene View，停止后恢复当前布局。</div>
@@ -84,10 +93,50 @@
         <button :disabled="runtime.isPlaying" @click="editor.setTool('pan')">平移</button>
       </div>
 
+      <div v-if="is3DProject" class="camera-tool-group">
+        <select :value="editor.threeEditorCameraControlMode" :disabled="runtime.isPlaying" title="3D 编辑视角控制模式" @change="setThreeEditorCameraControlMode">
+          <option value="orbit">鼠标拖拽视角</option>
+          <option value="fly">模拟玩家视角</option>
+        </select>
+        <select :value="editor.threeEditorCameraProjection" :disabled="runtime.isPlaying" title="Editor Camera 投影" @change="setThreeEditorCameraProjection">
+          <option value="orthographic">正交</option>
+          <option value="perspective">透视</option>
+        </select>
+        <label class="speed-control" title="模拟玩家视角移动速度">
+          <span>Speed</span>
+          <input type="number" min="1" max="5000" step="10" :value="editor.threeEditorCameraMoveSpeed" :disabled="runtime.isPlaying" @change="setThreeEditorCameraMoveSpeed" />
+        </label>
+      </div>
+
       <div class="tool-group">
         <button :disabled="runtime.isPlaying" @click="editor.openSceneListDialog()">场景列表</button>
-        <button @click="editor.setRightTab('Timeline')">时间轴</button>
+        <button v-if="!is3DProject" @click="editor.setRightTab('Timeline')">时间轴</button>
         <button @click="editor.toggleGrid()">{{ editor.showGrid ? '隐藏网格' : '显示网格' }}</button>
+        <div class="debug-menu-wrap">
+          <button
+            @click="editor.toggleDebugOverlay()"
+            @contextmenu.prevent.stop="openDebugOverlayMenu"
+          >
+            {{ editor.showDebugOverlay ? '隐藏调试框' : '显示调试框' }} ▾
+          </button>
+          <div v-if="debugOverlayMenuOpen" class="debug-menu" @click.stop @contextmenu.prevent.stop>
+            <div class="menu-title">调试框可见性</div>
+            <label v-for="item in debugOverlayItems" :key="item.key" class="filter-row">
+              <input
+                type="checkbox"
+                :checked="editor.debugOverlayOptions[item.key]"
+                @change="setDebugOverlayOption(item.key, $event)"
+              />
+              <span>{{ item.label }}</span>
+            </label>
+            <div class="menu-tip">默认只显示相机视锥、局部坐标轴和灯光辅助。</div>
+            <div class="menu-actions">
+              <button type="button" @click="editor.setAllDebugOverlayOptions(true)">全选</button>
+              <button type="button" @click="editor.setAllDebugOverlayOptions(false)">全不选</button>
+              <button type="button" @click="editor.resetDebugOverlayOptions()">默认</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -130,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { STATUS_LOG_CATEGORIES, STATUS_LOG_CATEGORY_LABELS, normalizeProjectRenderBackend, useProjectStore } from '../../stores/project'
@@ -144,9 +193,18 @@ const scene = useSceneStore()
 const runtime = useRuntimeStore()
 const statusFilterMenuOpen = ref(false)
 const viewMenuOpen = ref(false)
+const debugOverlayMenuOpen = ref(false)
 const openActionMenu = ref<'' | 'project' | 'scene' | 'entity'>('')
+const is3DProject = computed(() => project.renderBackend === 'three')
 const statusCategories = STATUS_LOG_CATEGORIES
 const statusCategoryLabels = STATUS_LOG_CATEGORY_LABELS
+const debugOverlayItems = [
+  { key: 'bounds', label: '实体边界' },
+  { key: 'colliders', label: '碰撞体体积' },
+  { key: 'axes', label: '局部坐标轴' },
+  { key: 'lights', label: '灯光辅助' },
+  { key: 'cameras', label: '相机视锥' }
+] as const
 const projectActions = [
   { value: 'new', label: '新建项目' },
   { value: 'open', label: '打开工程' },
@@ -157,7 +215,8 @@ const projectActions = [
   { value: 'checkAssets', label: '检查并修复资源依赖' },
   { value: 'refresh', label: '刷新资源' },
   { value: 'import', label: '导入图片' },
-  { value: 'importAudio', label: '导入音频' }
+  { value: 'importAudio', label: '导入音频' },
+  { value: 'importModel', label: '导入 3D 模型' }
 ] as const
 const sceneActions = [
   { value: 'list', label: '场景列表' },
@@ -166,7 +225,7 @@ const sceneActions = [
   { value: 'save', label: '保存场景' },
   { value: 'saveAs', label: '另存场景' }
 ] as const
-const entityActions = [
+const baseEntityActions = [
   { value: 'create', label: '新建实体' },
   { value: 'duplicate', label: '复制实体' },
   { value: 'remove', label: '删除实体' },
@@ -175,6 +234,7 @@ const entityActions = [
   { value: 'savePrefab', label: '保存 Prefab' },
   { value: 'loadPrefab', label: '实例化 Prefab' }
 ] as const
+const entityActions = computed(() => baseEntityActions.filter((item) => !is3DProject.value || (item.value !== 'up' && item.value !== 'down')))
 
 const emit = defineEmits<{
   (event: 'return-launcher'): void
@@ -192,6 +252,14 @@ async function runAction(label: string, action: () => void | Promise<void>) {
 
 function openStatusFilterMenu() {
   statusFilterMenuOpen.value = true
+  debugOverlayMenuOpen.value = false
+  closeActionMenu()
+}
+
+function openDebugOverlayMenu() {
+  debugOverlayMenuOpen.value = true
+  statusFilterMenuOpen.value = false
+  viewMenuOpen.value = false
   closeActionMenu()
 }
 
@@ -205,6 +273,10 @@ function toggleActionMenu(menu: 'project' | 'scene' | 'entity') {
 
 function closeActionMenu() {
   openActionMenu.value = ''
+}
+
+function closeDebugOverlayMenu() {
+  debugOverlayMenuOpen.value = false
 }
 
 function toggleViewMenu() {
@@ -227,12 +299,14 @@ onMounted(() => {
   window.addEventListener('click', closeStatusFilterMenu)
   window.addEventListener('click', closeViewMenu)
   window.addEventListener('click', closeActionMenu)
+  window.addEventListener('click', closeDebugOverlayMenu)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('click', closeStatusFilterMenu)
   window.removeEventListener('click', closeViewMenu)
   window.removeEventListener('click', closeActionMenu)
+  window.removeEventListener('click', closeDebugOverlayMenu)
 })
 
 function setPanelVisible(panel: 'left' | 'right' | 'assets' | 'bottom', event: Event) {
@@ -243,12 +317,34 @@ function setHideChromeDuringPlay(event: Event) {
   editor.setHideChromeDuringPlay((event.target as HTMLInputElement).checked)
 }
 
+function setDebugOverlayVisible(event: Event) {
+  editor.setDebugOverlayVisible((event.target as HTMLInputElement).checked)
+}
+
+function setDebugOverlayOption(key: typeof debugOverlayItems[number]['key'], event: Event) {
+  editor.setDebugOverlayOption(key, (event.target as HTMLInputElement).checked)
+}
+
+function setThreeEditorCameraControlMode(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  editor.setThreeEditorCameraControlMode(value === 'fly' ? 'fly' : 'orbit')
+}
+
+function setThreeEditorCameraProjection(event: Event) {
+  const value = (event.target as HTMLSelectElement).value
+  editor.setThreeEditorCameraProjection(value === 'perspective' ? 'perspective' : 'orthographic')
+}
+
+function setThreeEditorCameraMoveSpeed(event: Event) {
+  editor.setThreeEditorCameraMoveSpeed(Number((event.target as HTMLInputElement).value))
+}
+
 async function setProjectRenderBackend(event: Event) {
   const previous = project.renderBackend
   const renderBackend = normalizeProjectRenderBackend((event.target as HTMLSelectElement).value)
   project.setRenderBackend(renderBackend)
   if (!project.canUseLocalProjectFiles || !window.unu?.updateProjectSettings) {
-    project.setStatus(`项目渲染方式已设为：${renderBackend === 'canvas2d' ? '原生 Canvas 2D' : 'Pixi Renderer'}`)
+    project.setStatus(`项目渲染方式已设为：${renderBackendLabel(renderBackend)}`)
     return
   }
   const result = await window.unu.updateProjectSettings({ projectRoot: project.rootPath, renderBackend }).catch((error): { ok: boolean; renderBackend?: UnuProjectRenderBackend; error?: string } => ({ ok: false, error: String(error) }))
@@ -258,7 +354,13 @@ async function setProjectRenderBackend(event: Event) {
     return
   }
   project.setRenderBackend(normalizeProjectRenderBackend(result.renderBackend))
-  project.setStatus(`项目渲染方式已保存：${project.renderBackend === 'canvas2d' ? '原生 Canvas 2D' : 'Pixi Renderer'}`)
+  project.setStatus(`项目渲染方式已保存：${renderBackendLabel(project.renderBackend)}`)
+}
+
+function renderBackendLabel(value: UnuProjectRenderBackend) {
+  if (value === 'canvas2d') return '原生 Canvas 2D'
+  if (value === 'three') return 'Three.js 3D'
+  return 'Pixi Renderer'
 }
 
 function setAllPanelsVisible(visible: boolean) {
@@ -280,6 +382,7 @@ async function runProjectAction(action: typeof projectActions[number]['value']) 
   else if (action === 'refresh') await runAction('刷新资源', () => assets.refreshProject())
   else if (action === 'import') await runAction('导入图片', () => assets.importImages())
   else if (action === 'importAudio') await runAction('导入音频', () => assets.importAudios())
+  else if (action === 'importModel') await runAction('导入 3D 模型', () => assets.importModels())
 }
 
 async function runSceneAction(action: typeof sceneActions[number]['value']) {
@@ -291,7 +394,7 @@ async function runSceneAction(action: typeof sceneActions[number]['value']) {
   else if (action === 'saveAs') await runAction('另存场景', () => scene.saveSceneAs())
 }
 
-async function runEntityAction(action: typeof entityActions[number]['value']) {
+async function runEntityAction(action: typeof baseEntityActions[number]['value']) {
   closeActionMenu()
   if (action === 'create') editor.openEntityCreateDialog()
   else if (action === 'duplicate') await runAction('复制实体', () => scene.duplicateSelectedEntity())
@@ -383,6 +486,55 @@ async function runEntityAction(action: typeof entityActions[number]['value']) {
 .tool-group {
   display: inline-flex;
   gap: 4px;
+}
+
+.debug-menu-wrap {
+  position: relative;
+}
+
+.debug-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 2600;
+  width: 230px;
+  max-height: min(70vh, 420px);
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #364155;
+  border-radius: 10px;
+  background: #171d28;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38);
+}
+
+.camera-tool-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.camera-tool-group select,
+.speed-control input {
+  height: 30px;
+  min-width: 74px;
+  border: 1px solid #364155;
+  border-bottom: 2px solid #47546a;
+  background: #171f2d;
+  color: #ecf0f7;
+  border-radius: 7px;
+  padding: 0 7px;
+}
+
+.speed-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #9fb5d2;
+  font-size: 11px;
+}
+
+.speed-control input {
+  width: 70px;
 }
 
 .action-menu-wrap,

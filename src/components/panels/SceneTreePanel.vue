@@ -74,19 +74,20 @@
         :key="row.key"
         class="entity-row"
         :class="{
-          active: row.type === 'entity' ? selection.selectedEntityIdSet.has(row.entity.id) : selectedFolderPath === row.path,
+          active: row.type === 'entity' ? selection.selectedEntityIdSet.has(row.entity.id) : row.type === 'model-node' ? isModelNodeSelected(row.entity.id, row.node.path) : selectedFolderPath === row.path,
           'primary-active': row.type === 'entity' && selection.selectedEntityId === row.entity.id,
           folder: row.type === 'folder',
-          'drop-target': dragOverPath === (row.type === 'folder' ? row.path : row.entity.sceneFolderPath)
+          'model-node': row.type === 'model-node',
+          'drop-target': row.type === 'model-node' ? false : dragOverPath === (row.type === 'folder' ? row.path : row.entity.sceneFolderPath)
         }"
         :style="{ paddingLeft: `${10 + row.depth * 16}px` }"
-        :draggable="!runtime.isPlaying"
-        @click="row.type === 'folder' ? selectFolder(row.path, true) : selectEntity(row.entity.id, $event)"
-        @contextmenu.stop.prevent="row.type === 'folder' ? openFolderMenu($event, row.path) : openEntityMenu($event, row.entity.id)"
-        @dragstart="row.type === 'folder' ? startFolderDrag($event, row.path) : startEntityDrag($event, row.entity.id)"
+        :draggable="!runtime.isPlaying && row.type !== 'model-node'"
+        @click="row.type === 'folder' ? selectFolder(row.path, true) : row.type === 'model-node' ? selectModelNode(row, $event) : selectEntity(row.entity.id, $event)"
+        @contextmenu.stop.prevent="row.type === 'folder' ? openFolderMenu($event, row.path) : row.type === 'model-node' ? openModelNodeMenu($event, row) : openEntityMenu($event, row.entity.id)"
+        @dragstart="row.type === 'folder' ? startFolderDrag($event, row.path) : row.type === 'model-node' ? undefined : startEntityDrag($event, row.entity.id)"
         @dragover.prevent="handleRowDragOver(row)"
         @dragleave="dragOverPath = ''"
-        @drop.prevent="row.type === 'folder' ? dropOnFolder(row.path) : dropOnFolder(row.entity.sceneFolderPath)"
+        @drop.prevent="row.type === 'folder' ? dropOnFolder(row.path) : row.type === 'model-node' ? undefined : dropOnFolder(row.entity.sceneFolderPath)"
       >
         <template v-if="row.type === 'folder'">
           <div class="meta folder-meta">
@@ -98,15 +99,34 @@
         <template v-else>
           <div class="meta">
             <span>
-              {{ row.entity.name }}
+              <strong
+                v-if="row.type === 'entity' && getEntityModelHierarchy(row.entity).length"
+                class="folder-caret"
+                @click.stop="toggleModelEntity(row.entity.id)"
+              >
+                {{ expandedModelEntities.has(row.entity.id) ? '▾' : '▸' }}
+              </strong>
+              <strong
+                v-else-if="row.type === 'model-node'"
+                class="folder-caret"
+                @click.stop="toggleModelNode(modelNodeExpansionKey(row.entity, row.node.path))"
+              >
+                {{ expandedModelNodes.has(modelNodeExpansionKey(row.entity, row.node.path)) ? '▾' : row.node.children.length ? '▸' : '•' }}
+              </strong>
+              {{ row.type === 'model-node' ? row.node.name : row.entity.name }}
+              <em v-if="row.type === 'model-node'" class="model-tag">{{ row.node.type }}</em>
+              <em v-if="row.type === 'model-node' && row.visible === false" class="hidden-tag">Hidden</em>
+              <template v-if="row.type === 'entity'">
               <em v-if="row.entity.prefabSourcePath" class="prefab-tag">Prefab</em>
               <em v-if="row.entity.prefabVariantBasePath" class="variant-tag">Variant</em>
               <em v-if="row.entity.getComponent('UI')" class="ui-tag">UI</em>
               <em v-if="row.entity.getComponent('Tilemap')" class="tilemap-tag">Tilemap</em>
+              <em v-if="getEntityModelHierarchy(row.entity).length" class="model-tag">Model</em>
+              </template>
             </span>
-            <small>{{ row.entity.id }}</small>
+            <small>{{ row.type === 'model-node' ? row.node.path : row.entity.id }}</small>
           </div>
-          <strong class="layer">Z {{ row.entity.getTransform()?.zIndex ?? 0 }}</strong>
+          <strong class="layer">{{ row.type === 'model-node' ? 'Node' : `Z ${row.entity.getTransform()?.zIndex ?? 0}` }}</strong>
         </template>
       </li>
     </ul>
@@ -177,7 +197,9 @@ import type { ContextMenuItem } from '../common/contextMenuTypes'
 
 type FolderRow = { type: 'folder'; key: string; path: string; name: string; depth: number; count: number }
 type EntityRow = { type: 'entity'; key: string; entity: Entity; depth: number }
-type SceneTreeRow = FolderRow | EntityRow
+type ModelHierarchyNode = { name: string; path: string; type: 'group' | 'mesh'; children: ModelHierarchyNode[] }
+type ModelNodeRow = { type: 'model-node'; key: string; entity: Entity; node: ModelHierarchyNode; depth: number; visible: boolean }
+type SceneTreeRow = FolderRow | EntityRow | ModelNodeRow
 
 type FolderNode = {
   name: string
@@ -194,6 +216,8 @@ const menu = reactive({ visible: false, x: 0, y: 0, items: [] as ContextMenuItem
 const expandedFolders = ref(new Set<string>())
 const knownFolders = ref(new Set<string>())
 const selectedFolderPath = ref('')
+const expandedModelEntities = ref(new Set<string>())
+const expandedModelNodes = ref(new Set<string>())
 const dragOverPath = ref('')
 const dragPayload = ref<null | { type: 'folder'; path: string } | { type: 'entity'; ids: string[] }>(null)
 const entityDialog = reactive({
@@ -260,7 +284,49 @@ function appendFolderRows(node: FolderNode, rows: SceneTreeRow[], depth: number)
     rows.push({ type: 'folder', key: `folder:${folder.path}`, path: folder.path, name: folder.name, depth, count: countFolderEntities(folder) })
     if (expandedFolders.value.has(folder.path)) appendFolderRows(folder, rows, depth + 1)
   }
-  for (const entity of node.entities) rows.push({ type: 'entity', key: `entity:${entity.id}`, entity, depth })
+  for (const entity of node.entities) appendEntityRows(entity, rows, depth)
+}
+
+function appendEntityRows(entity: Entity, rows: SceneTreeRow[], depth: number) {
+  rows.push({ type: 'entity', key: `entity:${entity.id}`, entity, depth })
+  const hierarchy = getEntityModelHierarchy(entity)
+  if (!hierarchy.length || !expandedModelEntities.value.has(entity.id)) return
+  for (const node of hierarchy) appendModelNodeRows(entity, node, rows, depth + 1)
+}
+
+function appendModelNodeRows(entity: Entity, node: ModelHierarchyNode, rows: SceneTreeRow[], depth: number) {
+  const visible = getModelNodeOverride(entity, node.path).visible !== false
+  rows.push({ type: 'model-node', key: `model:${entity.id}:${node.path}`, entity, node, depth, visible })
+  if (!expandedModelNodes.value.has(modelNodeExpansionKey(entity, node.path))) return
+  for (const child of node.children || []) appendModelNodeRows(entity, child, rows, depth + 1)
+}
+
+function modelNodeExpansionKey(entity: Entity, nodePath: string) {
+  return `${entity.id}:${nodePath}`
+}
+
+function getThreeObjectData(entity: Entity) {
+  const component = entity.getComponent('ThreeObject') as { data?: Record<string, unknown> } | undefined
+  if (!component?.data || typeof component.data !== 'object' || Array.isArray(component.data)) return null
+  return component.data
+}
+
+function getEntityModelHierarchy(entity: Entity): ModelHierarchyNode[] {
+  const data = getThreeObjectData(entity)
+  return Array.isArray(data?.modelHierarchy) ? data.modelHierarchy as ModelHierarchyNode[] : []
+}
+
+function getModelNodeOverrides(entity: Entity) {
+  const data = getThreeObjectData(entity)
+  if (!data) return {}
+  if (!data.modelNodeOverrides || typeof data.modelNodeOverrides !== 'object' || Array.isArray(data.modelNodeOverrides)) {
+    data.modelNodeOverrides = {}
+  }
+  return data.modelNodeOverrides as Record<string, { visible?: boolean }>
+}
+
+function getModelNodeOverride(entity: Entity, nodePath: string) {
+  return getModelNodeOverrides(entity)[nodePath] || {}
 }
 
 function countFolderEntities(node: FolderNode): number {
@@ -306,6 +372,30 @@ function selectEntity(entityId: string, event?: MouseEvent) {
   selectedFolderPath.value = ''
   if (event?.shiftKey) selection.toggleEntity(entityId)
   else selection.selectEntity(entityId)
+}
+
+function selectModelNode(row: ModelNodeRow, event?: MouseEvent) {
+  selectedFolderPath.value = ''
+  selection.selectModelNode(row.entity.id, row.node.path)
+  if (!event?.shiftKey && row.node.children.length) toggleModelNode(modelNodeExpansionKey(row.entity, row.node.path))
+}
+
+function isModelNodeSelected(entityId: string, nodePath: string) {
+  return selection.selectedModelNodeEntityId === entityId && selection.selectedModelNodePath === nodePath
+}
+
+function toggleModelEntity(entityId: string) {
+  const next = new Set(expandedModelEntities.value)
+  if (next.has(entityId)) next.delete(entityId)
+  else next.add(entityId)
+  expandedModelEntities.value = next
+}
+
+function toggleModelNode(path: string) {
+  const next = new Set(expandedModelNodes.value)
+  if (next.has(path)) next.delete(path)
+  else next.add(path)
+  expandedModelNodes.value = next
 }
 
 function openPanelMenu(event: MouseEvent) {
@@ -369,6 +459,29 @@ function openEntityMenu(event: MouseEvent, entityId: string) {
     { label: '图层上移', action: () => scene.moveSelectedEntityLayer(1) },
     { label: '图层下移', action: () => scene.moveSelectedEntityLayer(-1) }
   ])
+}
+
+function openModelNodeMenu(event: MouseEvent, row: ModelNodeRow) {
+  selectModelNode(row)
+  const expansionKey = modelNodeExpansionKey(row.entity, row.node.path)
+  showMenu(event, [
+    { label: row.node.children.length ? (expandedModelNodes.value.has(expansionKey) ? '折叠节点' : '展开节点') : '无子节点', disabled: !row.node.children.length, action: () => toggleModelNode(expansionKey) },
+    { label: row.visible === false ? '显示模型节点' : '隐藏模型节点', disabled: runtime.isPlaying, action: () => setModelNodeVisible(row.entity, row.node.path, row.visible === false) },
+    { label: '显示此节点及子节点', disabled: runtime.isPlaying, action: () => setModelNodeTreeVisible(row.entity, row.node, true) },
+    { label: '隐藏此节点及子节点', disabled: runtime.isPlaying, action: () => setModelNodeTreeVisible(row.entity, row.node, false) },
+    { label: '选中所属实体', action: () => selectEntity(row.entity.id) }
+  ])
+}
+
+function setModelNodeVisible(entity: Entity, nodePath: string, visible: boolean) {
+  const overrides = getModelNodeOverrides(entity)
+  overrides[nodePath] = { ...(overrides[nodePath] || {}), visible }
+  scene.markDirty()
+}
+
+function setModelNodeTreeVisible(entity: Entity, node: ModelHierarchyNode, visible: boolean) {
+  setModelNodeVisible(entity, node.path, visible)
+  for (const child of node.children || []) setModelNodeTreeVisible(entity, child, visible)
 }
 
 function toggleEntityDebugFrameVisible(entityId: string) {
@@ -529,6 +642,7 @@ function startEntityDrag(event: DragEvent, entityId: string) {
 
 function handleRowDragOver(row: SceneTreeRow) {
   if (runtime.isPlaying || !dragPayload.value) return
+  if (row.type === 'model-node') return
   dragOverPath.value = row.type === 'folder' ? row.path : normalizeSceneFolderPath(row.entity.sceneFolderPath)
 }
 
@@ -665,6 +779,10 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   border-bottom: 3px solid #c69928;
   background: #1a2030;
 }
+.entity-row.model-node {
+  border-bottom-color: #4b6f8f;
+  background: #151d2a;
+}
 .entity-row.folder:hover {
   background: #313a51;
 }
@@ -685,6 +803,8 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   white-space: nowrap;
 }
 .folder-tag,
+.model-tag,
+.hidden-tag,
 .prefab-tag,
 .ui-tag,
 .tilemap-tag,
@@ -696,6 +816,8 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   font-style: normal;
 }
 .folder-tag { color: #f3ffd1; background: #4d5d25; }
+.model-tag { color: #dff5ff; background: #244766; }
+.hidden-tag { color: #f0cad0; background: #5b2631; }
 .prefab-tag { color: #dff5ff; background: #21506a; }
 .ui-tag { color: #ecfced; background: #2f5d3a; }
 .tilemap-tag { color: #f4efff; background: #5f3a86; }

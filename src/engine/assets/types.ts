@@ -1,4 +1,4 @@
-export type AssetType = 'folder' | 'image' | 'audio' | 'script' | 'scene' | 'prefab' | 'animation' | 'atlas'
+export type AssetType = 'folder' | 'image' | 'audio' | 'script' | 'scene' | 'prefab' | 'animation' | 'atlas' | 'model'
 
 export interface AssetNode {
   id: string

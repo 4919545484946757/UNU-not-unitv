@@ -178,6 +178,7 @@ function openPanelMenu(event: MouseEvent) {
     { label: '粘贴文件/文件夹', disabled: !assets.assetClipboard, action: () => assets.pasteCopiedAsset(assets.selectedPath || 'assets') },
     { label: '导入图片', action: () => assets.importImages() },
     { label: '导入音频', action: () => assets.importAudios() },
+    { label: '导入 3D 模型', action: () => assets.importModels() },
     { label: allExpanded.value ? '全部折叠' : '全部展开', action: () => toggleAll() }
   ])
 }
@@ -289,6 +290,7 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
     }
     items.push({ label: '导入图片到工程', action: () => assets.importImages() })
     items.push({ label: '导入音频到工程', action: () => assets.importAudios() })
+    items.push({ label: '导入 3D 模型到工程', action: () => assets.importModels() })
     items.push({ label: '刷新资源', action: () => assets.refreshProject() })
   }
 
@@ -311,6 +313,17 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
     items.push({ label: '选中音频', action: () => assets.selectAsset(node.path) })
     items.push({
       label: '打开 Inspector 配置',
+      action: async () => {
+        await assets.selectAsset(node.path)
+        editor.setRightTab('Inspector')
+      }
+    })
+  }
+
+  if (node.type === 'model') {
+    items.push({ label: '选中 3D 模型', action: () => assets.selectAsset(node.path) })
+    items.push({
+      label: '打开 Inspector 绑定',
       action: async () => {
         await assets.selectAsset(node.path)
         editor.setRightTab('Inspector')

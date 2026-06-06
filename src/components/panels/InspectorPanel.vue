@@ -46,9 +46,14 @@
         <div v-if="!isComponentCollapsed('transform')" class="component-shell-content">
       <TransformInspector
         :transform="transform"
+        :is3d="is3DProject"
         :rotation-degrees="formatRotationDegrees(transform.rotation)"
+        :rotation-x-degrees="formatRotationDegrees(transform.rotationX)"
+        :rotation-y-degrees="formatRotationDegrees(transform.rotationY)"
+        :rotation-z-degrees="formatRotationDegrees(transform.rotationZ)"
         @set-number="(key, event) => setNumber('transform', key, event)"
         @set-rotation="setRotationDegrees"
+        @set-rotation-axis="setRotationAxisDegrees"
         @set-position-mode="setTransformPositionMode"
         @set-viewport-horizontal="setTransformViewportHorizontal"
         @set-viewport-vertical="setTransformViewportVertical"
@@ -78,7 +83,64 @@
         </div>
       </section>
 
-      <section v-if="background" class="component-shell" :class="componentShellClass('background')">
+      <section v-if="is3DProject && threeObject" class="component-shell" :class="componentShellClass('threeObject')">
+        <div class="component-shell-header" @click="toggleComponentCollapsed('threeObject')">
+          <button class="collapse-toggle" type="button">{{ isComponentCollapsed('threeObject') ? '▸' : '▾' }}</button>
+          <div><strong>Three Object</strong><span>3D 网格、材质、灯光和模型路径</span></div>
+          <button class="small danger" :disabled="runtime.isPlaying" @click.stop="removeBuiltinComponent('ThreeObject')">删除</button>
+        </div>
+        <div v-if="!isComponentCollapsed('threeObject')" class="component-shell-content inline">
+          <label>
+            Mesh Type
+            <select :value="threeObjectKind" @change="setThreeObjectKind">
+              <option value="box">Box</option>
+              <option value="plane">Plane</option>
+              <option value="model">Model</option>
+              <option value="directionalLight">Directional Light</option>
+              <option value="pointLight">Point Light</option>
+              <option value="ambientLight">Ambient Light</option>
+            </select>
+          </label>
+          <label>Depth <input type="number" min="0.1" step="1" :value="threeObjectNumber('depth', 80)" @input="setThreeObjectNumber('depth', $event)" /></label>
+          <label>Material Metalness <input type="number" min="0" max="1" step="0.01" :value="threeObjectNumber('metalness', 0.02)" @input="setThreeObjectNumber('metalness', $event, 0, 1)" /></label>
+          <label>Material Roughness <input type="number" min="0" max="1" step="0.01" :value="threeObjectNumber('roughness', 0.65)" @input="setThreeObjectNumber('roughness', $event, 0, 1)" /></label>
+          <label>Material Opacity <input type="number" min="0" max="1" step="0.01" :value="threeObjectNumber('opacity', sprite?.alpha ?? 1)" @input="setThreeObjectNumber('opacity', $event, 0, 1)" /></label>
+          <div class="color-field">
+            <label>
+              Material Color
+              <input type="color" :value="formatColorInput(threeObjectColor)" @input="setThreeObjectColor" />
+            </label>
+            <input :value="formatColorValue(threeObjectColor, threeObjectNumber('opacity', sprite?.alpha ?? 1))" placeholder="#fff / rgba(255,255,255,.8) / hsl(0 0% 100%)" @input="setThreeObjectColor" />
+          </div>
+          <label v-if="threeObjectIsLight">Light Intensity <input type="number" min="0" step="0.1" :value="threeObjectNumber('intensity', 1.3)" @input="setThreeObjectNumber('intensity', $event, 0)" /></label>
+          <label>
+            Model Path
+            <input :value="threeObjectText('modelPath')" placeholder="assets/models/example.glb" @input="setThreeObjectText('modelPath', $event)" />
+          </label>
+          <div class="asset-picker">
+            <button class="small" :disabled="!selectedModelAssetPath || runtime.isPlaying" @click="bindSelectedModelAsset">Bind Selected Model</button>
+            <span>{{ selectedModelAssetPath || 'Select .glb/.gltf/.obj in Assets' }}</span>
+          </div>
+          <label>
+            Texture Path
+            <input :value="threeObjectText('texturePath')" placeholder="assets/images/albedo.png" @input="setThreeObjectText('texturePath', $event)" />
+          </label>
+          <div class="asset-picker">
+            <button class="small" :disabled="!selectedImageAssetPath || runtime.isPlaying" @click="bindSelectedThreeTexture('texturePath')">Bind Selected Texture</button>
+            <span>{{ selectedImageAssetPath || 'Select image in Assets' }}</span>
+          </div>
+          <label>
+            Normal Map Path
+            <input :value="threeObjectText('normalMapPath')" placeholder="assets/images/normal.png" @input="setThreeObjectText('normalMapPath', $event)" />
+          </label>
+          <div class="asset-picker">
+            <button class="small" :disabled="!selectedImageAssetPath || runtime.isPlaying" @click="bindSelectedThreeTexture('normalMapPath')">Bind Selected Normal</button>
+            <span>{{ selectedImageAssetPath || 'Select image in Assets' }}</span>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="!is3DProject && background" class="component-shell" :class="componentShellClass('background')">
         <div class="component-shell-header" @click="toggleComponentCollapsed('background')">
           <button class="collapse-toggle" type="button">{{ isComponentCollapsed('background') ? '▸' : '▾' }}</button>
           <div><strong>Background</strong><span>背景跟随与适配</span></div>
@@ -96,7 +158,7 @@
         </div>
       </section>
 
-      <div class="group component-shell" v-if="animation" :class="componentShellClass('animation')">
+      <div class="group component-shell" v-if="!is3DProject && animation" :class="componentShellClass('animation')">
         <div class="component-shell-header inline" @click="toggleComponentCollapsed('animation')">
           <button class="collapse-toggle" type="button">{{ isComponentCollapsed('animation') ? '▸' : '▾' }}</button>
           <div><strong>Animation</strong><span>序列帧与状态机</span></div>
@@ -257,6 +319,7 @@
             :collider="collider"
             :collision-layers="collisionLayers"
             @set-number="(key, event) => setNumber('collider', key, event)"
+            @set-shape="setColliderShape"
             @set-layer="setColliderLayer"
             @set-mask-layer="setColliderMaskLayer"
             @set-checked="(key, event) => setChecked('collider', key, event)"
@@ -331,7 +394,7 @@
         </div>
       </div>
 
-      <div v-if="tilemap" class="group component-shell" :class="componentShellClass('tilemap')">
+      <div v-if="!is3DProject && tilemap" class="group component-shell" :class="componentShellClass('tilemap')">
         <div class="component-shell-header inline" @click="toggleComponentCollapsed('tilemap')">
           <button class="collapse-toggle" type="button">{{ isComponentCollapsed('tilemap') ? '▸' : '▾' }}</button>
           <div><strong>Tilemap</strong><span>Tile 数据与碰撞编辑</span></div>
@@ -387,7 +450,7 @@
         </div>
       </div>
 
-      <div v-if="ui" class="group component-shell" :class="componentShellClass('ui')">
+      <div v-if="!is3DProject && ui" class="group component-shell" :class="componentShellClass('ui')">
         <div class="component-shell-header inline" @click="toggleComponentCollapsed('ui')">
           <button class="collapse-toggle" type="button">{{ isComponentCollapsed('ui') ? '▸' : '▾' }}</button>
           <div><strong>UI</strong><span>文本、按钮与布局</span></div>
@@ -572,10 +635,16 @@
         <div v-if="!isComponentCollapsed('camera')" class="component-shell-content">
           <CameraInspector
             :camera="camera"
+            :runtime-playing="runtime.isPlaying"
+            :camera-preview-active="editor.cameraPreviewEntityId === entity?.id"
             @set-number="(key, event) => setNumber('camera', key, event)"
             @set-text="(key, event) => setText('camera', key, event)"
             @set-checked="(key, event) => setChecked('camera', key, event)"
+            @set-projection="setCameraProjection"
             @add-camera="addCameraComponent"
+            @set-from-editor-view="setCameraFromEditorView"
+            @preview-camera-view="previewSelectedCameraView"
+            @exit-camera-preview="exitCameraPreview"
           />
         </div>
       </section>
@@ -700,6 +769,7 @@ import { TilemapComponent } from '../../engine/components/TilemapComponent'
 import type { TransformComponent } from '../../engine/components/TransformComponent'
 import { UIComponent } from '../../engine/components/UIComponent'
 import { CustomComponent } from '../../engine/components/CustomComponent'
+import { loadGltfModelWithHierarchy } from '../../engine/renderer/modelAssetLoader'
 import ScriptInspector from '../inspector/ScriptInspector.vue'
 import TransformInspector from '../inspector/TransformInspector.vue'
 import SpriteInspector from '../inspector/SpriteInspector.vue'
@@ -738,6 +808,7 @@ const activeScene = computed(() => {
   return sceneStore.currentScene
 })
 
+const is3DProject = computed(() => project.renderBackend === 'three')
 const entity = computed(() => activeScene.value?.getEntityById(selection.selectedEntityId) ?? null)
 const transform = computed(() => entity.value?.getComponent<TransformComponent>('Transform') ?? null)
 const sprite = computed(() => entity.value?.getComponent<SpriteComponent>('Sprite') ?? null)
@@ -750,8 +821,10 @@ const camera = computed(() => entity.value?.getComponent<CameraComponent>('Camer
 const audio = computed(() => entity.value?.getComponent<AudioComponent>('Audio') ?? null)
 const ui = computed(() => entity.value?.getComponent<UIComponent>('UI') ?? null)
 const tilemap = computed(() => entity.value?.getComponent<TilemapComponent>('Tilemap') ?? null)
+const threeObject = computed(() => entity.value?.getComponent<CustomComponent>('ThreeObject') ?? null)
 const defaultCollapsedComponents: Record<string, boolean> = {
   script: true,
+  threeObject: false,
   animation: true,
   collider: true,
   interactable: true,
@@ -764,7 +837,7 @@ const defaultCollapsedComponents: Record<string, boolean> = {
 const collapsedComponents = ref<Record<string, boolean>>({ ...defaultCollapsedComponents })
 const customComponentName = ref('')
 
-type BuiltinComponentId = 'script' | 'transform' | 'sprite' | 'background' | 'animation' | 'collider' | 'interactable' | 'tilemap' | 'ui' | 'audio' | 'camera'
+type BuiltinComponentId = 'script' | 'transform' | 'sprite' | 'threeObject' | 'background' | 'animation' | 'collider' | 'interactable' | 'tilemap' | 'ui' | 'audio' | 'camera'
 
 interface InspectorComponentPanel {
   id: BuiltinComponentId
@@ -773,30 +846,39 @@ interface InspectorComponentPanel {
   description: string
   removable: boolean
   active: boolean
+  projectMode?: '2d' | '3d'
 }
 
-const componentPanelOrder: Array<Omit<InspectorComponentPanel, 'active'>> = [
+const baseComponentPanelOrder: Array<Omit<InspectorComponentPanel, 'active'>> = [
   { id: 'script', type: 'Script', title: 'Script', description: '挂载项目脚本、内联配置或实体交互逻辑。', removable: true },
   { id: 'transform', type: 'Transform', title: 'Transform', description: '实体在世界或视窗中的位置、旋转和缩放。', removable: false },
   { id: 'sprite', type: 'Sprite', title: 'Sprite', description: '贴图、尺寸、颜色和可见性设置。', removable: true },
-  { id: 'background', type: 'Background', title: 'Background', description: '背景图跟随摄像机、适配模式与背景资源绑定。', removable: true },
-  { id: 'animation', type: 'Animation', title: 'Animation', description: '序列帧、状态机和动画轨道设置。', removable: true },
+  { id: 'threeObject', type: 'ThreeObject', title: 'Three Object', description: '3D 网格类型、材质参数、灯光强度和模型路径。', removable: true, projectMode: '3d' },
+  { id: 'background', type: 'Background', title: 'Background', description: '背景图跟随摄像机、适配模式与背景资源绑定。', removable: true, projectMode: '2d' },
+  { id: 'animation', type: 'Animation', title: 'Animation', description: '序列帧、状态机和动画轨道设置。', removable: true, projectMode: '2d' },
   { id: 'collider', type: 'Collider', title: 'Collider', description: '碰撞箱、触发器、碰撞层与碰撞矩阵。', removable: true },
   { id: 'interactable', type: 'Interactable', title: 'Interactable', description: '交互距离、交互脚本和门/箱子等交互行为。', removable: true },
-  { id: 'tilemap', type: 'Tilemap', title: 'Tilemap', description: 'Tile 数据、碰撞数据和数值贴图绑定。', removable: true },
-  { id: 'ui', type: 'UI', title: 'UI', description: '文本、按钮、Slider、Markdown/HTML Overlay 和布局。', removable: true },
+  { id: 'tilemap', type: 'Tilemap', title: 'Tilemap', description: 'Tile 数据、碰撞数据和数值贴图绑定。', removable: true, projectMode: '2d' },
+  { id: 'ui', type: 'UI', title: 'UI', description: '文本、按钮、Slider、Markdown/HTML Overlay 和布局。', removable: true, projectMode: '2d' },
   { id: 'audio', type: 'Audio', title: 'Audio', description: '音频资源、音量、循环和播放分组。', removable: true },
   { id: 'camera', type: 'Camera', title: 'Camera', description: '摄像机缩放、跟随目标和平滑/边界设置。', removable: true }
 ]
 
+const componentPanelOrder = computed(() =>
+  baseComponentPanelOrder.filter((panel) => {
+    if (panel.projectMode === '3d') return is3DProject.value
+    if (panel.projectMode === '2d') return !is3DProject.value
+    return true
+  })
+)
 const builtinComponentPanels = computed<InspectorComponentPanel[]>(() =>
-  componentPanelOrder.map((panel) => ({ ...panel, active: isBuiltinComponentActive(panel.id) }))
+  componentPanelOrder.value.map((panel) => ({ ...panel, active: isBuiltinComponentActive(panel.id) }))
 )
 const inactiveComponentPanels = computed(() => builtinComponentPanels.value.filter((panel) => !panel.active))
 const customComponents = computed(() => {
   const current = entity.value
   if (!current) return []
-  const builtInTypes = new Set(componentPanelOrder.map((panel) => panel.type))
+  const builtInTypes = new Set(baseComponentPanelOrder.map((panel) => panel.type))
   return current.getAllComponents().filter((component) => !builtInTypes.has(component.type)) as CustomComponent[]
 })
 const newAnimationStateName = ref('')
@@ -819,6 +901,13 @@ const selectedScriptAssetPath = computed(() => {
 const selectedImageAssetPath = computed(() => assets.selectedAsset?.type === 'image' ? assets.selectedAsset.path : '')
 const selectedAtlasAssetPath = computed(() => assets.selectedAsset?.type === 'atlas' ? assets.selectedAsset.path : '')
 const selectedAudioAssetPath = computed(() => assets.selectedAsset?.type === 'audio' ? assets.selectedAsset.path : '')
+const selectedModelAssetPath = computed(() => {
+  const asset = assets.selectedAsset
+  if (!asset) return ''
+  const path = String(asset.path || '')
+  if (asset.type === 'model' || /\.(glb|gltf|obj|fbx)$/i.test(path)) return path
+  return ''
+})
 const selectedHtmlAssetPath = computed(() => {
   const path = String(assets.selectedAsset?.path || '')
   return path.toLowerCase().endsWith('.html') ? path : ''
@@ -990,6 +1079,7 @@ function isBuiltinComponentActive(id: BuiltinComponentId) {
     case 'script': return Boolean(script.value)
     case 'transform': return Boolean(transform.value)
     case 'sprite': return Boolean(sprite.value)
+    case 'threeObject': return Boolean(threeObject.value)
     case 'background': return Boolean(background.value)
     case 'animation': return Boolean(animation.value)
     case 'collider': return Boolean(collider.value)
@@ -1007,6 +1097,7 @@ function addBuiltinComponent(id: BuiltinComponentId) {
   switch (id) {
     case 'script': addScriptComponent(); break
     case 'sprite': addSpriteComponent(); break
+    case 'threeObject': addThreeObjectComponent(); break
     case 'background': addBackgroundComponent(); break
     case 'animation': addAnimationComponent(); break
     case 'collider': addColliderComponent(); break
@@ -1051,6 +1142,125 @@ function addCustomComponent() {
   collapsedComponents.value = { ...collapsedComponents.value, [`custom:${type}`]: false }
   sceneStore.markDirty()
   project.setStatus(`已添加自定义组件：${type}`)
+}
+
+const threeObjectKind = computed(() => String(threeObject.value?.data?.kind || 'box'))
+const threeObjectIsLight = computed(() => ['directionalLight', 'pointLight', 'ambientLight'].includes(threeObjectKind.value))
+const threeObjectColor = computed(() => {
+  const value = threeObject.value?.data?.color
+  if (typeof value === 'number' && Number.isFinite(value)) return Math.max(0, Math.min(0xffffff, Math.round(value)))
+  if (typeof value === 'string') {
+    const parsed = parseColorInput(value)
+    if (parsed) return parsed.rgb
+    const numeric = Number(value.trim().replace(/^#/, '0x'))
+    if (Number.isFinite(numeric)) return Math.max(0, Math.min(0xffffff, Math.round(numeric)))
+  }
+  return Math.max(0, Math.min(0xffffff, Math.round(Number(sprite.value?.tint ?? 0xffffff) || 0xffffff)))
+})
+
+function ensureThreeObjectData() {
+  const component = threeObject.value
+  if (!component) return null
+  if (!component.data || typeof component.data !== 'object' || Array.isArray(component.data)) {
+    component.data = {}
+  }
+  return component.data
+}
+
+function threeObjectText(key: string) {
+  const value = threeObject.value?.data?.[key]
+  return typeof value === 'string' ? value : ''
+}
+
+function threeObjectNumber(key: string, fallback: number) {
+  const value = Number(threeObject.value?.data?.[key])
+  return Number.isFinite(value) ? value : fallback
+}
+
+function setThreeObjectKind(event: Event) {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data) return
+  const value = (event.target as HTMLSelectElement).value
+  data.kind = ['box', 'plane', 'model', 'directionalLight', 'pointLight', 'ambientLight'].includes(value) ? value : 'box'
+  sceneStore.markDirty()
+}
+
+function setThreeObjectText(key: string, event: Event) {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data) return
+  data[key] = (event.target as HTMLInputElement).value.trim()
+  sceneStore.markDirty()
+}
+
+function setThreeObjectNumber(key: string, event: Event, min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY) {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data) return
+  const value = Number((event.target as HTMLInputElement).value)
+  if (!Number.isFinite(value)) return
+  data[key] = Math.max(min, Math.min(max, value))
+  sceneStore.markDirty()
+}
+
+function setThreeObjectColor(event: Event) {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data) return
+  const raw = (event.target as HTMLInputElement).value.trim()
+  const parsed = parseColorInput(raw)
+  if (!parsed) return
+  data.color = parsed.rgb
+  if (typeof parsed.alpha === 'number') data.opacity = parsed.alpha
+  sceneStore.markDirty()
+}
+
+async function bindSelectedModelAsset() {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data || !selectedModelAssetPath.value) return
+  data.kind = 'model'
+  data.modelPath = selectedModelAssetPath.value
+  data.modelNodeOverrides = data.modelNodeOverrides || {}
+  const result = await loadGltfModelWithHierarchy(selectedModelAssetPath.value).catch((error) => {
+    console.warn('[UNU][inspector] failed to read model hierarchy', selectedModelAssetPath.value, error)
+    return null
+  })
+  if (result?.hierarchy) data.modelHierarchy = result.hierarchy
+  sceneStore.markDirty()
+  project.setStatus(`已绑定 3D 模型：${selectedModelAssetPath.value}`)
+}
+
+function bindSelectedThreeTexture(key: 'texturePath' | 'normalMapPath') {
+  if (runtime.isPlaying) return
+  const data = ensureThreeObjectData()
+  if (!data || !selectedImageAssetPath.value) return
+  data[key] = selectedImageAssetPath.value
+  sceneStore.markDirty()
+  project.setStatus(`已绑定 ${key === 'normalMapPath' ? '法线贴图' : '材质贴图'}：${selectedImageAssetPath.value}`)
+}
+
+function addThreeObjectComponent() {
+  if (runtime.isPlaying) return
+  if (!entity.value || threeObject.value) return
+  entity.value.addComponent(new CustomComponent('ThreeObject', {
+    kind: 'box',
+    depth: 80,
+    metalness: 0.02,
+    roughness: 0.65,
+    opacity: 1,
+    color: 0x8bd3ff,
+    texturePath: '',
+    normalMapPath: '',
+    intensity: 1.3,
+    modelPath: ''
+  }))
+  if (!sprite.value) {
+    entity.value.addComponent(new SpriteComponent('', 80, 80, true, 1, 0x8bd3ff, true, 0, 0, true))
+  }
+  sceneStore.markDirty()
+  project.setStatus('已添加 Three Object 组件')
 }
 
 function removeCustomComponent(type: string) {
@@ -1329,6 +1539,17 @@ function setRotationDegrees(event: Event) {
   const value = Number((event.target as HTMLInputElement).value)
   if (!Number.isFinite(value)) return
   transform.value.rotation = degreesToRadians(value)
+  transform.value.rotationZ = transform.value.rotation
+  sceneStore.markDirty()
+}
+
+function setRotationAxisDegrees(key: 'rotationX' | 'rotationY' | 'rotationZ', event: Event) {
+  if (runtime.isPlaying) return
+  if (!transform.value) return
+  const value = Number((event.target as HTMLInputElement).value)
+  if (!Number.isFinite(value)) return
+  transform.value[key] = degreesToRadians(value)
+  if (key === 'rotationZ') transform.value.rotation = transform.value.rotationZ
   sceneStore.markDirty()
 }
 
@@ -1391,6 +1612,42 @@ function setHexNumber(group: 'sprite' | 'ui', key: string, event: Event) {
     }
   }
   markDirtyIfUpdated(changed)
+}
+
+function setCameraProjection(event: Event) {
+  if (runtime.isPlaying) return
+  if (!camera.value) return
+  const value = (event.target as HTMLSelectElement).value
+  camera.value.projection = value === 'perspective' ? 'perspective' : 'orthographic'
+  sceneStore.markDirty()
+}
+
+function setCameraFromEditorView() {
+  if (runtime.isPlaying) {
+    project.setStatus('播放状态下不能读取编辑视角到相机。')
+    return
+  }
+  if (!entity.value || !camera.value) {
+    project.setStatus('当前选中实体没有 Camera 组件。')
+    return
+  }
+  window.dispatchEvent(new CustomEvent('unu:set-camera-from-editor-view', { detail: { entityId: entity.value.id } }))
+}
+
+function previewSelectedCameraView() {
+  if (runtime.isPlaying) {
+    project.setStatus('播放状态下不能进入编辑态相机预览。')
+    return
+  }
+  if (!entity.value || !camera.value) {
+    project.setStatus('当前选中实体没有 Camera 组件。')
+    return
+  }
+  window.dispatchEvent(new CustomEvent('unu:preview-camera-view', { detail: { entityId: entity.value.id } }))
+}
+
+function exitCameraPreview() {
+  window.dispatchEvent(new CustomEvent('unu:exit-camera-preview'))
 }
 
 function formatHexNumber(value: number) {
@@ -1647,6 +1904,21 @@ function guessInteractionEditorLanguage(path: string) {
   if (lower.endsWith('.html') || lower.endsWith('.htm') || lower.endsWith('.css')) return 'html'
   if (lower.endsWith('.js') || lower.endsWith('.ts') || lower.includes('builtin://')) return 'js'
   return 'plain'
+}
+
+function setColliderShape(event: Event) {
+  if (runtime.isPlaying || !collider.value) return
+  const value = (event.target as HTMLSelectElement).value
+  collider.value.shape = value === 'circle' || value === 'box' || value === 'sphere' || value === 'capsule' ? value : 'rect'
+  if (collider.value.shape === 'sphere') {
+    collider.value.radius = Math.max(1, Number(collider.value.radius || Math.min(collider.value.width, collider.value.height, collider.value.depth || collider.value.width) / 2))
+  } else if (collider.value.shape === 'capsule') {
+    collider.value.radius = Math.max(1, Number(collider.value.radius || Math.min(collider.value.width, collider.value.depth || collider.value.width) / 2))
+    collider.value.capsuleHeight = Math.max(collider.value.radius * 2, Number(collider.value.capsuleHeight || collider.value.height || 120))
+  } else if (collider.value.shape === 'box') {
+    collider.value.depth = Math.max(1, Number(collider.value.depth || collider.value.width || 80))
+  }
+  sceneStore.markDirty()
 }
 
 function bindSelectedHtmlAsset() {
@@ -2569,7 +2841,7 @@ function addTilemapComponent() {
 function addColliderComponent() {
   if (runtime.isPlaying) return
   if (!entity.value || collider.value) return
-  entity.value.addComponent(new ColliderComponent('rect', 80, 80, 0, 0, false, 'Default', [...DEFAULT_COLLISION_MASKS.Default]))
+  entity.value.addComponent(new ColliderComponent('rect', 80, 80, 0, 0, false, 'Default', [...DEFAULT_COLLISION_MASKS.Default], true, 80, 40, 120, 0))
   sceneStore.markDirty()
 }
 

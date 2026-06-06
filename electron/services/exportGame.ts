@@ -250,8 +250,20 @@ async function patchExportIndexHtml(indexPath: string, projectName?: string) {
     .replace(/(src|href)="\/assets\//g, '$1="./assets/')
     .replace(/<title>.*?<\/title>/i, `<title>${escapeHtml(projectName || 'UNU Game')}</title>`)
     .replace(/(<meta[^>]+http-equiv=["']Content-Security-Policy["'][^>]+content=["'])([^"']*)(["'][^>]*>)/i, (_match, prefix, content, suffix) => {
-      const policy = String(content)
-      return `${prefix}${policy.includes('media-src') ? policy : `${policy}; media-src 'self' data: blob:`}${suffix}`
+      let policy = String(content)
+      if (!policy.includes('media-src')) policy = `${policy}; media-src 'self' data: blob:`
+      if (/connect-src\s+[^;]+/i.test(policy)) {
+        policy = policy.replace(/connect-src\s+([^;]+)/i, (_connectMatch, sources) => {
+          const values = String(sources).split(/\s+/).filter(Boolean)
+          for (const source of ['data:', 'blob:']) {
+            if (!values.includes(source)) values.push(source)
+          }
+          return `connect-src ${values.join(' ')}`
+        })
+      } else {
+        policy = `${policy}; connect-src 'self' data: blob:`
+      }
+      return `${prefix}${policy}${suffix}`
     })
   if (!html.includes('__UNU_GAME_EXPORT__')) {
     html = html.replace(

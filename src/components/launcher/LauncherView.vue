@@ -81,6 +81,7 @@
                 <span>项目模板</span>
                 <select v-model="createForm.template">
                   <option value="blank-2d">空白 2D 项目</option>
+                  <option value="blank-3d">3D项目</option>
                 </select>
               </label>
             </div>
@@ -111,15 +112,16 @@
               <select v-model="createForm.renderBackend">
                 <option value="pixi">Pixi Renderer</option>
                 <option value="canvas2d">原生 Canvas 2D</option>
+                <option value="three">Three.js 3D</option>
               </select>
             </label>
             <div class="setting-row">
               <span>默认场景</span>
-              <strong>MainScene</strong>
+              <strong>{{ createForm.template === 'blank-3d' ? 'MainScene (3D)' : 'MainScene' }}</strong>
             </div>
             <div class="setting-row">
               <span>资源目录</span>
-              <strong>assets / scenes / scripts</strong>
+              <strong>{{ createForm.template === 'blank-3d' ? 'assets / scenes / scripts / models / materials' : 'assets / scenes / scripts' }}</strong>
             </div>
           </section>
         </div>
@@ -174,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { fallbackSampleProjectCatalog, type SampleProjectEntry } from '../../engine/project/sampleCatalog'
 
 interface HistoryProject {
@@ -332,6 +334,17 @@ function resetCreateForm() {
   }
 }
 
+watch(
+  () => createForm.value.template,
+  (template) => {
+    if (template === 'blank-3d') {
+      createForm.value.renderBackend = 'three'
+    } else if (createForm.value.renderBackend === 'three') {
+      createForm.value.renderBackend = 'pixi'
+    }
+  }
+)
+
 async function pickCreateParentDir() {
   if (!window.unu?.pickDirectory) return
   const picked = await window.unu.pickDirectory({
@@ -350,7 +363,8 @@ async function submitCreateProject() {
     const created = await window.unu.createProject({
       projectName: createForm.value.projectName.trim() || undefined,
       parentDir: createForm.value.parentDir.trim() || undefined,
-      renderBackend: createForm.value.renderBackend
+      renderBackend: createForm.value.renderBackend,
+      template: createForm.value.template
     })
     if (!created) return
     const row = { rootPath: created.rootPath, name: created.name, lastOpenedAt: Date.now() }

@@ -16,17 +16,38 @@ const COMPACT_MIN_BROWSER_PANEL_HEIGHT = 84
 const COMPACT_MAX_BROWSER_PANEL_HEIGHT = 260
 const COMPACT_MIN_CONSOLE_HEIGHT = 68
 const COMPACT_MAX_CONSOLE_HEIGHT = 260
+export type DebugOverlayOptions = {
+  bounds: boolean
+  colliders: boolean
+  axes: boolean
+  lights: boolean
+  cameras: boolean
+}
+
+export const DEFAULT_DEBUG_OVERLAY_OPTIONS: DebugOverlayOptions = {
+  bounds: false,
+  colliders: false,
+  axes: true,
+  lights: true,
+  cameras: true
+}
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
     tool: 'select' as 'select' | 'move' | 'scale' | 'rotate' | 'pan',
+    threeEditorCameraControlMode: 'orbit' as 'orbit' | 'fly',
+    threeEditorCameraProjection: 'perspective' as 'orthographic' | 'perspective',
+    threeEditorCameraMoveSpeed: 280,
     leftTab: 'Scene',
     sceneTreeViewMode: 'layer' as 'layer' | 'folder',
     rightTab: 'Inspector' as 'Inspector' | 'Script' | 'Timeline',
     entityJsonEditorEntityId: '',
+    cameraPreviewEntityId: '',
     scriptErrorTarget: null as null | { path: string; line: number; column?: number; message?: string; nonce: number },
     scriptEditorExternalLock: null as null | { id: string; mode: string; targetId?: string; label?: string },
     showGrid: true,
+    showDebugOverlay: true,
+    debugOverlayOptions: { ...DEFAULT_DEBUG_OVERLAY_OPTIONS } as DebugOverlayOptions,
     timelineFrameIndex: 0,
     timelinePreviewPlaying: false,
     timelinePreviewClock: 0,
@@ -47,6 +68,15 @@ export const useEditorStore = defineStore('editor', {
   actions: {
     setTool(tool: 'select' | 'move' | 'scale' | 'rotate' | 'pan') {
       this.tool = tool
+    },
+    setThreeEditorCameraControlMode(mode: 'orbit' | 'fly') {
+      this.threeEditorCameraControlMode = mode
+    },
+    setThreeEditorCameraProjection(projection: 'orthographic' | 'perspective') {
+      this.threeEditorCameraProjection = projection
+    },
+    setThreeEditorCameraMoveSpeed(speed: number) {
+      this.threeEditorCameraMoveSpeed = Math.max(1, Math.min(5000, Number(speed) || 280))
     },
     setRightTab(tab: 'Inspector' | 'Script' | 'Timeline') {
       this.rightTab = tab
@@ -73,6 +103,9 @@ export const useEditorStore = defineStore('editor', {
     },
     clearEntityJsonEditor() {
       this.entityJsonEditorEntityId = ''
+    },
+    setCameraPreviewEntity(entityId: string) {
+      this.cameraPreviewEntityId = String(entityId || '').trim()
     },
     lockScriptEditorExternal(payload: { id: string; mode: string; targetId?: string; label?: string }) {
       this.scriptEditorExternalLock = {
@@ -116,6 +149,27 @@ export const useEditorStore = defineStore('editor', {
     },
     toggleGrid() {
       this.showGrid = !this.showGrid
+    },
+    setDebugOverlayVisible(visible: boolean) {
+      this.showDebugOverlay = !!visible
+    },
+    toggleDebugOverlay() {
+      this.showDebugOverlay = !this.showDebugOverlay
+    },
+    setDebugOverlayOption(key: keyof DebugOverlayOptions, visible: boolean) {
+      this.debugOverlayOptions = { ...this.debugOverlayOptions, [key]: !!visible }
+    },
+    setAllDebugOverlayOptions(visible: boolean) {
+      this.debugOverlayOptions = {
+        bounds: !!visible,
+        colliders: !!visible,
+        axes: !!visible,
+        lights: !!visible,
+        cameras: !!visible
+      }
+    },
+    resetDebugOverlayOptions() {
+      this.debugOverlayOptions = { ...DEFAULT_DEBUG_OVERLAY_OPTIONS }
     },
     setCompactUi(compact: boolean) {
       this.compactUi = compact

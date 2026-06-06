@@ -8,6 +8,7 @@ import { SpriteComponent } from '../engine/components/SpriteComponent'
 import { TilemapComponent } from '../engine/components/TilemapComponent'
 import { TransformComponent } from '../engine/components/TransformComponent'
 import { UIComponent } from '../engine/components/UIComponent'
+import { CustomComponent } from '../engine/components/CustomComponent'
 import { Entity as EntityClass } from '../engine/core/Entity'
 import { createSampleSceneByName } from '../engine/sampleScene'
 import { deserializeEntity, serializeEntity } from '../engine/serialization/sceneSerializer'
@@ -33,7 +34,7 @@ export const sceneEntityActions = {
       selection.selectEntity(entity.id)
       project.setStatus('Scene operation updated')
     },
-    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background') {
+    createEntityByType(type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background' | 'three-box' | 'three-plane' | 'three-model' | 'three-directional-light' | 'three-point-light' | 'three-ambient-light') {
       const project = useProjectStore()
       if (!this.currentScene) this.createNewScene()
       if (!this.currentScene) return
@@ -52,7 +53,20 @@ export const sceneEntityActions = {
       const entity = new EntityClass(createEntityId(type), `${type}_${index + 1}`)
       entity.addComponent(new TransformComponent(80 + index * 8, 60 + index * 8, 1, 1, 0, 0.5, 0.5, index))
 
-      if (type === 'camera') {
+      if (type === 'three-box' || type === 'three-plane' || type === 'three-model') {
+        const kind = type === 'three-plane' ? 'plane' : type === 'three-model' ? 'model' : 'box'
+        entity.name = type === 'three-model' ? 'Model' : type === 'three-plane' ? 'Plane' : 'Box'
+        entity.addComponent(new SpriteComponent('', type === 'three-plane' ? 220 : 96, type === 'three-plane' ? 140 : 96, true, 1, type === 'three-plane' ? 0x3050a0 : 0x42a5f5, true))
+        entity.addComponent(new ColliderComponent('rect', type === 'three-plane' ? 220 : 96, type === 'three-plane' ? 140 : 96))
+        entity.addComponent(new CustomComponent('ThreeObject', { kind, depth: type === 'three-plane' ? 8 : 96, metalness: 0.02, roughness: 0.65, opacity: 1, color: type === 'three-plane' ? 0x3050a0 : 0x42a5f5, texturePath: '', normalMapPath: '', modelPath: '' }))
+      } else if (type === 'three-directional-light' || type === 'three-point-light' || type === 'three-ambient-light') {
+        const kind = type === 'three-directional-light' ? 'directionalLight' : type === 'three-point-light' ? 'pointLight' : 'ambientLight'
+        entity.name = type === 'three-directional-light' ? 'DirectionalLight' : type === 'three-point-light' ? 'PointLight' : 'AmbientLight'
+        entity.addComponent(new SpriteComponent('', 32, 32, true, 1, 0xfff2b0, true))
+        entity.addComponent(new CustomComponent('ThreeObject', { kind, intensity: kind === 'ambientLight' ? 0.55 : 1.3 }))
+        const lightTransform = entity.getTransform()
+        if (lightTransform && kind !== 'ambientLight') lightTransform.z = 420
+      } else if (type === 'camera') {
         entity.name = 'Camera'
         entity.addComponent(new CameraComponent(true, 1, '', 0.18, 0, 0, false))
       } else if (type === 'background') {
@@ -107,13 +121,18 @@ export const sceneEntityActions = {
       project.setStatus('Scene operation updated')
     },
     createEntityFromDialog(payload: {
-      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background'
+      type: 'empty' | 'sprite' | 'player' | 'enemy' | 'tilemap' | 'camera' | 'ui-text' | 'ui-button' | 'interactable' | 'door' | 'background' | 'three-box' | 'three-plane' | 'three-model' | 'three-directional-light' | 'three-point-light' | 'three-ambient-light'
       name?: string
       x?: number
       y?: number
+      z?: number
       scaleX?: number
       scaleY?: number
+      scaleZ?: number
       rotation?: number
+      rotationX?: number
+      rotationY?: number
+      rotationZ?: number
     }) {
       const project = useProjectStore()
       const selection = useSelectionStore()
@@ -140,6 +159,10 @@ export const sceneEntityActions = {
           transform.y = Number(payload.y)
           changed = true
         }
+        if (Number.isFinite(payload.z)) {
+          transform.z = Number(payload.z)
+          changed = true
+        }
         if (Number.isFinite(payload.scaleX)) {
           transform.scaleX = Number(payload.scaleX)
           changed = true
@@ -148,8 +171,26 @@ export const sceneEntityActions = {
           transform.scaleY = Number(payload.scaleY)
           changed = true
         }
+        if (Number.isFinite(payload.scaleZ)) {
+          transform.scaleZ = Number(payload.scaleZ)
+          changed = true
+        }
         if (Number.isFinite(payload.rotation)) {
           transform.rotation = Number(payload.rotation)
+          transform.rotationZ = transform.rotation
+          changed = true
+        }
+        if (Number.isFinite(payload.rotationX)) {
+          transform.rotationX = Number(payload.rotationX)
+          changed = true
+        }
+        if (Number.isFinite(payload.rotationY)) {
+          transform.rotationY = Number(payload.rotationY)
+          changed = true
+        }
+        if (Number.isFinite(payload.rotationZ)) {
+          transform.rotationZ = Number(payload.rotationZ)
+          transform.rotation = transform.rotationZ
           changed = true
         }
       }

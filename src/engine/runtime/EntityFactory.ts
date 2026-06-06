@@ -62,7 +62,11 @@ export function createEnemyEntityAt(
       colliderTemplate.isTrigger,
       colliderTemplate.layer,
       [...(colliderTemplate.collidesWith || [])],
-      colliderTemplate.showDebugFrame ?? true
+      colliderTemplate.showDebugFrame ?? true,
+      colliderTemplate.depth,
+      colliderTemplate.radius,
+      colliderTemplate.capsuleHeight,
+      colliderTemplate.offsetZ
     )
   )
   if (animationTemplate) {

@@ -1,10 +1,24 @@
 <template>
   <div class="group">
     <div class="group-title">Collider</div>
+    <label>
+      Shape
+      <select :value="collider.shape || 'rect'" @change="$emit('set-shape', $event)">
+        <option value="rect">2D Rect</option>
+        <option value="circle">2D Circle</option>
+        <option value="box">3D Box</option>
+        <option value="sphere">3D Sphere</option>
+        <option value="capsule">3D Capsule</option>
+      </select>
+    </label>
     <label>Width <input type="number" :value="collider.width" @input="$emit('set-number', 'width', $event)" /></label>
     <label>Height <input type="number" :value="collider.height" @input="$emit('set-number', 'height', $event)" /></label>
+    <label v-if="is3dShape">Depth <input type="number" min="0.1" :value="collider.depth" @input="$emit('set-number', 'depth', $event)" /></label>
+    <label v-if="collider.shape === 'sphere' || collider.shape === 'capsule'">Radius <input type="number" min="0.1" :value="collider.radius" @input="$emit('set-number', 'radius', $event)" /></label>
+    <label v-if="collider.shape === 'capsule'">Capsule Height <input type="number" min="0.1" :value="collider.capsuleHeight" @input="$emit('set-number', 'capsuleHeight', $event)" /></label>
     <label>Offset X <input type="number" :value="collider.offsetX" @input="$emit('set-number', 'offsetX', $event)" /></label>
     <label>Offset Y <input type="number" :value="collider.offsetY" @input="$emit('set-number', 'offsetY', $event)" /></label>
+    <label v-if="is3dShape">Offset Z <input type="number" :value="collider.offsetZ" @input="$emit('set-number', 'offsetZ', $event)" /></label>
     <label>
       Collision Layer
       <select :value="collider.layer || 'Default'" @change="$emit('set-layer', $event)">
@@ -34,15 +48,19 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ColliderComponent, CollisionLayer } from '../../engine/components/ColliderComponent'
 
-defineProps<{
+const props = defineProps<{
   collider: ColliderComponent
   collisionLayers: readonly CollisionLayer[]
 }>()
 
+const is3dShape = computed(() => props.collider.shape === 'box' || props.collider.shape === 'sphere' || props.collider.shape === 'capsule')
+
 defineEmits<{
   'set-number': [key: string, event: Event]
+  'set-shape': [event: Event]
   'set-layer': [event: Event]
   'set-mask-layer': [layer: CollisionLayer, event: Event]
   'set-checked': [key: string, event: Event]

@@ -53,9 +53,10 @@ const DEFAULT_STATUS_LOG_FILTERS: Record<StatusLogCategory, boolean> = {
 
 export const STATUS_LOG_CATEGORIES = Object.keys(STATUS_LOG_CATEGORY_LABELS) as StatusLogCategory[]
 export type ProjectMode = 'sample' | 'local' | 'memory'
-export type ProjectRenderBackend = 'pixi' | 'canvas2d'
+export type ProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
 
 export function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
+  if (value === 'three' || value === 'threejs' || value === '3d') return 'three'
   return value === 'canvas2d' || value === 'native-canvas' || value === 'canvas' ? 'canvas2d' : 'pixi'
 }
 

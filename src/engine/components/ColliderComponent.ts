@@ -38,11 +38,13 @@ export const DEFAULT_COLLISION_MASKS: Record<CollisionLayer, CollisionLayer[]> =
   UI: []
 }
 
+export type ColliderShape = 'rect' | 'circle' | 'box' | 'sphere' | 'capsule'
+
 export class ColliderComponent extends Component {
   readonly type = 'Collider'
 
   constructor(
-    public shape: 'rect' | 'circle' = 'rect',
+    public shape: ColliderShape = 'rect',
     public width = 80,
     public height = 80,
     public offsetX = 0,
@@ -50,7 +52,11 @@ export class ColliderComponent extends Component {
     public isTrigger = false,
     public layer: CollisionLayer = 'Default',
     public collidesWith: CollisionLayer[] = [...DEFAULT_COLLISION_MASKS.Default],
-    public showDebugFrame = true
+    public showDebugFrame = true,
+    public depth = 80,
+    public radius = 40,
+    public capsuleHeight = 120,
+    public offsetZ = 0
   ) {
     super()
   }

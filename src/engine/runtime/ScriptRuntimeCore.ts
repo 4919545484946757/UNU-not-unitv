@@ -86,6 +86,27 @@ interface EntityMatchQuery {
   requireSprite?: boolean
 }
 
+export interface ScriptCollider3DData {
+  shape: 'box' | 'sphere' | 'capsule'
+  width: number
+  height: number
+  depth: number
+  radius: number
+  capsuleHeight: number
+  offsetX: number
+  offsetY: number
+  offsetZ: number
+  isTrigger: boolean
+  layer: string
+  collidesWith: string[]
+}
+
+export interface ScriptWorldCollider3DData extends ScriptCollider3DData {
+  center: { x: number; y: number; z: number }
+  rotation: { x: number; y: number; z: number }
+  scale: { x: number; y: number; z: number }
+}
+
 const scriptConfigCache = new WeakMap<ScriptComponent, { raw: string; parsed: Record<string, unknown> | null }>()
 
 export interface ScriptContext {
@@ -116,6 +137,19 @@ export interface ScriptContext {
     findEnemyOverlap: (target?: Entity, matcher?: EntityMatchQuery | null) => Entity | null
     isTouching: (left: Entity, right: Entity) => boolean
     moveTowards: (source: Entity, target: Entity, speed: number, useCollision?: boolean) => void
+    three: {
+      getTransform: (target?: Entity) => {
+        x: number; y: number; z: number
+        scaleX: number; scaleY: number; scaleZ: number
+        rotation: number; rotationX: number; rotationY: number; rotationZ: number
+      } | null
+      setTransform: (target: Entity | undefined, values: Partial<{ x: number; y: number; z: number; scaleX: number; scaleY: number; scaleZ: number; rotation: number; rotationX: number; rotationY: number; rotationZ: number }>) => void
+      move: (target: Entity | undefined, deltaValues: Partial<{ x: number; y: number; z: number }>) => void
+      rotate: (target: Entity | undefined, deltaValues: Partial<{ rotation: number; rotationX: number; rotationY: number; rotationZ: number }>) => void
+      scale: (target: Entity | undefined, deltaValues: Partial<{ scaleX: number; scaleY: number; scaleZ: number }>) => void
+      getCollider: (target?: Entity) => ScriptCollider3DData | null
+      getWorldCollider: (target?: Entity) => ScriptWorldCollider3DData | null
+    }
     spawnEnemyLike: (
       source?: Entity,
       options?: { x?: number; y?: number; avoidX?: number; avoidY?: number; minDistance?: number }
@@ -652,6 +686,56 @@ export class ScriptRuntime {
           }
           if (!isWorldRectBlocked(this.activeScene, sourceTransform.x + offsetX, nextY + offsetY, halfWidth, halfHeight)) {
             sourceTransform.y = nextY
+          }
+        },
+        three: {
+          getTransform: (target?: Entity) => {
+            const transform = (target ?? entity).getComponent<TransformComponent>('Transform')
+            if (!transform) return null
+            return {
+              x: transform.x,
+              y: transform.y,
+              z: transform.z,
+              scaleX: transform.scaleX,
+              scaleY: transform.scaleY,
+              scaleZ: transform.scaleZ,
+              rotation: transform.rotation,
+              rotationX: transform.rotationX,
+              rotationY: transform.rotationY,
+              rotationZ: transform.rotationZ
+            }
+          },
+          setTransform: (target: Entity | undefined, values: Partial<{ x: number; y: number; z: number; scaleX: number; scaleY: number; scaleZ: number; rotation: number; rotationX: number; rotationY: number; rotationZ: number }>) => {
+            const transform = (target ?? entity).getComponent<TransformComponent>('Transform')
+            if (!transform || !values) return
+            setFiniteTransformValues(transform, values)
+          },
+          move: (target: Entity | undefined, deltaValues: Partial<{ x: number; y: number; z: number }>) => {
+            const transform = (target ?? entity).getComponent<TransformComponent>('Transform')
+            if (!transform || !deltaValues) return
+            addFiniteTransformValues(transform, deltaValues)
+          },
+          rotate: (target: Entity | undefined, deltaValues: Partial<{ rotation: number; rotationX: number; rotationY: number; rotationZ: number }>) => {
+            const transform = (target ?? entity).getComponent<TransformComponent>('Transform')
+            if (!transform || !deltaValues) return
+            addFiniteTransformValues(transform, deltaValues)
+            transform.rotation = transform.rotationZ
+          },
+          scale: (target: Entity | undefined, deltaValues: Partial<{ scaleX: number; scaleY: number; scaleZ: number }>) => {
+            const transform = (target ?? entity).getComponent<TransformComponent>('Transform')
+            if (!transform || !deltaValues) return
+            addFiniteTransformValues(transform, deltaValues)
+          },
+          getCollider: (target?: Entity) => {
+            const collider = (target ?? entity).getComponent<ColliderComponent>('Collider')
+            return collider ? getCollider3DData(collider) : null
+          },
+          getWorldCollider: (target?: Entity) => {
+            const source = target ?? entity
+            const collider = source.getComponent<ColliderComponent>('Collider')
+            const transform = source.getComponent<TransformComponent>('Transform')
+            if (!collider || !transform) return null
+            return getWorldCollider3DData(transform, collider)
           }
         },
         spawnEnemyLike: (source?: Entity, options?: { x?: number; y?: number; avoidX?: number; avoidY?: number; minDistance?: number }) => {
@@ -1378,6 +1462,79 @@ function resolveEnemyMatchQuery(config: Record<string, unknown> | null) {
 function clampNumber(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min
   return Math.max(min, Math.min(max, value))
+}
+
+function setFiniteTransformValues(transform: TransformComponent, values: Record<string, unknown>) {
+  const allowed = ['x', 'y', 'z', 'scaleX', 'scaleY', 'scaleZ', 'rotation', 'rotationX', 'rotationY', 'rotationZ'] as const
+  for (const key of allowed) {
+    if (!Object.prototype.hasOwnProperty.call(values, key)) continue
+    const value = Number(values[key])
+    if (Number.isFinite(value)) transform[key] = value
+  }
+  if (Object.prototype.hasOwnProperty.call(values, 'rotationZ')) transform.rotation = transform.rotationZ
+}
+
+function addFiniteTransformValues(transform: TransformComponent, values: Record<string, unknown>) {
+  const allowed = ['x', 'y', 'z', 'scaleX', 'scaleY', 'scaleZ', 'rotation', 'rotationX', 'rotationY', 'rotationZ'] as const
+  for (const key of allowed) {
+    if (!Object.prototype.hasOwnProperty.call(values, key)) continue
+    const value = Number(values[key])
+    if (Number.isFinite(value)) transform[key] += value
+  }
+  if (Object.prototype.hasOwnProperty.call(values, 'rotationZ')) transform.rotation = transform.rotationZ
+}
+
+function normalizeCollider3DShape(shape: ColliderComponent['shape']): ScriptCollider3DData['shape'] {
+  if (shape === 'sphere' || shape === 'capsule') return shape
+  return 'box'
+}
+
+function getCollider3DData(collider: ColliderComponent): ScriptCollider3DData {
+  const depth = Math.max(0, Number(collider.depth ?? collider.width ?? 0))
+  const width = Math.max(0, Number(collider.width || collider.radius * 2 || 0))
+  const height = Math.max(0, Number(collider.height || collider.capsuleHeight || collider.radius * 2 || 0))
+  const radius = Math.max(0, Number(collider.radius || Math.min(width, height, depth || width) / 2))
+  const capsuleHeight = Math.max(radius * 2, Number(collider.capsuleHeight || height || radius * 2))
+  return {
+    shape: normalizeCollider3DShape(collider.shape),
+    width,
+    height,
+    depth,
+    radius,
+    capsuleHeight,
+    offsetX: Number(collider.offsetX || 0),
+    offsetY: Number(collider.offsetY || 0),
+    offsetZ: Number(collider.offsetZ || 0),
+    isTrigger: Boolean(collider.isTrigger),
+    layer: String(collider.layer || 'Default'),
+    collidesWith: Array.isArray(collider.collidesWith) ? collider.collidesWith.map(String) : []
+  }
+}
+
+function getWorldCollider3DData(transform: TransformComponent, collider: ColliderComponent): ScriptWorldCollider3DData {
+  const local = getCollider3DData(collider)
+  const scaleX = Number(transform.scaleX || 1)
+  const scaleY = Number(transform.scaleY || 1)
+  const scaleZ = Number(transform.scaleZ || 1)
+  return {
+    ...local,
+    width: local.width * Math.abs(scaleX),
+    height: local.height * Math.abs(scaleY),
+    depth: local.depth * Math.abs(scaleZ),
+    radius: local.radius * Math.max(Math.abs(scaleX), Math.abs(scaleY), Math.abs(scaleZ)),
+    capsuleHeight: local.capsuleHeight * Math.abs(scaleY),
+    center: {
+      x: Number(transform.x || 0) + local.offsetX * scaleX,
+      y: Number(transform.y || 0) + local.offsetY * scaleY,
+      z: Number(transform.z || 0) + local.offsetZ * scaleZ
+    },
+    rotation: {
+      x: Number(transform.rotationX || 0),
+      y: Number(transform.rotationY || 0),
+      z: Number(transform.rotationZ ?? transform.rotation ?? 0)
+    },
+    scale: { x: scaleX, y: scaleY, z: scaleZ }
+  }
 }
 
 function resolveBuiltinScriptKey(scriptPath: string) {

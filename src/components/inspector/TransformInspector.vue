@@ -3,9 +3,16 @@
     <div class="group-title">Transform</div>
     <label>X <input type="number" :value="transform.x" @input="$emit('set-number', 'x', $event)" /></label>
     <label>Y <input type="number" :value="transform.y" @input="$emit('set-number', 'y', $event)" /></label>
+    <label v-if="is3d">Z <input type="number" :value="transform.z" @input="$emit('set-number', 'z', $event)" /></label>
     <label>Scale X <input type="number" step="0.1" :value="transform.scaleX" @input="$emit('set-number', 'scaleX', $event)" /></label>
     <label>Scale Y <input type="number" step="0.1" :value="transform.scaleY" @input="$emit('set-number', 'scaleY', $event)" /></label>
-    <label>Rotation (°) <input type="number" step="1" :value="rotationDegrees" @input="$emit('set-rotation', $event)" /></label>
+    <label v-if="is3d">Scale Z <input type="number" step="0.1" :value="transform.scaleZ" @input="$emit('set-number', 'scaleZ', $event)" /></label>
+    <template v-if="is3d">
+      <label>Rotation X (deg) <input type="number" step="1" :value="rotationXDegrees" @input="$emit('set-rotation-axis', 'rotationX', $event)" /></label>
+      <label>Rotation Y (deg) <input type="number" step="1" :value="rotationYDegrees" @input="$emit('set-rotation-axis', 'rotationY', $event)" /></label>
+      <label>Rotation Z (deg) <input type="number" step="1" :value="rotationZDegrees" @input="$emit('set-rotation-axis', 'rotationZ', $event)" /></label>
+    </template>
+    <label v-else>Rotation (deg) <input type="number" step="1" :value="rotationDegrees" @input="$emit('set-rotation', $event)" /></label>
     <label>
       Position Mode
       <select :value="transform.positionMode || 'world'" @change="$emit('set-position-mode', $event)">
@@ -14,7 +21,7 @@
       </select>
     </label>
     <template v-if="(transform.positionMode || 'world') === 'viewport'">
-      <div class="tips">Viewport Edges 模式下，X/Y 表示到所选横向/纵向边缘的像素距离；Center/Middle 表示相对视窗中心偏移。</div>
+      <div class="tips">Viewport Edges mode uses X/Y as pixel offsets from the selected viewport edge.</div>
       <label>
         Horizontal Edge
         <select :value="transform.viewportHorizontal || 'center'" @change="$emit('set-viewport-horizontal', $event)">
@@ -41,11 +48,16 @@ import type { TransformComponent } from '../../engine/components/TransformCompon
 defineProps<{
   transform: TransformComponent
   rotationDegrees: string
+  rotationXDegrees?: string
+  rotationYDegrees?: string
+  rotationZDegrees?: string
+  is3d?: boolean
 }>()
 
 defineEmits<{
   'set-number': [key: string, event: Event]
   'set-rotation': [event: Event]
+  'set-rotation-axis': [key: 'rotationX' | 'rotationY' | 'rotationZ', event: Event]
   'set-position-mode': [event: Event]
   'set-viewport-horizontal': [event: Event]
   'set-viewport-vertical': [event: Event]

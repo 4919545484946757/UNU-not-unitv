@@ -89,7 +89,12 @@ export function deserializeEntity(entityData: SerializedEntity) {
               : 'center',
             data.viewportVertical === 'top' || data.viewportVertical === 'bottom' || data.viewportVertical === 'middle'
               ? data.viewportVertical
-              : 'middle'
+              : 'middle',
+            Number(data.z ?? 0),
+            Number(data.scaleZ ?? 1),
+            Number(data.rotationX ?? 0),
+            Number(data.rotationY ?? 0),
+            Number(data.rotationZ ?? data.rotation ?? 0)
           )
         )
         break
@@ -121,7 +126,7 @@ export function deserializeEntity(entityData: SerializedEntity) {
       case 'Collider':
         entity.addComponent(
           new ColliderComponent(
-            data.shape === 'circle' ? 'circle' : 'rect',
+            normalizeColliderShape(data.shape),
             Number(data.width ?? 80),
             Number(data.height ?? 80),
             Number(data.offsetX ?? 0),
@@ -129,7 +134,11 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Boolean(data.isTrigger ?? false),
             normalizeCollisionLayer(data.layer),
             normalizeCollisionMask(data.collidesWith, normalizeCollisionLayer(data.layer)),
-            Boolean(data.showDebugFrame ?? true)
+            Boolean(data.showDebugFrame ?? true),
+            Number(data.depth ?? data.width ?? 80),
+            Number(data.radius ?? Math.max(1, Math.min(Number(data.width ?? 80), Number(data.height ?? 80), Number(data.depth ?? data.width ?? 80)) / 2)),
+            Number(data.capsuleHeight ?? data.height ?? 120),
+            Number(data.offsetZ ?? 0)
           )
         )
         break
@@ -247,7 +256,17 @@ export function deserializeEntity(entityData: SerializedEntity) {
             Number(data.minX ?? -2000),
             Number(data.maxX ?? 2000),
             Number(data.minY ?? -2000),
-            Number(data.maxY ?? 2000)
+            Number(data.maxY ?? 2000),
+            data.projection === 'perspective' ? 'perspective' : 'orthographic',
+            Number(data.fov ?? 50),
+            Number(data.near ?? 0.1),
+            Number(data.far ?? 5000),
+            Boolean(data.orbitEnabled ?? true),
+            Boolean(data.panEnabled ?? true),
+            Boolean(data.zoomEnabled ?? true),
+            Number(data.targetX ?? 0),
+            Number(data.targetY ?? 0),
+            Number(data.targetZ ?? 0)
           )
         )
         break
@@ -476,6 +495,11 @@ function normalizeSceneFolderList(value: unknown) {
 function normalizeCollisionLayer(value: unknown): CollisionLayer {
   const text = String(value || 'Default').trim()
   return (COLLISION_LAYERS as string[]).includes(text) ? (text as CollisionLayer) : 'Default'
+}
+
+function normalizeColliderShape(value: unknown) {
+  const text = String(value || 'rect').trim()
+  return text === 'circle' || text === 'box' || text === 'sphere' || text === 'capsule' ? text : 'rect'
 }
 
 function normalizeCollisionMask(value: unknown, layer: CollisionLayer): CollisionLayer[] {

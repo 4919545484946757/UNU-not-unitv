@@ -18,7 +18,12 @@ export class TransformComponent extends Component {
     public zIndex = 0,
     public positionMode: TransformPositionMode = 'world',
     public viewportHorizontal: ViewportHorizontalEdge = 'center',
-    public viewportVertical: ViewportVerticalEdge = 'middle'
+    public viewportVertical: ViewportVerticalEdge = 'middle',
+    public z = 0,
+    public scaleZ = 1,
+    public rotationX = 0,
+    public rotationY = 0,
+    public rotationZ = 0
   ) {
     super()
   }

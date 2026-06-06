@@ -20,7 +20,7 @@ import { AudioRuntime } from '../runtime/AudioRuntime'
 import { applySceneAnimation } from '../animation/applyAnimation'
 import { buildAtlasFramePath, deserializeAtlasAsset, parseAtlasFrameRefPath } from '../animation/atlasAsset'
 import { useAssetStore } from '../../stores/assets'
-import { useEditorStore } from '../../stores/editor'
+import { useEditorStore, type DebugOverlayOptions } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
@@ -89,6 +89,8 @@ export class PixiRenderer {
   private isPlaying = false
   private isPaused = false
   private playDebugEnabled = false
+  private debugOverlayVisible = true
+  private debugOverlayOptions: DebugOverlayOptions = { bounds: false, colliders: false, axes: true, lights: true, cameras: true }
   private textureCache = new Map<string, Texture>()
   private textureLoadPromises = new Map<string, Promise<Texture | null>>()
   private atlasAssetContentCache = new Map<string, string>()
@@ -491,6 +493,20 @@ export class PixiRenderer {
 
   setPlayDebugEnabled(enabled: boolean) {
     this.playDebugEnabled = !!enabled
+    this.drawGrid()
+    this.drawSelectionGizmo()
+    if (this.currentScene) void this.renderScene(this.currentScene)
+  }
+
+  setDebugOverlayVisible(visible: boolean) {
+    this.debugOverlayVisible = !!visible
+    this.drawGrid()
+    this.drawSelectionGizmo()
+    if (this.currentScene) void this.renderScene(this.currentScene)
+  }
+
+  setDebugOverlayOptions(options: DebugOverlayOptions) {
+    this.debugOverlayOptions = { ...options }
     this.drawGrid()
     this.drawSelectionGizmo()
     if (this.currentScene) void this.renderScene(this.currentScene)
@@ -1959,7 +1975,7 @@ export class PixiRenderer {
   }
 
   private shouldShowEntityDebug(entity: Scene['entities'][number]) {
-    return (!this.isPlaying || this.playDebugEnabled) && entity.debugFrameVisible !== false
+    return this.debugOverlayVisible && (this.debugOverlayOptions.bounds || this.debugOverlayOptions.colliders) && (!this.isPlaying || this.playDebugEnabled) && entity.debugFrameVisible !== false
   }
 
   private async createTilemapNode(entityId: string, entityName: string, transform: TransformComponent, tilemap: TilemapComponent, showDebug: boolean) {

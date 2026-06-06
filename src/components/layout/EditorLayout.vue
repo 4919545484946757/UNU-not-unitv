@@ -227,6 +227,11 @@ function handleGlobalShortcut(event: KeyboardEvent) {
     return
   }
 
+  const editorCameraFlyMode = project.renderBackend === 'three' && editor.threeEditorCameraControlMode === 'fly' && !runtime.isPlaying
+  if (editorCameraFlyMode && ['w', 'a', 's', 'd', ' ', 'shift', 'control', 'alt'].includes(key)) {
+    return
+  }
+
   if (key === 'delete' || key === 'backspace') {
     event.preventDefault()
     scene.removeSelectedEntity()

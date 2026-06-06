@@ -22,7 +22,7 @@ type AndroidPickedFile = {
   size?: number
 }
 
-type ProjectRenderBackend = 'pixi' | 'canvas2d'
+type ProjectRenderBackend = 'pixi' | 'canvas2d' | 'three'
 
 type UnuAndroidFilesPlugin = {
   pickDirectory: (payload?: { title?: string }) => Promise<{ uri: string; name: string } | null>
@@ -92,6 +92,7 @@ async function setAndroidOrientation(orientation: 'portrait' | 'landscape' | 'un
 }
 
 function normalizeProjectRenderBackend(value: unknown): ProjectRenderBackend {
+  if (value === 'three' || value === 'threejs' || value === '3d') return 'three'
   return value === 'canvas2d' || value === 'native-canvas' || value === 'canvas' ? 'canvas2d' : 'pixi'
 }
 
@@ -113,7 +114,7 @@ export function installAndroidEditorBridge() {
       const pickedParent = payload?.parentDir ? null : await pickAndroidDirectory('选择项目存放目录').catch(() => null)
       const parentDir = payload?.parentDir || pickedParent?.dirPath || ''
       const rootPath = `android://workspace/${name}`
-      const renderBackend = normalizeProjectRenderBackend(payload?.renderBackend)
+      const renderBackend = payload?.template === 'blank-3d' ? 'three' : normalizeProjectRenderBackend(payload?.renderBackend)
       const files = createBlankProjectFiles(name, renderBackend)
       for (const file of files) {
         await writeOverlayText(rootPath, file.path, file.content)
@@ -258,14 +259,20 @@ export function installAndroidEditorBridge() {
       const normalized = normalizeRelativePath(relativePath)
       const overlay = localStorage.getItem(fileKey(rootPath, normalized))
       if (overlay?.startsWith('data:')) return { dataUrl: overlay }
+      const fallbackPath = await findAssetPathByFileName(rootPath, normalized)
+      if (fallbackPath && fallbackPath !== normalized) {
+        const fallbackOverlay = localStorage.getItem(fileKey(rootPath, fallbackPath))
+        if (fallbackOverlay?.startsWith('data:')) return { dataUrl: fallbackOverlay }
+      }
       if (!getAndroidSample(rootPath)) return null
-      const response = await fetch(resolveBundlePath(normalized, rootPath))
+      const response = await fetch(resolveBundlePath(fallbackPath || normalized, rootPath))
       if (!response.ok) return null
       const blob = await response.blob()
       return { dataUrl: await blobToDataUrl(blob) }
     },
     importImages: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/images/imported', 'image/*'),
     importAudios: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/audio/imported', 'audio/*'),
+    importModels: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/models/imported', '.glb,.gltf,.bin,image/*'),
     createTextAssetInFolder: async (payload) => {
       const rootPath = normalizeRoot(payload.projectRoot)
       const name = sanitizeFileName(payload.fileName || 'NewFile.txt')
@@ -550,6 +557,16 @@ function overlayFilePaths(rootPath: string) {
   return allLocalStorageKeys().filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length))
 }
 
+async function findAssetPathByFileName(rootPath: string, relativePath: string) {
+  const name = fileName(relativePath).toLowerCase()
+  if (!name) return ''
+  const overlayMatch = overlayFilePaths(rootPath).find((path) => fileName(path).toLowerCase() === name)
+  if (overlayMatch) return overlayMatch
+  const manifest = await loadManifest(rootPath).catch(() => ({ files: [] as MobileManifestFile[] }))
+  const manifestMatch = manifest.files.map((item) => normalizeRelativePath(item.path)).find((path) => fileName(path).toLowerCase() === name)
+  return manifestMatch || ''
+}
+
 function overlayFolderPaths(rootPath: string) {
   const prefix = folderKey(rootPath, '')
   return allLocalStorageKeys().filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length))
@@ -818,10 +835,12 @@ async function ensureAndroidParentDirectory(path: string) {
 function createBlankProjectFiles(name: string, renderBackend: ProjectRenderBackend = 'pixi') {
   const now = new Date().toISOString()
   const scene = new Scene('scene_main', 'MainScene')
+  const sceneContent = renderBackend === 'three' ? createBlank3DSceneContent() : serializeScene(scene)
   const project = {
     format: 'unu-project',
     version: 1,
     name,
+    projectType: renderBackend === 'three' ? '3d' : '2d',
     renderer: {
       backend: normalizeProjectRenderBackend(renderBackend)
     },
@@ -844,10 +863,62 @@ function createBlankProjectFiles(name: string, renderBackend: ProjectRenderBacke
   }
   return [
     { path: 'project.json', content: JSON.stringify(project, null, 2) },
-    { path: 'scenes/MainScene.scene.json', content: serializeScene(scene) },
+    { path: 'scenes/MainScene.scene.json', content: sceneContent },
     { path: 'assets/README.md', content: '# Assets\n\nPlace images, audio, scripts, and other project assets here.\n' },
+    { path: 'assets/models/README.md', content: '# Models\n\nPlace glTF/GLB/OBJ 3D model files here.\n' },
+    { path: 'assets/materials/README.md', content: '# Materials\n\nPlace material presets and texture references here.\n' },
     { path: 'prefabs/README.md', content: '# Prefabs\n\nReusable entity prefabs can be saved here.\n' }
   ]
+}
+
+function createBlank3DSceneContent() {
+  const payload = {
+    format: 'unu-scene',
+    version: 1,
+    scene: {
+      id: 'scene_main',
+      name: 'MainScene',
+      entities: [
+        {
+          id: 'camera_main_3d',
+          name: 'Main Camera',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: 0, y: 160, scaleX: 1, scaleY: 1, rotation: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 0 } },
+            { type: 'Camera', data: { type: 'Camera', enabled: true, zoom: 1, followEntityId: '', followSmoothing: 0.18, offsetX: 0, offsetY: 0, boundsEnabled: false, minX: -2000, maxX: 2000, minY: -2000, maxY: 2000 } }
+          ]
+        },
+        {
+          id: 'light_key_3d',
+          name: 'Key Light',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: -220, y: -260, z: 420, scaleX: 1, scaleY: 1, scaleZ: 1, rotation: 0, rotationX: 0, rotationY: 0, rotationZ: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 1 } },
+            { type: 'Sprite', data: { type: 'Sprite', texturePath: '', width: 32, height: 32, visible: true, alpha: 1, tint: 16772829, preserveAspect: true, showDebugFrame: true } },
+            { type: 'ThreeObject', data: { kind: 'directionalLight', intensity: 1.6 } }
+          ]
+        },
+        {
+          id: 'ground_3d',
+          name: 'Ground',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: 0, y: 120, z: 0, scaleX: 1, scaleY: 1, scaleZ: 1, rotation: 0, rotationX: -1.57079632679, rotationY: 0, rotationZ: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 2 } },
+            { type: 'Sprite', data: { type: 'Sprite', texturePath: '', width: 640, height: 420, visible: true, alpha: 1, tint: 3159104, preserveAspect: false, showDebugFrame: true } },
+            { type: 'ThreeObject', data: { kind: 'plane', roughness: 0.82 } }
+          ]
+        },
+        {
+          id: 'cube_player_3d',
+          name: 'Player Cube',
+          components: [
+            { type: 'Transform', data: { type: 'Transform', x: 0, y: 0, z: 64, scaleX: 1, scaleY: 1, scaleZ: 1, rotation: 0, rotationX: 0, rotationY: 0, rotationZ: 0, anchorX: 0.5, anchorY: 0.5, zIndex: 3 } },
+            { type: 'Sprite', data: { type: 'Sprite', texturePath: '', width: 96, height: 96, visible: true, alpha: 1, tint: 4367861, preserveAspect: true, showDebugFrame: true } },
+            { type: 'Collider', data: { type: 'Collider', shape: 'rect', width: 96, height: 96, offsetX: 0, offsetY: 0, isTrigger: false, layer: 'Player', collidesWith: ['Default', 'World'], showDebugFrame: true } },
+            { type: 'ThreeObject', data: { kind: 'box', depth: 96, metalness: 0.05, roughness: 0.55 } }
+          ]
+        }
+      ]
+    }
+  }
+  return JSON.stringify(payload, null, 2)
 }
 
 async function ensureWorkspaceProjectFiles(rootPath: string, name: string) {
@@ -957,6 +1028,7 @@ function classifyAssetType(filePath: string): AssetType {
   const lower = filePath.toLowerCase()
   if (/\.(png|jpg|jpeg|webp|gif|bmp|svg)$/.test(lower)) return 'image'
   if (/\.(mp3|wav|ogg|m4a|flac)$/.test(lower)) return 'audio'
+  if (/\.(glb|gltf|obj|fbx)$/.test(lower)) return 'model'
   if (/\.scene\.json$/.test(lower)) return 'scene'
   if (/\.prefab\.json$/.test(lower)) return 'prefab'
   if (/\.anim\.json$/.test(lower)) return 'animation'

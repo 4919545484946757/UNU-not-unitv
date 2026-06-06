@@ -16,6 +16,7 @@ import { buildAtlasFramePath, deserializeAtlasAsset, parseAtlasFrameRefPath } fr
 import { deserializeScene, serializeScene } from '../serialization/sceneSerializer'
 import { AudioRuntime } from '../runtime/AudioRuntime'
 import { ScriptRuntime, type ProjectRuntimeSourceFile } from '../runtime/ScriptRuntime'
+import type { DebugOverlayOptions } from '../../stores/editor'
 import { useAssetStore } from '../../stores/assets'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
@@ -109,6 +110,8 @@ export class Canvas2DRenderer implements SceneRenderer {
   private currentScene: Scene | null = null
   private gridVisible = true
   private playDebugEnabled = false
+  private debugOverlayVisible = true
+  private debugOverlayOptions: DebugOverlayOptions = { bounds: false, colliders: false, axes: true, lights: true, cameras: true }
   private isPlaying = false
   private isPaused = false
   private activeTool: EditorTool = 'select'
@@ -211,6 +214,16 @@ export class Canvas2DRenderer implements SceneRenderer {
 
   setPlayDebugEnabled(enabled: boolean) {
     this.playDebugEnabled = enabled
+    this.requestRender()
+  }
+
+  setDebugOverlayVisible(visible: boolean) {
+    this.debugOverlayVisible = !!visible
+    this.requestRender()
+  }
+
+  setDebugOverlayOptions(options: DebugOverlayOptions) {
+    this.debugOverlayOptions = { ...options }
     this.requestRender()
   }
 
@@ -1570,7 +1583,7 @@ export class Canvas2DRenderer implements SceneRenderer {
   }
 
   private shouldShowEntityDebug(entity: Entity) {
-    return (!this.isPlaying || this.playDebugEnabled) && entity.debugFrameVisible !== false
+    return this.debugOverlayVisible && (this.debugOverlayOptions.bounds || this.debugOverlayOptions.colliders) && (!this.isPlaying || this.playDebugEnabled) && entity.debugFrameVisible !== false
   }
 
   private drawSelections() {

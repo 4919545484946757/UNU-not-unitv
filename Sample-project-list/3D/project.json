@@ -1,0 +1,19 @@
+{
+  "format": "unu-project",
+  "version": 1,
+  "name": "3D",
+  "projectType": "3d",
+  "renderer": {
+    "backend": "three"
+  },
+  "createdAt": "2026-06-05T15:43:40.591Z",
+  "updatedAt": "2026-06-05T16:08:57.246Z",
+  "sceneCatalogVersion": 1,
+  "sceneCatalog": [
+    {
+      "file": "MainScene.scene.json",
+      "name": "MainScene"
+    }
+  ],
+  "startupScene": "MainScene.scene.json"
+}

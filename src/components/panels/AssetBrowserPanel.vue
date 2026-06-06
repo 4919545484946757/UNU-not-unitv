@@ -38,6 +38,10 @@
             :src="assets.previews[item.path]"
             alt="preview"
           />
+          <ModelPreviewCanvas
+            v-else-if="item.type === 'model' && isGltfModelPath(item.path)"
+            :model-path="item.path"
+          />
           <span v-else-if="item.type === 'image' && loadingPreviewPaths.has(item.path)" class="asset-kind loading">加载中</span>
           <span v-else class="asset-kind">{{ getAssetKindLabel(item.type) }}</span>
         </div>
@@ -51,6 +55,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { AssetType } from '../../engine/assets/types'
+import ModelPreviewCanvas from '../common/ModelPreviewCanvas.vue'
 import { useAssetStore } from '../../stores/assets'
 import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
@@ -114,7 +119,12 @@ function getAssetKindLabel(type: AssetType) {
   if (type === 'prefab') return 'PREFAB'
   if (type === 'animation') return 'ANIM'
   if (type === 'atlas') return 'ATLAS'
+  if (type === 'model') return 'MODEL'
   return 'FILE'
+}
+
+function isGltfModelPath(path: string) {
+  return /\.(glb|gltf)$/i.test(path)
 }
 
 async function handleClick(path: string, type: AssetType) {
@@ -126,6 +136,7 @@ async function handleClick(path: string, type: AssetType) {
   await assets.selectAsset(path)
   if (type === 'script' || type === 'scene' || type === 'prefab') editor.setRightTab('Script')
   if (type === 'animation' || type === 'atlas') editor.setRightTab('Timeline')
+  if (type === 'model') editor.setRightTab('Inspector')
 }
 
 async function handleDoubleClick(path: string, type: AssetType) {
@@ -146,6 +157,7 @@ async function handleDoubleClick(path: string, type: AssetType) {
 
   if (type === 'script' || type === 'scene' || type === 'prefab') editor.setRightTab('Script')
   if (type === 'animation' || type === 'atlas') editor.setRightTab('Timeline')
+  if (type === 'model') editor.setRightTab('Inspector')
 }
 </script>
 
