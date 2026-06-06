@@ -1,14 +1,17 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, screen, session, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, net, protocol, screen, session, shell } from 'electron'
 import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createExportGameHandler } from './services/exportGame'
 import { sampleProjectDisplayOrder } from '../src/engine/project/sampleCatalog'
 
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'unu-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
+])
 let mainWindow: BrowserWindow | null = null
 let tilemapEditorWindow: BrowserWindow | null = null
 let codeEditorWindow: BrowserWindow | null = null
@@ -18,6 +21,7 @@ let codeEditorSession: any = null
 let spriteAtlasEditorSession: any = null
 const projectScriptWatchers = new Map<number, { watcher: fsSync.FSWatcher; timer: NodeJS.Timeout | null; projectRoot: string }>()
 const ASSET_TREE_MAX_NODES = 5000
+const assetProtocolEntries = new Map<string, { filePath: string; mime: string }>()
 const ASSET_TREE_IGNORED_DIRS = new Set([
   '.git',
   '.gradle',
@@ -48,7 +52,7 @@ function inferAssetType(fileName: string) {
   const ext = path.extname(fileName).toLowerCase()
   if (fileName.endsWith('.anim.json')) return 'animation'
   if (fileName.endsWith('.atlas.json')) return 'atlas'
-  if (['.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(ext)) return 'image'
+  if (['.png', '.jpg', '.jpeg', '.webp', '.gif', '.exr'].includes(ext)) return 'image'
   if (['.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) return 'audio'
   if (['.glb', '.gltf', '.obj', '.fbx'].includes(ext)) return 'model'
   if (['.js', '.ts', '.mjs'].includes(ext)) return 'script'
@@ -1800,9 +1804,9 @@ async function moveAssetToTrash(projectRoot: string, sourcePath: string) {
   return targetPath
 }
 
-async function readFileAsDataUrl(filePath: string) {
+function mimeFromFilePath(filePath: string) {
   const ext = path.extname(filePath).toLowerCase()
-  const mime = ext === '.png'
+  return ext === '.png'
     ? 'image/png'
     : ext === '.jpg' || ext === '.jpeg'
       ? 'image/jpeg'
@@ -1810,7 +1814,9 @@ async function readFileAsDataUrl(filePath: string) {
         ? 'image/webp'
         : ext === '.gif'
           ? 'image/gif'
-          : ext === '.mp3'
+          : ext === '.exr'
+            ? 'image/x-exr'
+            : ext === '.mp3'
             ? 'audio/mpeg'
             : ext === '.wav'
               ? 'audio/wav'
@@ -1825,7 +1831,10 @@ async function readFileAsDataUrl(filePath: string) {
                 : ext === '.bin'
                   ? 'application/octet-stream'
                   : 'application/octet-stream'
+}
 
+async function readFileAsDataUrl(filePath: string) {
+  const mime = mimeFromFilePath(filePath)
   const buffer = await fs.readFile(filePath)
   return `data:${mime};base64,${buffer.toString('base64')}`
 }
@@ -1872,6 +1881,25 @@ async function resolveAssetPathWithFallback(projectRoot: string, relativePath: s
   }
 
   return null
+}
+
+function registerAssetProtocolHandler() {
+  protocol.handle('unu-asset', async (request) => {
+    const url = new URL(request.url)
+    const token = url.pathname.replace(/^\/+/, '').split('/')[0] || url.hostname
+    const entry = assetProtocolEntries.get(token)
+    if (!entry) return new Response('Asset URL expired or not found', { status: 404 })
+    try {
+      const response = await net.fetch(pathToFileURL(entry.filePath).toString())
+      const headers = new Headers(response.headers)
+      headers.set('Content-Type', entry.mime)
+      headers.set('Cache-Control', 'no-store')
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return new Response(message, { status: 500 })
+    }
+  })
 }
 
 async function findAssetByFileName(rootPath: string, targetName: string) {
@@ -2291,6 +2319,7 @@ process.on('uncaughtException', (error) => {
 })
 
 app.whenReady().then(() => {
+  registerAssetProtocolHandler()
   ipcMain.handle('unu:create-project', async () => {
     const result = await dialog.showOpenDialog({
       title: '新建 UNU 工程',
@@ -2616,6 +2645,10 @@ app.whenReady().then(() => {
       if (!resolvedPath) {
         return null
       }
+      const stat = await fs.stat(resolvedPath)
+      if (stat.size > 256 * 1024 * 1024) {
+        return { dataUrl: '' }
+      }
       const dataUrl = await readFileAsDataUrl(resolvedPath)
       return { dataUrl }
     } catch (error) {
@@ -2629,12 +2662,29 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('unu:get-asset-url', async (_event, payload: { projectRoot: string; relativePath: string }) => {
+    if (!payload.projectRoot || !payload.relativePath) return null
+    const projectRoot = await resolveProjectRootPath(payload.projectRoot)
+    const resolvedPath = await resolveAssetPathWithFallback(projectRoot, payload.relativePath)
+    if (!resolvedPath) return null
+    const stat = await fs.stat(resolvedPath)
+    if (!stat.isFile()) return null
+    const token = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    const mime = mimeFromFilePath(resolvedPath)
+    assetProtocolEntries.set(token, { filePath: resolvedPath, mime })
+    return {
+      url: `unu-asset://local/${token}/${encodeURIComponent(path.basename(resolvedPath))}`,
+      size: stat.size,
+      mime
+    }
+  })
+
   ipcMain.handle('unu:import-images', async (_event, payload: { projectRoot: string }) => {
     if (!payload.projectRoot) return null
     const result = await dialog.showOpenDialog({
       title: '导入图片资源',
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+      filters: [{ name: 'Images / HDR', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'exr'] }]
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const imported = await importFiles(payload.projectRoot, result.filePaths, 'assets/images')
@@ -2659,9 +2709,9 @@ app.whenReady().then(() => {
       title: '导入 3D 模型/贴图资源',
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'glTF Models and Textures', extensions: ['glb', 'gltf', 'bin', 'png', 'jpg', 'jpeg', 'webp'] },
+        { name: 'glTF Models and Textures', extensions: ['glb', 'gltf', 'bin', 'png', 'jpg', 'jpeg', 'webp', 'exr'] },
         { name: 'glTF Models', extensions: ['glb', 'gltf'] },
-        { name: 'Textures', extensions: ['png', 'jpg', 'jpeg', 'webp'] }
+        { name: 'Textures', extensions: ['png', 'jpg', 'jpeg', 'webp', 'exr'] }
       ]
     })
     if (result.canceled || result.filePaths.length === 0) return null

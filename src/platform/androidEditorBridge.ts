@@ -296,7 +296,7 @@ export function installAndroidEditorBridge() {
     },
     importImages: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/images/imported', 'image/*'),
     importAudios: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/audio/imported', 'audio/*'),
-    importModels: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/models/imported', '.glb,.gltf,.bin,image/*'),
+    importModels: async (payload) => importFiles(normalizeRoot(payload.projectRoot), 'assets/models/imported', '.glb,.gltf,.bin,.exr,image/*'),
     createTextAssetInFolder: async (payload) => {
       const rootPath = normalizeRoot(payload.projectRoot)
       const name = sanitizeFileName(payload.fileName || 'NewFile.txt')
@@ -1042,6 +1042,7 @@ function mimeFromPath(path: string) {
   if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
   if (lower.endsWith('.webp')) return 'image/webp'
   if (lower.endsWith('.svg')) return 'image/svg+xml'
+  if (lower.endsWith('.exr')) return 'image/x-exr'
   if (lower.endsWith('.mp3')) return 'audio/mpeg'
   if (lower.endsWith('.wav')) return 'audio/wav'
   if (lower.endsWith('.ogg')) return 'audio/ogg'
@@ -1109,7 +1110,7 @@ function normalizeSceneReference(value: unknown) {
 
 function classifyAssetType(filePath: string): AssetType {
   const lower = filePath.toLowerCase()
-  if (/\.(png|jpg|jpeg|webp|gif|bmp|svg)$/.test(lower)) return 'image'
+  if (/\.(png|jpg|jpeg|webp|gif|bmp|svg|exr)$/.test(lower)) return 'image'
   if (/\.(mp3|wav|ogg|m4a|flac)$/.test(lower)) return 'audio'
   if (/\.(glb|gltf|obj|fbx)$/.test(lower)) return 'model'
   if (/\.scene\.json$/.test(lower)) return 'scene'

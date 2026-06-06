@@ -295,11 +295,12 @@ function openNodeMenu(payload: { event: MouseEvent; node: AssetNode }) {
   }
 
   if (node.type === 'image') {
-    items.push({ label: '预览图片', action: () => openImagePreview(node) })
-    items.push({ label: '新建精灵图集', action: () => openSpriteAtlasEditor(node) })
+    items.push({ label: isExrTexturePath(node.path) ? 'EXR 不支持图片预览' : '预览图片', disabled: isExrTexturePath(node.path), action: () => openImagePreview(node) })
+    items.push({ label: '新建精灵图集', disabled: isExrTexturePath(node.path), action: () => openSpriteAtlasEditor(node) })
     items.push({ label: '选中图片', action: () => assets.selectAsset(node.path) })
     items.push({
       label: '创建 Sprite 实体',
+      disabled: isExrTexturePath(node.path),
       action: async () => {
         await assets.selectAsset(node.path)
         await scene.createSpriteEntityFromAsset(node.path)
@@ -427,6 +428,11 @@ function closeImagePreview() {
 
 async function openImagePreview(node: AssetNode) {
   if (node.type !== 'image') return
+  if (isExrTexturePath(node.path)) {
+    await assets.selectAsset(node.path)
+    project.setStatus('EXR 贴图不支持浏览器原生图片预览，可在 3D 环境贴图、世界环境球和材质贴图中使用。')
+    return
+  }
   imagePreview.visible = true
   imagePreview.loading = true
   imagePreview.error = ''
@@ -454,6 +460,10 @@ async function openImagePreview(node: AssetNode) {
   } finally {
     imagePreview.loading = false
   }
+}
+
+function isExrTexturePath(path: string) {
+  return /\.exr$/i.test(path)
 }
 
 function loadImageSize(src: string) {

@@ -96,7 +96,16 @@ export const sceneEntityActions = {
           environmentMapPath: kind === 'environmentLight' || kind === 'worldEnvironment' ? '' : undefined,
           worldTexturePath: kind === 'worldEnvironment' ? '' : undefined,
           environmentIntensity: kind === 'environmentLight' || kind === 'worldEnvironment' ? 1 : undefined,
-          skyRadius: kind === 'worldEnvironment' ? 4000 : undefined
+          skyRadius: kind === 'worldEnvironment' ? 4000 : undefined,
+          skyYaw: kind === 'worldEnvironment' ? 0 : undefined,
+          skyPitch: kind === 'worldEnvironment' ? 0 : undefined,
+          skyRoll: kind === 'worldEnvironment' ? 0 : undefined,
+          skyBrightness: kind === 'worldEnvironment' ? 1 : undefined,
+          skyOpacity: kind === 'worldEnvironment' ? 1 : undefined,
+          skyTextureOffsetX: kind === 'worldEnvironment' ? 0 : undefined,
+          skyTextureOffsetY: kind === 'worldEnvironment' ? 0 : undefined,
+          skyTextureRepeatX: kind === 'worldEnvironment' ? 1 : undefined,
+          skyTextureRepeatY: kind === 'worldEnvironment' ? 1 : undefined
         }))
         const lightTransform = entity.getTransform()
         if (lightTransform && kind !== 'ambientLight' && kind !== 'environmentLight' && kind !== 'worldEnvironment') lightTransform.z = 420

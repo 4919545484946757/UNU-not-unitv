@@ -8,6 +8,10 @@ import { useProjectStore } from './project'
 const fallbackProject = createFallbackProject()
 const fallbackDatabase = new AssetDatabase(fallbackProject.tree)
 
+function isExrTexturePath(path: string) {
+  return /\.exr$/i.test(path)
+}
+
 type AssetFileHistoryEntry =
   | { type: 'create' | 'copy'; path: string; trashPath?: string }
   | { type: 'delete'; path: string; trashPath: string }
@@ -120,7 +124,7 @@ export const useAssetStore = defineStore('assets', {
       this.selectedAssetPath = path
       this.ensureExpandedTo(path)
       const target = this.flat.find((node) => node.path === path)
-      if (target?.type === 'image' || target?.type === 'model') {
+      if ((target?.type === 'image' && !isExrTexturePath(path)) || target?.type === 'model') {
         await this.ensurePreview(path)
       }
     },
@@ -182,6 +186,10 @@ export const useAssetStore = defineStore('assets', {
       }
     },
     async ensurePreview(path: string) {
+      if (isExrTexturePath(path)) {
+        this.previews[path] = ''
+        return ''
+      }
       const project = useProjectStore()
       const root = project.rootPath || ''
       if (this.previewProjectRoot !== root) {
@@ -202,6 +210,7 @@ export const useAssetStore = defineStore('assets', {
     },
 
     async ensureImageSize(path: string) {
+      if (isExrTexturePath(path)) return null
       if (this.imageSizes[path]) return this.imageSizes[path]
       const dataUrl = this.previews[path] || await this.ensurePreview(path)
       if (!dataUrl) return null

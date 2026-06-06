@@ -62,6 +62,7 @@ async function collectFiles(dir, base = '') {
   const files = []
   for (const entry of entries) {
     if (entry.name === 'unu-mobile-manifest.json') continue
+    if (entry.name === '.unu-trash') continue
     if (!base && entry.name === '__samples') continue
     const relative = base ? `${base}/${entry.name}` : entry.name
     const fullPath = path.join(dir, entry.name)
@@ -77,7 +78,7 @@ async function collectFiles(dir, base = '') {
 
 function classifyAssetType(filePath) {
   const lower = filePath.toLowerCase()
-  if (/\.(png|jpg|jpeg|webp|gif|bmp|svg)$/.test(lower)) return 'image'
+  if (/\.(png|jpg|jpeg|webp|gif|bmp|svg|exr)$/.test(lower)) return 'image'
   if (/\.(mp3|wav|ogg|m4a|flac)$/.test(lower)) return 'audio'
   if (/\.scene\.json$/.test(lower)) return 'scene'
   if (/\.prefab\.json$/.test(lower)) return 'prefab'

@@ -41,6 +41,15 @@ type ThreeObjectConfig = {
   targetZ?: number
   environmentIntensity?: number
   skyRadius?: number
+  skyYaw?: number
+  skyPitch?: number
+  skyRoll?: number
+  skyBrightness?: number
+  skyOpacity?: number
+  skyTextureOffsetX?: number
+  skyTextureOffsetY?: number
+  skyTextureRepeatX?: number
+  skyTextureRepeatY?: number
   showAsBackground?: boolean
   modelNodeOverrides?: Record<string, ModelNodeOverride>
   modelAnimationClips?: string[]
@@ -83,6 +92,10 @@ function finiteNumber(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
+function degreesToRadians(value: unknown, fallback = 0) {
+  return THREE.MathUtils.degToRad(finiteNumber(value, fallback))
+}
+
 export class ThreeRenderer implements SceneRenderer {
   private renderer: THREE.WebGLRenderer | null = null
   private scene3d = new THREE.Scene()
@@ -102,6 +115,7 @@ export class ThreeRenderer implements SceneRenderer {
   private raycaster = new THREE.Raycaster()
   private pointer = new THREE.Vector2()
   private entityObjects = new Map<string, THREE.Object3D>()
+  private entityRenderTokens = new Map<string, number>()
   private modelAnimationPlayers = new Map<string, { mixer: THREE.AnimationMixer; actions: Map<string, THREE.AnimationAction>; currentClip: string }>()
   private environmentTexture: THREE.Texture | null = null
   private selectedEntityIds: string[] = []
@@ -195,6 +209,50 @@ export class ThreeRenderer implements SceneRenderer {
     this.rebuildDebugOverlay(scene)
     this.updateTransformControls()
     this.render()
+  }
+
+  async renderEntity(scene: Scene, entityId: string) {
+    if (this.isPlaying || !scene || !entityId) return false
+    if (this.scene !== scene) {
+      this.scene = scene
+    }
+    const entity = scene.getEntityById(entityId)
+    const transform = entity?.getComponent<TransformComponent>('Transform')
+    if (!entity || !transform) return false
+    const token = (this.entityRenderTokens.get(entityId) || 0) + 1
+    this.entityRenderTokens.set(entityId, token)
+
+    const oldObject = this.entityObjects.get(entityId)
+    if (oldObject) {
+      const targetObject = oldObject.userData.targetObject as THREE.Object3D | undefined
+      if (targetObject) this.scene3d.remove(targetObject)
+      this.scene3d.remove(oldObject)
+      this.disposeObject(oldObject)
+      this.entityObjects.delete(entityId)
+    }
+
+    const three = entity.getComponent<CustomComponent>('ThreeObject')?.data as ThreeObjectConfig | undefined
+    const kind = String(three?.kind || '').toLowerCase()
+    if (kind === 'environmentlight' || kind === 'worldenvironment') {
+      await this.applySceneEnvironment(scene)
+    }
+
+    const object = await this.createEntityObject(entity, transform)
+    if (this.entityRenderTokens.get(entityId) !== token) {
+      this.disposeObject(object)
+      return true
+    }
+    if (object) {
+      object.userData.entityId = entity.id
+      object.traverse((child) => { child.userData.entityId = entity.id })
+      this.entityObjects.set(entity.id, object)
+      this.scene3d.add(object)
+    }
+    this.applySelectionMaterials()
+    this.rebuildDebugOverlay(scene)
+    this.updateTransformControls()
+    this.render()
+    return true
   }
 
   setGridVisible(visible: boolean) {
@@ -619,22 +677,43 @@ export class ThreeRenderer implements SceneRenderer {
 
     if (kind === 'worldenvironment') {
       const radius = Math.max(10, Number(three?.skyRadius ?? depth ?? 4000))
-      const geometry = new THREE.SphereGeometry(radius, 48, 24)
+      const opacity = Math.max(0, Math.min(1, finiteNumber(three?.skyOpacity, 1)))
+      const brightness = Math.max(0, finiteNumber(three?.skyBrightness, 1))
+      const geometry = new THREE.SphereGeometry(1, 64, 32)
       const material = new THREE.MeshBasicMaterial({
         color: this.resolveThreeColor(three?.color, sprite?.tint || 0xffffff),
         side: THREE.BackSide,
         depthWrite: false,
         depthTest: false,
-        transparent: false
+        transparent: opacity < 1,
+        opacity,
+        toneMapped: false
       })
+      material.color.multiplyScalar(brightness)
       const skyPath = String(three?.worldTexturePath || three?.texturePath || three?.environmentMapPath || '').trim()
       if (skyPath) {
-        material.map = await loadThreeTexture(skyPath).catch(() => null)
+        material.map = await loadThreeTexture(skyPath).catch((error) => {
+          console.warn('[UNU][three] failed to load world sphere texture', skyPath, error)
+          return null
+        })
+        if (material.map) {
+          material.map.mapping = THREE.UVMapping
+          material.map.offset.set(finiteNumber(three?.skyTextureOffsetX, 0), finiteNumber(three?.skyTextureOffsetY, 0))
+          material.map.repeat.set(finiteNumber(three?.skyTextureRepeatX, 1) || 1, finiteNumber(three?.skyTextureRepeatY, 1) || 1)
+          material.map.needsUpdate = true
+        }
       }
+      material.needsUpdate = true
       const sky = new THREE.Mesh(geometry, material)
       sky.name = 'World Environment Sphere'
+      sky.frustumCulled = false
       sky.renderOrder = -1000
       sky.position.set(0, 0, 0)
+      sky.userData.worldEnvironmentSphere = true
+      sky.userData.skyRadius = radius
+      sky.userData.skyYaw = finiteNumber(three?.skyYaw, 0)
+      sky.userData.skyPitch = finiteNumber(three?.skyPitch, 0)
+      sky.userData.skyRoll = finiteNumber(three?.skyRoll, 0)
       return sky
     }
 
@@ -688,6 +767,15 @@ export class ThreeRenderer implements SceneRenderer {
     this.environmentTexture = texture
     this.scene3d.environment = texture
     if (three?.showAsBackground) this.scene3d.background = texture
+    const environmentRotation = new THREE.Euler(
+      degreesToRadians(three?.skyPitch, 0),
+      degreesToRadians(three?.skyYaw, 0),
+      degreesToRadians(three?.skyRoll, 0),
+      'YXZ'
+    )
+    const sceneWithRotation = this.scene3d as THREE.Scene & { backgroundRotation?: THREE.Euler; environmentRotation?: THREE.Euler }
+    sceneWithRotation.backgroundRotation?.copy(environmentRotation)
+    sceneWithRotation.environmentRotation?.copy(environmentRotation)
     ;(this.scene3d as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = Math.max(0, Number(three?.environmentIntensity ?? 1))
   }
 
@@ -698,6 +786,9 @@ export class ThreeRenderer implements SceneRenderer {
     }
     this.scene3d.environment = null
     this.scene3d.background = new THREE.Color(0x0b0f16)
+    const sceneWithRotation = this.scene3d as THREE.Scene & { backgroundRotation?: THREE.Euler; environmentRotation?: THREE.Euler }
+    sceneWithRotation.backgroundRotation?.set(0, 0, 0)
+    sceneWithRotation.environmentRotation?.set(0, 0, 0)
     ;(this.scene3d as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = 1
   }
 
@@ -886,6 +977,7 @@ export class ThreeRenderer implements SceneRenderer {
 
   private getTransformControlTarget(entityId: string, modelNodePath = '') {
     const object = this.entityObjects.get(entityId) || null
+    if (object?.userData.worldEnvironmentSphere) return null
     if (!object || !modelNodePath) return object
     let target: THREE.Object3D | null = null
     object.traverse((child) => {
@@ -969,6 +1061,7 @@ export class ThreeRenderer implements SceneRenderer {
   private clearEntityObjects() {
     this.clearDebugOverlay()
     this.modelAnimationPlayers.clear()
+    this.entityRenderTokens.clear()
     for (const object of this.entityObjects.values()) {
       const targetObject = object.userData.targetObject as THREE.Object3D | undefined
       if (targetObject) this.scene3d.remove(targetObject)
@@ -1291,7 +1384,7 @@ export class ThreeRenderer implements SceneRenderer {
     if (!this.camera) return null
     this.updatePointer(event)
     this.raycaster.setFromCamera(this.pointer, this.camera)
-    const objects = Array.from(this.entityObjects.values())
+    const objects = Array.from(this.entityObjects.values()).filter((object) => !object.userData.worldEnvironmentSphere)
     const hits = this.raycaster.intersectObjects(objects, true)
     return hits[0] || null
   }
@@ -1380,6 +1473,7 @@ export class ThreeRenderer implements SceneRenderer {
       const sprite = entity.getComponent<SpriteComponent>('Sprite')
       const three = entity.getComponent<CustomComponent>('ThreeObject')?.data as ThreeObjectConfig | undefined
       if (!object || !transform) continue
+      if (String(three?.kind || '').toLowerCase() === 'worldenvironment') continue
       const depth = Math.max(1, Number(three?.depth ?? sprite?.width ?? 80))
       object.position.set(
         transform.x + Number(sprite?.offsetX || 0),
@@ -1432,6 +1526,27 @@ export class ThreeRenderer implements SceneRenderer {
 
   private render() {
     if (!this.renderer || !this.camera) return
+    this.updateWorldEnvironmentSpheres()
     this.renderer.render(this.scene3d, this.camera)
+  }
+
+  private updateWorldEnvironmentSpheres() {
+    if (!this.camera) return
+    const cameraFar = Number(this.camera.far || 5000)
+    const safeRadius = Math.max(10, Math.min(100000, cameraFar * 0.45))
+    for (const object of this.entityObjects.values()) {
+      if (!object.userData.worldEnvironmentSphere) continue
+      const configuredRadius = Math.max(10, Number(object.userData.skyRadius || safeRadius))
+      const radius = Math.min(configuredRadius, safeRadius)
+      object.position.copy(this.camera.position)
+      object.rotation.set(
+        THREE.MathUtils.degToRad(finiteNumber(object.userData.skyPitch, 0)),
+        THREE.MathUtils.degToRad(finiteNumber(object.userData.skyYaw, 0)),
+        THREE.MathUtils.degToRad(finiteNumber(object.userData.skyRoll, 0)),
+        'YXZ'
+      )
+      object.scale.setScalar(radius)
+      object.updateMatrixWorld()
+    }
   }
 }

@@ -33,7 +33,7 @@
       >
         <div class="preview" :class="`type-${item.type}`">
           <img
-            v-if="item.type === 'image' && assets.previews[item.path]"
+            v-if="item.type === 'image' && isNativePreviewImagePath(item.path) && assets.previews[item.path]"
             :key="`${item.path}:${assets.previews[item.path].length}`"
             :src="assets.previews[item.path]"
             alt="preview"
@@ -79,7 +79,7 @@ const pathCrumbs = computed(() => {
 
 const visibleImagePathKey = computed(() => (
   `${project.rootPath}::${assets.selectedPath}::${assets.browserItems
-    .filter((item) => item.type === 'image')
+    .filter((item) => item.type === 'image' && isNativePreviewImagePath(item.path))
     .map((item) => item.path)
     .join('|')}`
 ))
@@ -88,7 +88,7 @@ watch(
   visibleImagePathKey,
   () => {
     for (const item of assets.browserItems) {
-      if (item.type === 'image') void ensureBrowserPreview(item.path)
+      if (item.type === 'image' && isNativePreviewImagePath(item.path)) void ensureBrowserPreview(item.path)
     }
   },
   { immediate: true, flush: 'post' }
@@ -127,6 +127,10 @@ function isGltfModelPath(path: string) {
   return /\.(glb|gltf)$/i.test(path)
 }
 
+function isNativePreviewImagePath(path: string) {
+  return !/\.exr$/i.test(path)
+}
+
 async function handleClick(path: string, type: AssetType) {
   if (type === 'folder') {
     assets.selectPath(path)
@@ -148,6 +152,11 @@ async function handleDoubleClick(path: string, type: AssetType) {
   await assets.selectAsset(path)
 
   if (type === 'image') {
+    if (/\.exr$/i.test(path)) {
+      editor.setRightTab('Inspector')
+      project.setStatus('EXR texture can be used by 3D environment, sky, and material texture fields. Sprite creation is not supported.')
+      return
+    }
     await scene.createSpriteEntityFromAsset(path)
     editor.leftTab = 'Scene'
     editor.setRightTab('Inspector')

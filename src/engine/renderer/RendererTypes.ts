@@ -18,6 +18,7 @@ export interface SceneRendererOptions {
 export interface SceneRenderer {
   init(scene: Scene | null): Promise<void>
   renderScene(scene: Scene): Promise<void>
+  renderEntity?(scene: Scene, entityId: string): Promise<boolean>
   setGridVisible(visible: boolean): void
   setDebugOverlayVisible(visible: boolean): void
   setDebugOverlayOptions?(options: DebugOverlayOptions): void

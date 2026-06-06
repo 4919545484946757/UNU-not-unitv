@@ -33,6 +33,7 @@ import { useEditorStore } from '../../stores/editor'
 import { useProjectStore } from '../../stores/project'
 import { useRuntimeStore } from '../../stores/runtime'
 import { useSceneStore } from '../../stores/scene'
+import { serializeEntity } from '../../engine/serialization/sceneSerializer'
 
 const editor = useEditorStore()
 const assets = useAssetStore()
@@ -57,6 +58,38 @@ const centerStackHeight = ref(0)
 const compactViewport = ref(false)
 let cleanup: (() => void) | null = null
 let centerStackObserver: ResizeObserver | null = null
+
+function entitySnapshotMap() {
+  const map = new Map<string, string>()
+  for (const entity of scene.currentScene?.entities || []) {
+    map.set(entity.id, JSON.stringify(serializeEntity(entity)))
+  }
+  return map
+}
+
+function diffEntitySnapshots(before: Map<string, string>, after: Map<string, string>) {
+  if (before.size !== after.size) return { structural: true, entityIds: [] as string[] }
+  const entityIds: string[] = []
+  for (const [entityId, beforeValue] of before.entries()) {
+    if (!after.has(entityId)) return { structural: true, entityIds: [] as string[] }
+    if (after.get(entityId) !== beforeValue) entityIds.push(entityId)
+  }
+  return { structural: false, entityIds }
+}
+
+function runSceneHistoryAction(action: 'undo' | 'redo') {
+  if (project.renderBackend !== 'three' || runtime.isPlaying || !scene.currentScene) {
+    action === 'undo' ? scene.undo() : scene.redo()
+    return
+  }
+  const before = entitySnapshotMap()
+  action === 'undo' ? scene.undo() : scene.redo()
+  const after = entitySnapshotMap()
+  const diff = diffEntitySnapshots(before, after)
+  if (!diff.structural) {
+    window.dispatchEvent(new CustomEvent('unu:scene-history-restored', { detail: { entityIds: diff.entityIds } }))
+  }
+}
 
 const minCenterWidth = computed(() => (compactViewport.value ? COMPACT_MIN_CENTER_WIDTH : MIN_CENTER_WIDTH))
 const minSceneViewHeight = computed(() => (compactViewport.value ? COMPACT_MIN_SCENE_VIEW_HEIGHT : MIN_SCENE_VIEW_HEIGHT))
@@ -222,10 +255,10 @@ function handleGlobalShortcut(event: KeyboardEvent) {
     event.preventDefault()
     if (event.shiftKey) {
       if (assets.canRedoFileOperation) void assets.redoFileOperation()
-      else scene.redo()
+      else runSceneHistoryAction('redo')
     } else {
       if (assets.canUndoFileOperation) void assets.undoFileOperation()
-      else scene.undo()
+      else runSceneHistoryAction('undo')
     }
     return
   }
@@ -233,7 +266,7 @@ function handleGlobalShortcut(event: KeyboardEvent) {
   if (mod && key === 'y') {
     event.preventDefault()
     if (assets.canRedoFileOperation) void assets.redoFileOperation()
-    else scene.redo()
+    else runSceneHistoryAction('redo')
     return
   }
 

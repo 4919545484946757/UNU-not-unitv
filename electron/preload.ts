@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('unu', {
     ipcRenderer.invoke('unu:save-scene', payload),
   openScene: (payload: { projectRoot?: string }) => ipcRenderer.invoke('unu:open-scene', payload),
   readAssetDataUrl: (payload: { projectRoot: string; relativePath: string }) => ipcRenderer.invoke('unu:read-asset-data-url', payload),
+  getAssetUrl: (payload: { projectRoot: string; relativePath: string }) => ipcRenderer.invoke('unu:get-asset-url', payload),
   importImages: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-images', payload),
   importAudios: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-audios', payload),
   importModels: (payload: { projectRoot: string }) => ipcRenderer.invoke('unu:import-models', payload),

@@ -397,6 +397,7 @@ function Get-MimeType([string]$filePath) {
     ".webp" { return "image/webp" }
     ".gif" { return "image/gif" }
     ".svg" { return "image/svg+xml" }
+    ".exr" { return "image/x-exr" }
     ".gltf" { return "model/gltf+json; charset=utf-8" }
     ".glb" { return "model/gltf-binary" }
     ".bin" { return "application/octet-stream" }

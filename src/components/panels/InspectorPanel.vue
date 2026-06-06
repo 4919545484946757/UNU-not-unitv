@@ -1191,7 +1191,7 @@ function setThreeObjectKind(event: Event) {
   if (!data) return
   const value = (event.target as HTMLSelectElement).value
   data.kind = ['box', 'plane', 'model', 'directionalLight', 'pointLight', 'spotLight', 'ambientLight', 'environmentLight', 'worldEnvironment'].includes(value) ? value : 'box'
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setThreeObjectText(key: string, event: Event) {
@@ -1199,7 +1199,7 @@ function setThreeObjectText(key: string, event: Event) {
   const data = ensureThreeObjectData()
   if (!data) return
   data[key] = (event.target as HTMLInputElement).value.trim()
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setThreeObjectNumber(key: string, event: Event, min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY) {
@@ -1209,7 +1209,7 @@ function setThreeObjectNumber(key: string, event: Event, min = Number.NEGATIVE_I
   const value = Number((event.target as HTMLInputElement).value)
   if (!Number.isFinite(value)) return
   data[key] = Math.max(min, Math.min(max, value))
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setThreeObjectSize(key: 'width' | 'height', event: Event) {
@@ -1219,7 +1219,7 @@ function setThreeObjectSize(key: 'width' | 'height', event: Event) {
   const data = ensureThreeObjectData()
   if (data) data[key] = value
   if (sprite.value) sprite.value[key] = value
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setThreeObjectBool(key: string, event: Event) {
@@ -1227,7 +1227,7 @@ function setThreeObjectBool(key: string, event: Event) {
   const data = ensureThreeObjectData()
   if (!data) return
   data[key] = (event.target as HTMLInputElement).checked
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setThreeObjectColor(event: Event) {
@@ -1239,7 +1239,7 @@ function setThreeObjectColor(event: Event) {
   if (!parsed) return
   data.color = parsed.rgb
   if (typeof parsed.alpha === 'number') data.opacity = parsed.alpha
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 async function bindSelectedModelAsset() {
@@ -1263,7 +1263,7 @@ async function bindSelectedModelAsset() {
     if (typeof data.modelAnimationEnabled !== 'boolean') data.modelAnimationEnabled = true
     if (!Number.isFinite(Number(data.modelAnimationSpeed))) data.modelAnimationSpeed = 1
   }
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
   project.setStatus(`已绑定 3D 模型：${selectedModelAssetPath.value}`)
 }
 
@@ -1288,7 +1288,7 @@ async function refreshModelAnimationClips() {
   if (typeof data.modelAnimationLoop !== 'boolean') data.modelAnimationLoop = true
   if (typeof data.modelAnimationEnabled !== 'boolean') data.modelAnimationEnabled = true
   if (!Number.isFinite(Number(data.modelAnimationSpeed))) data.modelAnimationSpeed = 1
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
   project.setStatus(result.animationClips.length ? `已刷新模型动画片段：${result.animationClips.join(', ')}` : `模型未包含 glTF 动画片段：${modelPath}`)
 }
 
@@ -1308,7 +1308,7 @@ function setModelAnimationBinding(event: Event) {
   const bindings = data.modelAnimationBindings as Record<string, string>
   if (clip) bindings[state] = clip
   else delete bindings[state]
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function bindSelectedThreeTexture(key: 'texturePath' | 'normalMapPath' | 'environmentMapPath' | 'worldTexturePath') {
@@ -1316,7 +1316,7 @@ function bindSelectedThreeTexture(key: 'texturePath' | 'normalMapPath' | 'enviro
   const data = ensureThreeObjectData()
   if (!data || !selectedImageAssetPath.value) return
   data[key] = selectedImageAssetPath.value
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
   const label = key === 'normalMapPath' ? '法线贴图' : key === 'environmentMapPath' ? '环境贴图' : key === 'worldTexturePath' ? '世界环境球贴图' : '材质贴图'
   project.setStatus(`已绑定 ${label}：${selectedImageAssetPath.value}`)
 }
@@ -1583,8 +1583,20 @@ function inspectorComponents(): InspectorComponentMap {
   }
 }
 
+function markInspectorEntityDirty() {
+  const entityId = entity.value?.id || ''
+  const canRenderLocally = !!entityId && project.renderBackend === 'three' && !runtime.isPlaying
+  if (canRenderLocally) {
+    window.dispatchEvent(new CustomEvent('unu:entity-mutating', { detail: { entityId } }))
+  }
+  sceneStore.markDirty()
+  if (canRenderLocally) {
+    window.dispatchEvent(new CustomEvent('unu:entity-mutated', { detail: { entityId } }))
+  }
+}
+
 function markDirtyIfUpdated(updated: boolean) {
-  if (updated) sceneStore.markDirty()
+  if (updated) markInspectorEntityDirty()
 }
 
 function setNumber(group: InspectorComponentGroup, key: string, event: Event) {
@@ -1600,7 +1612,7 @@ function setUiSize(key: 'width' | 'height' | 'minWidth' | 'minHeight', event: Ev
   const nextValue = parseUiSizeInput(raw)
   if (nextValue === null) return
   Reflect.set(ui.value, key, nextValue)
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function parseUiSizeInput(raw: string) {
@@ -1623,7 +1635,7 @@ function setRotationDegrees(event: Event) {
   if (!Number.isFinite(value)) return
   transform.value.rotation = degreesToRadians(value)
   transform.value.rotationZ = transform.value.rotation
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setRotationAxisDegrees(key: 'rotationX' | 'rotationY' | 'rotationZ', event: Event) {
@@ -1633,7 +1645,7 @@ function setRotationAxisDegrees(key: 'rotationX' | 'rotationY' | 'rotationZ', ev
   if (!Number.isFinite(value)) return
   transform.value[key] = degreesToRadians(value)
   if (key === 'rotationZ') transform.value.rotation = transform.value.rotationZ
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function degreesToRadians(value: number) {
@@ -1651,7 +1663,7 @@ function setTransformPositionMode(event: Event) {
   transform.value.positionMode = value === 'viewport' ? 'viewport' : 'world'
   if (!transform.value.viewportHorizontal) transform.value.viewportHorizontal = 'center'
   if (!transform.value.viewportVertical) transform.value.viewportVertical = 'middle'
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setTransformViewportHorizontal(event: Event) {
@@ -1660,7 +1672,7 @@ function setTransformViewportHorizontal(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   if (value === 'left' || value === 'center' || value === 'right') {
     transform.value.viewportHorizontal = value
-    sceneStore.markDirty()
+    markInspectorEntityDirty()
   }
 }
 
@@ -1670,7 +1682,7 @@ function setTransformViewportVertical(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   if (value === 'top' || value === 'middle' || value === 'bottom') {
     transform.value.viewportVertical = value
-    sceneStore.markDirty()
+    markInspectorEntityDirty()
   }
 }
 
@@ -1702,7 +1714,7 @@ function setCameraProjection(event: Event) {
   if (!camera.value) return
   const value = (event.target as HTMLSelectElement).value
   camera.value.projection = value === 'perspective' ? 'perspective' : 'orthographic'
-  sceneStore.markDirty()
+  markInspectorEntityDirty()
 }
 
 function setCameraFromEditorView() {

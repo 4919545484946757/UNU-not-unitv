@@ -75,6 +75,7 @@ let lastRuntimeSyncAt = 0
 let disposeProjectScriptChanged: (() => void) | null = null
 let scriptHotReloadTimer = 0
 let scriptHotReloading = false
+let skipFullRenderRevision = -1
 const activeTouchPointers = new Map<number, { x: number; y: number }>()
 let pinchDistance = 0
 
@@ -240,7 +241,12 @@ function buildRendererOptions(): SceneRendererOptions {
       else if (options?.additive) selection.toggleEntity(entityId)
       else selection.selectEntity(entityId)
     },
-    onSceneMutated: () => sceneStore.markDirty(),
+    onSceneMutated: () => {
+      if (project.renderBackend === 'three' && !runtime.isPlaying) {
+        skipFullRenderRevision = sceneStore.revision + 1
+      }
+      sceneStore.markDirty()
+    },
     onRuntimeSceneUpdated: (scene) => {
       if (!runtime.isPlaying) {
         sceneStore.clearRuntimeScene()
@@ -291,6 +297,9 @@ onMounted(async () => {
   if (!containerRef.value) return
 
   try {
+    window.addEventListener('unu:entity-mutating', handleEntityMutating as EventListener)
+    window.addEventListener('unu:entity-mutated', handleEntityMutated as EventListener)
+    window.addEventListener('unu:scene-history-restored', handleSceneHistoryRestored as EventListener)
     window.addEventListener('unu:set-camera-from-editor-view', handleSetCameraFromEditorView as EventListener)
     window.addEventListener('unu:preview-camera-view', handlePreviewCameraView as EventListener)
     window.addEventListener('unu:exit-camera-preview', handleExitCameraPreview)
@@ -309,6 +318,33 @@ onMounted(async () => {
 
 function eventEntityId(event: Event) {
   return String((event as CustomEvent<{ entityId?: string }>).detail?.entityId || '').trim()
+}
+
+function handleEntityMutating(event: Event) {
+  if (runtime.isPlaying || project.renderBackend !== 'three') return
+  if (!eventEntityId(event)) return
+  skipFullRenderRevision = sceneStore.revision + 1
+}
+
+async function handleEntityMutated(event: Event) {
+  if (runtime.isPlaying || project.renderBackend !== 'three') return
+  const entityId = eventEntityId(event)
+  if (!entityId || !sceneStore.currentScene) return
+  const updated = await renderer?.renderEntity?.(sceneStore.currentScene, entityId)
+  if (!updated) await renderer?.renderScene(sceneStore.currentScene)
+}
+
+async function handleSceneHistoryRestored(event: Event) {
+  if (runtime.isPlaying || project.renderBackend !== 'three' || !sceneStore.currentScene) return
+  skipFullRenderRevision = sceneStore.revision
+  const entityIds = ((event as CustomEvent<{ entityIds?: string[] }>).detail?.entityIds || []).filter(Boolean)
+  for (const entityId of entityIds) {
+    const updated = await renderer?.renderEntity?.(sceneStore.currentScene, entityId)
+    if (!updated) {
+      await renderer?.renderScene(sceneStore.currentScene)
+      return
+    }
+  }
 }
 
 function handleSetCameraFromEditorView(event: Event) {
@@ -366,6 +402,10 @@ function handleCameraPreviewKeydown(event: KeyboardEvent) {
 watch(
   () => sceneStore.revision,
   async () => {
+    if (sceneStore.revision === skipFullRenderRevision) {
+      skipFullRenderRevision = -1
+      return
+    }
     if (runtime.isPlaying) {
       renderer?.setRuntimeState(true, runtime.isPaused, sceneStore.currentScene, true)
       return
@@ -519,6 +559,9 @@ onBeforeUnmount(() => {
   disposeProjectScriptChanged = null
   if (scriptHotReloadTimer) window.clearTimeout(scriptHotReloadTimer)
   void window.unu?.unwatchProjectScripts?.()
+  window.removeEventListener('unu:entity-mutating', handleEntityMutating as EventListener)
+  window.removeEventListener('unu:entity-mutated', handleEntityMutated as EventListener)
+  window.removeEventListener('unu:scene-history-restored', handleSceneHistoryRestored as EventListener)
   window.removeEventListener('unu:set-camera-from-editor-view', handleSetCameraFromEditorView as EventListener)
   window.removeEventListener('unu:preview-camera-view', handlePreviewCameraView as EventListener)
   window.removeEventListener('unu:exit-camera-preview', handleExitCameraPreview)

@@ -2,11 +2,11 @@
 
 中文 | [English](README.en-US.md)
 
-UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Electron` 的桌面 2D 游戏编辑器与运行时。项目目标不是只做一个编辑器壳子，而是形成“创建项目、编辑场景、编写脚本、预览玩法、调试性能、导出 Web 游戏、打包 Windows 应用”的完整闭环。
+UNU Engine Starter 是一个基于 `Vue 3 + Pinia + PixiJS 8 + Three.js + Electron` 的桌面/Android 游戏编辑器与运行时。项目目标不是只做一个编辑器壳子，而是形成“创建项目、编辑 2D/3D 场景、编写脚本、预览玩法、调试性能、导出 Web 游戏、打包 Windows / Android 应用”的完整闭环。
 
-- 文档更新时间：`2026-06-01`
-- 项目版本：`1.1.2`
-- 当前定位：桌面端 2D 游戏编辑器 + Android 编辑器 APK + 可导出 Web 游戏运行包
+- 文档更新时间：`2026-06-07`
+- 项目版本：`1.2.0`
+- 当前定位：桌面端 2D/3D 游戏编辑器 + Android 编辑器 APK + 可导出 Pixi/Canvas/Three Web 游戏运行包
 - 示例项目真源：`Sample-project-list/`
 
 ## 快速开始
@@ -17,6 +17,59 @@ npm run dev
 ```
 
 启动后会先进入项目启动器。可以选择历史项目、打开示例项目、新建项目，或回到启动器切换项目。`npm run dev` 会同时启动 Vite、Electron main/preload watch 构建和 Electron 应用。
+
+## 1.2.0 Release 日志
+
+1.2.0 版本重点引入 Three.js 3D 项目能力、原生 Canvas 项目导出适配、HTMLoverlayer UI 能力增强，以及 3D 编辑/渲染性能优化。
+
+### 3D 项目与 Three.js 渲染
+
+- 新建项目支持选择 2D Pixi、2D 原生 Canvas、3D Three.js 项目类型。
+- 编辑器会按 2D / 3D 项目区分创建菜单、Inspector、Scene View 工具和模块布局，减少 2D/3D 功能混杂。
+- 3D 实体支持 `ThreeObject`、模型、材质、灯光、相机、3D 碰撞体和可选物理后端配置。
+- 支持导入与预览 `.glb`、`.gltf` 模型及贴图资源，场景树可按模型层级显示并默认折叠。
+- 支持嵌套模型节点选择、子节点独立编辑、材质颜色/贴图/金属度/粗糙度/不透明度/法线贴图覆盖。
+- 支持 glTF 动画片段读取、编辑态/运行态播放、动画状态绑定、循环与速度控制。
+- 3D 脚本 API 支持播放态移动 3D 对象并查询 3D 变换。
+
+### 3D 编辑视角、相机与调试
+
+- 编辑态使用独立 Editor Camera，不再绑定场景主摄像机；播放态再使用运行时相机。
+- 支持透视/正交相机、FOV、near/far、环绕、平移、缩放、鼠标滚轮缩放和模拟玩家参与式飞行视角。
+- 支持 `X/Y/Z` 轴向视图切换；`Ctrl/Meta/Alt + X/Y/Z` 不再误触发视角切换。
+- Camera 组件支持“读取当前编辑视角”和“预览该相机视角”。
+- 3D 场景视图支持移动/旋转/缩放 TransformControls，修复模型节点未在场景图中导致的附着错误。
+- 新增 3D 调试覆盖层，可显示/隐藏边界、碰撞体、局部坐标轴、灯光辅助和相机视锥；相机视锥方向与黄色线框已修正。
+- 3D Inspector 属性编辑、TransformControls 拖拽和 `Ctrl+Z/Y` 非结构性撤销/重做会局部刷新实体，避免无关物体重建。
+
+### 环境光、世界球与 EXR/HDR
+
+- 支持方向光、点光源、聚光灯、环境光、环境贴图光照和世界环境球。
+- 支持 `.exr` 贴图导入、识别、绑定和 Three.js 加载。
+- Electron 桌面端新增 `unu-asset://` 本地资源协议，超大 EXR 不再通过 base64 `data:` 读取，避免超过 2GiB 文件触发崩溃或日志刷屏。
+- EXR 不走浏览器原生图片预览，不会被误用于 Sprite / 精灵图集。
+- 世界环境球支持跟随相机、按相机 far 动态限制半径，避免缩放后超出渲染范围。
+- 世界球支持 Yaw/Pitch/Roll、亮度、透明度、UV Offset/Repeat 等参数。
+
+### Canvas、HTMLoverlayer 与 Web 导出
+
+- 新建项目可选择原生 Canvas 渲染方式，并移植 `sample-2D-shooting` Canvas 示例。
+- 原生 Canvas 项目修复 Tilemap 材质色差/偏移、背景跟随、UI 点击、背包/容器 HTML-in-canvas 交互、无贴图材质颜色/透明度等问题。
+- HTML-in-canvas 名称恢复为 `HTMLoverlayer`，UI 组件支持背景颜色/贴图、透明背景、RGBA/HEXA/HSL 颜色选择和调试属性。
+- Web 游戏导出支持 Pixi、原生 Canvas、Three.js 3D 项目，并同步项目脚本、资源、物理后端配置和运行时。
+
+### Android 与打包
+
+- Android 编辑器窗口弹窗（Script、Tilemap、图集等）在小屏幕上自动滚动，平板等大屏设备不再强制旋转。
+- Android 显示选项中专注播放模式默认打开。
+- Windows / Android 打包会从 `Sample-project-list/` 当前真源同步示例项目，避免旧缓存污染。
+
+### 打包产物
+
+- Windows 安装包：`release-fixed/UNU Engine Setup 1.2.0.exe`
+- Windows 便携版：`release-fixed/UNU Engine 1.2.0.exe`
+- Android 游戏 Debug APK：`release-fixed/UNU Engine 1.2.0-debug.apk`
+- Android 编辑器 Debug APK：`release-fixed/UNU Engine Editor 1.2.0-debug.apk`
 
 ## 1.1 Release 日志
 
@@ -95,6 +148,8 @@ npm run dev
 - Android 编辑器内 Scene View 支持双指缩放，适配手机横屏编辑。
 - 播放态会禁用编辑工具选中框，改用运行态交互高亮、调试层和专用输入逻辑。
 - 播放按钮旁提供调试播放开关，可显示碰撞箱、实体边界框、Tilemap 网格、实体名称和交互提示。
+- 3D 项目使用独立 Editor Camera，支持轨道视角、飞行视角、透视/正交切换、FOV/裁剪面和 X/Y/Z 轴向视图。
+- 3D 项目支持 TransformControls 移动、旋转、缩放模型与模型子节点；常见属性编辑会局部刷新实体，减少无关物体重建。
 
 ### Inspector 与组件系统
 
@@ -102,6 +157,7 @@ npm run dev
 - 常用组件包括 Transform、Sprite、Collider、Camera、Background、Audio、UI、Inventory、Script、自定义组件等。
 - 实体可以配置贴图偏移、颜色、碰撞箱相对位置、碰撞层、Trigger、UI 对齐和百分比宽高。
 - Inventory 模块支持图形化物品列表，并可在超出范围时滚动浏览。
+- 3D Inspector 支持 ThreeObject、3D 材质、模型路径、模型动画、环境光、世界球、灯光、相机、3D 碰撞体和物理刚体属性。
 
 ### Tilemap 与资源管理
 
@@ -110,6 +166,7 @@ npm run dev
 - 资源树支持图片预览、文件夹打开、双击/右键打开文本或图片、拖拽移动文件、复制/粘贴、删除、重命名、新建文件/文件夹。
 - 文件操作支持 `Ctrl+Z` / `Ctrl+Y` 撤回与恢复，资源重命名会自动同步引用。
 - 素材箱支持当前目录面包屑切换、图片预览和 JS/JSON/HTML 等文本资源显示。
+- 资源类型支持 `model` 与 `.glb/.gltf/.bin` 依赖资源；图片贴图额外支持 `.exr`，EXR 可用于 3D 环境和材质但不走浏览器原生图片预览。
 
 ### 脚本系统
 
@@ -131,7 +188,7 @@ npm run dev
 
 - UI 支持 Text、Markdown、Button、Slider、HTML/DOM Overlay、iframe 页面和按钮脚本绑定。
 - UI 支持自动尺寸、百分比宽高、相对视窗边缘布局、菜单层级、暂停菜单和游戏结束菜单。
-- HTML Overlay 支持透明背景、动态尺寸、iframe 交互桥、游戏脚本消息通信。
+- HTMLoverlayer 支持透明背景、动态尺寸、iframe 交互桥、游戏脚本消息通信、背景颜色/贴图和 RGBA/HEXA/HSL 颜色输入。
 - 示例项目包含背包 UI、容器 UI、底部物品栏预览、当前手持物品显示、装备栏和角色预览；点击底部物品栏会消费本次左键输入，不会误触发射击。
 
 ### 物品、背包与示例玩法
@@ -154,6 +211,8 @@ npm run dev
 | 示例 | 路径 | 内容 |
 | --- | --- | --- |
 | 2D Shooting | `Sample-project-list/sample-2D-shooting` | 多场景 2D 动作射击示例，包含 Player、Enemy、枪械、护甲、物品、背包、容器、门禁卡、HTML UI、场景切换和项目脚本。 |
+| 2D Shooting Canvas | `Sample-project-list/2D-shooting-canvas` | 原生 Canvas 版本 2D 射击示例，用于验证 Canvas 渲染、Tilemap、背景、UI、HTMLoverlayer 背包/容器和道具交互。 |
+| 3D | `Sample-project-list/3D` | Three.js 3D 示例，包含 3D 模型、灯光、相机、世界环境球、EXR/HDR 贴图、3D 调试覆盖层和基础 3D 编辑流程。 |
 | Snake | `Sample-project-list/snake` | 贪吃蛇示例，包含网格移动、食物、分数、暂停/游戏结束菜单、难度调整和项目本地脚本。 |
 
 `Sample-project-list/` 是样例工程唯一真源。新增样例时建议新增一个独立目录，并提供 `project.json` 与 `manifest.json`，避免在多处硬编码样例信息。
@@ -193,7 +252,7 @@ npm run dist:win:installer
 
 ## Web 导出
 
-当前 Web 导出会复制项目所需的 scenes、assets、prefabs、HTML UI、项目脚本、场景级脚本、物品注册表、物品脚本、图片、音频和导出 runtime，并生成 `project.json`、`export-report.json`、`PLAY_GAME.bat` 等文件。
+当前 Web 导出会复制项目所需的 scenes、assets、prefabs、HTML UI、项目脚本、场景级脚本、物品注册表、物品脚本、图片、音频、模型、EXR/HDR 贴图和导出 runtime，并生成 `project.json`、`export-report.json`、`PLAY_GAME.bat` 等文件。导出运行时会按项目渲染后端支持 Pixi、原生 Canvas 和 Three.js 3D 项目。
 
 导出后的 Web 游戏请通过 `PLAY_GAME.bat` 或本地 HTTP 服务启动，不要直接双击 `index.html`。现代浏览器会限制 `file://` 下的脚本、样式和资源加载，直接打开可能出现 CORS 或资源缺失错误。
 
@@ -210,7 +269,7 @@ npm run android:editor:apk
 
 APK 输出位置通常为 `android/app/build/outputs/apk/debug/app-debug.apk`。如果遇到 `Unsupported class file major version 69`，请将 Java 从 25 切换到 JDK 17 或 21。更多说明见 [Android APK 构建说明](docs/ANDROID_APK.zh-CN.md)。
 
-1.1.2 版本发布包额外复制为 `release-fixed/UNU Engine Editor 1.1.2-debug.apk`。
+1.2.0 版本发布包额外复制为 `release-fixed/UNU Engine 1.2.0-debug.apk` 和 `release-fixed/UNU Engine Editor 1.2.0-debug.apk`。
 
 ## 当前工程约定
 

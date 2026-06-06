@@ -264,7 +264,7 @@ export class EditorCameraController {
   private readonly handleKeyDown = (event: KeyboardEvent) => {
     if (this.shouldIgnoreKeyboard(event)) return
     this.pressedKeys.add(event.code)
-    if (event.code === 'KeyX' || event.code === 'KeyY' || event.code === 'KeyZ') {
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && (event.code === 'KeyX' || event.code === 'KeyY' || event.code === 'KeyZ')) {
       event.preventDefault()
       this.snapAxis(event.code === 'KeyX' ? 'x' : event.code === 'KeyY' ? 'y' : 'z')
     }

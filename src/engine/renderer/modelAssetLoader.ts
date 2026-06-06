@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
 import { useAssetStore } from '../../stores/assets'
 import { useProjectStore } from '../../stores/project'
 
@@ -147,6 +148,16 @@ export async function readProjectAssetDataUrl(relativePath: string) {
   return ''
 }
 
+export async function readProjectAssetUrl(relativePath: string) {
+  const project = useProjectStore()
+  const normalized = normalizeAssetPath(relativePath)
+  if (!normalized) return null
+  if (window.unu?.getAssetUrl && project.rootPath && !project.isMemoryProject) {
+    return window.unu.getAssetUrl({ projectRoot: project.rootPath, relativePath: normalized }).catch(() => null)
+  }
+  return null
+}
+
 export async function prepareModelAsset(modelPath: string): Promise<PreparedModelAsset | null> {
   const normalizedModelPath = normalizeAssetPath(modelPath)
   if (!normalizedModelPath) return null
@@ -275,7 +286,49 @@ function buildModelHierarchy(root: THREE.Object3D): ModelHierarchyNode[] {
 }
 
 export async function loadThreeTexture(texturePath: string, options: { normalMap?: boolean } = {}) {
-  const dataUrl = await readProjectAssetDataUrl(texturePath)
+  const normalized = normalizeAssetPath(texturePath)
+  if (!normalized) return null
+  if (/\.exr$/i.test(normalized)) {
+    const loader = new EXRLoader()
+    const assetUrl = await readProjectAssetUrl(normalized)
+    if (assetUrl?.url) {
+      const texture = await loader.loadAsync(assetUrl.url)
+      texture.colorSpace = options.normalMap ? THREE.NoColorSpace : THREE.LinearSRGBColorSpace
+      texture.wrapS = THREE.RepeatWrapping
+      texture.wrapT = THREE.RepeatWrapping
+      texture.needsUpdate = true
+      return texture
+    }
+    const project = useProjectStore()
+    if (window.unu && window.unu.version !== 'android-editor' && project.rootPath && !project.isMemoryProject && !window.unu.getAssetUrl) return null
+    const dataUrl = await readProjectAssetDataUrl(normalized)
+    if (!dataUrl) return null
+    const texData = loader.parse(await dataUrlToArrayBuffer(dataUrl)) as {
+      image?: { width: number; height: number; data: THREE.TypedArray }
+      width?: number
+      height?: number
+      data?: THREE.TypedArray
+      format?: THREE.PixelFormat
+      type?: THREE.TextureDataType
+      flipY?: boolean
+      generateMipmaps?: boolean
+    }
+    const texture = new THREE.DataTexture()
+    if (texData.image) texture.image = texData.image
+    else if (texData.data && texData.width && texData.height) texture.image = { data: texData.data, width: texData.width, height: texData.height }
+    if (texData.format) texture.format = texData.format
+    if (texData.type) texture.type = texData.type
+    if (texData.flipY !== undefined) texture.flipY = texData.flipY
+    if (texData.generateMipmaps !== undefined) texture.generateMipmaps = texData.generateMipmaps
+    texture.magFilter = THREE.LinearFilter
+    texture.minFilter = THREE.LinearFilter
+    texture.colorSpace = options.normalMap ? THREE.NoColorSpace : THREE.LinearSRGBColorSpace
+    texture.wrapS = THREE.RepeatWrapping
+    texture.wrapT = THREE.RepeatWrapping
+    texture.needsUpdate = true
+    return texture
+  }
+  const dataUrl = await readProjectAssetDataUrl(normalized)
   if (!dataUrl) return null
   const loader = new THREE.TextureLoader()
   const texture = await loader.loadAsync(dataUrl)

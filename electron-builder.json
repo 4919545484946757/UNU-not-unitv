@@ -20,7 +20,11 @@
     },
     {
       "from": "Sample-project-list",
-      "to": "Sample-project-list"
+      "to": "Sample-project-list",
+      "filter": [
+        "**/*",
+        "!**/.unu-trash/**"
+      ]
     }
   ],
   "win": {

@@ -52,10 +52,10 @@
     </template>
 
     <template v-if="kind === 'environmentLight' || kind === 'worldEnvironment'">
-      <label>Environment Map Path <input :value="textValue('environmentMapPath')" placeholder="assets/images/hdri/equirect.jpg" @input="$emit('set-text', 'environmentMapPath', $event)" /></label>
+      <label>Environment Map Path <input :value="textValue('environmentMapPath')" placeholder="assets/images/hdri/studio.exr" @input="$emit('set-text', 'environmentMapPath', $event)" /></label>
       <div class="asset-picker">
         <button class="small" :disabled="!selectedImageAssetPath || runtimePlaying" @click="$emit('bind-texture', 'environmentMapPath')">Bind Selected Env Map</button>
-        <span>{{ selectedImageAssetPath || 'Select an equirectangular image in Assets' }}</span>
+        <span>{{ selectedImageAssetPath || 'Select an equirectangular image or EXR in Assets' }}</span>
       </div>
       <label>Environment Intensity <input type="number" min="0" step="0.1" :value="numberValue('environmentIntensity', 1)" @input="$emit('set-number', 'environmentIntensity', $event, 0)" /></label>
       <label class="checkbox-row">
@@ -68,9 +68,24 @@
       <label>World Sphere Texture <input :value="textValue('worldTexturePath') || textValue('texturePath')" placeholder="assets/images/sky/panorama.jpg" @input="$emit('set-text', 'worldTexturePath', $event)" /></label>
       <div class="asset-picker">
         <button class="small" :disabled="!selectedImageAssetPath || runtimePlaying" @click="$emit('bind-texture', 'worldTexturePath')">Bind Selected Sky Texture</button>
-        <span>{{ selectedImageAssetPath || 'Select panorama image in Assets' }}</span>
+        <span>{{ selectedImageAssetPath || 'Select panorama image or EXR in Assets' }}</span>
       </div>
       <label>Sky Radius <input type="number" min="10" step="100" :value="numberValue('skyRadius', 4000)" @input="$emit('set-number', 'skyRadius', $event, 10)" /></label>
+      <div class="subgroup">
+        <div class="group-title">Sky Transform</div>
+        <label>Yaw (deg) <input type="number" step="1" :value="numberValue('skyYaw', 0)" @input="$emit('set-number', 'skyYaw', $event)" /></label>
+        <label>Pitch (deg) <input type="number" step="1" :value="numberValue('skyPitch', 0)" @input="$emit('set-number', 'skyPitch', $event)" /></label>
+        <label>Roll (deg) <input type="number" step="1" :value="numberValue('skyRoll', 0)" @input="$emit('set-number', 'skyRoll', $event)" /></label>
+      </div>
+      <div class="subgroup">
+        <div class="group-title">Sky Material</div>
+        <label>Brightness <input type="number" min="0" step="0.1" :value="numberValue('skyBrightness', 1)" @input="$emit('set-number', 'skyBrightness', $event, 0)" /></label>
+        <label>Opacity <input type="number" min="0" max="1" step="0.01" :value="numberValue('skyOpacity', 1)" @input="$emit('set-number', 'skyOpacity', $event, 0, 1)" /></label>
+        <label>Texture Offset X <input type="number" step="0.01" :value="numberValue('skyTextureOffsetX', 0)" @input="$emit('set-number', 'skyTextureOffsetX', $event)" /></label>
+        <label>Texture Offset Y <input type="number" step="0.01" :value="numberValue('skyTextureOffsetY', 0)" @input="$emit('set-number', 'skyTextureOffsetY', $event)" /></label>
+        <label>Texture Repeat X <input type="number" step="0.1" :value="numberValue('skyTextureRepeatX', 1)" @input="$emit('set-number', 'skyTextureRepeatX', $event)" /></label>
+        <label>Texture Repeat Y <input type="number" step="0.1" :value="numberValue('skyTextureRepeatY', 1)" @input="$emit('set-number', 'skyTextureRepeatY', $event)" /></label>
+      </div>
     </template>
 
     <label>
