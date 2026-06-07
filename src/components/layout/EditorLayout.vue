@@ -56,6 +56,8 @@ const mainRef = ref<HTMLDivElement | null>(null)
 const centerStackRef = ref<HTMLDivElement | null>(null)
 const centerStackHeight = ref(0)
 const compactViewport = ref(false)
+const viewportWidth = ref(typeof window === 'undefined' ? 1280 : Math.round(window.visualViewport?.width || window.innerWidth))
+const viewportHeight = ref(typeof window === 'undefined' ? 720 : Math.round(window.visualViewport?.height || window.innerHeight))
 let cleanup: (() => void) | null = null
 let centerStackObserver: ResizeObserver | null = null
 
@@ -91,12 +93,16 @@ function runSceneHistoryAction(action: 'undo' | 'redo') {
   }
 }
 
-const minCenterWidth = computed(() => (compactViewport.value ? COMPACT_MIN_CENTER_WIDTH : MIN_CENTER_WIDTH))
+const minCenterWidth = computed(() => {
+  if (compactViewport.value) return COMPACT_MIN_CENTER_WIDTH
+  if (isAndroidEditorMode) return Math.max(180, Math.min(MIN_CENTER_WIDTH, Math.floor(viewportWidth.value * 0.28)))
+  return MIN_CENTER_WIDTH
+})
 const minSceneViewHeight = computed(() => (compactViewport.value ? COMPACT_MIN_SCENE_VIEW_HEIGHT : MIN_SCENE_VIEW_HEIGHT))
-const minLeftPanelWidth = computed(() => (compactViewport.value ? 128 : 220))
-const minRightPanelWidth = computed(() => (compactViewport.value ? 140 : 240))
-const maxLeftPanelWidth = computed(() => (compactViewport.value ? 420 : 640))
-const maxRightPanelWidth = computed(() => (compactViewport.value ? 460 : 720))
+const minLeftPanelWidth = computed(() => (compactViewport.value ? 112 : (isAndroidEditorMode ? 176 : 220)))
+const minRightPanelWidth = computed(() => (compactViewport.value ? 124 : (isAndroidEditorMode ? 220 : 240)))
+const maxLeftPanelWidth = computed(() => (compactViewport.value ? 420 : (isAndroidEditorMode ? 520 : 640)))
+const maxRightPanelWidth = computed(() => (compactViewport.value ? 460 : (isAndroidEditorMode ? 560 : 720)))
 const focusSceneView = computed(() => runtime.isPlaying && editor.hideChromeDuringPlay)
 const is3DProject = computed(() => project.renderBackend === 'three')
 const showEditorChrome = computed(() => !focusSceneView.value)
@@ -114,7 +120,7 @@ const mainStyle = computed(() => {
 })
 
 const effectiveConsoleHeight = computed(() => {
-  const available = centerStackHeight.value || window.innerHeight
+  const available = centerStackHeight.value || viewportHeight.value
   const minConsole = compactViewport.value ? 68 : 96
   const maxByLayout = Math.max(minConsole, available - minSceneViewHeight.value - 6)
   return Math.min(editor.consoleHeight, maxByLayout)
@@ -148,30 +154,48 @@ watch(
 )
 
 function clampPanelWidths(nextLeft: number, nextRight: number) {
-  const mainWidth = mainRef.value?.clientWidth ?? window.innerWidth
-  const maxLeft = Math.max(
-    minLeftPanelWidth.value,
-    mainWidth - RESIZER_WIDTH * 2 - editor.rightPanelWidth - minCenterWidth.value
-  )
-  const maxRight = Math.max(
-    minRightPanelWidth.value,
-    mainWidth - RESIZER_WIDTH * 2 - editor.leftPanelWidth - minCenterWidth.value
-  )
+  const mainWidth = mainRef.value?.clientWidth ?? viewportWidth.value
+  const resizerWidth = (showLeftPanel.value ? RESIZER_WIDTH : 0) + (showRightPanel.value ? RESIZER_WIDTH : 0)
+  const availablePanelWidth = Math.max(0, mainWidth - resizerWidth - minCenterWidth.value)
+  const leftMin = showLeftPanel.value ? minLeftPanelWidth.value : 0
+  const rightMin = showRightPanel.value ? minRightPanelWidth.value : 0
+  const leftMax = showLeftPanel.value ? maxLeftPanelWidth.value : 0
+  const rightMax = showRightPanel.value ? maxRightPanelWidth.value : 0
+  let left = showLeftPanel.value ? Math.max(leftMin, Math.min(leftMax, nextLeft)) : 0
+  let right = showRightPanel.value ? Math.max(rightMin, Math.min(rightMax, nextRight)) : 0
 
-  return {
-    left: Math.max(minLeftPanelWidth.value, Math.min(Math.min(maxLeftPanelWidth.value, maxLeft), nextLeft)),
-    right: Math.max(minRightPanelWidth.value, Math.min(Math.min(maxRightPanelWidth.value, maxRight), nextRight))
+  const overflow = left + right - availablePanelWidth
+  if (overflow > 0) {
+    const leftRoom = Math.max(0, left - leftMin)
+    const leftReduction = Math.min(leftRoom, overflow)
+    left -= leftReduction
+    const rightReduction = overflow - leftReduction
+    if (rightReduction > 0) {
+      right = Math.max(rightMin, right - rightReduction)
+    }
   }
+
+  return { left, right }
 }
 
 function refreshCompactViewport() {
-  const compact = isAndroidEditorMode && Math.min(window.innerWidth, window.innerHeight) <= 540
+  viewportWidth.value = Math.round(window.visualViewport?.width || window.innerWidth)
+  viewportHeight.value = Math.round(window.visualViewport?.height || window.innerHeight)
+  const compact = isAndroidEditorMode && Math.min(viewportWidth.value, viewportHeight.value) <= 540
   compactViewport.value = compact
   editor.setCompactUi(compact)
-  if (!compact) return
-  if (editor.leftPanelWidth > COMPACT_LEFT_PANEL_WIDTH) editor.setLeftPanelWidth(COMPACT_LEFT_PANEL_WIDTH)
-  if (editor.rightPanelWidth > COMPACT_RIGHT_PANEL_WIDTH) editor.setRightPanelWidth(COMPACT_RIGHT_PANEL_WIDTH)
-  if (editor.consoleHeight > COMPACT_CONSOLE_HEIGHT) editor.setConsoleHeight(COMPACT_CONSOLE_HEIGHT)
+  if (compact) {
+    if (editor.leftPanelWidth > COMPACT_LEFT_PANEL_WIDTH) editor.setLeftPanelWidth(COMPACT_LEFT_PANEL_WIDTH)
+    if (editor.rightPanelWidth > COMPACT_RIGHT_PANEL_WIDTH) editor.setRightPanelWidth(COMPACT_RIGHT_PANEL_WIDTH)
+    if (editor.consoleHeight > COMPACT_CONSOLE_HEIGHT) editor.setConsoleHeight(COMPACT_CONSOLE_HEIGHT)
+  }
+  if (!isAndroidEditorMode) return
+  requestAnimationFrame(() => {
+    const next = clampPanelWidths(editor.leftPanelWidth, editor.rightPanelWidth)
+    if (showLeftPanel.value && next.left !== editor.leftPanelWidth) editor.setLeftPanelWidth(next.left)
+    if (showRightPanel.value && next.right !== editor.rightPanelWidth) editor.setRightPanelWidth(next.right)
+    window.dispatchEvent(new CustomEvent('unu:layout-resize-end'))
+  })
 }
 
 function startResize(side: 'left' | 'right', event: PointerEvent) {
@@ -343,6 +367,7 @@ onMounted(() => {
   refreshCompactViewport()
   window.addEventListener('keydown', handleGlobalShortcut)
   window.addEventListener('resize', refreshCompactViewport)
+  window.visualViewport?.addEventListener('resize', refreshCompactViewport)
   window.addEventListener('beforeunload', handleBeforeUnload)
   centerStackObserver = new ResizeObserver((entries) => {
     const height = entries[0]?.contentRect.height || centerStackRef.value?.clientHeight || 0
@@ -360,6 +385,7 @@ onBeforeUnmount(() => {
   centerStackObserver = null
   window.removeEventListener('keydown', handleGlobalShortcut)
   window.removeEventListener('resize', refreshCompactViewport)
+  window.visualViewport?.removeEventListener('resize', refreshCompactViewport)
   window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 </script>

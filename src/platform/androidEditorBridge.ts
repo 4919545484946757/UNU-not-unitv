@@ -75,6 +75,16 @@ const ANDROID_SAMPLE_PROJECTS = [
     tags: ['android', '2d', 'arcade', 'snake']
   },
   {
+    id: 'android-2d-shooting-canvas',
+    rootPath: 'android://2D-shooting-canvas',
+    title: '2D Shooting Canvas (Android)',
+    description: '内置 Android 原生 Canvas 2D 射击示例，包含移动、射击、背包、容器 UI、场景切换和项目本地脚本。',
+    bundleBase: '__samples/2D-shooting-canvas/',
+    manifestPath: 'android-game/__samples/2D-shooting-canvas/manifest.json',
+    entryScene: 'MainScene.scene.json',
+    tags: ['android', '2d', 'shooting', 'canvas2d']
+  },
+  {
     id: 'android-3d',
     rootPath: 'android://3D',
     title: '3D Sample (Android)',

@@ -812,7 +812,14 @@ export class ThreeRenderer implements SceneRenderer {
         standard.roughness = Math.max(0, Math.min(1, Number(three?.roughness ?? standard.roughness ?? 0.65)))
         if (hasOpacityOverride) {
           standard.opacity = opacity
-          standard.transparent = opacity < 1
+        }
+        const effectiveOpacity = hasOpacityOverride ? opacity : Math.max(0, Math.min(1, Number(standard.opacity ?? 1)))
+        standard.opacity = effectiveOpacity
+        standard.transparent = effectiveOpacity < 0.999
+        standard.depthTest = true
+        standard.depthWrite = !standard.transparent
+        if ('forceSinglePass' in standard) {
+          ;(standard as THREE.MeshStandardMaterial & { forceSinglePass?: boolean }).forceSinglePass = true
         }
         if (map) standard.map = map
         if (normalMap) standard.normalMap = normalMap
@@ -863,6 +870,11 @@ export class ThreeRenderer implements SceneRenderer {
         if (typeof override.opacity === 'number' && Number.isFinite(override.opacity)) {
           standard.opacity = Math.max(0, Math.min(1, override.opacity))
           standard.transparent = standard.opacity < 1
+          standard.depthWrite = !standard.transparent
+        }
+        standard.depthTest = true
+        if ('forceSinglePass' in standard) {
+          ;(standard as THREE.MeshStandardMaterial & { forceSinglePass?: boolean }).forceSinglePass = true
         }
         standard.needsUpdate = true
       }

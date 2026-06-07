@@ -15,6 +15,11 @@ const samples = [
     target: path.join(target, '__samples', 'snake')
   },
   {
+    id: '2D-shooting-canvas',
+    source: path.join(root, 'Sample-project-list', '2D-shooting-canvas'),
+    target: path.join(target, '__samples', '2D-shooting-canvas')
+  },
+  {
     id: '3D',
     source: path.join(root, 'Sample-project-list', '3D'),
     target: path.join(target, '__samples', '3D')
@@ -26,7 +31,50 @@ async function copyIfExists(source, target, name) {
   const to = path.join(target, name)
   const stat = await fs.stat(from).catch(() => null)
   if (!stat) return
-  await fs.cp(from, to, { recursive: true, force: true })
+  await copyGeneratedEntry(from, to, stat)
+}
+
+async function copyGeneratedEntry(from, to, knownStat = null) {
+  const stat = knownStat || await fs.stat(from).catch(() => null)
+  if (!stat) return
+  if (stat.isDirectory()) {
+    await fs.mkdir(to, { recursive: true })
+    const entries = await fs.readdir(from, { withFileTypes: true })
+    for (const entry of entries) {
+      await copyGeneratedEntry(path.join(from, entry.name), path.join(to, entry.name))
+    }
+    return
+  }
+  if (!stat.isFile()) return
+
+  await fs.mkdir(path.dirname(to), { recursive: true })
+  const sourceBuffer = await fs.readFile(from)
+  const targetBuffer = await fs.readFile(to).catch(() => null)
+  if (targetBuffer && Buffer.compare(sourceBuffer, targetBuffer) === 0) return
+  await fs.writeFile(to, sourceBuffer).catch((error) => {
+    if (error?.code === 'EPERM') {
+      console.warn(`Skipped locked generated file: ${path.relative(root, to)}`)
+      return
+    }
+    throw error
+  })
+}
+
+async function resetGeneratedTarget(targetPath) {
+  try {
+    await fs.rm(targetPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 })
+    return
+  } catch (error) {
+    if (error?.code !== 'EPERM') throw error
+  }
+
+  const entries = await fs.readdir(targetPath, { withFileTypes: true }).catch(() => [])
+  for (const entry of entries) {
+    const childPath = path.join(targetPath, entry.name)
+    await fs.rm(childPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 }).catch((error) => {
+      if (error?.code !== 'EPERM') throw error
+    })
+  }
 }
 
 async function main() {
@@ -37,7 +85,7 @@ async function main() {
       throw new Error(`Android sample source is missing: ${sample.source}`)
     }
 
-    await fs.rm(sample.target, { recursive: true, force: true })
+    await resetGeneratedTarget(sample.target)
     await fs.mkdir(sample.target, { recursive: true })
 
     for (const name of ['project.json', 'manifest.json', 'scenes', 'assets', 'prefabs']) {

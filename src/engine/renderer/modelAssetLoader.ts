@@ -137,6 +137,28 @@ function dataUrlToArrayBuffer(dataUrl: string) {
   return dataUrlToBlob(dataUrl).arrayBuffer()
 }
 
+const HALF_FLOAT_MAX = 65504
+
+function createExrLoader() {
+  const loader = new EXRLoader()
+  loader.setDataType(THREE.FloatType)
+  return loader
+}
+
+function sanitizeHdrTextureData(texture: THREE.Texture) {
+  const image = (texture as THREE.DataTexture).image as { data?: ArrayLike<number> & { [index: number]: number } } | undefined
+  const data = image?.data
+  if (!data || typeof data.length !== 'number') return texture
+  for (let index = 0; index < data.length; index += 1) {
+    const value = Number(data[index])
+    if (!Number.isFinite(value)) data[index] = 0
+    else if (value > HALF_FLOAT_MAX) data[index] = HALF_FLOAT_MAX
+    else if (value < -HALF_FLOAT_MAX) data[index] = -HALF_FLOAT_MAX
+  }
+  texture.needsUpdate = true
+  return texture
+}
+
 export async function readProjectAssetDataUrl(relativePath: string) {
   const project = useProjectStore()
   const normalized = normalizeAssetPath(relativePath)
@@ -289,10 +311,11 @@ export async function loadThreeTexture(texturePath: string, options: { normalMap
   const normalized = normalizeAssetPath(texturePath)
   if (!normalized) return null
   if (/\.exr$/i.test(normalized)) {
-    const loader = new EXRLoader()
+    const loader = createExrLoader()
     const assetUrl = await readProjectAssetUrl(normalized)
     if (assetUrl?.url) {
       const texture = await loader.loadAsync(assetUrl.url)
+      sanitizeHdrTextureData(texture)
       texture.colorSpace = options.normalMap ? THREE.NoColorSpace : THREE.LinearSRGBColorSpace
       texture.wrapS = THREE.RepeatWrapping
       texture.wrapT = THREE.RepeatWrapping
@@ -325,6 +348,7 @@ export async function loadThreeTexture(texturePath: string, options: { normalMap
     texture.colorSpace = options.normalMap ? THREE.NoColorSpace : THREE.LinearSRGBColorSpace
     texture.wrapS = THREE.RepeatWrapping
     texture.wrapT = THREE.RepeatWrapping
+    sanitizeHdrTextureData(texture)
     texture.needsUpdate = true
     return texture
   }

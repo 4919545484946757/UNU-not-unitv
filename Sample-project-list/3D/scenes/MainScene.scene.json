@@ -954,8 +954,8 @@
         ]
       },
       {
-        "id": "three-model_w8fjwi",
-        "name": "Entity",
+        "id": "three-world-environment_y3atey",
+        "name": "World",
         "components": [
           {
             "type": "Transform",
@@ -963,8 +963,8 @@
               "type": "Transform",
               "x": 0,
               "y": 0,
-              "scaleX": 1,
-              "scaleY": 1,
+              "scaleX": 0,
+              "scaleY": 0,
               "rotation": 0,
               "anchorX": 0.5,
               "anchorY": 0.5,
@@ -972,8 +972,72 @@
               "positionMode": "world",
               "viewportHorizontal": "center",
               "viewportVertical": "middle",
-              "z": 54.2921,
-              "scaleZ": 1,
+              "z": 0,
+              "scaleZ": 0,
+              "rotationX": 0,
+              "rotationY": 0,
+              "rotationZ": 0
+            }
+          },
+          {
+            "type": "Sprite",
+            "data": {
+              "type": "Sprite",
+              "texturePath": "",
+              "width": 32,
+              "height": 32,
+              "visible": true,
+              "alpha": 1,
+              "tint": 16773808,
+              "preserveAspect": true,
+              "offsetX": 0,
+              "offsetY": 0,
+              "showDebugFrame": true
+            }
+          },
+          {
+            "type": "ThreeObject",
+            "data": {
+              "kind": "worldEnvironment",
+              "intensity": 1.3,
+              "targetY": 0,
+              "targetZ": 0,
+              "environmentMapPath": "assets/images/horn-koppe_snow_1k.exr",
+              "worldTexturePath": "",
+              "environmentIntensity": 0.2,
+              "skyRadius": 10,
+              "texturePath": "",
+              "showAsBackground": false,
+              "color": 16777215,
+              "opacity": 0,
+              "normalMapPath": "",
+              "skyRoll": 0,
+              "skyPitch": 90
+            }
+          }
+        ]
+      },
+      {
+        "id": "three-model_ofnrcm",
+        "name": "Entity",
+        "components": [
+          {
+            "type": "Transform",
+            "data": {
+              "type": "Transform",
+              "x": 80.664,
+              "y": 0,
+              "scaleX": 2.2983,
+              "scaleY": 2.2983,
+              "rotation": 0,
+              "anchorX": 0.5,
+              "anchorY": 0.5,
+              "zIndex": 5,
+              "positionMode": "world",
+              "viewportHorizontal": "center",
+              "viewportVertical": "middle",
+              "z": 48,
+              "scaleZ": 2.2983,
               "rotationX": 1.5708,
               "rotationY": 3.1416,
               "rotationZ": 0
@@ -1018,9 +1082,9 @@
                 "Sensor"
               ],
               "showDebugFrame": true,
-              "depth": 96,
-              "radius": 48,
-              "capsuleHeight": 96,
+              "depth": 80,
+              "radius": 40,
+              "capsuleHeight": 120,
               "offsetZ": 0
             }
           },
@@ -1028,6 +1092,8 @@
             "type": "ThreeObject",
             "data": {
               "kind": "model",
+              "width": 96,
+              "height": 96,
               "depth": 96,
               "metalness": 0.02,
               "roughness": 0.65,
@@ -1035,152 +1101,57 @@
               "color": 16777215,
               "texturePath": "",
               "normalMapPath": "",
-              "modelPath": "assets/models/b8e3a6266f424423b74309f457a0382a.gltf",
-              "modelNodeOverrides": {
-                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/4:Aoi_Swimsuit_1_0": {
-                  "visible": true
-                },
-                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/5:Aoi_cs_solid_black001_0": {
-                  "visible": false
-                },
-                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/2:Aoi_Hair_0": {
-                  "visible": true
-                },
-                "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/3:Aoi_Hair_Outline_0": {
-                  "visible": true
-                }
-              },
+              "modelPath": "assets/models/afc75be6236949e58121651a117148b2.gltf",
+              "modelNodeOverrides": {},
               "modelHierarchy": [
                 {
-                  "name": "RootNode",
-                  "path": "0:RootNode",
+                  "name": "Body",
+                  "path": "0:Body",
                   "type": "group",
                   "children": [
                     {
-                      "name": "Aoi_-_Bikini_Girl",
-                      "path": "0:RootNode/0:Aoi_-_Bikini_Girl",
-                      "type": "group",
-                      "children": [
-                        {
-                          "name": "RootNode_1",
-                          "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1",
-                          "type": "group",
-                          "children": [
-                            {
-                              "name": "Aoi",
-                              "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi",
-                              "type": "group",
-                              "children": [
-                                {
-                                  "name": "Aoi_Skin_0",
-                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/0:Aoi_Skin_0",
-                                  "type": "mesh",
-                                  "children": []
-                                },
-                                {
-                                  "name": "Aoi_Outline-black_0",
-                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/1:Aoi_Outline-black_0",
-                                  "type": "mesh",
-                                  "children": []
-                                },
-                                {
-                                  "name": "Aoi_Hair_0",
-                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/2:Aoi_Hair_0",
-                                  "type": "mesh",
-                                  "children": []
-                                },
-                                {
-                                  "name": "Aoi_Hair_Outline_0",
-                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/3:Aoi_Hair_Outline_0",
-                                  "type": "mesh",
-                                  "children": []
-                                },
-                                {
-                                  "name": "Aoi_Swimsuit_1_0",
-                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/4:Aoi_Swimsuit_1_0",
-                                  "type": "mesh",
-                                  "children": []
-                                },
-                                {
-                                  "name": "Aoi_cs_solid_black001_0",
-                                  "path": "0:RootNode/0:Aoi_-_Bikini_Girl/0:RootNode_1/0:Aoi/5:Aoi_cs_solid_black001_0",
-                                  "type": "mesh",
-                                  "children": []
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
+                      "name": "body_1",
+                      "path": "0:Body/0:body_1",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_2",
+                      "path": "0:Body/1:body_2",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_3",
+                      "path": "0:Body/2:body_3",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_4",
+                      "path": "0:Body/3:body_4",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_5",
+                      "path": "0:Body/4:body_5",
+                      "type": "mesh",
+                      "children": []
+                    },
+                    {
+                      "name": "body_6",
+                      "path": "0:Body/5:body_6",
+                      "type": "mesh",
+                      "children": []
                     }
                   ]
                 }
               ],
-              "modelAnimationClips": []
-            }
-          }
-        ]
-      },
-      {
-        "id": "three-world-environment_y3atey",
-        "name": "World",
-        "components": [
-          {
-            "type": "Transform",
-            "data": {
-              "type": "Transform",
-              "x": 0,
-              "y": 0,
-              "scaleX": 0,
-              "scaleY": 0,
-              "rotation": 0,
-              "anchorX": 0.5,
-              "anchorY": 0.5,
-              "zIndex": 5,
-              "positionMode": "world",
-              "viewportHorizontal": "center",
-              "viewportVertical": "middle",
-              "z": 0,
-              "scaleZ": 0,
-              "rotationX": 0,
-              "rotationY": 0,
-              "rotationZ": 0
-            }
-          },
-          {
-            "type": "Sprite",
-            "data": {
-              "type": "Sprite",
-              "texturePath": "",
-              "width": 32,
-              "height": 32,
-              "visible": true,
-              "alpha": 1,
-              "tint": 16773808,
-              "preserveAspect": true,
-              "offsetX": 0,
-              "offsetY": 0,
-              "showDebugFrame": true
-            }
-          },
-          {
-            "type": "ThreeObject",
-            "data": {
-              "kind": "worldEnvironment",
-              "intensity": 1.3,
-              "targetY": 0,
-              "targetZ": 0,
-              "environmentMapPath": "assets/images/qwantani_moon_noon_puresky_4k.exr",
-              "worldTexturePath": "",
-              "environmentIntensity": 0.2,
-              "skyRadius": 10,
-              "texturePath": "",
-              "showAsBackground": false,
-              "color": 16777215,
-              "opacity": 0,
-              "normalMapPath": "",
-              "skyRoll": 0,
-              "skyPitch": 90
+              "modelAnimationClips": [],
+              "modelAnimationLoop": true,
+              "modelAnimationEnabled": true,
+              "modelAnimationSpeed": 1
             }
           }
         ]
